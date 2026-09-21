@@ -1,0 +1,8 @@
+/cache/
+/out/
+/sources/
+/private/
+/tools/local/
+__pycache__/
+*.pyc
+.env

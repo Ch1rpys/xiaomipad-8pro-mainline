@@ -1,0 +1,38 @@
+Third-party attribution
+
+tools/fetch-aosp-mkbootimg.sh:
+  Adapted from the liuqin mainline project.
+  Repository: https://github.com/yzddmr6/xiaomipad-6pro-mainline
+  Source commit: 7df47f82f6e6ca5a04ab02fbcc4a3486c6a259be
+  Source path: tools/fetch-aosp-mkbootimg.sh
+  License: MIT; full original notice in LICENSES/liuqin-MIT.txt.
+  Changes: retrieve the same pinned commit using Git instead of a generated
+  Gitiles archive; retain script content hashes and reject modified checkouts.
+  This local reference commit is not assumed to be available on the public remote.
+
+The fetched AOSP source is a separate checkout. Its per-file copyright and
+license headers are preserved; it is not included in this repository.
+
+tools/fetch-busybox-arm64.sh:
+  Adapted from the same liuqin commit, tools/fetch-busybox-arm64.sh (MIT).
+  Changes: HTTPS Ubuntu Ports URL and explicit download/extraction directories.
+  The downloaded BusyBox binary is a separate GPL-licensed Ubuntu package.
+
+tools/prepare-ubuntu-desktop.sh:
+  Adapted from the same liuqin commit,
+  tools/build-liuqin-ubuntu-desktop-rootfs.sh (MIT).
+  Retains original ISO and casper layer identities and 7z extraction.
+  Provides only unprivileged original-layer preparation; no rootfs mutation.
+
+tools/build-kernel.sh, tools/build-initramfs.sh, initramfs/init,
+initramfs/usb-acm:
+  Adapted from the erhai integration project, commit
+  e02d52ffc7859aba2b41a257b7a9dca73c9dbedb, with the same source paths.
+  License: GPL-2.0-only; see LICENSES/GPL-2.0-only.txt.
+  Changes: piano diagnostic names, pinned kernel input, reference-only DTB
+  targets, minimal ACM ramdisk without board firmware, explicit build inputs
+  and a bounded diagnostic reboot timer. The original authorship is retained
+  in the independent source snapshot; no public source URL is assumed.
+
+No stock ROM, device firmware, calibration, keys or device backups are distributed
+by this repository. Kernel and other dependencies retain their own licenses.

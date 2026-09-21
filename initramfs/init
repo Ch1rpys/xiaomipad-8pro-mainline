@@ -1,0 +1,49 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+export PATH=/bin
+
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev
+mkdir -p /dev/pts /run /sys/kernel/config
+mount -t devpts devpts /dev/pts
+mount -t tmpfs tmpfs /run
+exec </dev/console >/dev/console 2>&1
+
+echo 'PIANO_RAM_INIT: storage is not mounted; bounded diagnostic session'
+uname -a
+cat /etc/build-id
+
+timeout_seconds=180
+console_only=false
+for arg in $(cat /proc/cmdline); do
+	[ "$arg" != piano.diag=console ] || console_only=true
+	case "$arg" in piano.diag_timeout=*) timeout_seconds=${arg#*=} ;; esac
+done
+
+case "$timeout_seconds" in *[!0-9]*|'') timeout_seconds=180 ;; esac
+[ "$timeout_seconds" -ge 15 ] 2>/dev/null && [ "$timeout_seconds" -le 900 ] 2>/dev/null || timeout_seconds=180
+(
+	sleep "$timeout_seconds"
+	echo "PIANO_DIAG_TIMEOUT: rebooting after $timeout_seconds seconds"
+	reboot -f
+) &
+
+if [ "$console_only" = false ]; then
+	if /bin/usb-acm; then
+		(
+			while :; do
+				getty -L -n -l /bin/sh ttyGS0 115200 vt100
+				sleep 1
+			done
+		) &
+	else
+		echo 'PIANO_ACM: setup failed; inspect console/dmesg'
+	fi
+fi
+
+echo 'PIANO_CONSOLE_READY'
+while :; do
+	setsid cttyhack /bin/sh
+	sleep 1
+done

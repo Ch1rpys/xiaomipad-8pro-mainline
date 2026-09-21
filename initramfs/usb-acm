@@ -1,0 +1,32 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+set -e
+mount -t configfs configfs /sys/kernel/config
+g=/sys/kernel/config/usb_gadget/piano-diag
+mkdir "$g"
+# Linux gadget development IDs, not a production USB identity.
+echo 0x1d6b >"$g/idVendor"
+echo 0x0104 >"$g/idProduct"
+mkdir -p "$g/strings/0x409" "$g/configs/c.1/strings/0x409"
+echo piano-diag >"$g/strings/0x409/serialnumber"
+echo 'piano Linux development' >"$g/strings/0x409/manufacturer"
+echo 'RAM diagnostic console' >"$g/strings/0x409/product"
+echo 'ACM diagnostic console' >"$g/configs/c.1/strings/0x409/configuration"
+echo 100 >"$g/configs/c.1/MaxPower"
+mkdir "$g/functions/acm.GS0"
+ln -s "$g/functions/acm.GS0" "$g/configs/c.1/acm.GS0"
+udc=
+i=0
+while [ "$i" -lt 10 ]; do
+	for path in /sys/class/udc/*; do
+		[ -e "$path" ] || continue
+		udc=${path##*/}
+		break
+	done
+	[ -z "$udc" ] || break
+	i=$((i + 1))
+	sleep 1
+done
+[ -n "$udc" ] || { echo 'PIANO_ACM: no UDC'; exit 1; }
+echo "$udc" >"$g/UDC"
+echo "PIANO_ACM: bound to $udc; development root console on ttyGS0"
