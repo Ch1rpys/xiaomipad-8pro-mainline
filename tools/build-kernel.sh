@@ -78,17 +78,17 @@ while IFS= read -r setting; do
 done <"$fragment"
 
 printf 'Building %s with %s (%s jobs)\n' "$head" "$toolchain" "$jobs"
-make "${args[@]}" -j"$jobs" Image qcom/sm8750-qrd.dtb qcom/sm8750-mtp.dtb 2>&1 | tee "$out/build.log"
+make "${args[@]}" -j"$jobs" Image qcom/sm8750-xiaomi-piano.dtb 2>&1 | tee "$out/build.log"
 [[ $(git -C "$src" rev-parse HEAD) == "$head" && -z $(git -C "$src" status --porcelain --untracked-files=no) ]] || {
 	echo 'Source changed during build; output must not be used.' >&2; exit 1;
 }
 python3 - "$out" "$head" "$toolchain" <<'PY'
 import hashlib, json, pathlib, sys
 out, head, compiler = pathlib.Path(sys.argv[1]), *sys.argv[2:]
-files = ['arch/arm64/boot/Image', 'arch/arm64/boot/dts/qcom/sm8750-qrd.dtb', 'arch/arm64/boot/dts/qcom/sm8750-mtp.dtb', '.config']
+files = ['arch/arm64/boot/Image', 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano.dtb', '.config']
 result = {'status': 'OFFLINE_BUILD_ONLY', 'kernel_commit': head, 'compiler': compiler,
-          'note': 'Offline platform compilation only. QRD/MTP DTBs are not piano boot inputs.',
+          'note': 'RAM-only piano skeleton. Building does not establish hardware support.',
           'files': {f: hashlib.sha256((out / f).read_bytes()).hexdigest() for f in files}}
 (out / 'build-result.json').write_text(json.dumps(result, indent=2) + '\n')
 PY
-echo "Reference platform build complete: $out/build-result.json (not a tablet boot image)"
+echo "Piano kernel build complete: $out/build-result.json (boot packaging is separate)"

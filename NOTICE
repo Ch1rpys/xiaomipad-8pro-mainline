@@ -36,3 +36,13 @@ initramfs/usb-acm:
 
 No stock ROM, device firmware, calibration, keys or device backups are distributed
 by this repository. Kernel and other dependencies retain their own licenses.
+
+tools/build-boot.py and tools/prepare-boot-dtb.py:
+  Adapted from erhai commit e02d52ffc7859aba2b41a257b7a9dca73c9dbedb,
+  tools/build-mainline-boot.py and tools/build-erhai-abl-symbols.py.
+  License: GPL-2.0-only.
+  Changes: piano v2 container inputs, one RAM-only diagnostic profile, explicit
+  input paths and build identities; libfdt structured property APIs instead of
+  DTS text parsing; only the selected stock overlay's requested symbols are
+  isolated below a disabled parent. A real libufdt merge verifies that mainline
+  hardware properties stay intact. Runtime ABL behavior still needs device testing.

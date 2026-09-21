@@ -3,9 +3,9 @@
 目标是在 Xiaomi Pad 8 Pro（piano / SM8750）上原生运行主线系 Linux 与 Ubuntu ARM64 桌面。
 [English](README.md)
 
-**当前处于离线调研阶段。没有可安装镜像，尚无 piano 真机功能通过记录。**
-本仓库提供固定源码的 SM8750 参考平台构建、最小诊断 ramdisk、官方 Ubuntu 桌面层提取，
-以及 AOSP boot 工具获取入口。它们还不能组成 piano 启动镜像。
+**当前处于主线 RAM 首启准备阶段。没有可安装镜像，尚无 piano 主线真机功能通过记录。**
+本仓库提供最小 piano 内核/DTS 构建、诊断 ramdisk、原厂 overlay 隔离打包和 RAM 镜像生成，
+以及官方 Ubuntu 桌面层提取。候选仅离线验证，不能视作已能在平板上运行的系统。
 
 ## 仓库分工
 

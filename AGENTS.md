@@ -7,4 +7,4 @@
 - Report this device's tested behavior only. Research and successful compilation do not establish hardware support.
 - Keep device-specific runtime changes packaged and use standard Ubuntu interfaces where possible.
 - Do not publish raw device records, credentials, stock backups or firmware without a redistribution basis.
-- Validate changes in proportion to their scope. No hardware operations are part of this repository's initial research stage.
+- Validate changes in proportion to their scope. Keep offline construction separate from hardware tests; build and packaging tools must not implicitly access or modify a device.

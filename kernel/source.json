@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "purpose": "offline platform diagnostics, not a piano boot image",
+  "purpose": "piano RAM-only bring-up; no installed system or peripheral support claim",
   "upstream_url": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git",
   "upstream_tag": "v7.2.6",
   "upstream_commit": "500df175a7f9e6bc1a9c328590ca5150f84f9ff0",
   "url": null,
-  "commit": "e464483925ebb2aa70540e17ddae2906c7887f93",
+  "commit": "5710f45b6f9ce0222b1dbd363d1767ca50dfda5d",
   "branch": "piano/dev",
   "config": "arch/arm64/configs/piano-diagnostic.config",
   "note": "The project kernel remote is not published. Supply the independent local checkout as KERNEL_SOURCE; no remote build reproducibility is claimed yet."
