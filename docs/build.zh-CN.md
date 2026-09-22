@@ -83,6 +83,32 @@ UBUNTU_ISO=/path/to/ubuntu-26.04-desktop-arm64.iso OUT_DIR="$PWD/out/ubuntu-desk
   bash tools/prepare-ubuntu-desktop.sh
 ```
 
-只提取 minimal.squashfs 和 minimal.standard.squashfs，保留原始 ownership/xattrs 在压缩文件中。
+该入口只提取 minimal.squashfs 和 minimal.standard.squashfs，保留原始 ownership/xattrs。
 不应用语言裁剪/live 安装器层，不带入旧项目修改。layers.json 记录顺序和身份。
-当前没有展开可写根树、配置用户、安装设备 deb 或对平板启动；后续装配需要正确保留权限和特殊文件。
+
+## 无 Root 合并桌面层
+
+在已核验的两层之上，使用 squashfs-tools-ng 的 sqfs2tar 保留元数据并转换为 TAR；
+不要用普通用户解压目录，也不要把 overlay 删除标记当作最终设备文件。
+本项目验证版本为 squashfs-tools-ng 1.2.0 和宿主 sqfstar，构建不运行 ARM64 程序，不需要 sudo。
+
+```sh
+mkdir -p out/desktop-tars
+sqfs2tar --root-becomes . --no-skip out/ubuntu-desktop-layers/minimal.squashfs \
+  > out/desktop-tars/minimal.tar
+sqfs2tar --root-becomes . --no-skip out/ubuntu-desktop-layers/minimal.standard.squashfs \
+  > out/desktop-tars/minimal.standard.tar
+python3 tools/merge-desktop-tars.py \
+  --base out/desktop-tars/minimal.tar --desktop out/desktop-tars/minimal.standard.tar \
+  --output out/ubuntu-desktop-pristine
+python3 tools/test-merge-desktop-tars.py
+```
+
+输入 TAR 必须来自上述原始层转换。输出为带数值属主/PAX 扩展属性的 TAR 和 zstd SquashFS，
+无需把伪装为 root 的展开目录交给安装器。构建器处理字符设备 0:0 whiteout（包括其硬链接）、
+opaque 目录及替换后仍须保留旧内容的硬链接，去除 overlay 内部 bookkeeping。
+遇到 redirect/metacopy、未知 overlay 属性或根目录 xattrs 会停止，不宣称支持所有 OverlayFS 变体。
+sqfstar 默认忽略 TAR 根目录项，因此构建器从归档显式传入根目录 UID/GID/mode/mtime。
+
+这是官方 Desktop 的原始合并底层，不是 piano 安装镜像：尚未创建用户、更新 APT、加入设备包、
+配置启动链或验证 GNOME 真机运行。不要把此 SquashFS 直接写入平板分区。

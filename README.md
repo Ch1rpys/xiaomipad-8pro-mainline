@@ -17,8 +17,8 @@ checkout. Git, Python 3, sha256sum and initial network access are required.
 This does not access a tablet or create a bootable piano image.
 
 An initial piano DTS, bounded diagnostic ramdisk, packaging-only stock overlay
-isolation and RAM boot-image generation are available, alongside original Ubuntu
-Desktop layer preparation; see [build notes](docs/build.zh-CN.md).
+isolation and RAM boot-image generation are available, alongside unprivileged
+Ubuntu Desktop layer merging that preserves inode metadata; see [build notes](docs/build.zh-CN.md).
 The candidate is offline-verified only. It has no USB, display or storage support.
 
 Original project code is MIT unless stated otherwise. Imported code retains its

@@ -46,3 +46,13 @@ tools/build-boot.py and tools/prepare-boot-dtb.py:
   DTS text parsing; only the selected stock overlay's requested symbols are
   isolated below a disabled parent. A real libufdt merge verifies that mainline
   hardware properties stay intact. Runtime ABL behavior still needs device testing.
+
+tools/merge-desktop-tars.py:
+  Adapted from erhai commit e02d52ffc7859aba2b41a257b7a9dca73c9dbedb,
+  tools/overlay-merge-squashfs.py (GPL-2.0-only).
+  Changes: uncompressed sqfs2tar inputs with numeric owners and PAX xattrs;
+  inode whiteouts including hardlinked whiteouts, opaque directories, and
+  hardlink targets replaced by an upper layer; strip overlay bookkeeping;
+  explicitly preserve root inode metadata when invoking sqfstar.
+  Redirect/metacopy layers and root xattrs are rejected, not approximated.
+tools/test-merge-desktop-tars.py is new GPL-2.0-only regression coverage.
