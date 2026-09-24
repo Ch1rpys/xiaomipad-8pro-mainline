@@ -3,7 +3,8 @@
 """Prepare a piano packaging DTB for the unchanged stock DTBO.
 
 Uses the erhai packaging-only overlay isolation method (see NOTICE), but only
-exports symbols actually requested by this overlay. Hardware DTS stays clean.
+exports this overlay's symbols plus the observed Gunyah timer contract.
+Hardware DTS stays clean.
 Requires python3-libfdt and the AOSP ufdt_apply_overlay test tool.
 """
 import argparse
@@ -83,11 +84,26 @@ def main():
     phandles = [int.from_bytes(props[name], 'big')
                 for props in original.values() for name in ('phandle', 'linux,phandle')
                 if name in props]
-    mainline.setprop_u32(mainline.path_offset(target), 'phandle', max(phandles, default=0) + 1)
+    next_phandle = max(phandles, default=0) + 1
+    mainline.setprop_u32(mainline.path_offset(target), 'phandle', next_phandle)
+    # Piano's RM adds always-on to &arch_timer for primary VM 3. This is a
+    # firmware reference to the real timer, not part of the stock board sink.
+    if 'arch_timer' in fixups:
+        parser.error('Board overlay now targets arch_timer; review before exposing it')
+    timer_path = '/timer'
+    timer = mainline.path_offset(timer_path)
+    if 'arm,armv8-timer' not in mainline.getprop(timer, 'compatible').as_stringlist():
+        parser.error('Expected the mainline architectural timer')
+    timer_phandle = mainline.get_phandle(timer)
+    if not timer_phandle:
+        timer_phandle = next_phandle + 1
+        mainline.setprop_u32(timer, 'phandle', timer_phandle)
     mainline.add_subnode(0, '__symbols__')
     for name in sorted(fixups):
         mainline.setprop_str(mainline.path_offset('/__symbols__'), name, target)
+    mainline.setprop_str(mainline.path_offset('/__symbols__'), 'arch_timer', timer_path)
     mainline.pack()
+    prepared = tree(mainline)
     packaged = out / 'piano-boot.dtb'
     packaged.write_bytes(mainline.as_bytearray())
     merged_path = out / 'stock-overlay-simulated.dtb'
@@ -96,10 +112,10 @@ def main():
     merged = tree(libfdt.Fdt(merged_path.read_bytes()))
     if merged[parent].get('status') != b'disabled\0':
         raise RuntimeError('Stock overlay escaped the disabled parent')
-    # Root identity is allowed to change; every existing hardware property must
-    # remain byte-identical after the real libufdt merge, not just compile.
-    for path, props in original.items():
-        if path != '/' and merged.get(path) != props:
+    # Compare the real board merge against the prepared baseline, which adds
+    # only the timer handle. Runtime modifications are checked separately.
+    for path in original:
+        if path != '/' and merged.get(path) != prepared[path]:
             raise RuntimeError(f'Stock overlay changed mainline hardware: {path}')
     identity = {'model', 'compatible', 'qcom,msm-id', 'qcom,board-id', 'xiaomi,miboard-id'}
     for name in (original['/'].keys() | merged['/'].keys()) - identity:
@@ -111,8 +127,10 @@ def main():
         raise RuntimeError(f'Unexpected stock nodes outside isolation: {unexpected[:5]}')
     report = {
         'status': 'OFFLINE_OVERLAY_VERIFIED_RUNTIME_UNTESTED',
-        'method': 'Only stock overlay fixups point below a disabled packaging-only parent',
+        'method': 'Stock board fixups isolated; observed Gunyah arch_timer symbol resolves to the real timer',
         'fixup_count': len(fixups), 'hardware_nodes_unchanged': len(original) - 1,
+        'hardware_comparison_baseline': 'Prepared DTB, including the explicitly added timer phandle',
+        'runtime_symbols': {'arch_timer': {'path': timer_path, 'phandle': timer_phandle}},
         'stock_overlay_may_replace_root_identity': True,
         'inputs_sha256': {key: digest(getattr(args, key)) for key in
                           ('mainline_dtb', 'stock_base', 'stock_overlay', 'ufdt')},

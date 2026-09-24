@@ -46,6 +46,8 @@ tools/build-boot.py and tools/prepare-boot-dtb.py:
   DTS text parsing; only the selected stock overlay's requested symbols are
   isolated below a disabled parent. A real libufdt merge verifies that mainline
   hardware properties stay intact. Runtime ABL behavior still needs device testing.
+  The piano RM primary-VM timer contract now exports arch_timer to the actual
+  mainline /timer node, separately from the isolated stock board symbols.
 
 tools/merge-desktop-tars.py:
   Adapted from erhai commit e02d52ffc7859aba2b41a257b7a9dca73c9dbedb,

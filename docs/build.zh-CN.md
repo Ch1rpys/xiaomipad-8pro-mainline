@@ -62,11 +62,14 @@ python3 tools/build-boot.py \
   --mkbootimg tools/local/aosp-mkbootimg/mkbootimg.py --output out/ram-boot
 ```
 
-prepare-boot-dtb 只导出指定 DTBO 引用的符号，指向 disabled 父节点下的隔离区；
-真正用 libufdt 合成并确认既有主线硬件属性不变。它不改内核 DTS，不导入整份原厂符号表，
+prepare-boot-dtb 将指定磁盘 DTBO 引用的符号指向 disabled 父节点下的隔离区，
+另将本机 RM 已核实的 arch_timer 运行时引用导出到真实 /timer（必要时为其生成 phandle）。
+真正用 libufdt 合成并确认磁盘 overlay 不改变打包基线的主线硬件属性。它不改内核 DTS，不导入整份原厂符号表，
 也不修改平板上的 DTBO。根 compatible/model 仍可能被原厂 overlay 覆盖，运行时 ABL/Gunyah
 追加内容仍须真机验证，不能将离线合成结果称为实际运行 FDT。
-2026-09-24 的 P01 已证明当前离线验证不够覆盖 ABL 行为；具体合成差异尚未定位，不应原样反复试机。
+2026-09-24 的 P01 已证明仅验证磁盘 DTBO 不够覆盖 ABL 行为，不应原样反复试机。
+后续静态分析在本机 RM 的主 VM 3 路径发现 arch_timer 外部引用及 always-on 修改；
+P02 只补齐这一映射。参考 ABL 核心的双 overlay 契约测试通过，不代表已获取完整运行时 DTBO 或通过本机启动。
 
 build-boot 使用本机原厂 RAM 探针已接受的 header v2 容器，固定为 pstore-only 首测：
 60 秒 PID1 重启计时器、panic=15、不启用 USB 用户态、无存储驱动。
