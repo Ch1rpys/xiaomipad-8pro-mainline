@@ -11,11 +11,13 @@ mount -t tmpfs tmpfs /run
 timeout_seconds=180
 mode=console
 root_sha=
+root_transport=http
 session_seconds=180
 for arg in $(cat /proc/cmdline); do
 	case "$arg" in piano.diag=*) mode=${arg#*=} ;; esac
 	case "$arg" in piano.diag_timeout=*) timeout_seconds=${arg#*=} ;; esac
 	case "$arg" in piano.rootfs.sha256=*) root_sha=${arg#*=} ;; esac
+	case "$arg" in piano.rootfs.transport=*) root_transport=${arg#*=} ;; esac
 	case "$arg" in piano.session=*) session_seconds=${arg#*=} ;; esac
 done
 
@@ -66,7 +68,7 @@ fi
 if [ "$mode" = ubuntu ]; then
 	echo '<6>PIANO_UBUNTU: waiting for host root service' >/dev/kmsg
 	read -r root_url </run/piano-start
-	if /bin/prepare-ubuntu "$root_url" "$root_sha" "$session_seconds" > /run/piano-ubuntu-prep.log 2>&1; then
+	if /bin/prepare-ubuntu "$root_url" "$root_sha" "$session_seconds" "$root_transport" > /run/piano-ubuntu-prep.log 2>&1; then
 		# killall needs /proc; stop the old listeners before moving it.
 		/bin/busybox killall telnetd udhcpd 2>/dev/null
 		# The early systemd timer is installed before PID1 hands off.

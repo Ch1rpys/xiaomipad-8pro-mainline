@@ -47,6 +47,11 @@ initramfs/prepare-ubuntu and the Ubuntu hand-off in initramfs/init:
   explicitly releases a FIFO after its single-file HTTP service is ready;
   a failed download/hash/mount stops preparation. The expiry timer has no
   default dependencies so ordinary boot jobs cannot postpone its activation.
+  An explicit experimental NBD transport uses the existing BusyBox client and
+  a read-only QEMU NBD export; it is not the default or an automatic fallback.
+  Host SHA verification of a named export is not guest full-image verification.
+  Its QEMU handoff passed but the first piano block read failed; HTTP remains
+  the device-tested path. No NBD implementation is copied here.
 initramfs/ubuntu-state is new GPL-2.0-only read-only session diagnostics.
 
 No stock ROM, device firmware, calibration, keys or device backups are distributed

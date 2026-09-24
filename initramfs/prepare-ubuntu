@@ -8,18 +8,32 @@ bb=/bin/busybox
 url=$1
 expected=$2
 seconds=$3
-case "$url" in "http://$PIANO_HOST_IP:"*/ubuntu.squashfs) ;; *) exit 2 ;; esac
+transport=$4
 case "$expected" in *[!0-9a-f]*|'') exit 2 ;; esac
 [ "${#expected}" -eq 64 ]
 case "$seconds" in *[!0-9]*|'') exit 2 ;; esac
 [ "$seconds" -ge 60 ] && [ "$seconds" -le 900 ]
 
-echo 'PIANO_UBUNTU_DOWNLOAD'
-$bb wget -T 60 -O /run/ubuntu.squashfs "$url"
-printf '%s  %s\n' "$expected" /run/ubuntu.squashfs | $bb sha256sum -c -
-echo 'PIANO_UBUNTU_ROOT_VERIFIED'
+case "$transport:$url" in
+http:"http://$PIANO_HOST_IP:"*/ubuntu.squashfs)
+	echo 'PIANO_UBUNTU_DOWNLOAD'
+	$bb wget -T 60 -O /run/ubuntu.squashfs "$url"
+	printf '%s  %s\n' "$expected" /run/ubuntu.squashfs | $bb sha256sum -c -
+	echo 'PIANO_UBUNTU_ROOT_VERIFIED'
+	root_source=/run/ubuntu.squashfs
+	;;
+nbd:"nbd://$PIANO_HOST_IP:"*)
+	port=${url##*:}
+	case "$port" in *[!0-9]*|'') exit 2 ;; esac
+	$bb nbd-client -N "$expected" -t 60 "$PIANO_HOST_IP" "$port" /dev/nbd0
+	[ "$(cat /sys/class/block/nbd0/ro)" = 1 ]
+	echo "PIANO_UBUNTU_NBD_READY: host-verified export=$expected readonly=1"
+	root_source=/dev/nbd0
+	;;
+*) exit 2 ;;
+esac
 mkdir -p /run/ubuntu-lower /run/ubuntu-upper /run/ubuntu-work /newroot
-mount -t squashfs -o loop,ro /run/ubuntu.squashfs /run/ubuntu-lower
+mount -t squashfs -o loop,ro "$root_source" /run/ubuntu-lower
 mount -t overlay overlay -o lowerdir=/run/ubuntu-lower,upperdir=/run/ubuntu-upper,workdir=/run/ubuntu-work /newroot
 [ -x /newroot/usr/lib/systemd/systemd ]
 mkdir -p /newroot/etc/cloud /newroot/etc/systemd/network /newroot/etc/NetworkManager/conf.d \

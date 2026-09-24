@@ -33,6 +33,10 @@ def main():
     parser.add_argument('--diagnostic', choices=('console', 'acm', 'ncm', 'ubuntu'), default='console',
                         help='60-second diagnostics, or bounded two-stage RAM Ubuntu')
     parser.add_argument('--rootfs-sha256', help='Exact SquashFS input for the ubuntu mode')
+    parser.add_argument('--root-transport', choices=('http', 'nbd'), default='http',
+                        help='Explicit root transport, never an automatic fallback')
+    parser.add_argument('--session-seconds', type=int, default=300,
+                        help='Bounded Ubuntu observation window after handoff (60-900 seconds)')
     args = parser.parse_args()
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,63}', args.boot_id):
         parser.error('boot-id must be a 1-64 character ASCII experiment label')
@@ -41,11 +45,14 @@ def main():
         parser.error('ubuntu mode requires the exact rootfs SHA-256')
     if args.rootfs_sha256 and not ubuntu:
         parser.error('rootfs-sha256 is only used by the ubuntu mode')
+    if not 60 <= args.session_seconds <= 900:
+        parser.error('session-seconds must be between 60 and 900')
     timeout = 600 if ubuntu else 60
     cmdline = (f'{CMDLINE_BASE} piano.boot={args.boot_id} '
                f'piano.diag={args.diagnostic} piano.diag_timeout={timeout}')
     if ubuntu:
-        cmdline += f' piano.rootfs.sha256={args.rootfs_sha256} piano.session=180'
+        cmdline += (f' piano.rootfs.sha256={args.rootfs_sha256} piano.session={args.session_seconds}'
+                    f' piano.rootfs.transport={args.root_transport}')
     source, kout = args.kernel_source.resolve(), args.kernel_out.resolve()
     head = subprocess.check_output(['git', '-C', str(source), 'rev-parse', 'HEAD'], text=True).strip()
     if subprocess.check_output(['git', '-C', str(source), 'status', '--porcelain'], text=True).strip():
@@ -74,6 +81,8 @@ def main():
                         'CONFIG_SQUASHFS_ZSTD=y', 'CONFIG_SQUASHFS_XATTR=y', 'CONFIG_BLK_DEV_LOOP=y'):
             if setting not in config:
                 parser.error(f'Missing RAM-root dependency: {setting}')
+        if args.root_transport == 'nbd' and 'CONFIG_BLK_DEV_NBD=y' not in config:
+            parser.error('NBD root requires the built-in upstream NBD client')
     image = kout / 'arch/arm64/boot/Image'
     ram_build_id = subprocess.check_output(
         ['cpio', '--extract', '--to-stdout', '--quiet', 'etc/build-id'],
@@ -103,11 +112,14 @@ def main():
                           'initramfs': sha(args.initramfs), 'mkbootimg': sha(args.mkbootimg),
                           'config': sha(kout / '.config')},
         'scope': 'fastboot boot only; diagnostic userspace, no persistent storage drivers or native panel support; firmware framebuffer support is candidate-specific',
-        'recovery': f'{timeout}-second initial PID1 timer and panic=15; Ubuntu mode hands off to a 180-second early systemd timer; early hangs may require manual reset',
+        'recovery': f'{timeout}-second initial PID1 timer and panic=15; Ubuntu mode hands off to a {args.session_seconds}-second early systemd timer; early hangs may require manual reset',
     }
     if ubuntu:
         manifest['rootfs_sha256'] = args.rootfs_sha256
-        manifest['session_seconds'] = 180
+        manifest['session_seconds'] = args.session_seconds
+        manifest['root_transport'] = args.root_transport
+        manifest['root_verification'] = ('HOST_SHA256_AND_READONLY_NAMED_EXPORT' if args.root_transport == 'nbd'
+                                         else 'HOST_AND_GUEST_FULL_SHA256')
     if args.diagnostic in ('ncm', 'ubuntu'):
         network = Path(__file__).resolve().parent.parent / 'initramfs/network.json'
         manifest['network'] = json.loads(network.read_text())
