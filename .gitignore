@@ -7,3 +7,4 @@ __pycache__/
 *.pyc
 *.deb
 .env
+/device/piano-thp/build/

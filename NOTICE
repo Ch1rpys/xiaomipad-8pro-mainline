@@ -95,3 +95,28 @@ GPL-2.0-only merge-desktop-tars.py implementation. It does not implement ext4:
 filesystem import, inode metadata and xattrs are handled by upstream e2fsprogs
 and libarchive under their own licenses. Neither utility is copied into this
 repository or installed on the build host by this tool.
+
+device/piano-thp/src/nvt_touch_core.{cpp,hpp},
+device/piano-thp/src/nvt_finger_filter.{cpp,hpp}, and processor.{cpp,hpp}:
+  Adapted from https://github.com/ianchb/xiaomi-sheng-thp
+  Source commit: 34046210932d654a4c0df0121ecc31c008f8148c
+  Original source paths: src/nvt_touch_core.{cpp,hpp},
+  src/nvt_finger_filter.{cpp,hpp}, and the LiveTouchAdapter class in
+  src/xiaomi_sheng_thp.cpp. Original author: ianchb.
+  License: Apache-2.0; full license in LICENSES/Apache-2.0.txt.
+  Changes: remove Sheng electrode maps and fixed coordinate dimensions;
+  require caller-provided calibration in the core and filter; use bounded
+  arithmetic for weighted coordinates/edge mapping; extract only the finger
+  adapter without pen, Bluetooth, SSC or Android dependencies.
+  Remaining algorithm/filter tuning is inherited and requires piano gesture
+  validation. Reference-device calibration is not supplied as a fallback.
+
+device/piano-thp/src/{frame,calibration,replay}.*, tests/calibration.cpp,
+device/piano-thp/Makefile and tools/extract-thp-calibration.py are new MIT code.
+The packet description is informed by the piano source in
+https://github.com/MiCode/vendor_xiaomi_proprietary_touch-driver
+commit 6957f6b646d1c919e175e6f9000eb50c8635273c, p81/nt36532/nt36xxx.c,
+and device-supplied records. No proprietary algorithm/library or firmware is
+included. Extracted electrode calibration remains user-supplied private data.
+The nlohmann JSON library is an external MIT-licensed build dependency, not
+vendored in this repository; its notices must accompany redistributed binaries.
