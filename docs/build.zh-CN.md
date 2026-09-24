@@ -22,11 +22,13 @@ KERNEL_SOURCE=/path/to/independent/linux OUT_DIR="$PWD/out/kernel-diag" JOBS=8 \
 ```
 
 配置仅在内核仓 arch/arm64/configs/piano-diagnostic.config 维护。
+每次增量构建先运行原生 olddefconfig，处理源码新增的 Kconfig 项；片段变化时才重新生成/合并基线。
 生成 Image、sm8750-xiaomi-piano.dtb、最终 .config、日志与 build-result.json。
 当前 DTS 仅用于 RAM 启动与日志；P03 增加 USB2 固定设备模式，显示、UFS 和远程处理器保持关闭。
 USB 尚未真机验证；电源输入拓扑、REFGEN 和完整 Type-C 路径仍未闭合，不用于冷启动/低功耗产品验收。
 日常保持同一 OUT 增量构建；换工具链或基线时使用新 OUT。
 构建输出锁避免并发写入，输入 commit/配置和输出 hash 可核查。
+源码现含回移的上游 NT36532 框架，但尚无 P81 面板 profile；默认诊断配置未启用该驱动。
 
 ## RAM 诊断用户态
 

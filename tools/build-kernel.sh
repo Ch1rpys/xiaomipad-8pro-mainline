@@ -64,9 +64,10 @@ printf '%s\n' "$identity" >"$out/.build-input"
 if [[ ! -f $out/.config || ! -f $out/.recipe || $(cat "$out/.recipe") != "$recipe" ]]; then
 	make "${args[@]}" defconfig >"$out/configure.log" 2>&1
 	"$src/scripts/kconfig/merge_config.sh" -m -O "$out" "$out/.config" "$fragment" >>"$out/configure.log" 2>&1
-	make "${args[@]}" olddefconfig >>"$out/configure.log" 2>&1
 	printf '%s\n' "$recipe" >"$out/.recipe"
 fi
+# Source updates can add Kconfig symbols without changing the board fragment.
+make "${args[@]}" olddefconfig >>"$out/configure.log" 2>&1
 while IFS= read -r setting; do
 	case "$setting" in
 	CONFIG_*=y)
