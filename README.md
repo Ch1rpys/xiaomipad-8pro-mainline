@@ -24,6 +24,11 @@ The bounded P02 RAM test does not validate panic or early-hang recovery.
 P02 had USB, display and storage disabled. The P03 offline candidate adds USB2
 device-mode ACM diagnostics; this is not yet verified on hardware or a working system.
 
+Local DSP firmware packaging from user-supplied inputs is available and archive-checked;
+the proprietary package is not redistributable under this repository's license.
+Isolated APT preparation does not install anything and has not completed a download
+run because snapshot indexes returned service errors. See the build notes.
+
 Original project code is MIT unless stated otherwise. Imported code retains its
 original license and attribution in NOTICE and LICENSES, including GPL-2.0-only
 diagnostic tools. See CONTRIBUTING.md.

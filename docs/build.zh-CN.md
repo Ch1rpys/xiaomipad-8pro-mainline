@@ -123,3 +123,50 @@ sqfstar 默认忽略 TAR 根目录项，因此构建器从归档显式传入根�
 
 这是官方 Desktop 的原始合并底层，不是 piano 安装镜像：尚未创建用户、更新 APT、加入设备包、
 配置启动链或验证 GNOME 真机运行。不要把此 SquashFS 直接写入平板分区。
+
+## 本地 DSP 固件包
+
+build-firmware-deb.py 接受用户自行取得的同版 modem/image 文件，不下载或分发固件。
+firmware/piano-os3.0.303.0.json 是 OS3.0.303.0.WPYCNXM 的输入身份锁：72 个 ADSP/CDSP
+加载文件和 4 个服务域描述；不读取 persist 或用户私钥，不打包 Wi-Fi BDF 或触控算法。
+只使用 dpkg-deb 标准格式，保留原始字节，不安装、不执行 blob，也不附带刷写/服务脚本。
+
+需要 Python 3、python3-debian 和 dpkg-deb（支持 --root-owner-group / --threads-max）。
+
+```sh
+python3 tools/build-firmware-deb.py \
+  --firmware-dir /path/to/own/stock/modem/image \
+  --maintainer 'Your Name <your-email>' --output private/firmware-package
+```
+
+输出包只写 /usr/lib/firmware/qcom/sm8750/piano 和自身文档目录，不覆盖发行版通用固件。
+后续 DTS 的 firmware-name 必须显式选择这个目录，包构建成功不等于 PAS 认证或 DSP 启动成功。
+当前原厂字节的再分发许可尚未确认；代码可开源，生成的 deb 不得随公开仓发布。
+包归档全文件 hash、root 属主/权限、md5sums 和同输入重复构建已离线验证；尚未安装到 Ubuntu。
+
+## 隔离 APT 准备
+
+ubuntu/26.04.sources 是显式 ARM64 的官方 Ports 源配置。它不自动覆盖原始桌面层；
+正式装配时应移除安装介质的 cdrom.sources，而不是保留对 /cdrom 的依赖。
+当前 archive.ubuntu.com 也能提供所查的 26.04 ARM64 索引，选择 Ports 并不表示前者必然不可用。
+
+prepare-ubuntu-apt.py 用主机原生 APT，针对原始 SquashFS 的 ARM64 dpkg/status 解析依赖，
+只在全新的输出目录中保存配置、官方 keyring、签名索引、缓存和日志。不安装包、不运行维护脚本，
+也不修改主机 /etc/apt、原始根树、账户或分区。依赖 apt、python3-apt、python3-debian 和 unsquashfs。
+
+```sh
+python3 tools/prepare-ubuntu-apt.py --rootfs out/ubuntu-desktop-pristine/ubuntu-desktop.squashfs \
+  --snapshot 20260924T000000Z --output out/apt-initramfs --download initramfs-tools
+```
+
+构建阶段直接使用[官方时间戳快照](https://snapshot.ubuntu.com/)，保持 APT 正常签名/日期校验；
+普通系统更新不应永久固定到旧快照。该工具不自动转用滚动镜像，不设置 trusted=yes 或 AllowUnauthenticated。
+失败保留 FAILED manifest 和原始日志，不把部分索引当完成的锁。
+2026-09-24 实测取得并验证 base InRelease，但其他索引返回 503；尚未完成依赖解析/下载，
+不能将当前入口或缓存声明为已经验证的完整 APT 装配链。
+
+原始底层已有 GDM/GNOME Initial Setup，默认 InitialSetupEnable=true，且没有普通账户。
+后续沿用标准首次建用户流程，不预设用户名/密码、自动登录或开放 SSH；实际首次登录仍须启动验收。
+原始层还保留 cloud-init 的用户/磁盘/软件源模块。最终本地平板镜像应在装配阶段使用
+[标准禁用标记](https://docs.cloud-init.io/en/latest/howto/disable_cloud_init.html)
+/etc/cloud/cloud-init.disabled，明确把用户初始化交给 GDM；当前工具没有修改原始层，不能省略这一步。

@@ -1,0 +1,399 @@
+{
+  "schema": 1,
+  "kind": "User-supplied proprietary DSP input lock; not a distribution license",
+  "device": "xiaomi,piano",
+  "stock_build": "OS3.0.303.0.WPYCNXM",
+  "package": "piano-firmware-dsp",
+  "version": "0.1+os3.0.303.0.wpycnxm",
+  "source_date_epoch": 0,
+  "firmware_directory": "usr/lib/firmware/qcom/sm8750/piano",
+  "images": [
+    "adsp.mdt",
+    "adsp_dtb.mdt",
+    "cdsp.mdt",
+    "cdsp_dtb.mdt"
+  ],
+  "files": [
+    {
+      "name": "adsp.b01",
+      "bytes": 20896,
+      "sha256": "ee7924d4e54c1e76dff49fe658f0a4b8badb07894bdba2e715ac362ff2dc8f6f"
+    },
+    {
+      "name": "adsp.b02",
+      "bytes": 38924,
+      "sha256": "34b917737647f562228acc0c53939fcfcfea119f77c8c4ddf6599b7d38462dd6"
+    },
+    {
+      "name": "adsp.b03",
+      "bytes": 110723,
+      "sha256": "6b60acee23c56396486d043d8fe283b3c5001abec470d68da7efc9c89fd33e54"
+    },
+    {
+      "name": "adsp.b04",
+      "bytes": 32756,
+      "sha256": "75fb5b59d51113770ea95d01659589e7826df48cb2dea0dd46d55b3a3a5f90a0"
+    },
+    {
+      "name": "adsp.b05",
+      "bytes": 84180,
+      "sha256": "0d4eabda3f29ba18f11648c63e6fb8c5c9572ae07fc50b4f27e5b5dab450a981"
+    },
+    {
+      "name": "adsp.b06",
+      "bytes": 196608,
+      "sha256": "c438d43f30919ecb89016652b439bc5d256032465c87e01c55d869c8f629b7d4"
+    },
+    {
+      "name": "adsp.b07",
+      "bytes": 368,
+      "sha256": "dbda715417757e46417a7f87eee40a79ac2449cba5a5f3a4e19cd3434aa79fd7"
+    },
+    {
+      "name": "adsp.b08",
+      "bytes": 9236,
+      "sha256": "d2d1b6d6f4a46281f2f5e3846ee559c38420f43e79ea529ff2c65ec1025530a8"
+    },
+    {
+      "name": "adsp.b09",
+      "bytes": 3107732,
+      "sha256": "8759eb51f9050a5889f6d3e38cfda2a3bbd39f82a36872d129aad711125b5818"
+    },
+    {
+      "name": "adsp.b10",
+      "bytes": 265156,
+      "sha256": "78a77b13d7a459ed86a99476013ad899039d24464a077ed57e33978cd90aa0e3"
+    },
+    {
+      "name": "adsp.b11",
+      "bytes": 2584,
+      "sha256": "048cb22769ae424fee74b87367433363a589c96514eca2f6f9c97602302c6b22"
+    },
+    {
+      "name": "adsp.b12",
+      "bytes": 62348,
+      "sha256": "2056162208c82ac45d62d91fcc67246c33c30aa20191e5a77de6a00f51de26f5"
+    },
+    {
+      "name": "adsp.b13",
+      "bytes": 7112,
+      "sha256": "1fb37eb8f3cd0a2c381c45ca98012d8450cce0a80425ff60e1dab68993334d4d"
+    },
+    {
+      "name": "adsp.b14",
+      "bytes": 254952,
+      "sha256": "ac0d438a5a768969a1c1731acb96a287e79d73274c210df49f2d2b369c589838"
+    },
+    {
+      "name": "adsp.b15",
+      "bytes": 12764,
+      "sha256": "b6da524703a3c74d8adf6ad13178bcc2dbfd1b82c3f447fdc339e7ff954d25d9"
+    },
+    {
+      "name": "adsp.b16",
+      "bytes": 1176,
+      "sha256": "02794d65115c935f219cd2fd5627ab2d859b25ed150560be683557d0076f7f9c"
+    },
+    {
+      "name": "adsp.b17",
+      "bytes": 147968,
+      "sha256": "e8b18f5bc46ed46118b8aa839002bacb2b7020dcc9ddc3311240c116ae254f8d"
+    },
+    {
+      "name": "adsp.b18",
+      "bytes": 466944,
+      "sha256": "03a1d987eb4fe989e52b955f3c331b71f6d83860f72a14123e698dfe52bb468b"
+    },
+    {
+      "name": "adsp.b19",
+      "bytes": 1877124,
+      "sha256": "e624d2791efb49dd04d8a70cf8a368807ab89924bf8a38409ecd86e7b08f17b9"
+    },
+    {
+      "name": "adsp.b20",
+      "bytes": 22856,
+      "sha256": "14361b05419ad883936acbcb9b1d70b6fb3e7d854f4d88f7d235f98e3b3ec26d"
+    },
+    {
+      "name": "adsp.b21",
+      "bytes": 272,
+      "sha256": "30b509747c26cc35035773d32a365472bf934e1e1b56b3fde6d4fe52c6857f1a"
+    },
+    {
+      "name": "adsp.b22",
+      "bytes": 222604,
+      "sha256": "899bc7560746dcc16192f27007985d69db9bd13925e77f096bbeef62674a7a4f"
+    },
+    {
+      "name": "adsp.b23",
+      "bytes": 82,
+      "sha256": "6e5b282091aa13e4e5b45032c4447a566ace6eba91d8240236a615be7932c78f"
+    },
+    {
+      "name": "adsp.b24",
+      "bytes": 28672,
+      "sha256": "18619b678a5c207a971a0aa931604f48162e307c57ecdec450d5f095fe9f32c7"
+    },
+    {
+      "name": "adsp.b25",
+      "bytes": 2635880,
+      "sha256": "85228d8af19cf86c04df5d32e2dbcb282dcc2b18c25951724bdfb2f706a5aabd"
+    },
+    {
+      "name": "adsp.b26",
+      "bytes": 3665924,
+      "sha256": "4c99caa9d9f1cee887af6839cbd43ed4f54ebe793ee2843292b1a546f024c82d"
+    },
+    {
+      "name": "adsp.b28",
+      "bytes": 592,
+      "sha256": "436cdafe2ba672d46d7661c1376a7cffc99b0e85c69ed2e7ad857c1ab3a7d283"
+    },
+    {
+      "name": "adsp.b29",
+      "bytes": 19568,
+      "sha256": "11d25aa949640f252efcf7ba82ac4016348433e3ed84519842bc25eca653b870"
+    },
+    {
+      "name": "adsp.b30",
+      "bytes": 39595,
+      "sha256": "6aa46487ebe6e7d90787da9171a3ce02e5e90a47ed94290dd7797b6bf1b32acf"
+    },
+    {
+      "name": "adsp.b31",
+      "bytes": 490844,
+      "sha256": "a3e59b533ab34509ee4507dc648a31124ff92fb264240cf2854e3248bb10a2b1"
+    },
+    {
+      "name": "adsp.b32",
+      "bytes": 212004,
+      "sha256": "9ad089e3292ba24ddb87e75b95c6ec848237e040c48fc07812fd8fd40561eedc"
+    },
+    {
+      "name": "adsp.b33",
+      "bytes": 170820,
+      "sha256": "0cf20da825a56e528a1d7c0631ef718c24d1ff3635b749f6e813487960ab4950"
+    },
+    {
+      "name": "adsp.b34",
+      "bytes": 288940,
+      "sha256": "621756cacb462df4d0f14c6803d97a6a3dce2c51d142a9380a526c7c5d7538e5"
+    },
+    {
+      "name": "adsp.b35",
+      "bytes": 17968,
+      "sha256": "a9dcc850409e2f63013794fc6d1282b083875546e23303ac967b8beef2fb9aae"
+    },
+    {
+      "name": "adsp.b36",
+      "bytes": 12216,
+      "sha256": "a3e9c01e271bc1be8f7af6fd01669313252010a805b2959dc2ca2f013bddfb45"
+    },
+    {
+      "name": "adsp.b37",
+      "bytes": 21056,
+      "sha256": "d892dfa27a54bc363b018b9634c747cdf133d735a1e9bec18aff7d64232674c2"
+    },
+    {
+      "name": "adsp.b38",
+      "bytes": 55784,
+      "sha256": "b8be3207c7d868300e6fa4e4b2a1f98198f120c698b5c60a03c20d14c0e5ec3a"
+    },
+    {
+      "name": "adsp.b39",
+      "bytes": 106080,
+      "sha256": "eecde77a7a8a74c5c5c6d591e30ac4e5533d1f501b4a7cfa9571499564edbdae"
+    },
+    {
+      "name": "adsp.b40",
+      "bytes": 380928,
+      "sha256": "1be093c33700ec78c9d9aa45f0c401460030ab92cb2ebf59660f33de7883312e"
+    },
+    {
+      "name": "adsp.b41",
+      "bytes": 12481944,
+      "sha256": "c51c846202a88861b3b972a7a223a6625703abd48f5bb21322ed34c6de21f288"
+    },
+    {
+      "name": "adsp.b42",
+      "bytes": 1597448,
+      "sha256": "1abd18f345737cd13a11fe2096f20fbb23d09832df42f35f57db6f863bb4f52a"
+    },
+    {
+      "name": "adsp.b43",
+      "bytes": 1304,
+      "sha256": "f3a5d79a4d66dec4e2144c1032dfa8d2719d15cd12f1f7e6dfb0ccf263cc552e"
+    },
+    {
+      "name": "adsp.b44",
+      "bytes": 193516,
+      "sha256": "38caf5ee2052599f4e702d5b9bf604449ea0c7ec0817cdc33a077bfef665700f"
+    },
+    {
+      "name": "adsp.b45",
+      "bytes": 3676,
+      "sha256": "d326c86d43fd9331680f6ab4c3909b5dcd1b7736e39e5a9b154493820b32d53d"
+    },
+    {
+      "name": "adsp.b46",
+      "bytes": 33707,
+      "sha256": "d39971f9cc73011cc07533221813ec7b8790d0fc9ebd880e987787dfb2087d9d"
+    },
+    {
+      "name": "adsp.b47",
+      "bytes": 481580,
+      "sha256": "0e466d4393081064cab5c1e5a944f4f6340b35566a23172e2ff7f9e2c7630156"
+    },
+    {
+      "name": "adsp.b48",
+      "bytes": 11224,
+      "sha256": "5ba696ae8dfe6572683e460f45ce56c123bfd44b14de1a314e1de279cac08142"
+    },
+    {
+      "name": "adsp.b49",
+      "bytes": 96016,
+      "sha256": "956bb8106f464a51c8dd3d039054fd8a8d0845e630e87c76eb72901983fa1435"
+    },
+    {
+      "name": "adsp.b50",
+      "bytes": 974848,
+      "sha256": "e0f56bb98e7d89964903c5613a6f1033c5696c3ea43741dc5ad2cf21fd9b83a9"
+    },
+    {
+      "name": "adsp.b51",
+      "bytes": 84099,
+      "sha256": "4331218e9962050ae119b154938d850000979b481be125de82d42e1d4bb0a391"
+    },
+    {
+      "name": "adsp.b52",
+      "bytes": 962560,
+      "sha256": "a5cdfc74a2480fdb18d1b904a415e92ba4509c0be5918f553c6b76efe911ca22"
+    },
+    {
+      "name": "adsp.b53",
+      "bytes": 53248,
+      "sha256": "e7efcce601dc71a80fc90af4b13b37e07b8fd2933d9a2b34eed77cc218fe20e0"
+    },
+    {
+      "name": "adsp.b54",
+      "bytes": 3181720,
+      "sha256": "79a8b75db7648f3716c3d58c7a23fae1189d00b159a87b23b2b8354b11a5dd44"
+    },
+    {
+      "name": "adsp.mdt",
+      "bytes": 8364,
+      "sha256": "13bef61249625327078379c95fc52c434253b2a50ac36955fa0013982540497f"
+    },
+    {
+      "name": "adsp_dtb.b01",
+      "bytes": 159164,
+      "sha256": "e182164595e63e62cb8b5e79079ae134306b7258be09402767ef69d73cd771dc"
+    },
+    {
+      "name": "adsp_dtb.mdt",
+      "bytes": 4044,
+      "sha256": "301e71748529219a77a6a1b859802c3381535f0719b71070eb4a7f594c2f1e40"
+    },
+    {
+      "name": "adspr.jsn",
+      "bytes": 513,
+      "sha256": "66ce8531efb7979d234e0f0eabbe18d038ac97da771a8a194f613df8f0724e81"
+    },
+    {
+      "name": "adsps.jsn",
+      "bytes": 515,
+      "sha256": "12ac2f3ae8ced12aa4b06b3ab3a01bc4d8efe1c92ebea503c002f209a6ec176f"
+    },
+    {
+      "name": "adspua.jsn",
+      "bytes": 703,
+      "sha256": "982a99853495e34726b8e44697fdfad303334de0a67cbf6cde306c8f1731000b"
+    },
+    {
+      "name": "cdsp.b01",
+      "bytes": 27644,
+      "sha256": "366ba8f6c1ef72e0841cc573beae6caf70a8fefd6440aa60cd490f98078eeb02"
+    },
+    {
+      "name": "cdsp.b02",
+      "bytes": 79076,
+      "sha256": "e6ba949dd9eab6d979e7cc0c3f4d72c9208384f8e578044d5da6706bcdb629d3"
+    },
+    {
+      "name": "cdsp.b03",
+      "bytes": 140303,
+      "sha256": "f0c2ad6458fad2f456fb429a65fe4cf2953cdd82950f6beb19e42ebfb1b2d378"
+    },
+    {
+      "name": "cdsp.b04",
+      "bytes": 1376,
+      "sha256": "1a644f200134c0399830121eede772708f8e5ef35d322f8463ad22095e98e595"
+    },
+    {
+      "name": "cdsp.b05",
+      "bytes": 2412580,
+      "sha256": "e158f9d7ac70c0dfaf8ee5a3fabd69a6a2236b0b11457b7cb15ba45252ab53d7"
+    },
+    {
+      "name": "cdsp.b06",
+      "bytes": 114696,
+      "sha256": "397e7417dd7fb14b8276c3be0892d360635d67ccb4a0ded12d52a7f6ef6a62fc"
+    },
+    {
+      "name": "cdsp.b07",
+      "bytes": 2840,
+      "sha256": "122351331ea662d3ff9c5492c85636b51ccb17f8f26a590057aeec58d710c8b6"
+    },
+    {
+      "name": "cdsp.b08",
+      "bytes": 124406,
+      "sha256": "d9be659121deeb5b644e8ff3de716a65014c4bbefaacb94b0c3e162afc135596"
+    },
+    {
+      "name": "cdsp.b09",
+      "bytes": 786332,
+      "sha256": "a160acba40d65094b8171e307a34bff57c6dd253d936c6e7179337fee8508aa7"
+    },
+    {
+      "name": "cdsp.b10",
+      "bytes": 14016,
+      "sha256": "fdff5121ae5bf5eacbad00c7f1fe2471445ad988b9b0d33fcbe03550b1d8a238"
+    },
+    {
+      "name": "cdsp.b11",
+      "bytes": 3184,
+      "sha256": "71449afb1cdd2ad9b824688a7da6860f81b9263d2d49592d1915cad37cbed36f"
+    },
+    {
+      "name": "cdsp.b12",
+      "bytes": 114256,
+      "sha256": "ae9678ba0bd99b045e356e7b7296dd6e6ad14e8def23b359a4e6de9512a7adba"
+    },
+    {
+      "name": "cdsp.b13",
+      "bytes": 5600,
+      "sha256": "6eb64e59fa121afb5cc1043d72016b50b1ea4ce77e911ae694fbdd3ecb349eac"
+    },
+    {
+      "name": "cdsp.mdt",
+      "bytes": 5084,
+      "sha256": "950df77930ffdd604a62a58ecb58b2c87031b783f891c009a11b56b5b33f898b"
+    },
+    {
+      "name": "cdsp_dtb.b01",
+      "bytes": 29916,
+      "sha256": "cadea7e0797419aecbae57976b9c0abad9489b4de0c72033970661b6644815be"
+    },
+    {
+      "name": "cdsp_dtb.mdt",
+      "bytes": 4044,
+      "sha256": "86c8a1b02d24dfa7f98cf6a4777956c9c57f975bfcf9b81d74535602ee8245d3"
+    },
+    {
+      "name": "cdspr.jsn",
+      "bytes": 513,
+      "sha256": "6d01cd7dce745204d5de20efe57e2511149ca2a5b48ee562fbedefda573ca465"
+    }
+  ],
+  "redistribution": "No firmware redistribution permission established. Obtain inputs from your matching stock system and keep the generated package local."
+}

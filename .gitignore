@@ -5,4 +5,5 @@
 /tools/local/
 __pycache__/
 *.pyc
+*.deb
 .env
