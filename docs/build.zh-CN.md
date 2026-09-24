@@ -1,7 +1,8 @@
 # 离线构建
 
 这些入口准备 piano 最小板级内核、RAM 诊断候选和原始 Ubuntu Desktop 层。
-RAM 候选尚未经过本机主线首启，不是可安装系统；不提供安装器，也不使用 QRD/MTP DTB 试机。
+P01 已进行单次 RAM 实测，失败于厂商 ABL 的 overlay 合成，尚未完成主线交接。
+它不是可安装系统；不提供安装器，也不使用 QRD/MTP DTB 试机。
 
 ## 主机
 
@@ -65,6 +66,7 @@ prepare-boot-dtb 只导出指定 DTBO 引用的符号，指向 disabled 父节�
 真正用 libufdt 合成并确认既有主线硬件属性不变。它不改内核 DTS，不导入整份原厂符号表，
 也不修改平板上的 DTBO。根 compatible/model 仍可能被原厂 overlay 覆盖，运行时 ABL/Gunyah
 追加内容仍须真机验证，不能将离线合成结果称为实际运行 FDT。
+2026-09-24 的 P01 已证明当前离线验证不够覆盖 ABL 行为；具体合成差异尚未定位，不应原样反复试机。
 
 build-boot 使用本机原厂 RAM 探针已接受的 header v2 容器，固定为 pstore-only 首测：
 60 秒 PID1 重启计时器、panic=15、不启用 USB 用户态、无存储驱动。
