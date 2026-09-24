@@ -25,7 +25,7 @@ tools/prepare-ubuntu-desktop.sh:
   Provides only unprivileged original-layer preparation; no rootfs mutation.
 
 tools/build-kernel.sh, tools/build-initramfs.sh, initramfs/init,
-initramfs/usb-acm:
+initramfs/usb-diag (originally usb-acm):
   Adapted from the erhai integration project, commit
   e02d52ffc7859aba2b41a257b7a9dca73c9dbedb, with the same source paths.
   License: GPL-2.0-only; see LICENSES/GPL-2.0-only.txt.
@@ -33,6 +33,11 @@ initramfs/usb-acm:
   targets, minimal ACM ramdisk without board firmware, explicit build inputs
   and a bounded diagnostic reboot timer. The original authorship is retained
   in the independent source snapshot; no public source URL is assumed.
+  The NCM branch additionally reuses initramfs/usb-ncm from the same commit:
+  configfs NCM, a one-address DHCP lease without router/DNS, and a USB-bound
+  BusyBox telnet shell. Piano network parameters and USB serial are local;
+  no reference-device address, serial or host permission changes are imported.
+  ACM and NCM share one gadget setup implementation.
 
 No stock ROM, device firmware, calibration, keys or device backups are distributed
 by this repository. Kernel and other dependencies retain their own licenses.

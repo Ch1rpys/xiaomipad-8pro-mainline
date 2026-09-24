@@ -9,9 +9,9 @@ mkdir -p /dev/pts /run /sys/kernel/config
 mount -t devpts devpts /dev/pts
 mount -t tmpfs tmpfs /run
 timeout_seconds=180
-console_only=false
+mode=console
 for arg in $(cat /proc/cmdline); do
-	[ "$arg" != piano.diag=console ] || console_only=true
+	case "$arg" in piano.diag=*) mode=${arg#*=} ;; esac
 	case "$arg" in piano.diag_timeout=*) timeout_seconds=${arg#*=} ;; esac
 done
 
@@ -31,19 +31,23 @@ echo 'PIANO_RAM_INIT: storage is not mounted; bounded diagnostic session'
 uname -a
 cat /etc/build-id
 
-if [ "$console_only" = false ]; then
-	echo '<6>PIANO_ACM: starting configuration' >/dev/kmsg
-	if /bin/usb-acm; then
-		echo '<6>PIANO_ACM: gadget bound; starting ttyGS0 shell' >/dev/kmsg
-		(
-			while :; do
-				getty -L -n -l /bin/sh ttyGS0 115200 vt100
-				sleep 1
-			done
-		) &
+if [ "$mode" != console ]; then
+	echo "<6>PIANO_USB: starting mode=$mode" >/dev/kmsg
+	if /bin/usb-diag "$mode"; then
+		if [ "$mode" = ncm ]; then
+			. /etc/piano-network
+			telnetd -F -b "$PIANO_DEVICE_IP:2323" -l /bin/sh &
+		else
+			(
+				while :; do
+					getty -L -n -l /bin/sh ttyGS0 115200 vt100
+					sleep 1
+				done
+			) &
+		fi
+		echo "<6>PIANO_USB: shell started mode=$mode" >/dev/kmsg
 	else
-		echo '<3>PIANO_ACM: setup failed' >/dev/kmsg
-		echo 'PIANO_ACM: setup failed; inspect console/dmesg'
+		echo "<3>PIANO_USB: setup failed mode=$mode" >/dev/kmsg
 	fi
 fi
 

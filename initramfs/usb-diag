@@ -1,0 +1,62 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+set -e
+mode=$1
+case "$mode" in acm|ncm) ;; *) exit 2 ;; esac
+mount -t configfs configfs /sys/kernel/config
+g=/sys/kernel/config/usb_gadget/piano-diag
+mkdir "$g"
+# Linux gadget development IDs, not a production USB identity.
+echo 0x1d6b >"$g/idVendor"
+echo 0x0104 >"$g/idProduct"
+mkdir -p "$g/strings/0x409" "$g/configs/c.1/strings/0x409"
+serial=piano-diag
+for arg in $(cat /proc/cmdline); do
+	case "$arg" in androidboot.serialno=*) serial=piano-${arg#*=} ;; esac
+done
+echo "$serial" >"$g/strings/0x409/serialnumber"
+echo 'piano Linux development' >"$g/strings/0x409/manufacturer"
+echo 'RAM diagnostics' >"$g/strings/0x409/product"
+echo "$mode diagnostics" >"$g/configs/c.1/strings/0x409/configuration"
+echo 100 >"$g/configs/c.1/MaxPower"
+if [ "$mode" = ncm ]; then
+	. /etc/piano-network
+	function=ncm.usb0
+	mkdir "$g/functions/$function"
+	echo "$PIANO_DEVICE_MAC" >"$g/functions/$function/dev_addr"
+	echo "$PIANO_HOST_MAC" >"$g/functions/$function/host_addr"
+else
+	function=acm.GS0
+	mkdir "$g/functions/$function"
+fi
+ln -s "$g/functions/$function" "$g/configs/c.1/$function"
+udc=
+i=0
+while [ "$i" -lt 10 ]; do
+	for path in /sys/class/udc/*; do
+		[ -e "$path" ] || continue
+		udc=${path##*/}
+		break
+	done
+	[ -z "$udc" ] || break
+	i=$((i + 1))
+	sleep 1
+done
+[ -n "$udc" ] || { echo "PIANO_USB: mode=$mode no UDC"; exit 1; }
+echo "$udc" >"$g/UDC"
+echo "<6>PIANO_USB: mode=$mode serial=$serial udc=$udc" >/dev/kmsg
+if [ "$mode" = ncm ]; then
+	ip link set usb0 up
+	ip address add "$PIANO_DEVICE_IP/24" dev usb0
+	cat > /run/udhcpd.conf <<EOF
+start $PIANO_HOST_IP
+end $PIANO_HOST_IP
+interface usb0
+lease_file /run/udhcpd.leases
+pidfile /run/udhcpd.pid
+max_leases 1
+option subnet 255.255.255.0
+EOF
+	touch /run/udhcpd.leases
+	udhcpd /run/udhcpd.conf
+fi

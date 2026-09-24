@@ -30,8 +30,8 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--boot-id', default='mainline-r1',
                         help='Short experiment label recorded in the kernel command line')
-    parser.add_argument('--diagnostic', choices=('console', 'acm'), default='console',
-                        help='Observation channel; both modes retain the 60-second timer')
+    parser.add_argument('--diagnostic', choices=('console', 'acm', 'ncm'), default='console',
+                        help='Observation channel; all modes retain the 60-second timer')
     args = parser.parse_args()
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,63}', args.boot_id):
         parser.error('boot-id must be a 1-64 character ASCII experiment label')
@@ -85,9 +85,15 @@ def main():
         'inputs_sha256': {'Image': sha(image), 'dtb': sha(args.dtb),
                           'initramfs': sha(args.initramfs), 'mkbootimg': sha(args.mkbootimg),
                           'config': sha(kout / '.config')},
-        'scope': 'fastboot boot only; diagnostic userspace, no storage drivers or display support; USB requires matching board support',
+        'scope': 'fastboot boot only; diagnostic userspace, no persistent storage drivers or native panel support; firmware framebuffer support is candidate-specific',
         'recovery': '60-second PID1 timer and panic=15; early hangs may require the person present to reset',
     }
+    if args.diagnostic == 'ncm':
+        if 'CONFIG_USB_CONFIGFS_NCM=y' not in config:
+            parser.error('NCM diagnostics require the built-in kernel function')
+        network = Path(__file__).resolve().parent.parent / 'initramfs/network.json'
+        manifest['network'] = json.loads(network.read_text())
+        manifest['inputs_sha256']['network'] = sha(network)
     (out / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     print(json.dumps(manifest, indent=2))
 

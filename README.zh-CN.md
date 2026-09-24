@@ -3,7 +3,7 @@
 目标是在 Xiaomi Pad 8 Pro（piano / SM8750）上原生运行主线系 Linux 与 Ubuntu ARM64 桌面。
 [English](README.md)
 
-**当前处于主线首启诊断阶段。P02 已进入 Linux 7.2.6 RAM PID1 并定时返回 Android；日志部分损坏，没有可安装镜像。**
+**当前处于主线 RAM 联调阶段。P04/P05 的 NCM 双向命令、实时日志/设备树与定时返回 Android 已真机通过；没有可用 Ubuntu 桌面或安装镜像。**
 本仓库提供最小 piano 内核/DTS 构建、诊断 ramdisk、原厂 overlay 隔离打包和 RAM 镜像生成，
 以及保留属主、硬链接和扩展属性的无 root Ubuntu 桌面层合并。有界 RAM 诊断启动不能视作可用 Ubuntu 系统。
 还提供本地 DSP 固件 deb、隔离 APT 输入和无 root ext4 装配；根系统已在 QEMU 运行 Ubuntu systemd/指定命令，
@@ -33,10 +33,10 @@ sh tools/fetch-aosp-mkbootimg.sh
 
 ## 硬件状态
 
-仅 P02 的主线交接、RAM PID1 和 60 秒正常退出恢复 Android 已在 piano 验证；
-精确日志身份/完整性、运行 FDT、USB 双向命令及故障恢复尚未验收。
-内屏、触控、GPU、无线、音频、键盘、传感器、电源和持久安装均未验收，Ubuntu 尚未在本机运行。
-后续 P03 离线候选增加 USB2 固定设备模式和 ACM 取证；未测试，不视作 USB 功能通过。
+P04/P05 的 USB2 NCM、自动 DHCP、双向命令、精确身份与运行 FDT 已在 piano 验证，正常 60 秒会话能自行返回 Android。
+跨重启 pstore 仍有损坏，故障恢复和完整 Type-C/SS/DP 尚未验收；P03 ACM 未实测，已后移。
+P05 标准 simpledrm/fbcon 和 VT 写入已运行，实际画面尚待确认，不等于原生面板/亮度/唤醒支持。
+触控、GPU、无线、音频、键盘、传感器、电源和持久安装均未验收，Ubuntu 尚未在本机运行。
 官方 Android 驱动和同 SoC 社区实现仅为候选来源，不代表主线支持已经成立。
 
 ## 贡献与许可

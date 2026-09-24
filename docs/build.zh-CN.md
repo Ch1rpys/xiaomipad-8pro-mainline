@@ -43,7 +43,8 @@ BUSYBOX="$PWD/tools/local/busybox-arm64/usr/bin/busybox" \
 
 BusyBox 固定为 Ubuntu ARM64 static 1.36.1-6ubuntu3.1；包和二进制都校验。
 gen_init_cpio 由同一内核源码产生，可在无 root 权限下正确描述 /dev/console 等节点。
-ramdisk 无板级固件、存储挂载、账户或网络配置；ACM 是实验用 root console，不进入默认产品。
+ramdisk 无板级固件、存储挂载或账户；ACM/NCM 是实验用 root console，不进入默认产品。
+initramfs/network.json 是 NCM 的唯一网络配置，使用独立 USB 子网和仅一台主机的 DHCP 租约，无默认路由/DNS。
 默认 180 秒发出重启请求，piano.diag_timeout 可在 15-900 秒内调整。
 该机制的 QEMU 成功不证明 Xiaomi ABL 会回 Fastboot，真机恢复仍需验证。
 
@@ -63,7 +64,7 @@ python3 tools/build-boot.py \
   --kernel-source /path/to/independent/linux --kernel-out out/kernel-diag \
   --initramfs out/initramfs-diag/initramfs.cpio.gz --dtb out/boot-dtb/piano-boot.dtb \
   --mkbootimg tools/local/aosp-mkbootimg/mkbootimg.py --output out/ram-boot \
-  --boot-id mainline-p03 --diagnostic acm
+  --boot-id mainline-p05 --diagnostic ncm
 ```
 
 prepare-boot-dtb 将指定磁盘 DTBO 引用的符号指向 disabled 父节点下的隔离区，
@@ -74,13 +75,15 @@ prepare-boot-dtb 将指定磁盘 DTBO 引用的符号指向 disabled 父节点�
 2026-09-24 的 P01 已证明仅验证磁盘 DTBO 不够覆盖 ABL 行为，不应原样反复试机。
 后续静态分析在本机 RM 的主 VM 3 路径发现 arch_timer 外部引用及 always-on 修改；
 P02 只补齐这一映射，参考 ABL 核心的双 overlay 契约测试通过，随后本机交接/PID1/正常超时退出已证。
-尚未取得完整运行时 DTBO 或候选运行 FDT；保存日志损坏，build-id 精确匹配未通过，不能据此宣布全部语义验收。
+P04/P05 随后经 NCM 取得精确身份与运行 FDT；P04 对照显示既有外设/保留区未被板级 overlay 改写。
+完整原始运行时 DTBO 未取得，跨重启日志损坏仍未解决，不混同于已完整回传的实时日志。
 
 build-boot 使用本机已接受的 header v2 容器。默认 --diagnostic console 保留 pstore-only 模式；
---diagnostic acm 启用已有 USB 控制台，二者都保持 60 秒 PID1 重启计时器、panic=15、无存储驱动。
+--diagnostic acm 或 ncm 选择 USB 控制台，三种模式都保持 60 秒 PID1 重启计时器、panic=15、无存储驱动。
 --boot-id 为实验标签，manifest 从实际 cpio 读取 RAM build-id，不根据待变化源码猜测身份。
-ACM 使用 ABL 的 androidboot.serialno 生成 piano-<serial> 标识；无该参数时保留 QEMU 的 piano-diag，
-主机实验不能将匿名标识当已绑定的实体设备。调试主机需事先具备对应 ttyACM 的读写权限。
+USB 使用 ABL 的 androidboot.serialno 生成 piano-<serial> 标识；无该参数时保留 QEMU 的 piano-diag，
+主机实验不能将匿名标识当已绑定的实体设备。ACM 需要 tty 权限；NCM 使用主机已有自动 DHCP，不需要更改串口权限。
+NCM 的短诊断传输已真机通过，不能外推多 GB 的 Ubuntu 根传输；后者仍须单独验证。
 早于 PID1 的卡死不受用户态计时器保护，第一次测试需要人在设备旁边；不能保证自动恢复。
 它只生成 boot-piano-ram.img 和精确输入/输出 manifest，不执行 Fastboot。
 

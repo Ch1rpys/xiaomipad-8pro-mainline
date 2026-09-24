@@ -25,8 +25,15 @@ flock -n 9 || { echo 'Initramfs output is already in use.' >&2; exit 1; }
 stage=$(mktemp -d "$out/stage.XXXXXX")
 trap 'rm -rf -- "$stage"' EXIT
 init_src="$repo/initramfs/init"
-usb_src="$repo/initramfs/usb-acm"
-sha256sum "$init_src" "$usb_src" "$busybox" | cut -d' ' -f1 | sha256sum | cut -d' ' -f1 >"$stage/build-id"
+usb_src="$repo/initramfs/usb-diag"
+network_src="$repo/initramfs/network.json"
+sha256sum "$init_src" "$usb_src" "$network_src" "$busybox" | cut -d' ' -f1 | sha256sum | cut -d' ' -f1 >"$stage/build-id"
+python3 - "$network_src" "$stage/piano-network" <<'PY'
+import json, pathlib, shlex, sys
+network = json.loads(pathlib.Path(sys.argv[1]).read_text())
+pathlib.Path(sys.argv[2]).write_text(''.join(
+    f'PIANO_{key.upper()}={shlex.quote(value)}\n' for key, value in network.items()))
+PY
 {
 	for d in / /bin /dev /proc /sys /run /etc; do
 		printf 'dir %s 0755 0 0\n' "$d"
@@ -34,10 +41,11 @@ sha256sum "$init_src" "$usb_src" "$busybox" | cut -d' ' -f1 | sha256sum | cut -d
 	printf 'nod /dev/console 0600 0 0 c 5 1\n'
 	printf 'nod /dev/null 0666 0 0 c 1 3\n'
 	printf 'file /init %s 0755 0 0\n' "$init_src"
-	printf 'file /bin/usb-acm %s 0755 0 0\n' "$usb_src"
+	printf 'file /bin/usb-diag %s 0755 0 0\n' "$usb_src"
+	printf 'file /etc/piano-network %s 0644 0 0\n' "$stage/piano-network"
 	printf 'file /bin/busybox %s 0755 0 0\n' "$busybox"
 	printf 'file /etc/build-id %s 0644 0 0\n' "$stage/build-id"
-	for app in sh mount mkdir cat uname sleep setsid cttyhack getty ln ls dmesg poweroff reboot; do
+	for app in sh mount mkdir cat uname sleep setsid cttyhack getty ln ls dmesg poweroff reboot ip touch udhcpd telnetd; do
 		printf 'slink /bin/%s busybox 0777 0 0\n' "$app"
 	done
 } >"$stage/cpio.list"
