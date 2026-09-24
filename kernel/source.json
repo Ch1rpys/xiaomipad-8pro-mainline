@@ -5,7 +5,7 @@
   "upstream_tag": "v7.2.6",
   "upstream_commit": "500df175a7f9e6bc1a9c328590ca5150f84f9ff0",
   "url": null,
-  "commit": "5285b241119407d8ae4e502dc884a96c595123ea",
+  "commit": "bd4ef7dce4fe44d8e8362e419ff4f51b2046319a",
   "branch": "piano/dev",
   "config": "arch/arm64/configs/piano-diagnostic.config",
   "note": "The project kernel remote is not published. Supply the independent local checkout as KERNEL_SOURCE; no remote build reproducibility is claimed yet."
