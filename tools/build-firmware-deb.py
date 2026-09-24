@@ -70,9 +70,13 @@ def main():
             ' No firmware redistribution permission has been established.\n'
             ' This package is generated locally from the user-supplied matching stock inputs.\n'
             ' The MIT license on the builder does not grant rights to these firmware bytes.\n')
+        # Debian's KiB estimate for this regular-file/directory-only payload.
+        installed_kib = sum((p.stat().st_size + 1023) // 1024 if p.is_file() else 1
+                            for p in [stage, *stage.rglob('*')])
         control = stage / 'DEBIAN'
         control.mkdir()
         fields = Deb822({'Package': name, 'Version': inputs['version'], 'Architecture': 'all',
+                         'Installed-Size': str(installed_kib),
                          'Maintainer': args.maintainer, 'Section': 'non-free/kernel', 'Priority': 'optional',
                          'Description': 'Local Xiaomi Pad 8 Pro DSP firmware inputs\n'
                                         ' User-supplied ADSP/CDSP images and service maps in a device namespace.\n'
@@ -91,6 +95,7 @@ def main():
                 'firmware_directory': '/' + inputs['firmware_directory'],
                 'input_lock_sha256': sha(source_lock), 'builder_sha256': sha(Path(__file__)),
                 'deb': archive.name, 'deb_bytes': archive.stat().st_size, 'deb_sha256': sha(archive),
+                'installed_size_kib': installed_kib,
                 'dpkg_deb_version': subprocess.check_output(['dpkg-deb', '--version'], text=True).splitlines()[0],
                 'maintainer': args.maintainer, 'redistribution': inputs['redistribution'],
                 'limitations': 'No package install, PAS authentication, DSP boot, QRTR service or device test'}

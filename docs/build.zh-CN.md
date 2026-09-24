@@ -142,7 +142,9 @@ python3 tools/build-firmware-deb.py \
 输出包只写 /usr/lib/firmware/qcom/sm8750/piano 和自身文档目录，不覆盖发行版通用固件。
 后续 DTS 的 firmware-name 必须显式选择这个目录，包构建成功不等于 PAS 认证或 DSP 启动成功。
 当前原厂字节的再分发许可尚未确认；代码可开源，生成的 deb 不得随公开仓发布。
-包归档全文件 hash、root 属主/权限、md5sums 和同输入重复构建已离线验证；尚未安装到 Ubuntu。
+包归档全文件 hash、root 属主/权限、md5sums 和同输入重复构建已离线验证。
+构建器按 Debian 的 KiB 估算规则填写 Installed-Size，当前锁定输入为 38427 KiB；
+补齐字段前后的 data.tar 完全相同，避免 APT 将固件空间误估为零。目标根镜像/平板尚未安装此包。
 
 ## 隔离 APT 准备
 
