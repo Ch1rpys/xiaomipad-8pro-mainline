@@ -8,6 +8,13 @@ It is not yet a live input service. The piano SPI transport, uinput integration,
 physical axis orientation, real finger gestures and pen support are not validated.
 No Android libraries, firmware, electrode calibration or device records are shipped.
 
+The pinned kernel now contains an experimental `nt36532e-thp` misc transport,
+with its NTP1 contract and source provenance documented beside the driver.
+Firmware parsing and simulated register downloads pass ARM64 KUnit with the
+user-supplied piano image; physical SPI and IRQs are untested. Board nodes and
+the diagnostic configuration do not enable it. Live reader/uinput integration
+is the next step; the current executable below remains an offline replayer.
+
 ## Build
 
 Requires a C++20 compiler, Make and the nlohmann JSON development headers
