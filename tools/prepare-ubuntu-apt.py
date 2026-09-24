@@ -55,7 +55,7 @@ def main():
         parser.error('Rootfs dpkg status is not an ARM64 installation')
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=False)
-    for name in ['etc/apt/sources.list.d', 'etc/apt/apt.conf.d', 'etc/apt/trusted.gpg.d',
+    for name in ['etc/apt/sources.list.d', 'etc/apt/apt.conf.d', 'etc/apt/preferences.d', 'etc/apt/trusted.gpg.d',
                  'state/lists/partial', 'cache/archives/partial', 'log']:
         (out / name).mkdir(parents=True, exist_ok=True)
     (out / 'state/status').write_bytes(status)

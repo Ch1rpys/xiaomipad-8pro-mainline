@@ -6,7 +6,8 @@
 **当前处于主线首启诊断阶段。P02 已进入 Linux 7.2.6 RAM PID1 并定时返回 Android；日志部分损坏，没有可安装镜像。**
 本仓库提供最小 piano 内核/DTS 构建、诊断 ramdisk、原厂 overlay 隔离打包和 RAM 镜像生成，
 以及保留属主、硬链接和扩展属性的无 root Ubuntu 桌面层合并。有界 RAM 诊断启动不能视作可用 Ubuntu 系统。
-还提供用户自行供给输入的本地 DSP 固件 deb 构建与隔离 APT 准备入口；固件包未安装，APT 下载仍受快照服务错误阻塞。
+还提供本地 DSP 固件 deb、隔离 APT 输入和无 root ext4 装配；根系统已在 QEMU 运行 Ubuntu systemd/指定命令，
+dracut 更新包已下载但未安装，不能外推平板桌面支持。
 
 ## 仓库分工
 

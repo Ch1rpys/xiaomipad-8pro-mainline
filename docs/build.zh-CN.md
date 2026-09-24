@@ -156,17 +156,44 @@ prepare-ubuntu-apt.py 用主机原生 APT，针对原始 SquashFS 的 ARM64 dpkg
 
 ```sh
 python3 tools/prepare-ubuntu-apt.py --rootfs out/ubuntu-desktop-pristine/ubuntu-desktop.squashfs \
-  --snapshot 20260924T000000Z --output out/apt-initramfs --download initramfs-tools
+  --snapshot 20260924T000000Z --output out/apt-dracut --download dracut
 ```
 
 构建阶段直接使用[官方时间戳快照](https://snapshot.ubuntu.com/)，保持 APT 正常签名/日期校验；
 普通系统更新不应永久固定到旧快照。该工具不自动转用滚动镜像，不设置 trusted=yes 或 AllowUnauthenticated。
 失败保留 FAILED manifest 和原始日志，不把部分索引当完成的锁。
-2026-09-24 实测取得并验证 base InRelease，但其他索引返回 503；尚未完成依赖解析/下载，
-不能将当前入口或缓存声明为已经验证的完整 APT 装配链。
+2026-09-24 首次遇到快照索引 503，失败记录保留；服务恢复后 dracut 的签名索引、依赖解析和三包下载通过。
+原始层已安装 dracut 110-11，这是 26.04 的默认 initramfs 工具。先前尝试 initramfs-tools 会移除 dracut，
+被 --no-remove 拒绝；现在沿用原生 dracut，不把包名不存在误判为缺少 initramfs 基础设施。
+下载结果为 dracut/dracut-core/dracut-install 110-11ubuntu0.1，没有移除包，尚未执行安装。
+这只是指定包集的输入锁，不代表整机软件更新完成。
 
 原始底层已有 GDM/GNOME Initial Setup，默认 InitialSetupEnable=true，且没有普通账户。
 后续沿用标准首次建用户流程，不预设用户名/密码、自动登录或开放 SSH；实际首次登录仍须启动验收。
-原始层还保留 cloud-init 的用户/磁盘/软件源模块。最终本地平板镜像应在装配阶段使用
+原始层还保留 cloud-init 的用户/磁盘/软件源模块。下面的 ext4 装配阶段使用
 [标准禁用标记](https://docs.cloud-init.io/en/latest/howto/disable_cloud_init.html)
-/etc/cloud/cloud-init.disabled，明确把用户初始化交给 GDM；当前工具没有修改原始层，不能省略这一步。
+/etc/cloud/cloud-init.disabled，明确把用户初始化交给 GDM；原始 TAR/SquashFS 仍保持不变。
+
+## 无 Root 的 Ext4 根系统
+
+build-ubuntu-ext4.py 复用已有 TAR 合并器，把小的配置层直接送入上游 mke2fs 的 TAR 输入；
+不展开丢失属主的宿主目录、不挂载 loop、不操作块设备。仅移除光盘源、替换官方 ARM64 源配置，
+加入 cloud-init 禁用标记。不创建用户、密码、SSH key、调试服务、fstab 或启动分区定义。
+
+需要启用 libarchive 和 NLS 的 mke2fs，以及匹配的 e2fsck；本项目验证的是上游 v1.47.4，
+提交 7ee1d505ef3b37831215f490411f346fe57e9053。关闭 NLS 会同时跳过 locale 初始化，导致实际证书的
+非 ASCII 链接名被拒绝；不要用改名/转码来处理。构建器显式使用 C.UTF-8。
+mke2fs 配置文件作为显式输入参与 hash，不默默依赖宿主 /etc/mke2fs.conf。
+
+```sh
+python3 tools/build-ubuntu-ext4.py --tar out/ubuntu-desktop-pristine/ubuntu-desktop.tar \
+  --tar-sha256 <该TAR的SHA256> --mke2fs /path/to/mke2fs \
+  --mke2fs-config /path/to/mke2fs.conf --e2fsck /path/to/e2fsck \
+  --uuid <根文件系统镜像UUID> --size-mib 12288 --output out/ubuntu-ext4
+```
+
+输出是新建的普通 ext4 镜像文件和构建 manifest；失败留 .partial，不覆盖已有输出。
+UUID、大小只定义这个文件系统产物，不代表已批准的 GPT/双系统布局。
+文件系统检查、元数据样本、全部八处 capability、内容样本、硬链接与 Unicode 链接回读通过；
+未宣称全文件逐字节比较。该根系统在 QEMU 中用主线 Image 运行了 Ubuntu systemd/指定命令，
+但没有启动 GNOME、安装更新/设备包或验证 piano UFS。**不是可直接刷入平板的安装镜像。**
