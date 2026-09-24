@@ -9,7 +9,7 @@
 还提供本地 DSP 固件 deb、隔离 APT 输入和无 root ext4 装配；根系统已在 QEMU 运行 Ubuntu systemd/指定命令，
 dracut 更新包已下载但未安装，不能外推平板桌面支持。
 另有[原生 THP 手指处理组件](device/piano-thp/README.md)：从用户提供的本机配置提取私有标定，
-并完成 host/ARM64 静态记录回放；SPI/live/uinput 仍未接通，不代表触控可用。
+已完成 host/ARM64 回放、实时流处理和 ARM64 虚拟机内的 uinput/evdev 验证；物理 SPI/IRQ 和真实手势未验收，不代表平板触控可用。
 
 ## 仓库分工
 

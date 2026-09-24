@@ -120,3 +120,16 @@ and device-supplied records. No proprietary algorithm/library or firmware is
 included. Extracted electrode calibration remains user-supplied private data.
 The nlohmann JSON library is an external MIT-licensed build dependency, not
 vendored in this repository; its notices must accompany redistributed binaries.
+
+device/piano-thp/src/{stream,input,live_pipeline}.{cpp,hpp} and live.cpp:
+  Adapted from StreamReader, UInputTouch and the finger event lifecycle in
+  src/xiaomi_sheng_thp.cpp of the same ianchb source commit listed above.
+  License: Apache-2.0.
+  Changes: bounded incremental NTP1 framing; explicit calibration/device paths;
+  packet, sequence, epoch and CLOCK_BOOTTIME handling; release stale contacts
+  without treating pen traffic as fingers; no reference-panel axis inversion
+  or dimensions; dynamically sized event storage; bounded, collision-free
+  uinput tracking IDs; constructor/exit cleanup and opt-in private recording.
+  No firmware mode controls, pen/Bluetooth/SSC or Android compatibility layer.
+device/piano-thp/tests/{live,uinput}.cpp are new MIT test code. Synthetic
+contacts and virtual-machine input tests do not establish hardware support.

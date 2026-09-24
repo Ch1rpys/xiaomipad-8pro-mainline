@@ -4,11 +4,13 @@ OUT ?= build
 CPPFLAGS += -Isrc $(if $(JSON_INCLUDE),-I$(JSON_INCLUDE))
 CXXFLAGS ?= -O2 -std=c++20
 CXXFLAGS += -Wall -Wextra -Werror -MMD -MP
-SOURCES := nvt_touch_core nvt_finger_filter frame processor calibration replay
+CORE := nvt_touch_core nvt_finger_filter frame processor
+SOURCES := $(CORE) calibration replay stream live_pipeline input live
 OBJECTS := $(addprefix $(OUT)/,$(addsuffix .o,$(SOURCES)))
+CORE_OBJECTS := $(addprefix $(OUT)/,$(addsuffix .o,$(CORE)))
 
 .PHONY: all test
-all: $(OUT)/piano-thp-replay
+all: $(OUT)/piano-thp-replay $(OUT)/piano-thp-live
 
 $(OUT):
 	mkdir -p "$@"
@@ -16,13 +18,23 @@ $(OUT):
 $(OUT)/%.o: src/%.cpp | $(OUT)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
-$(OUT)/piano-thp-replay: $(OBJECTS)
+$(OUT)/piano-thp-replay: $(CORE_OBJECTS) $(OUT)/calibration.o $(OUT)/replay.o
 	$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
-$(OUT)/test-calibration: tests/calibration.cpp $(filter-out $(OUT)/replay.o $(OUT)/calibration.o,$(OBJECTS))
+$(OUT)/piano-thp-live: $(CORE_OBJECTS) $(OUT)/calibration.o $(OUT)/stream.o $(OUT)/live_pipeline.o $(OUT)/input.o $(OUT)/live.o
+	$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
+
+$(OUT)/test-calibration: tests/calibration.cpp $(CORE_OBJECTS)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
-test: $(OUT)/test-calibration
+$(OUT)/test-live: tests/live.cpp $(CORE_OBJECTS) $(OUT)/calibration.o $(OUT)/stream.o $(OUT)/live_pipeline.o
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS) $^ $(LDLIBS) -o $@
+
+$(OUT)/test-uinput: tests/uinput.cpp $(OUT)/input.o
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS) $^ $(LDLIBS) -o $@
+
+test: $(OUT)/test-calibration $(OUT)/test-live
 	$(RUNNER) $(OUT)/test-calibration
+	$(RUNNER) $(OUT)/test-live
 
 -include $(OBJECTS:.o=.d)

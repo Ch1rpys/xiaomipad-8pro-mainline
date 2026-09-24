@@ -1,19 +1,20 @@
-# Piano THP Finger Processing
+# Piano THP Finger Input
 
-This is the offline finger-processing foundation for the NT36532E controller.
+This contains offline replay and a native live finger-input executable for NT36532E.
 It reuses the Apache-2.0 processing core and filters from `xiaomi-sheng-thp`;
 source identity and changes are recorded in the repository `NOTICE`.
 
-It is not yet a live input service. The piano SPI transport, uinput integration,
-physical axis orientation, real finger gestures and pen support are not validated.
+The live software path is tested offline, including real Linux uinput/input/evdev
+inside an ARM64 virtual machine. Physical SPI/IRQ, panel orientation, gestures,
+GNOME interaction and pen support are not validated on piano.
 No Android libraries, firmware, electrode calibration or device records are shipped.
 
 The pinned kernel now contains an experimental `nt36532e-thp` misc transport,
 with its NTP1 contract and source provenance documented beside the driver.
 Firmware parsing and simulated register downloads pass ARM64 KUnit with the
 user-supplied piano image; physical SPI and IRQs are untested. Board nodes and
-the diagnostic configuration do not enable it. Live reader/uinput integration
-is the next step; the current executable below remains an offline replayer.
+the diagnostic configuration do not enable it. A supervised device candidate
+still needs assembly; neither this program nor a successful build enables hardware.
 
 ## Build
 
@@ -27,8 +28,8 @@ make test
 
 `CXX`, `CPPFLAGS`, `LDFLAGS`, `JSON_INCLUDE`, `OUT` and `RUNNER` can be supplied
 for cross-compilation and host-side QEMU-user testing. No build step accesses a tablet.
-The unit test uses synthetic coordinates to check calibration plumbing and reset;
-it does not establish hardware touch support.
+The default tests do not open input devices. They cover synthetic calibration,
+bounded NTP1 framing and contact lifecycle; they do not establish hardware touch.
 
 ## Private Inputs
 
@@ -61,3 +62,54 @@ acquisition, not finger tracking. Only one record follows reference acquisition
 in that sample; it produces no contacts. Positive gestures, edge calibration,
 orientation, timing under load and the remaining upstream filter tuning still
 need actual piano input evidence.
+
+## Live Input
+
+Only use this with the matching experimental kernel and board firmware. Opening
+the kernel stream downloads touch firmware into controller RAM and starts IRQ
+capture. Firmware selection/loading belongs to the kernel, not this executable.
+The program does not change pen, doze or coordinate-reporting modes.
+
+```sh
+build/piano-thp-live /path/to/private/calibration.json /dev/nvt-thp-SPI_DEVICE
+```
+
+Supply the exact misc node; there is no device scanning or automatic restart.
+The caller needs access to that node and `/dev/uinput`. There is no default
+systemd unit, enabled startup hook or installed calibration yet.
+
+The NTP1 reader buffers at most one 8223-byte record and handles partial reads.
+Firmware checksums and finger geometry are validated separately; other packet
+types are ignored, not passed through the finger algorithm. Sequence gaps,
+epochs and invalid packets reset processing and release active contacts. The
+reference service's 100 ms stall policy also bounds record age: pen-only traffic
+does not keep a stale finger down, and old queued records do not replay clicks.
+NTP1 timestamps must use the same CLOCK_BOOTTIME as the running Linux kernel.
+
+Input ranges come from the supplied calibration. The processor's column X and
+row Y are emitted without an unverified panel flip or rotation. Tracking IDs
+are allocated within 0..65535 without colliding with held contacts. Twelve
+algorithm slots are supported in software; this is not a physical finger-count
+claim. Pressure is only a binary contact indicator, not measured force.
+
+SIGINT/SIGTERM stop the process, release contacts and close the stream. Framing
+or I/O failure terminates it and removes the virtual input device. No retry
+loop conceals a failed controller. Kernel shared-power/suspend limitations
+remain; this is not yet a default product service.
+
+An optional `--record /path/to/private/capture.ntp1` saves exactly the bytes read,
+including invalid or partially received records. The file is created exclusively
+with mode 0600; existing files are not overwritten. Recording is off by default
+and continues until exit, so use a bounded diagnostic session and keep it private.
+
+## Focused Tests
+
+`test-live CALIBRATION.json STOCK_RECORDS.bin` can additionally wrap the ten
+user-supplied Android idle payloads in synthetic NTP1 envelopes. This tests the
+reader/processor boundary, not real kernel wire output or gestures.
+
+`make build/test-uinput` builds a separate test requiring Linux uinput/evdev,
+devtmpfs and sysfs. It is deliberately excluded from `make test`: run
+`build/test-uinput --create-test-device` only in a disposable guest because it
+creates synthetic input. It checks all twelve slots, coordinates, partial/full
+release, tracking-ID wrap and device removal through the real kernel interfaces.
