@@ -10,31 +10,43 @@ mount -t devpts devpts /dev/pts
 mount -t tmpfs tmpfs /run
 timeout_seconds=180
 mode=console
+root_sha=
+session_seconds=180
 for arg in $(cat /proc/cmdline); do
 	case "$arg" in piano.diag=*) mode=${arg#*=} ;; esac
 	case "$arg" in piano.diag_timeout=*) timeout_seconds=${arg#*=} ;; esac
+	case "$arg" in piano.rootfs.sha256=*) root_sha=${arg#*=} ;; esac
+	case "$arg" in piano.session=*) session_seconds=${arg#*=} ;; esac
 done
 
 case "$timeout_seconds" in *[!0-9]*|'') timeout_seconds=180 ;; esac
 [ "$timeout_seconds" -ge 15 ] 2>/dev/null && [ "$timeout_seconds" -le 900 ] 2>/dev/null || timeout_seconds=180
 (
-	sleep "$timeout_seconds"
+	trap 'exit 0' TERM
+	sleep "$timeout_seconds" &
+	wait $!
 	echo "<6>PIANO_DIAG_TIMEOUT: rebooting after $timeout_seconds seconds" >/dev/kmsg
 	echo "PIANO_DIAG_TIMEOUT: rebooting after $timeout_seconds seconds"
 	reboot -f
 ) &
+watchdog_pid=$!
 
 echo "<6>PIANO_RAM_INIT: $(uname -r) build=$(cat /etc/build-id) storage-unmounted" >/dev/kmsg
-echo "<6>PIANO_DIAG_ARMED: timeout=$timeout_seconds pid=$!" >/dev/kmsg
+echo "<6>PIANO_DIAG_ARMED: timeout=$timeout_seconds pid=$watchdog_pid" >/dev/kmsg
 exec </dev/console >/dev/console 2>&1
 echo 'PIANO_RAM_INIT: storage is not mounted; bounded diagnostic session'
 uname -a
 cat /etc/build-id
 
+usb_mode=$mode
+if [ "$mode" = ubuntu ]; then
+	usb_mode=ncm
+	/bin/busybox mkfifo -m 0600 /run/piano-start
+fi
 if [ "$mode" != console ]; then
 	echo "<6>PIANO_USB: starting mode=$mode" >/dev/kmsg
-	if /bin/usb-diag "$mode"; then
-		if [ "$mode" = ncm ]; then
+	if /bin/usb-diag "$usb_mode"; then
+		if [ "$usb_mode" = ncm ]; then
 			. /etc/piano-network
 			telnetd -F -b "$PIANO_DEVICE_IP:2323" -l /bin/sh &
 		else
@@ -48,6 +60,23 @@ if [ "$mode" != console ]; then
 		echo "<6>PIANO_USB: shell started mode=$mode" >/dev/kmsg
 	else
 		echo "<3>PIANO_USB: setup failed mode=$mode" >/dev/kmsg
+	fi
+fi
+
+if [ "$mode" = ubuntu ]; then
+	echo '<6>PIANO_UBUNTU: waiting for host root service' >/dev/kmsg
+	read -r root_url </run/piano-start
+	if /bin/prepare-ubuntu "$root_url" "$root_sha" "$session_seconds" > /run/piano-ubuntu-prep.log 2>&1; then
+		# The early systemd timer is installed before PID1 hands off.
+		if mount --move /proc /newroot/proc && mount --move /sys /newroot/sys &&
+		   mount --move /dev /newroot/dev && mount --move /run /newroot/run; then
+			/bin/busybox kill "$watchdog_pid"
+			/bin/busybox killall telnetd udhcpd 2>/dev/null
+			exec /bin/busybox switch_root /newroot /sbin/init
+		fi
+	else
+		touch /run/piano-ubuntu-failed
+		echo '<3>PIANO_UBUNTU: root preparation failed; watchdog remains armed' >/dev/kmsg
 	fi
 fi
 

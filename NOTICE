@@ -39,6 +39,16 @@ initramfs/usb-diag (originally usb-acm):
   no reference-device address, serial or host permission changes are imported.
   ACM and NCM share one gadget setup implementation.
 
+initramfs/prepare-ubuntu and the Ubuntu hand-off in initramfs/init:
+  Adapted from initramfs/init-ncm in the same erhai commit (GPL-2.0-only).
+  Retains HTTP-to-RAM SquashFS, OverlayFS, switch_root, a temporary USB console,
+  and a systemd session-expiry timer. Omits persistent mounts, device-specific
+  probes, chunked-download workarounds and background restart loops. The host
+  explicitly releases a FIFO after its single-file HTTP service is ready;
+  a failed download/hash/mount stops preparation. The expiry timer has no
+  default dependencies so ordinary boot jobs cannot postpone its activation.
+initramfs/ubuntu-state is new GPL-2.0-only read-only session diagnostics.
+
 No stock ROM, device firmware, calibration, keys or device backups are distributed
 by this repository. Kernel and other dependencies retain their own licenses.
 

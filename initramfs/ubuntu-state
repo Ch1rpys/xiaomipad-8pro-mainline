@@ -1,0 +1,29 @@
+#!/usr/bin/python3
+# SPDX-License-Identifier: GPL-2.0-only
+"""Read native Ubuntu session state; runs only in the explicit RAM experiment."""
+import json
+from pathlib import Path
+import subprocess
+
+def run(*args):
+    try:
+        result = subprocess.run(args, capture_output=True, text=True, timeout=45)
+    except subprocess.TimeoutExpired:
+        return {'returncode': None, 'output': 'Command deadline reached'}
+    return {'returncode': result.returncode, 'output': result.stdout + result.stderr}
+
+result = {
+    'startup': run('systemctl', 'is-system-running', '--wait'),
+    'pid1': Path('/proc/1/comm').read_text().strip(),
+    'os_release': Path('/etc/os-release').read_text(),
+    'build_id': Path('/run/piano-build-id').read_text().strip(),
+    'root_sha256': next(x.split('=', 1)[1] for x in Path('/proc/cmdline').read_text().split()
+                        if x.startswith('piano.rootfs.sha256=')),
+    'units': run('systemctl', 'show', 'display-manager.service', 'piano-ram-expiry.timer',
+                 'piano-ram-console.service', '-p', 'Id,ActiveState,SubState,Result,NextElapseUSecMonotonic'),
+    'sessions': run('loginctl', 'list-sessions', '--no-pager'),
+    'processes': run('ps', '-eo', 'pid,user,comm,args'),
+    'journal': run('journalctl', '-b', '--no-pager', '-n', '180'),
+    'mounts': Path('/proc/mounts').read_text(),
+}
+print(json.dumps(result))

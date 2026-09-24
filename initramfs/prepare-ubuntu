@@ -1,0 +1,85 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# RAM-only subset of erhai init-ncm: see NOTICE. No persistent mounts.
+set -eu
+export PATH=/bin
+bb=/bin/busybox
+. /etc/piano-network
+url=$1
+expected=$2
+seconds=$3
+case "$url" in "http://$PIANO_HOST_IP:"*/ubuntu.squashfs) ;; *) exit 2 ;; esac
+case "$expected" in *[!0-9a-f]*|'') exit 2 ;; esac
+[ "${#expected}" -eq 64 ]
+case "$seconds" in *[!0-9]*|'') exit 2 ;; esac
+[ "$seconds" -ge 60 ] && [ "$seconds" -le 900 ]
+
+echo 'PIANO_UBUNTU_DOWNLOAD'
+$bb wget -T 60 -O /run/ubuntu.squashfs "$url"
+printf '%s  %s\n' "$expected" /run/ubuntu.squashfs | $bb sha256sum -c -
+echo 'PIANO_UBUNTU_ROOT_VERIFIED'
+mkdir -p /run/ubuntu-lower /run/ubuntu-upper /run/ubuntu-work /newroot
+mount -t squashfs -o loop,ro /run/ubuntu.squashfs /run/ubuntu-lower
+mount -t overlay overlay -o lowerdir=/run/ubuntu-lower,upperdir=/run/ubuntu-upper,workdir=/run/ubuntu-work /newroot
+[ -x /newroot/usr/lib/systemd/systemd ]
+mkdir -p /newroot/etc/cloud /newroot/etc/systemd/network /newroot/etc/NetworkManager/conf.d \
+	/newroot/etc/systemd/system/sysinit.target.wants /newroot/etc/systemd/system/multi-user.target.wants \
+	/newroot/usr/local/libexec
+touch /newroot/etc/cloud/cloud-init.disabled
+$bb rm -f /newroot/etc/apt/sources.list.d/cdrom.sources
+$bb cp /etc/build-id /run/piano-build-id
+$bb cp /etc/piano-network /run/piano-network
+$bb cp "$bb" /newroot/usr/local/libexec/piano-busybox
+$bb cp /bin/ubuntu-state /newroot/usr/local/libexec/piano-ubuntu-state
+
+cat > /newroot/etc/systemd/network/10-piano-ram.link <<EOF
+[Match]
+MACAddress=$PIANO_DEVICE_MAC
+[Link]
+Name=usb0
+EOF
+cat > /newroot/etc/NetworkManager/conf.d/99-piano-ram.conf <<EOF
+[keyfile]
+unmanaged-devices=interface-name:usb0
+EOF
+cat > /newroot/usr/local/libexec/piano-ram-console <<'EOF'
+#!/bin/sh
+printf 'PIANO_UBUNTU_CONSOLE %s\n' "$(cat /run/piano-build-id)"
+export PS1='# '
+exec /usr/local/libexec/piano-busybox sh
+EOF
+$bb chmod 0755 /newroot/usr/local/libexec/piano-ram-console
+cat > /newroot/etc/systemd/system/piano-ram-console.service <<EOF
+[Unit]
+Description=Piano temporary RAM USB console
+DefaultDependencies=no
+After=systemd-udevd.service
+[Service]
+Type=simple
+ExecStart=/usr/local/libexec/piano-busybox telnetd -F -b $PIANO_DEVICE_IP:2323 -l /usr/local/libexec/piano-ram-console
+[Install]
+WantedBy=sysinit.target
+EOF
+ln -s ../piano-ram-console.service /newroot/etc/systemd/system/sysinit.target.wants/piano-ram-console.service
+
+now=$($bb cut -d. -f1 /proc/uptime)
+cat > /newroot/etc/systemd/system/piano-ram-expiry.service <<'EOF'
+[Unit]
+Description=End the temporary piano RAM session
+DefaultDependencies=no
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/piano-busybox reboot -f
+EOF
+cat > /newroot/etc/systemd/system/piano-ram-expiry.timer <<EOF
+[Unit]
+Description=Bound the piano RAM Ubuntu session
+DefaultDependencies=no
+[Timer]
+OnBootSec=$((now + seconds))s
+AccuracySec=1s
+[Install]
+WantedBy=sysinit.target
+EOF
+ln -s ../piano-ram-expiry.timer /newroot/etc/systemd/system/sysinit.target.wants/piano-ram-expiry.timer
+echo "PIANO_UBUNTU_PREPARED expiry=$((now + seconds))"

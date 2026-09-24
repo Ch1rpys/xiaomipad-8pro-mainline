@@ -27,7 +27,9 @@ trap 'rm -rf -- "$stage"' EXIT
 init_src="$repo/initramfs/init"
 usb_src="$repo/initramfs/usb-diag"
 network_src="$repo/initramfs/network.json"
-sha256sum "$init_src" "$usb_src" "$network_src" "$busybox" | cut -d' ' -f1 | sha256sum | cut -d' ' -f1 >"$stage/build-id"
+ubuntu_src="$repo/initramfs/prepare-ubuntu"
+state_src="$repo/initramfs/ubuntu-state"
+sha256sum "$init_src" "$usb_src" "$network_src" "$ubuntu_src" "$state_src" "$busybox" | cut -d' ' -f1 | sha256sum | cut -d' ' -f1 >"$stage/build-id"
 python3 - "$network_src" "$stage/piano-network" <<'PY'
 import json, pathlib, shlex, sys
 network = json.loads(pathlib.Path(sys.argv[1]).read_text())
@@ -42,6 +44,8 @@ PY
 	printf 'nod /dev/null 0666 0 0 c 1 3\n'
 	printf 'file /init %s 0755 0 0\n' "$init_src"
 	printf 'file /bin/usb-diag %s 0755 0 0\n' "$usb_src"
+	printf 'file /bin/prepare-ubuntu %s 0755 0 0\n' "$ubuntu_src"
+	printf 'file /bin/ubuntu-state %s 0755 0 0\n' "$state_src"
 	printf 'file /etc/piano-network %s 0644 0 0\n' "$stage/piano-network"
 	printf 'file /bin/busybox %s 0755 0 0\n' "$busybox"
 	printf 'file /etc/build-id %s 0644 0 0\n' "$stage/build-id"
