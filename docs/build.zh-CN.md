@@ -1,8 +1,8 @@
 # 离线构建
 
 这些入口准备 piano 最小板级内核、RAM 诊断候选和原始 Ubuntu Desktop 层。
-P01 已进行单次 RAM 实测，失败于厂商 ABL 的 overlay 合成，尚未完成主线交接。
-它不是可安装系统；不提供安装器，也不使用 QRD/MTP DTB 试机。
+P01 失败于厂商 ABL 的 overlay 合成；P02 修正已定位的计时器映射后，进入主线 RAM PID1 并定时返回 Android。
+回收日志部分损坏，完整首启未验收。它不是可安装系统；不提供安装器，也不使用 QRD/MTP DTB 试机。
 
 ## 主机
 
@@ -69,7 +69,8 @@ prepare-boot-dtb 将指定磁盘 DTBO 引用的符号指向 disabled 父节点�
 追加内容仍须真机验证，不能将离线合成结果称为实际运行 FDT。
 2026-09-24 的 P01 已证明仅验证磁盘 DTBO 不够覆盖 ABL 行为，不应原样反复试机。
 后续静态分析在本机 RM 的主 VM 3 路径发现 arch_timer 外部引用及 always-on 修改；
-P02 只补齐这一映射。参考 ABL 核心的双 overlay 契约测试通过，不代表已获取完整运行时 DTBO 或通过本机启动。
+P02 只补齐这一映射，参考 ABL 核心的双 overlay 契约测试通过，随后本机交接/PID1/正常超时退出已证。
+尚未取得完整运行时 DTBO 或候选运行 FDT；保存日志损坏，build-id 精确匹配未通过，不能据此宣布全部语义验收。
 
 build-boot 使用本机原厂 RAM 探针已接受的 header v2 容器，固定为 pstore-only 首测：
 60 秒 PID1 重启计时器、panic=15、不启用 USB 用户态、无存储驱动。
