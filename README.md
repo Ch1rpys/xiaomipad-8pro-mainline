@@ -39,6 +39,11 @@ native Ubuntu on piano in a temporary RAM overlay, not a persistent installation
 The failed P06 handoff and offline-reproduced BusyBox naming fix are not hidden by P08 success.
 See the build notes.
 
+The [native THP finger-processing component](device/piano-thp/README.md) now
+supports private device calibration and host/ARM64 offline stock-record replay.
+It is not yet connected to a mainline SPI stream or uinput and does not establish
+physical touch support.
+
 Original project code is MIT unless stated otherwise. Imported code retains its
 original license and attribution in NOTICE and LICENSES, including GPL-2.0-only
 diagnostic tools. See CONTRIBUTING.md.

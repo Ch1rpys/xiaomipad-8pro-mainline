@@ -8,6 +8,8 @@
 以及保留属主、硬链接和扩展属性的无 root Ubuntu 桌面层合并。有界 RAM 诊断启动不能视作可用 Ubuntu 系统。
 还提供本地 DSP 固件 deb、隔离 APT 输入和无 root ext4 装配；根系统已在 QEMU 运行 Ubuntu systemd/指定命令，
 dracut 更新包已下载但未安装，不能外推平板桌面支持。
+另有[原生 THP 手指处理组件](device/piano-thp/README.md)：从用户提供的本机配置提取私有标定，
+并完成 host/ARM64 静态记录回放；SPI/live/uinput 仍未接通，不代表触控可用。
 
 ## 仓库分工
 
