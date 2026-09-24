@@ -83,7 +83,7 @@ build-boot 使用本机已接受的 header v2 容器。默认 --diagnostic conso
 --boot-id 为实验标签，manifest 从实际 cpio 读取 RAM build-id，不根据待变化源码猜测身份。
 USB 使用 ABL 的 androidboot.serialno 生成 piano-<serial> 标识；无该参数时保留 QEMU 的 piano-diag，
 主机实验不能将匿名标识当已绑定的实体设备。ACM 需要 tty 权限；NCM 使用主机已有自动 DHCP，不需要更改串口权限。
-NCM 的短诊断传输已真机通过，不能外推多 GB 的 Ubuntu 根传输；后者仍须单独验证。
+NCM 短诊断与后续多 GB Ubuntu 根传输分别已有真机记录，不能相互替代各自验证范围。
 早于 PID1 的卡死不受用户态计时器保护，第一次测试需要人在设备旁边；不能保证自动恢复。
 它只生成 boot-piano-ram.img 和精确输入/输出 manifest，不执行 Fastboot。
 
@@ -92,12 +92,15 @@ NCM 的短诊断传输已真机通过，不能外推多 GB 的 Ubuntu 根传输�
 --diagnostic ubuntu --rootfs-sha256 <已验证的完整 SquashFS hash> 生成二阶段候选，仍不安装到存储。
 先在已绑定的 USB NCM 通道提供根文件，主机就绪后通过 /run/piano-start FIFO 通知 PID1。
 prepare-ubuntu 校验 hash、挂只读底层与 RAM overlay，再部署仅本会话的控制台和退出 timer；
-初始准备上限 600 秒，交接后会话 180 秒，panic=15 不变。原始根和 Android 分区均不改。
+初始准备上限 600 秒，交接后会话默认 300 秒，可用 --session-seconds 显式选择 60-900 秒；panic=15 不变。
+默认 --root-transport http 会在设备上校验完整根 hash。实验性 nbd 使用只读具名 export，主机校验完整 hash；
+NBD 交接只在 QEMU 通过，首个本机块读失败，不能作为默认路径或自动回退。原始根和 Android 分区均不改。
 不预置普通账号或密码，正常入口仍为 GDM 首次设置；临时调试服务不能进入默认产品。
 
 BusyBox 必须保留其分派所需的程序名；本项目放在 /usr/local/libexec/piano/busybox。
 P06 的错误命名曾使控制台和退出服务都失败，后经完整 Ubuntu/QEMU 复现修正，P08 在本机完成交接与返回。
 GDM/会话存在仍不证明图形已绘制、触控可用或已登录桌面。该模式是内部有界 bring-up，不是无人值守安装工具。
+后续 P12/P13 已另行取得真实桌面帧、内屏目视及 200% 缩放证据；真实输入、持久安装和产品账户流程仍未完成。
 
 ## 官方 Ubuntu Desktop 层
 

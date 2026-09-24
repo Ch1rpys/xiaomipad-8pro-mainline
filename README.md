@@ -5,8 +5,10 @@ Native mainline-based Linux and Ubuntu ARM64 for Xiaomi Pad 8 Pro
 
 P04/P05 verified Linux 7.2.6 RAM boot, bidirectional USB2 NCM diagnostics, exact
 runtime identity and DT capture, and timed return to Android on piano. P08 additionally
-verified the Ubuntu 26.04 RAM root, native systemd, a GDM initial-setup session and
-automatic Android return. GNOME rendering/interaction remains unverified; there is no installable image.
+verified the Ubuntu 26.04 RAM root and native systemd. P12/P13 now render the native
+GNOME desktop and terminal; the operator confirmed the internal display on P13,
+with 200% scaling. Automatic Android return passed. Real touch/input remains
+unverified, and there is no installable image.
 
 This repository owns Ubuntu integration, device userspace, build and installation
 tools, and user documentation. Kernel drivers, device trees and configuration
@@ -23,8 +25,10 @@ isolation and RAM boot-image generation are available, alongside unprivileged
 Ubuntu Desktop layer merging that preserves inode metadata; see [build notes](docs/build.zh-CN.md).
 Bounded successful sessions do not validate panic or early-hang recovery.
 P03 ACM was not tested; NCM reuses the host DHCP path without tty permission changes.
-P05 registers simpledrm/fbcon and accepts VT writes on hardware, but physical
-display output is not yet confirmed. Native panel power management remains incomplete.
+P12 declares the missing display AXI clock dependency for simpledrm, and P13 has
+physical desktop confirmation. Firmware scanout is still used; native panel power
+management remains incomplete. Explicit diagnostic sessions can use a locked,
+disposable user and standard GDM autologin entirely in the RAM overlay.
 
 Local DSP firmware packaging from user-supplied inputs is available and archive-checked;
 the proprietary package is not redistributable under this repository's license.
