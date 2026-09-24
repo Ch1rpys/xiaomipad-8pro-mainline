@@ -32,7 +32,9 @@ uname -a
 cat /etc/build-id
 
 if [ "$console_only" = false ]; then
+	echo '<6>PIANO_ACM: starting configuration' >/dev/kmsg
 	if /bin/usb-acm; then
+		echo '<6>PIANO_ACM: gadget bound; starting ttyGS0 shell' >/dev/kmsg
 		(
 			while :; do
 				getty -L -n -l /bin/sh ttyGS0 115200 vt100
@@ -40,6 +42,7 @@ if [ "$console_only" = false ]; then
 			done
 		) &
 	else
+		echo '<3>PIANO_ACM: setup failed' >/dev/kmsg
 		echo 'PIANO_ACM: setup failed; inspect console/dmesg'
 	fi
 fi

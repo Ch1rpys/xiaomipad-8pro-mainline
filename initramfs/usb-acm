@@ -8,7 +8,11 @@ mkdir "$g"
 echo 0x1d6b >"$g/idVendor"
 echo 0x0104 >"$g/idProduct"
 mkdir -p "$g/strings/0x409" "$g/configs/c.1/strings/0x409"
-echo piano-diag >"$g/strings/0x409/serialnumber"
+serial=piano-diag
+for arg in $(cat /proc/cmdline); do
+	case "$arg" in androidboot.serialno=*) serial=piano-${arg#*=} ;; esac
+done
+echo "$serial" >"$g/strings/0x409/serialnumber"
 echo 'piano Linux development' >"$g/strings/0x409/manufacturer"
 echo 'RAM diagnostic console' >"$g/strings/0x409/product"
 echo 'ACM diagnostic console' >"$g/configs/c.1/strings/0x409/configuration"
@@ -29,4 +33,5 @@ while [ "$i" -lt 10 ]; do
 done
 [ -n "$udc" ] || { echo 'PIANO_ACM: no UDC'; exit 1; }
 echo "$udc" >"$g/UDC"
+echo "<6>PIANO_ACM: serial=$serial udc=$udc" >/dev/kmsg
 echo "PIANO_ACM: bound to $udc; development root console on ttyGS0"

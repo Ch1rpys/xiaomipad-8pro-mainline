@@ -34,6 +34,7 @@ sh tools/fetch-aosp-mkbootimg.sh
 仅 P02 的主线交接、RAM PID1 和 60 秒正常退出恢复 Android 已在 piano 验证；
 精确日志身份/完整性、运行 FDT、USB 双向命令及故障恢复尚未验收。
 内屏、触控、GPU、无线、音频、键盘、传感器、电源和持久安装均未验收，Ubuntu 尚未在本机运行。
+后续 P03 离线候选增加 USB2 固定设备模式和 ACM 取证；未测试，不视作 USB 功能通过。
 官方 Android 驱动和同 SoC 社区实现仅为候选来源，不代表主线支持已经成立。
 
 ## 贡献与许可

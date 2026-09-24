@@ -7,7 +7,7 @@ P01 失败于厂商 ABL 的 overlay 合成；P02 修正已定位的计时器映�
 ## 主机
 
 使用 Linux x86_64、Git、Python 3、GCC、AArch64 GNU 交叉编译器、make、bison、flex、
-pkg-config、OpenSSL/ELF 开发库、gzip、sha256sum、flock；ccache 可选。
+pkg-config、OpenSSL/ELF 开发库、gzip、cpio、sha256sum、flock；ccache 可选。
 Ubuntu 层提取另需 curl、7z、unsquashfs；模拟器验证使用 QEMU system-aarch64。
 不需要先拥有任何旧平板工作区或旧构建输出。
 
@@ -23,7 +23,8 @@ KERNEL_SOURCE=/path/to/independent/linux OUT_DIR="$PWD/out/kernel-diag" JOBS=8 \
 
 配置仅在内核仓 arch/arm64/configs/piano-diagnostic.config 维护。
 生成 Image、sm8750-xiaomi-piano.dtb、最终 .config、日志与 build-result.json。
-当前 DTS 仅用于 RAM 启动与日志；USB、显示、UFS 和远程处理器保持关闭。
+当前 DTS 仅用于 RAM 启动与日志；P03 增加 USB2 固定设备模式，显示、UFS 和远程处理器保持关闭。
+USB 尚未真机验证；电源输入拓扑、REFGEN 和完整 Type-C 路径仍未闭合，不用于冷启动/低功耗产品验收。
 日常保持同一 OUT 增量构建；换工具链或基线时使用新 OUT。
 构建输出锁避免并发写入，输入 commit/配置和输出 hash 可核查。
 
@@ -59,7 +60,8 @@ python3 tools/prepare-boot-dtb.py \
 python3 tools/build-boot.py \
   --kernel-source /path/to/independent/linux --kernel-out out/kernel-diag \
   --initramfs out/initramfs-diag/initramfs.cpio.gz --dtb out/boot-dtb/piano-boot.dtb \
-  --mkbootimg tools/local/aosp-mkbootimg/mkbootimg.py --output out/ram-boot
+  --mkbootimg tools/local/aosp-mkbootimg/mkbootimg.py --output out/ram-boot \
+  --boot-id mainline-p03 --diagnostic acm
 ```
 
 prepare-boot-dtb 将指定磁盘 DTBO 引用的符号指向 disabled 父节点下的隔离区，
@@ -72,8 +74,11 @@ prepare-boot-dtb 将指定磁盘 DTBO 引用的符号指向 disabled 父节点�
 P02 只补齐这一映射，参考 ABL 核心的双 overlay 契约测试通过，随后本机交接/PID1/正常超时退出已证。
 尚未取得完整运行时 DTBO 或候选运行 FDT；保存日志损坏，build-id 精确匹配未通过，不能据此宣布全部语义验收。
 
-build-boot 使用本机原厂 RAM 探针已接受的 header v2 容器，固定为 pstore-only 首测：
-60 秒 PID1 重启计时器、panic=15、不启用 USB 用户态、无存储驱动。
+build-boot 使用本机已接受的 header v2 容器。默认 --diagnostic console 保留 pstore-only 模式；
+--diagnostic acm 启用已有 USB 控制台，二者都保持 60 秒 PID1 重启计时器、panic=15、无存储驱动。
+--boot-id 为实验标签，manifest 从实际 cpio 读取 RAM build-id，不根据待变化源码猜测身份。
+ACM 使用 ABL 的 androidboot.serialno 生成 piano-<serial> 标识；无该参数时保留 QEMU 的 piano-diag，
+主机实验不能将匿名标识当已绑定的实体设备。调试主机需事先具备对应 ttyACM 的读写权限。
 早于 PID1 的卡死不受用户态计时器保护，第一次测试需要人在设备旁边；不能保证自动恢复。
 它只生成 boot-piano-ram.img 和精确输入/输出 manifest，不执行 Fastboot。
 

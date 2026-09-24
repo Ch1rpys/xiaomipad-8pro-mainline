@@ -21,7 +21,8 @@ An initial piano DTS, bounded diagnostic ramdisk, packaging-only stock overlay
 isolation and RAM boot-image generation are available, alongside unprivileged
 Ubuntu Desktop layer merging that preserves inode metadata; see [build notes](docs/build.zh-CN.md).
 The bounded P02 RAM test does not validate panic or early-hang recovery.
-The candidate has no USB, display or storage support and is not a working system.
+P02 had USB, display and storage disabled. The P03 offline candidate adds USB2
+device-mode ACM diagnostics; this is not yet verified on hardware or a working system.
 
 Original project code is MIT unless stated otherwise. Imported code retains its
 original license and attribution in NOTICE and LICENSES, including GPL-2.0-only
