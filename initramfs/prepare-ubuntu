@@ -24,12 +24,12 @@ mount -t overlay overlay -o lowerdir=/run/ubuntu-lower,upperdir=/run/ubuntu-uppe
 [ -x /newroot/usr/lib/systemd/systemd ]
 mkdir -p /newroot/etc/cloud /newroot/etc/systemd/network /newroot/etc/NetworkManager/conf.d \
 	/newroot/etc/systemd/system/sysinit.target.wants /newroot/etc/systemd/system/multi-user.target.wants \
-	/newroot/usr/local/libexec
+	/newroot/usr/local/libexec/piano
 touch /newroot/etc/cloud/cloud-init.disabled
 $bb rm -f /newroot/etc/apt/sources.list.d/cdrom.sources
 $bb cp /etc/build-id /run/piano-build-id
 $bb cp /etc/piano-network /run/piano-network
-$bb cp "$bb" /newroot/usr/local/libexec/piano-busybox
+$bb cp "$bb" /newroot/usr/local/libexec/piano/busybox
 $bb cp /bin/ubuntu-state /newroot/usr/local/libexec/piano-ubuntu-state
 
 cat > /newroot/etc/systemd/network/10-piano-ram.link <<EOF
@@ -46,17 +46,16 @@ cat > /newroot/usr/local/libexec/piano-ram-console <<'EOF'
 #!/bin/sh
 printf 'PIANO_UBUNTU_CONSOLE %s\n' "$(cat /run/piano-build-id)"
 export PS1='# '
-exec /usr/local/libexec/piano-busybox sh
+exec /usr/local/libexec/piano/busybox sh
 EOF
 $bb chmod 0755 /newroot/usr/local/libexec/piano-ram-console
 cat > /newroot/etc/systemd/system/piano-ram-console.service <<EOF
 [Unit]
 Description=Piano temporary RAM USB console
 DefaultDependencies=no
-After=systemd-udevd.service
 [Service]
 Type=simple
-ExecStart=/usr/local/libexec/piano-busybox telnetd -F -b $PIANO_DEVICE_IP:2323 -l /usr/local/libexec/piano-ram-console
+ExecStart=/usr/local/libexec/piano/busybox telnetd -F -b $PIANO_DEVICE_IP:2323 -l /usr/local/libexec/piano-ram-console
 [Install]
 WantedBy=sysinit.target
 EOF
@@ -69,7 +68,7 @@ Description=End the temporary piano RAM session
 DefaultDependencies=no
 [Service]
 Type=oneshot
-ExecStart=/usr/local/libexec/piano-busybox reboot -f
+ExecStart=/usr/local/libexec/piano/busybox reboot -f
 EOF
 cat > /newroot/etc/systemd/system/piano-ram-expiry.timer <<EOF
 [Unit]

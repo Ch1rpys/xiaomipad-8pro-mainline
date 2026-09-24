@@ -67,11 +67,12 @@ if [ "$mode" = ubuntu ]; then
 	echo '<6>PIANO_UBUNTU: waiting for host root service' >/dev/kmsg
 	read -r root_url </run/piano-start
 	if /bin/prepare-ubuntu "$root_url" "$root_sha" "$session_seconds" > /run/piano-ubuntu-prep.log 2>&1; then
+		# killall needs /proc; stop the old listeners before moving it.
+		/bin/busybox killall telnetd udhcpd 2>/dev/null
 		# The early systemd timer is installed before PID1 hands off.
 		if mount --move /proc /newroot/proc && mount --move /sys /newroot/sys &&
 		   mount --move /dev /newroot/dev && mount --move /run /newroot/run; then
 			/bin/busybox kill "$watchdog_pid"
-			/bin/busybox killall telnetd udhcpd 2>/dev/null
 			exec /bin/busybox switch_root /newroot /sbin/init
 		fi
 	else
