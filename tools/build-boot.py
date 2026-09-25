@@ -27,6 +27,8 @@ def main():
     parser.add_argument('--initramfs', type=Path, required=True)
     parser.add_argument('--dtb', type=Path, required=True)
     parser.add_argument('--mkbootimg', type=Path, required=True)
+    parser.add_argument('--dtb-source-name', default='arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano.dtb',
+                        help='Kernel DTB in build-result.json that the packaging DTB was prepared from')
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--boot-id', default='mainline-r1',
                         help='Short experiment label recorded in the kernel command line')
@@ -66,7 +68,9 @@ def main():
     overlay = json.loads((args.dtb.parent / 'manifest.json').read_text())
     if overlay['outputs_sha256'][args.dtb.name] != sha(args.dtb):
         parser.error('Packaging DTB does not match its overlay audit')
-    if overlay['inputs_sha256']['mainline_dtb'] != build['files']['arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano.dtb']:
+    if args.dtb_source_name not in build['files']:
+        parser.error(f'Kernel build did not record {args.dtb_source_name}')
+    if overlay['inputs_sha256']['mainline_dtb'] != build['files'][args.dtb_source_name]:
         parser.error('Packaging DTB was built from another kernel DTB')
     config = (kout / '.config').read_text().splitlines()
     for setting in ('CONFIG_PSTORE_CONSOLE=y', 'CONFIG_PSTORE_RAM=y',
@@ -108,6 +112,7 @@ def main():
         'diagnostic': args.diagnostic,
         'timeout_seconds': timeout,
         'ram_build_id': ram_build_id,
+        'dtb_source': args.dtb_source_name,
         'inputs_sha256': {'Image': sha(image), 'dtb': sha(args.dtb),
                           'initramfs': sha(args.initramfs), 'mkbootimg': sha(args.mkbootimg),
                           'config': sha(kout / '.config')},
