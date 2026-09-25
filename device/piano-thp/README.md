@@ -5,8 +5,9 @@ It reuses the Apache-2.0 processing core and filters from `xiaomi-sheng-thp`;
 source identity and changes are recorded in the repository `NOTICE`.
 
 The live software path is tested offline, including real Linux uinput/input/evdev
-inside an ARM64 virtual machine. Physical SPI/IRQ, panel orientation, gestures,
-GNOME interaction and pen support are not validated on piano.
+inside an ARM64 virtual machine. One supervised piano session streamed frames and
+produced taps and swipes; held contacts still break up, and orientation (below),
+accuracy, multitouch, GNOME interaction and pen support are not validated.
 No Android libraries, firmware, electrode calibration or device records are shipped.
 
 The pinned kernel now contains an experimental `nt36532e-thp` misc transport,
@@ -51,6 +52,12 @@ The output uses 10 units per pixel; X follows electrode columns and Y follows
 rows. These are processor axes, not a verified transformation to panel coordinates.
 The filter consumes the same calibrated bounds in its transposed coordinate frame.
 
+`build/piano-thp-replay --ntp1 CALIBRATION.json CAPTURE.ntp1` replays a private
+`--record` capture, or a byte head/tail of one, through the same processor and prints
+per-record scan mode, delta extremes, contacts and tracker state as JSON lines in
+processor axes. It starts at the first NTP1 header, resets on sequence gaps and does
+not process an incomplete final record. It needs no device.
+
 The replayer reads the observed 24-byte Android record header and 5192-byte
 payload, verifies the firmware header and declared checksum region, then orders
 ring slots by sequence. Unsupported packet types, invalid checksum, duplicate
@@ -87,8 +94,15 @@ reference service's 100 ms stall policy also bounds record age: pen-only traffic
 does not keep a stale finger down, and old queued records do not replay clicks.
 NTP1 timestamps must use the same CLOCK_BOOTTIME as the running Linux kernel.
 
-Input ranges come from the supplied calibration. The processor's column X and
-row Y are emitted without an unverified panel flip or rotation. Tracking IDs
+Input ranges come from the supplied calibration, transformed to the panel by
+`src/orientation.hpp`. In a supervised piano session the operator tapped top-left,
+top-right, bottom-right and bottom-left (landscape, USB port on the right) and
+confirmed that order; processor X ran top to bottom and processor Y right to left.
+The device therefore reports `ABS_MT_POSITION_X = row_maximum - 1 - Y` along the
+3200-pixel side (range `0..row_maximum - 1`) and `ABS_MT_POSITION_Y = X` along the
+2136-pixel side (range `0..column_maximum - 1`). This is a linear full-range mapping;
+edge linearity and accuracy are unmeasured. If a later test contradicts the tap
+evidence, `panelContact()` is the single place to change. Tracking IDs
 are allocated within 0..65535 without colliding with held contacts. Twelve
 algorithm slots are supported in software; this is not a physical finger-count
 claim. Pressure is only a binary contact indicator, not measured force.

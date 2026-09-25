@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 #include "calibration.hpp"
 #include "processor.hpp"
+#include "stream.hpp"
 #include <algorithm>
 #include <array>
 #include <fstream>
@@ -24,16 +25,76 @@ struct Record {
     uint64_t sequence;
     nvt::FingerFrame frame;
 };
+
+// Replays a private NTP1 capture, which may be a byte tail starting mid-record,
+// through the same finger processor and prints each record's processing state.
+// An incomplete final record (a byte head) is not processed.
+int replayNtp1(const nvt::Calibration &calibration, const char *path) {
+    std::ifstream input(path, std::ios::binary);
+    if (!input)
+        throw std::runtime_error("cannot open NTP1 capture");
+    const std::vector<uint8_t> data((std::istreambuf_iterator<char>(input)), {});
+    const std::array<uint8_t, 6> magic{'N', 'T', 'P', '1', 32, 0};
+    const auto start = std::search(data.begin(), data.end(), magic.begin(), magic.end());
+    nvt::FingerProcessor processor(calibration);
+    nvt::StreamReader reader;
+    uint64_t previous = 0, records = 0, processed = 0, baselines = 0, gaps = 0;
+    reader.feed(std::span(start, data.end()), [&](const nvt::StreamRecord &record) {
+        ++records;
+        if ((record.flags & nvt::kStreamEpoch) || (previous && record.sequence != previous + 1)) {
+            ++gaps;
+            processor.reset();
+        }
+        previous = record.sequence;
+        const auto packet = nvt::parsePacket(record.payload);
+        nlohmann::json event{{"sequence", record.sequence}, {"timestamp_ns", record.timestamp_ns},
+                             {"scan_mode", packet.scan_mode}, {"data_type", packet.data_type},
+                             {"counter", packet.counter}};
+        if (packet.data_type == 3) {
+            const auto update = processor.feed(nvt::parseFingerFrame(packet), record.timestamp_ns);
+            baselines += update.baseline_ready;
+            event["baseline_ready"] = update.baseline_ready;
+            if (update.result) {
+                ++processed;
+                const auto &result = *update.result;
+                event["delta_max"] = *std::max_element(result.delta.begin(), result.delta.end());
+                event["delta_min"] = *std::min_element(result.delta.begin(), result.delta.end());
+                event["peaks"] = result.peaks.size();
+                event["contacts"] = nlohmann::json::array();
+                for (const auto &contact : result.contacts)
+                    event["contacts"].push_back({{"x", contact.x}, {"y", contact.y},
+                        {"peak", contact.peak}, {"area", contact.area}});
+                event["tracked"] = nlohmann::json::array();
+                for (const auto &slot : result.tracked_slots)
+                    event["tracked"].push_back({{"slot", slot.number}, {"tracking_id", slot.tracking_id},
+                        {"status", slot.status}, {"age", slot.age}, {"peak", slot.contact.peak}});
+                event["slots"] = nlohmann::json::array();
+                for (const auto &slot : result.slots)
+                    event["slots"].push_back({{"slot", slot.number}, {"tracking_id", slot.tracking_id},
+                        {"x", slot.contact.x}, {"y", slot.contact.y}});
+            }
+        }
+        std::cout << event.dump() << '\n';
+    });
+    std::cerr << nlohmann::json{{"skipped_leading_bytes", start - data.begin()}, {"records", records},
+        {"baseline_events", baselines}, {"processed_frames", processed}, {"discontinuities", gaps},
+        {"scope", "Offline NTP1 replay in processor axes; not hardware input validation"}}.dump() << '\n';
+    return 0;
+}
 }
 
 int main(int argc, char **argv) {
-    if (argc != 4 || std::string_view(argv[1]) != "--stock-ring") {
+    const std::string_view mode = argc == 4 ? argv[1] : "";
+    if (mode != "--stock-ring" && mode != "--ntp1") {
         std::cerr << "Usage: piano-thp-replay --stock-ring CALIBRATION.json RECORDS.bin\n"
+                  << "       piano-thp-replay --ntp1 CALIBRATION.json CAPTURE.ntp1\n"
                   << "Offline replay only; no input device, firmware command or tablet access.\n";
         return 2;
     }
     try {
         const auto calibration = nvt::loadCalibration(argv[2]);
+        if (mode == "--ntp1")
+            return replayNtp1(calibration, argv[3]);
         nvt::FingerProcessor processor(calibration);
         std::ifstream input(argv[3], std::ios::binary);
         if (!input)

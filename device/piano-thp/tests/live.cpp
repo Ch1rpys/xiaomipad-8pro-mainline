@@ -2,6 +2,7 @@
 // Synthetic protocol/lifecycle tests are not evidence of physical finger tracking.
 #include "calibration.hpp"
 #include "live_pipeline.hpp"
+#include "orientation.hpp"
 #include <algorithm>
 #include <fstream>
 #include <iostream>
@@ -208,6 +209,30 @@ void lifecycle() {
     f.reader.finish();
 }
 
+void orientation() {
+    auto value = calibration();
+    value.column_maximum = 32000;
+    value.row_maximum = 21360;
+    const auto axes = nvt::panelAxes(value);
+    check(axes.width == 21360 && axes.height == 32000, "panel ranges do not follow the swapped axes");
+    // Processor coordinates of the P15 corner taps, in the operator-confirmed order.
+    constexpr std::array<std::array<int, 4>, 5> corners{{
+        {520, 21291, 68, 520}, {1603, 661, 20698, 1603}, {31412, 384, 20975, 31412},
+        {31198, 20866, 493, 31198}, {-5, 40000, 0, 0}}};
+    std::vector<nvt::Slot> slots(corners.size()), panel;
+    for (size_t index = 0; index < corners.size(); ++index) {
+        slots[index].number = int(index);
+        slots[index].contact.x = corners[index][0];
+        slots[index].contact.y = corners[index][1];
+    }
+    nvt::panelSlots(slots, value, panel);
+    for (size_t index = 0; index < corners.size(); ++index)
+        check(panel[index].number == int(index) && panel[index].contact.x == corners[index][2] &&
+              panel[index].contact.y == corners[index][3], "P15 corner mapped to the wrong panel position");
+    const auto &tl = panel[0].contact, &tr = panel[1].contact, &br = panel[2].contact, &bl = panel[3].contact;
+    check(tl.x < tr.x && bl.x < br.x && tl.y < bl.y && tr.y < br.y, "panel corners are not upright");
+}
+
 void stock(const char *configuration, const char *path) {
     struct Record { uint64_t sequence, timestamp; std::array<uint8_t, 5192> payload; };
     std::vector<Record> records;
@@ -248,7 +273,9 @@ int main(int argc, char **argv) {
             throw std::runtime_error("Usage: test-live [CALIBRATION.json STOCK_RECORDS.bin]");
         framing();
         lifecycle();
-        std::cout << "PASS: synthetic NTP1 splits/bounds and contact release lifecycle; not hardware evidence\n";
+        orientation();
+        std::cout << "PASS: synthetic NTP1 splits/bounds, contact release lifecycle and P15 corner "
+                     "orientation; not hardware evidence\n";
         if (argc == 3)
             stock(argv[1], argv[2]);
         return 0;

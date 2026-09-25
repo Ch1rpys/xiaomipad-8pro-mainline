@@ -3,6 +3,7 @@
 #include "calibration.hpp"
 #include "input.hpp"
 #include "live_pipeline.hpp"
+#include "orientation.hpp"
 #include <cerrno>
 #include <csignal>
 #include <fcntl.h>
@@ -52,8 +53,13 @@ int main(int argc, char **argv) {
             if (record_fd < 0)
                 throw std::system_error(errno, std::generic_category(), "create private THP record");
         }
-        nvt::UInputTouch touch(calibration.column_maximum, calibration.row_maximum);
-        nvt::LivePipeline pipeline(calibration, [&](auto slots) { touch.report(slots); });
+        const auto panel = nvt::panelAxes(calibration);
+        nvt::UInputTouch touch(panel.width, panel.height);
+        std::vector<nvt::Slot> panel_slots;
+        nvt::LivePipeline pipeline(calibration, [&](auto slots) {
+            nvt::panelSlots(slots, calibration, panel_slots);
+            touch.report(panel_slots);
+        });
         nvt::StreamReader reader;
         std::signal(SIGINT, stop);
         std::signal(SIGTERM, stop);

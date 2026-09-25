@@ -111,7 +111,7 @@ device/piano-thp/src/nvt_finger_filter.{cpp,hpp}, and processor.{cpp,hpp}:
   Remaining algorithm/filter tuning is inherited and requires piano gesture
   validation. Reference-device calibration is not supplied as a fallback.
 
-device/piano-thp/src/{frame,calibration,replay}.*, tests/calibration.cpp,
+device/piano-thp/src/{frame,calibration,replay,orientation}.*, tests/calibration.cpp,
 device/piano-thp/Makefile and tools/extract-thp-calibration.py are new MIT code.
 The packet description is informed by the piano source in
 https://github.com/MiCode/vendor_xiaomi_proprietary_touch-driver
@@ -128,7 +128,8 @@ device/piano-thp/src/{stream,input,live_pipeline}.{cpp,hpp} and live.cpp:
   Changes: bounded incremental NTP1 framing; explicit calibration/device paths;
   packet, sequence, epoch and CLOCK_BOOTTIME handling; release stale contacts
   without treating pen traffic as fingers; no reference-panel axis inversion
-  or dimensions; dynamically sized event storage; bounded, collision-free
+  or dimensions (the piano panel transform is the new MIT src/orientation.hpp);
+  dynamically sized event storage; bounded, collision-free
   uinput tracking IDs; constructor/exit cleanup and opt-in private recording.
   No firmware mode controls, pen/Bluetooth/SSC or Android compatibility layer.
 device/piano-thp/tests/{live,uinput}.cpp are new MIT test code. Synthetic
