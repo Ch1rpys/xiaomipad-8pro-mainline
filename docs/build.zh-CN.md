@@ -23,7 +23,8 @@ KERNEL_SOURCE=/path/to/independent/linux OUT_DIR="$PWD/out/kernel-diag" JOBS=8 \
 
 配置仅在内核仓 arch/arm64/configs/piano-diagnostic.config 维护。
 每次增量构建先运行原生 olddefconfig，处理源码新增的 Kconfig 项；片段变化时才重新生成/合并基线。
-生成 Image、sm8750-xiaomi-piano.dtb、最终 .config、日志与 build-result.json。
+生成 Image、sm8750-xiaomi-piano.dtb、sm8750-xiaomi-piano-thp-diag.dtb、最终 .config、日志与 build-result.json。
+后者是有人监督触控诊断用的变体，只额外启用 gpi_dma1、spi2 和触控节点；默认 piano DTB 仍禁用它们，硬件未验证。
 当前 DTS 仅用于 RAM 启动与日志；P03 增加 USB2 固定设备模式，显示、UFS 和远程处理器保持关闭。
 USB 尚未真机验证；电源输入拓扑、REFGEN 和完整 Type-C 路径仍未闭合，不用于冷启动/低功耗产品验收。
 日常保持同一 OUT 增量构建；换工具链或基线时使用新 OUT。
@@ -66,6 +67,9 @@ python3 tools/build-boot.py \
   --mkbootimg tools/local/aosp-mkbootimg/mkbootimg.py --output out/ram-boot \
   --boot-id mainline-p05 --diagnostic ncm
 ```
+
+build-boot 默认核对打包 DTB 来自 build-result.json 中的 sm8750-xiaomi-piano.dtb；使用变体时显式传
+--dtb-source-name arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-thp-diag.dtb，manifest 记录 dtb_source。
 
 prepare-boot-dtb 将指定磁盘 DTBO 引用的符号指向 disabled 父节点下的隔离区，
 另将本机 RM 已核实的 arch_timer 运行时引用导出到真实 /timer（必要时为其生成 phandle）。

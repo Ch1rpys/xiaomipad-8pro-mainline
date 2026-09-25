@@ -3,13 +3,14 @@
 目标是在 Xiaomi Pad 8 Pro（piano / SM8750）上原生运行主线系 Linux 与 Ubuntu ARM64 桌面。
 [English](README.md)
 
-**P12/P13 已在本机原生运行 Ubuntu 26.04 GNOME 桌面和终端，P13 内屏目视正常并验证 200% 缩放；触控/真实输入尚未验收，没有安装镜像。**
+**P12/P13 已在本机原生运行 Ubuntu 26.04 GNOME 桌面和终端，P13 内屏目视正常并验证 200% 缩放；触控诊断候选已离线装配但未在平板运行，触控/真实输入尚未验收，没有安装镜像。**
 本仓库提供最小 piano 内核/DTS 构建、诊断 ramdisk、原厂 overlay 隔离打包和 RAM 镜像生成，
 以及保留属主、硬链接和扩展属性的无 root Ubuntu 桌面层合并。有界 RAM 诊断启动不能视作可用 Ubuntu 系统。
 还提供本地 DSP 固件 deb、隔离 APT 输入和无 root ext4 装配；根系统已在 QEMU 运行 Ubuntu systemd/指定命令，
 dracut 更新包已下载但未安装，不能外推平板桌面支持。
 另有[原生 THP 手指处理组件](device/piano-thp/README.md)：从用户提供的本机配置提取私有标定，
 已完成 host/ARM64 回放、实时流处理和 ARM64 虚拟机内的 uinput/evdev 验证；物理 SPI/IRQ 和真实手势未验收，不代表平板触控可用。
+另含仅供有人监督 RAM 会话显式启动的诊断包装与单元，不是产品服务。
 
 ## 仓库分工
 

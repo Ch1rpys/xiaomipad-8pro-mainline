@@ -7,7 +7,8 @@ P04/P05 verified Linux 7.2.6 RAM boot, bidirectional USB2 NCM diagnostics, exact
 runtime identity and DT capture, and timed return to Android on piano. P08 additionally
 verified the Ubuntu 26.04 RAM root and native systemd. P12/P13 now render the native
 GNOME desktop and terminal; the operator confirmed the internal display on P13,
-with 200% scaling. Automatic Android return passed. Real touch/input remains
+with 200% scaling. Automatic Android return passed. A supervised touch diagnostic
+candidate is assembled offline but has not run on the tablet; real touch/input remains
 unverified, and there is no installable image.
 
 This repository owns Ubuntu integration, device userspace, build and installation
@@ -40,8 +41,10 @@ The failed P06 handoff and offline-reproduced BusyBox naming fix are not hidden 
 See the build notes.
 
 The [native THP finger-processing component](device/piano-thp/README.md) now
-supports private device calibration and host/ARM64 offline stock-record replay.
-It is not yet connected to a mainline SPI stream or uinput and does not establish
+supports private device calibration, host/ARM64 offline stock-record replay and
+live NTP1 processing into uinput, verified in an ARM64 virtual machine. A RAM-only
+diagnostic wrapper and unit exist for supervised sessions; they are not a product
+service. Physical SPI/IRQ and real gestures are untested, so this does not establish
 physical touch support.
 
 Original project code is MIT unless stated otherwise. Imported code retains its
