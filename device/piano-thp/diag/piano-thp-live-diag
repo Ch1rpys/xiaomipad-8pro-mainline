@@ -1,0 +1,91 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# RAM-only supervised diagnostic, not a product service. Runs piano-thp-live on
+# the single kernel THP stream, records its NTP1 bytes and the raw evdev stream
+# of the uinput device it creates. No device scanning, waiting or restart.
+set -u
+tag=piano-thp-live-diag
+fail() {
+	printf '%s: %s\n' "$tag" "$1" >&2
+	exit "$2"
+}
+
+[ "$#" -le 1 ] || fail 'usage: piano-thp-live-diag [CALIBRATION.json]' 2
+calibration=${1:-${PIANO_THP_CALIBRATION:-}}
+[ -n "$calibration" ] || fail 'calibration path required as argument or PIANO_THP_CALIBRATION' 2
+[ -f "$calibration" ] || fail "calibration not found: $calibration" 2
+live=${0%/*}/piano-thp-live
+[ -x "$live" ] || fail "missing executable $live" 2
+
+set -- /dev/nvt-thp-*
+[ "$#" -eq 1 ] && [ ! -e "$1" ] && set --
+[ "$#" -eq 1 ] || fail "expected exactly one /dev/nvt-thp-* node, found $#: $*" 3
+node=$1
+[ -c "$node" ] || fail "$node is not a character device" 3
+
+dir=/run/piano-thp
+mkdir -m 0700 "$dir" || fail "cannot create fresh $dir; existing evidence is not overwritten" 4
+mkfifo -m 0600 "$dir/live.stderr" || fail 'cannot create stderr relay' 4
+printf '%s: node=%s calibration=%s record=%s\n' "$tag" "$node" "$calibration" "$dir/stream.ntp1" >&2
+
+# piano-thp-live creates its uinput device before opening the stream and then
+# announces the input sysname; that line is the only synchronisation point.
+relay() {
+	capture=
+	while IFS= read -r line; do
+		printf '%s\n' "$line" >&2
+		case $line in
+		'THP stream opened; input='*'; awaiting baseline') ;;
+		*) continue ;;
+		esac
+		[ -z "$capture" ] || continue
+		sysname=${line#'THP stream opened; input='}
+		sysname=${sysname%'; awaiting baseline'}
+		case $sysname in
+		input[0-9]*) ;;
+		*) printf '%s: PIANO_THP_DIAG_EVDEV_UNAVAILABLE bad sysname %s\n' "$tag" "$sysname" >&2; continue ;;
+		esac
+		class=/sys/class/input/$sysname
+		name=$(cat "$class/name" 2>/dev/null)
+		if [ "$name" != 'Piano THP Touchscreen' ]; then
+			printf '%s: PIANO_THP_DIAG_EVDEV_UNAVAILABLE %s name=%s\n' "$tag" "$sysname" "$name" >&2
+			continue
+		fi
+		set -- "$class"/event*
+		if [ "$#" -ne 1 ] || [ ! -e "$1" ]; then
+			printf '%s: PIANO_THP_DIAG_EVDEV_UNAVAILABLE %s has no single event handler\n' "$tag" "$sysname" >&2
+			continue
+		fi
+		event=/dev/input/${1##*/}
+		cat "$event" >"$dir/evdev.bin" &
+		capture=$!
+		printf '%s: PIANO_THP_DIAG_READY input=%s event=%s\n' "$tag" "$sysname" "$event" >&2
+	done
+	# Destroying the uinput device ends the evdev read with ENODEV.
+	if [ -n "$capture" ]; then
+		wait "$capture"
+		printf '%s: evdev capture exit=%s\n' "$tag" "$?" >&2
+	fi
+}
+
+live_pid=
+forward() {
+	[ -z "$live_pid" ] || kill -TERM "$live_pid" 2>/dev/null
+}
+# The unit uses KillMode=mixed: only this shell receives SIGTERM and forwards
+# it, so the relay still records the final statistics before exiting.
+trap forward TERM INT
+"$live" "$calibration" "$node" --record "$dir/stream.ntp1" 2>"$dir/live.stderr" &
+live_pid=$!
+relay <"$dir/live.stderr" &
+relay_pid=$!
+wait "$live_pid"
+status=$?
+# A trapped signal interrupts wait with status >128; collect the real status.
+while [ "$status" -gt 128 ] && kill -0 "$live_pid" 2>/dev/null; do
+	wait "$live_pid"
+	status=$?
+done
+wait "$relay_pid"
+printf '%s: piano-thp-live exit=%s\n' "$tag" "$status" >&2
+exit "$status"

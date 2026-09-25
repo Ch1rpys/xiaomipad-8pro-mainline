@@ -133,3 +133,4 @@ device/piano-thp/src/{stream,input,live_pipeline}.{cpp,hpp} and live.cpp:
   No firmware mode controls, pen/Bluetooth/SSC or Android compatibility layer.
 device/piano-thp/tests/{live,uinput}.cpp are new MIT test code. Synthetic
 contacts and virtual-machine input tests do not establish hardware support.
+device/piano-thp/diag/ (RAM-only diagnostic wrapper and unit) is new MIT code.

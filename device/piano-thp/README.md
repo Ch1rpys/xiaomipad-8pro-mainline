@@ -75,8 +75,9 @@ build/piano-thp-live /path/to/private/calibration.json /dev/nvt-thp-SPI_DEVICE
 ```
 
 Supply the exact misc node; there is no device scanning or automatic restart.
-The caller needs access to that node and `/dev/uinput`. There is no default
-systemd unit, enabled startup hook or installed calibration yet.
+The caller needs access to that node and `/dev/uinput`. There is no default or
+enabled systemd unit, startup hook or installed calibration; `diag/` is only a
+supervised RAM diagnostic (below).
 
 The NTP1 reader buffers at most one 8223-byte record and handles partial reads.
 Firmware checksums and finger geometry are validated separately; other packet
@@ -101,6 +102,28 @@ An optional `--record /path/to/private/capture.ntp1` saves exactly the bytes rea
 including invalid or partially received records. The file is created exclusively
 with mode 0600; existing files are not overwritten. Recording is off by default
 and continues until exit, so use a bounded diagnostic session and keep it private.
+
+## Supervised RAM Diagnostic
+
+`diag/` holds a RAM-only diagnostic wrapper and unit for one bounded, supervised
+session. They are not a product service, package or startup hook: the unit has no
+`[Install]` section and is started explicitly, once, by the host tooling.
+
+`piano-thp-live-diag [CALIBRATION.json]` (or `PIANO_THP_CALIBRATION`) requires
+exactly one `/dev/nvt-thp-*` character device and fails otherwise; it does not
+scan alternatives, wait for the node or retry. It creates a fresh 0700
+`/run/piano-thp`, refusing to overwrite an earlier one, and runs the adjacent
+`piano-thp-live` with `--record /run/piano-thp/stream.ntp1`. After the program's
+`THP stream opened; input=inputN` line, it checks that input's name and copies its
+single event node's raw `input_event` bytes to `/run/piano-thp/evdev.bin`.
+It relays program messages to the journal and exits with the program's status.
+
+`piano-thp-live-diag.service` runs it as root with `Restart=no` and
+`KillMode=mixed`, so a stop reaches the wrapper, which forwards SIGTERM and keeps
+the final statistics. It expects the calibration, the program and the wrapper in
+`/usr/local/libexec/piano/`. The firmware still comes from the kernel's
+`firmware-name`; install it into the RAM root before the stream is opened.
+The recordings are private device data.
 
 ## Focused Tests
 
