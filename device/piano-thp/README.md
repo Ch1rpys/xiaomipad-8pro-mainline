@@ -13,9 +13,10 @@ No Android libraries, firmware, electrode calibration or device records are ship
 The pinned kernel now contains an experimental `nt36532e-thp` misc transport,
 with its NTP1 contract and source provenance documented beside the driver.
 Firmware parsing and simulated register downloads pass ARM64 KUnit with the
-user-supplied piano image; physical SPI and IRQs are untested. Board nodes and
-the diagnostic configuration do not enable it. A supervised device candidate
-still needs assembly; neither this program nor a successful build enables hardware.
+user-supplied piano image. The default board nodes do not enable it; only the
+supervised diagnostic DTB variant does, and with it P15 streamed 120 Hz frames
+over physical SPI and IRQs. Neither this program nor a successful build enables
+hardware in a default image.
 
 ## Build
 

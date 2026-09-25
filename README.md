@@ -7,9 +7,10 @@ P04/P05 verified Linux 7.2.6 RAM boot, bidirectional USB2 NCM diagnostics, exact
 runtime identity and DT capture, and timed return to Android on piano. P08 additionally
 verified the Ubuntu 26.04 RAM root and native systemd. P12/P13 now render the native
 GNOME desktop and terminal; the operator confirmed the internal display on P13,
-with 200% scaling. Automatic Android return passed. A supervised touch diagnostic
-candidate is assembled offline but has not run on the tablet; real touch/input remains
-unverified, and there is no installable image.
+with 200% scaling. Automatic Android return passed. In the supervised RAM diagnostic
+session P15, piano produced its first real touch input. A panel orientation transform
+has been added but is not verified on the device, held contacts still break up, touch
+is not a product service, and there is no installable image.
 
 This repository owns Ubuntu integration, device userspace, build and installation
 tools, and user documentation. Kernel drivers, device trees and configuration
@@ -44,8 +45,9 @@ The [native THP finger-processing component](device/piano-thp/README.md) now
 supports private device calibration, host/ARM64 offline stock-record replay and
 live NTP1 processing into uinput, verified in an ARM64 virtual machine. A RAM-only
 diagnostic wrapper and unit exist for supervised sessions; they are not a product
-service. Physical SPI/IRQ and real gestures are untested, so this does not establish
-physical touch support.
+service. P15 streamed frames over the physical SPI/IRQ path and produced real taps and
+swipes; orientation, held contacts, multitouch and accuracy remain unverified, so this
+does not establish touch support.
 
 Original project code is MIT unless stated otherwise. Imported code retains its
 original license and attribution in NOTICE and LICENSES, including GPL-2.0-only
