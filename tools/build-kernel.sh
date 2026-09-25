@@ -17,9 +17,13 @@ out=${OUT_DIR:-"$ws/out/kernel-dev"}
 jobs=${JOBS:-$(nproc)}
 cross=${CROSS_COMPILE:-aarch64-linux-gnu-}
 fragment="$src/$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["config"])' "$repo/kernel/source.json")"
+# Optional variant fragment merged after the pinned one, e.g.
+# CONFIG_FRAGMENT_EXTRA=arch/arm64/configs/piano-ufs-ro-diag.config. It must be
+# a tracked file in the kernel source and needs its own OUT_DIR.
+extra=${CONFIG_FRAGMENT_EXTRA:-}
 
 if [[ ${1:-} == --help ]]; then
-	echo "Usage: $0 (KERNEL_SOURCE, OUT_DIR, JOBS, CROSS_COMPILE optional)"
+	echo "Usage: $0 (KERNEL_SOURCE, OUT_DIR, JOBS, CROSS_COMPILE, CONFIG_FRAGMENT_EXTRA optional)"
 	exit 0
 fi
 [[ $# == 0 ]] || { echo "Unexpected arguments; use --help" >&2; exit 2; }
@@ -29,6 +33,13 @@ src=$(realpath "$src")
 	exit 1
 }
 [[ -f $fragment ]]
+fragments=("$fragment")
+if [[ -n $extra ]]; then
+	git -C "$src" ls-files --error-unmatch -- "$extra" >/dev/null 2>&1 || {
+		echo "CONFIG_FRAGMENT_EXTRA must be a tracked kernel source path: $extra" >&2; exit 1;
+	}
+	fragments+=("$src/$extra")
+fi
 mkdir -p "$out"
 out=$(realpath "$out")
 exec 9>"$out/.build.lock"
@@ -53,7 +64,7 @@ if command -v ccache >/dev/null; then
 	cc="ccache $cc"
 fi
 args=(-C "$src" O="$out" "CC=$cc")
-recipe=$(cat "$src/arch/arm64/configs/defconfig" "$fragment" | sha256sum | cut -d' ' -f1)
+recipe=$(cat "$src/arch/arm64/configs/defconfig" "${fragments[@]}" | sha256sum | cut -d' ' -f1)
 toolchain=$("${cross}gcc" --version | head -1)
 identity=$(printf '%s\n' "$src" "$base" "$toolchain" "$cross" "$KCFLAGS" "$KAFLAGS" | sha256sum | cut -d' ' -f1)
 if [[ -f $out/.build-input && $(cat "$out/.build-input") != "$identity" ]]; then
@@ -63,7 +74,7 @@ fi
 printf '%s\n' "$identity" >"$out/.build-input"
 if [[ ! -f $out/.config || ! -f $out/.recipe || $(cat "$out/.recipe") != "$recipe" ]]; then
 	make "${args[@]}" defconfig >"$out/configure.log" 2>&1
-	"$src/scripts/kconfig/merge_config.sh" -m -O "$out" "$out/.config" "$fragment" >>"$out/configure.log" 2>&1
+	"$src/scripts/kconfig/merge_config.sh" -m -O "$out" "$out/.config" "${fragments[@]}" >>"$out/configure.log" 2>&1
 	printf '%s\n' "$recipe" >"$out/.recipe"
 fi
 # Source updates can add Kconfig symbols without changing the board fragment.
@@ -76,20 +87,22 @@ while IFS= read -r setting; do
 		}
 		;;
 	esac
-done <"$fragment"
+done < <(cat "${fragments[@]}")
 
 printf 'Building %s with %s (%s jobs)\n' "$head" "$toolchain" "$jobs"
 make "${args[@]}" -j"$jobs" Image qcom/sm8750-xiaomi-piano.dtb \
-	qcom/sm8750-xiaomi-piano-thp-diag.dtb 2>&1 | tee "$out/build.log"
+	qcom/sm8750-xiaomi-piano-thp-diag.dtb qcom/sm8750-xiaomi-piano-ufs-ro-diag.dtb 2>&1 | tee "$out/build.log"
 [[ $(git -C "$src" rev-parse HEAD) == "$head" && -z $(git -C "$src" status --porcelain --untracked-files=no) ]] || {
 	echo 'Source changed during build; output must not be used.' >&2; exit 1;
 }
-python3 - "$out" "$head" "$toolchain" <<'PY'
+python3 - "$out" "$head" "$toolchain" "$src" "${fragments[@]}" <<'PY'
 import hashlib, json, pathlib, sys
-out, head, compiler = pathlib.Path(sys.argv[1]), *sys.argv[2:]
+out, head, compiler, src = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3], pathlib.Path(sys.argv[4])
 files = ['arch/arm64/boot/Image', 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano.dtb',
-         'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-thp-diag.dtb', '.config']
+         'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-thp-diag.dtb',
+         'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-ufs-ro-diag.dtb', '.config']
 result = {'status': 'OFFLINE_BUILD_ONLY', 'kernel_commit': head, 'compiler': compiler,
+          'config_fragments': [str(pathlib.Path(f).relative_to(src)) for f in sys.argv[5:]],
           'note': 'RAM-only piano skeleton. Building does not establish hardware support.',
           'files': {f: hashlib.sha256((out / f).read_bytes()).hexdigest() for f in files}}
 (out / 'build-result.json').write_text(json.dumps(result, indent=2) + '\n')

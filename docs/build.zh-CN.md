@@ -23,8 +23,16 @@ KERNEL_SOURCE=/path/to/independent/linux OUT_DIR="$PWD/out/kernel-diag" JOBS=8 \
 
 配置仅在内核仓 arch/arm64/configs/piano-diagnostic.config 维护。
 每次增量构建先运行原生 olddefconfig，处理源码新增的 Kconfig 项；片段变化时才重新生成/合并基线。
-生成 Image、sm8750-xiaomi-piano.dtb、sm8750-xiaomi-piano-thp-diag.dtb、最终 .config、日志与 build-result.json。
-后者是有人监督触控诊断用的变体，只额外启用 gpi_dma1、spi2 和触控节点；P15 已用它在真机取得触控流，默认 piano DTB 仍禁用它们。
+生成 Image、sm8750-xiaomi-piano.dtb、sm8750-xiaomi-piano-thp-diag.dtb、sm8750-xiaomi-piano-ufs-ro-diag.dtb、最终 .config、日志与 build-result.json。
+thp-diag 是有人监督触控诊断用的变体，只额外启用 gpi_dma1、spi2 和触控节点；P15 已用它在真机取得触控流，默认 piano DTB 仍禁用它们。
+ufs-ro-diag 只把 UFS 主机与 QMP PHY 设为 okay，供有人监督的只读识盘；默认 DTB 和默认配置都不启用 UFS。
+可选 CONFIG_FRAGMENT_EXTRA=<内核仓内已跟踪的片段路径> 在固定片段之后再合并一份变体片段，两份片段中的 =y 都逐项断言，
+build-result.json 记录 config_fragments；变体必须使用独立 OUT_DIR，例如：
+
+```sh
+CONFIG_FRAGMENT_EXTRA=arch/arm64/configs/piano-ufs-ro-diag.config \
+KERNEL_SOURCE=/path/to/independent/linux OUT_DIR="$PWD/out/kernel-ufs-ro-diag" bash tools/build-kernel.sh
+```
 当前 DTS 仅用于 RAM 启动与日志；P03 增加 USB2 固定设备模式，显示、UFS 和远程处理器保持关闭。
 USB 尚未真机验证；电源输入拓扑、REFGEN 和完整 Type-C 路径仍未闭合，不用于冷启动/低功耗产品验收。
 日常保持同一 OUT 增量构建；换工具链或基线时使用新 OUT。
@@ -85,6 +93,10 @@ P04/P05 随后经 NCM 取得精确身份与运行 FDT；P04 对照显示既有�
 build-boot 使用本机已接受的 header v2 容器。默认 --diagnostic console 保留 pstore-only 模式；
 --diagnostic acm 或 ncm 选择 USB 控制台，三种模式都保持 60 秒 PID1 重启计时器、panic=15、无存储驱动。
 --boot-id 为实验标签，manifest 从实际 cpio 读取 RAM build-id，不根据待变化源码猜测身份。
+--diagnostic ufs-ro 是唯一允许 UFS 驱动的模式：要求 --dtb-source-name 为 ufs-ro 变体 DTB，配置内建 UFSHCD/PLATFORM/QCOM/QMP_UFS
+且关闭 UFS_CRYPTO/BSG/HWMON；用 libfdt（python3-libfdt）确认同一构建的默认 piano DTB 中两节点仍为 disabled、变体与打包 DTB 为 okay。
+它使用 NCM 控制台和 60 秒计时器，命令行加 ro 仅表意（RAM 根没有 root= 设备）；只读识盘步骤由主机在运行时发送，
+本仓不含写入或挂载步骤。其余模式继续断言 UFSHCD 未启用，也不能使用 ufs-ro DTB。
 USB 使用 ABL 的 androidboot.serialno 生成 piano-<serial> 标识；无该参数时保留 QEMU 的 piano-diag，
 主机实验不能将匿名标识当已绑定的实体设备。ACM 需要 tty 权限；NCM 使用主机已有自动 DHCP，不需要更改串口权限。
 NCM 短诊断与后续多 GB Ubuntu 根传输分别已有真机记录，不能相互替代各自验证范围。

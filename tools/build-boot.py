@@ -14,10 +14,57 @@ import subprocess
 
 CMDLINE_BASE = ('rdinit=/init console=ttyMSM0,115200n8 ignore_loglevel log_buf_len=2M '
                 'panic=15')
+DEFAULT_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano.dtb'
+UFS_RO_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-ufs-ro-diag.dtb'
+UFS_NODES = ('/soc@0/ufs@1d84000', '/soc@0/phy@1d80000')
+RAM_ONLY = ('CONFIG_PSTORE_CONSOLE=y', 'CONFIG_PSTORE_RAM=y', '# CONFIG_MMC is not set',
+            '# CONFIG_MTD is not set', '# CONFIG_BLK_DEV_NVME is not set')
+UFS_RO_CONFIG = ('CONFIG_SCSI_UFSHCD=y', 'CONFIG_SCSI_UFSHCD_PLATFORM=y', 'CONFIG_SCSI_UFS_QCOM=y',
+                 'CONFIG_PHY_QCOM_QMP_UFS=y', '# CONFIG_SCSI_UFS_CRYPTO is not set',
+                 '# CONFIG_SCSI_UFS_BSG is not set', '# CONFIG_SCSI_UFS_HWMON is not set')
 
 
 def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def config_errors(config, diagnostic):
+    """Every mode except ufs-ro stays free of UFS; ufs-ro gets exactly the reviewed driver set."""
+    storage = UFS_RO_CONFIG if diagnostic == 'ufs-ro' else ('# CONFIG_SCSI_UFSHCD is not set',)
+    errors = [f'Missing RAM-only diagnostic configuration: {s}' for s in RAM_ONLY + storage if s not in config]
+    if diagnostic in ('ncm', 'ubuntu', 'ufs-ro') and 'CONFIG_USB_CONFIGFS_NCM=y' not in config:
+        errors.append('NCM requires the built-in kernel function')
+    return errors
+
+
+def dtb_source_error(diagnostic, dtb_source_name):
+    if (diagnostic == 'ufs-ro') != (dtb_source_name == UFS_RO_DTB):
+        return f'The ufs-ro mode and {UFS_RO_DTB} are only used together'
+    return None
+
+
+def ufs_status(blob):
+    import libfdt
+    fdt = libfdt.Fdt(blob)
+    status = []
+    for node in UFS_NODES:
+        try:
+            status.append(fdt.getprop(fdt.path_offset(node), 'status').as_str())
+        except libfdt.FdtException:
+            status.append(None)
+    return status
+
+
+def ufs_dtb_errors(default_blob, variant_blob, packaging_blob):
+    """The default board DTB of the same build must still keep both UFS nodes disabled."""
+    errors = []
+    for label, blob, expected in (('default kernel DTB', default_blob, 'disabled'),
+                                  ('ufs-ro kernel DTB', variant_blob, 'okay'),
+                                  ('packaging DTB', packaging_blob, 'okay')):
+        status = ufs_status(blob)
+        if status != [expected, expected]:
+            errors.append(f'{label}: UFS host/PHY status {status}, expected {expected}')
+    return errors
 
 
 def main():
@@ -27,13 +74,14 @@ def main():
     parser.add_argument('--initramfs', type=Path, required=True)
     parser.add_argument('--dtb', type=Path, required=True)
     parser.add_argument('--mkbootimg', type=Path, required=True)
-    parser.add_argument('--dtb-source-name', default='arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano.dtb',
+    parser.add_argument('--dtb-source-name', default=DEFAULT_DTB,
                         help='Kernel DTB in build-result.json that the packaging DTB was prepared from')
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--boot-id', default='mainline-r1',
                         help='Short experiment label recorded in the kernel command line')
-    parser.add_argument('--diagnostic', choices=('console', 'acm', 'ncm', 'ubuntu'), default='console',
-                        help='60-second diagnostics, or bounded two-stage RAM Ubuntu')
+    parser.add_argument('--diagnostic', choices=('console', 'acm', 'ncm', 'ubuntu', 'ufs-ro'), default='console',
+                        help='60-second diagnostics, bounded two-stage RAM Ubuntu, or the 60-second '
+                             'NCM read-only UFS identification (host-sent stage)')
     parser.add_argument('--rootfs-sha256', help='Exact SquashFS input for the ubuntu mode')
     parser.add_argument('--root-transport', choices=('http', 'nbd'), default='http',
                         help='Explicit root transport, never an automatic fallback')
@@ -49,9 +97,14 @@ def main():
         parser.error('rootfs-sha256 is only used by the ubuntu mode')
     if not 60 <= args.session_seconds <= 900:
         parser.error('session-seconds must be between 60 and 900')
+    if error := dtb_source_error(args.diagnostic, args.dtb_source_name):
+        parser.error(error)
     timeout = 600 if ubuntu else 60
     cmdline = (f'{CMDLINE_BASE} piano.boot={args.boot_id} '
                f'piano.diag={args.diagnostic} piano.diag_timeout={timeout}')
+    if args.diagnostic == 'ufs-ro':
+        # Documents intent only: the RAM root is the initramfs and has no root= device.
+        cmdline += ' ro'
     if ubuntu:
         cmdline += (f' piano.rootfs.sha256={args.rootfs_sha256} piano.session={args.session_seconds}'
                     f' piano.rootfs.transport={args.root_transport}')
@@ -73,13 +126,14 @@ def main():
     if overlay['inputs_sha256']['mainline_dtb'] != build['files'][args.dtb_source_name]:
         parser.error('Packaging DTB was built from another kernel DTB')
     config = (kout / '.config').read_text().splitlines()
-    for setting in ('CONFIG_PSTORE_CONSOLE=y', 'CONFIG_PSTORE_RAM=y',
-                    '# CONFIG_SCSI_UFSHCD is not set', '# CONFIG_MMC is not set',
-                    '# CONFIG_MTD is not set', '# CONFIG_BLK_DEV_NVME is not set'):
-        if setting not in config:
-            parser.error(f'Missing RAM-only diagnostic configuration: {setting}')
-    if args.diagnostic in ('ncm', 'ubuntu') and 'CONFIG_USB_CONFIGFS_NCM=y' not in config:
-        parser.error('NCM requires the built-in kernel function')
+    if errors := config_errors(config, args.diagnostic):
+        parser.error('; '.join(errors))
+    if args.diagnostic == 'ufs-ro':
+        if DEFAULT_DTB not in build['files']:
+            parser.error('Kernel build did not record the default piano DTB')
+        if errors := ufs_dtb_errors((kout / DEFAULT_DTB).read_bytes(), (kout / UFS_RO_DTB).read_bytes(),
+                                    args.dtb.read_bytes()):
+            parser.error('; '.join(errors))
     if ubuntu:
         for setting in ('CONFIG_OVERLAY_FS=y', 'CONFIG_SQUASHFS=y',
                         'CONFIG_SQUASHFS_ZSTD=y', 'CONFIG_SQUASHFS_XATTR=y', 'CONFIG_BLK_DEV_LOOP=y'):
@@ -116,7 +170,10 @@ def main():
         'inputs_sha256': {'Image': sha(image), 'dtb': sha(args.dtb),
                           'initramfs': sha(args.initramfs), 'mkbootimg': sha(args.mkbootimg),
                           'config': sha(kout / '.config')},
-        'scope': 'fastboot boot only; diagnostic userspace, no persistent storage drivers or native panel support; firmware framebuffer support is candidate-specific',
+        'scope': ('fastboot boot only; RAM boot, UFS probe; the host-sent stage sets every UFS block device '
+                  'read-only before reading; no mount, no native panel support'
+                  if args.diagnostic == 'ufs-ro' else
+                  'fastboot boot only; diagnostic userspace, no persistent storage drivers or native panel support; firmware framebuffer support is candidate-specific'),
         'recovery': f'{timeout}-second initial PID1 timer and panic=15; Ubuntu mode hands off to a {args.session_seconds}-second early systemd timer; early hangs may require manual reset',
     }
     if ubuntu:
@@ -125,7 +182,11 @@ def main():
         manifest['root_transport'] = args.root_transport
         manifest['root_verification'] = ('HOST_SHA256_AND_READONLY_NAMED_EXPORT' if args.root_transport == 'nbd'
                                          else 'HOST_AND_GUEST_FULL_SHA256')
-    if args.diagnostic in ('ncm', 'ubuntu'):
+    if args.diagnostic == 'ufs-ro':
+        manifest['ufs_ro'] = {'default_dtb': DEFAULT_DTB, 'default_dtb_sha256': build['files'][DEFAULT_DTB],
+                              'default_dtb_ufs_status': 'disabled', 'variant_dtb_sha256': build['files'][UFS_RO_DTB],
+                              'config_fragments': build.get('config_fragments')}
+    if args.diagnostic in ('ncm', 'ubuntu', 'ufs-ro'):
         network = Path(__file__).resolve().parent.parent / 'initramfs/network.json'
         manifest['network'] = json.loads(network.read_text())
         manifest['inputs_sha256']['network'] = sha(network)

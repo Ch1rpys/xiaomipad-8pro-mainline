@@ -41,8 +41,9 @@ uname -a
 cat /etc/build-id
 
 usb_mode=$mode
+# ufs-ro only needs the NCM console; its read-only stage is sent by the host.
+case "$mode" in ubuntu|ufs-ro) usb_mode=ncm ;; esac
 if [ "$mode" = ubuntu ]; then
-	usb_mode=ncm
 	/bin/busybox mkfifo -m 0600 /run/piano-start
 fi
 if [ "$mode" != console ]; then
