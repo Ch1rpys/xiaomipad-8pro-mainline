@@ -90,6 +90,15 @@ redistribution rights. Generated firmware packages must remain local.
 The APT helper uses native APT and python-debian/apt_pkg interfaces; Ubuntu
 package and repository signatures keep their original ownership and licenses.
 
+tools/build-kernel-deb.py is GPL-2.0-only. Its package layout (image in
+/boot, DTBs under /usr/lib/linux-image-<release>/) follows the upstream Linux
+scripts/package/builddeb of the pinned kernel source. The preinst/postinst/
+prerm/postrm scripts and the linux-update-<release> trigger interest are the
+Ubuntu 26.04 linux-image-7.0.0-14-generic (linux-signed 7.0.0-14.14) maintainer
+scripts as installed in the official Desktop image, with only the release
+substituted; Ubuntu kernel packaging is GPL-2.0. No Ubuntu kernel binaries,
+signing keys or flavour-specific hooks are copied.
+
 tools/build-ubuntu-ext4.py is new GPL-2.0-only integration around the existing
 GPL-2.0-only merge-desktop-tars.py implementation. It does not implement ext4:
 filesystem import, inode metadata and xattrs are handled by upstream e2fsprogs

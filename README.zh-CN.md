@@ -8,6 +8,7 @@
 以及保留属主、硬链接和扩展属性的无 root Ubuntu 桌面层合并。有界 RAM 诊断启动不能视作可用 Ubuntu 系统。
 还提供本地 DSP 固件 deb、隔离 APT 输入和无 root ext4 装配；根系统已在 QEMU 运行 Ubuntu systemd/指定命令，
 dracut 更新包已下载但未安装，不能外推平板桌面支持。
+piano 内核 deb 已在 ARM64 QEMU 中经原生 APT 安装、由发行版 dracut 钩子生成 initrd 并以之挂载 ext4 根；未在平板安装，也没有持久 boot 镜像。
 另有[原生 THP 手指处理组件](device/piano-thp/README.md)：从用户提供的本机配置提取私有标定，
 已完成 host/ARM64 回放、实时流处理和 ARM64 虚拟机内的 uinput/evdev 验证；P15 真机 SPI/IRQ 流和首次点击/滑动已通过，方向、长按、多指和精度未验收，不代表平板触控可用。
 另含仅供有人监督 RAM 会话显式启动的诊断包装与单元，不是产品服务。

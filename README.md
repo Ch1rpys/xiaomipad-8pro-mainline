@@ -36,7 +36,9 @@ Local DSP firmware packaging from user-supplied inputs is available and archive-
 the proprietary package is not redistributable under this repository's license.
 Isolated APT preparation has resolved and downloaded the native dracut update set,
 without installing it. Unprivileged ext4 assembly preserves archive metadata;
-the ext4 artifact has only run in QEMU. The separate pristine SquashFS has now booted
+the ext4 artifact has only run in QEMU. A piano linux-image deb installs through
+native APT in an ARM64 QEMU guest, where the distro dracut hook builds an initrd that
+then mounts that ext4 root; it is not installed on the tablet and no persistent boot image exists. The separate pristine SquashFS has now booted
 native Ubuntu on piano in a temporary RAM overlay, not a persistent installation.
 The failed P06 handoff and offline-reproduced BusyBox naming fix are not hidden by P08 success.
 See the build notes.

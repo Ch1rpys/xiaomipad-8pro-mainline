@@ -235,3 +235,29 @@ UUID、大小只定义这个文件系统产物，不代表已批准的 GPT/双�
 文件系统检查、元数据样本、全部八处 capability、内容样本、硬链接与 Unicode 链接回读通过；
 未宣称全文件逐字节比较。该根系统在 QEMU 中用主线 Image 运行了 Ubuntu systemd/指定命令，
 但没有启动 GNOME、安装更新/设备包或验证 piano UFS。**不是可直接刷入平板的安装镜像。**
+
+## piano 内核 deb
+
+build-kernel-deb.py 把 build-kernel.sh 的既有 OUT 打成 Debian 二进制包，不编译、不写 OUT；
+读取期间持有 OUT 的 .build.lock，Image/DTB/.config 按 build-result.json 核对，
+并核对 Image 版本横幅与 include/config/kernel.release 一致。
+
+```sh
+python3 tools/build-kernel-deb.py --kernel-source /path/to/linux \
+  --kernel-out out/kernel-dev --maintainer 'Your Name <your-email>' --output out/kernel-deb
+```
+
+包名沿用上游 builddeb 与 Ubuntu 的 `linux-image-<kernelrelease>`，版本为
+`<tag>+piano<自 tag 的提交数>.g<commit12>`，SOURCE_DATE_EPOCH 取内核提交时间；同输入重建字节一致。
+内容：/boot 的 vmlinuz（未压缩 Image，与 build-result 同 hash）、System.map、config，
+/usr/lib/linux-image-<release>/qcom/ 下 build-result 记录的全部 DTB，
+以及内建模块清单 /usr/lib/modules/<release>/modules.builtin{,.modinfo}。
+维护脚本与 linux-update-<release> 触发器取自 Ubuntu 26.04 linux-image 包，只替换版本；
+postinst 经 depmod、linux-update-symlinks 和 /etc/kernel/postinst.d 调用发行版钩子（dracut 生成 initrd）。
+依赖 kmod、linux-base，推荐 dracut。当前诊断构建 CONFIG_MODULES=y 但未构建任何 .ko；
+OUT 中已有 modules.order 时工具拒绝打包，模块打包尚未实现。
+
+该包只在 ARM64 QEMU guest 中经原生 APT 安装并由发行版钩子生成过 dracut initrd，
+随后以该 initrd 挂载 ext4 根；没有在 piano 上安装，也不生成或刷写 ABL boot 镜像。
+QEMU 中 flash-kernel 因 linux,dummy-virt 在其数据库中而无操作；piano 机型不在该数据库，
+按源码其触发器会报 Unsupported platform，产品安装前须明确处理。

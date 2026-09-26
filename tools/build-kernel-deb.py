@@ -1,0 +1,286 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-only
+"""Package an existing piano kernel build output as a Debian linux-image binary package.
+
+Layout follows upstream scripts/package/builddeb (DTBs in /usr/lib/linux-image-<release>);
+maintainer scripts and the linux-update-<release> trigger follow the Ubuntu 26.04 linux-image
+package (see NOTICE), so distro hooks such as dracut run from /etc/kernel/postinst.d.
+Nothing is compiled, installed, flashed or written to the kernel build output.
+"""
+import argparse
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import tempfile
+
+from debian.deb822 import Deb822
+
+# Ubuntu 26.04 linux-image-7.0.0-14-generic maintainer scripts with the release substituted.
+PREINST = '''#!/bin/sh
+set -e
+
+version=@RELEASE@
+image_path=/boot/vmlinuz-$version
+
+if [ "$1" = abort-upgrade ]; then
+    exit 0
+fi
+
+if [ "$1" = install ]; then
+    # Create a flag file for postinst
+    mkdir -p /usr/lib/modules/$version
+    touch /usr/lib/modules/$version/.fresh-install
+fi
+
+if [ -d /etc/kernel/preinst.d ] || [ -d /usr/share/kernel/preinst.d ]; then
+    DEB_MAINT_PARAMS="$*" run-parts --report --exit-on-error --arg=$version \\
+        --arg=$image_path /etc/kernel/preinst.d /usr/share/kernel/preinst.d
+fi
+
+exit 0
+'''
+POSTINST = '''#!/bin/sh
+set -e
+
+version=@RELEASE@
+image_path=/boot/vmlinuz-$version
+
+if [ "$1" = triggered ]; then
+    trigger=/usr/lib/linux/triggers/$version
+    if [ -f "$trigger" ]; then
+        sh "$trigger"
+        rm -f "$trigger"
+    fi
+    exit 0
+fi
+
+if [ "$1" != configure ]; then
+    exit 0
+fi
+
+depmod $version
+
+if [ -f /usr/lib/modules/$version/.fresh-install ]; then
+    change=install
+else
+    change=upgrade
+fi
+linux-update-symlinks $change $version $image_path
+rm -f /usr/lib/modules/$version/.fresh-install
+
+if [ -d /etc/kernel/postinst.d ] || [ -d /usr/share/kernel/postinst.d ]; then
+    mkdir -p /usr/lib/linux/triggers
+    cat - >/usr/lib/linux/triggers/$version <<EOF
+DEB_MAINT_PARAMS="$*" run-parts --report --exit-on-error --arg=$version \\
+    --arg=$image_path /etc/kernel/postinst.d /usr/share/kernel/postinst.d
+EOF
+    dpkg-trigger --no-await linux-update-$version
+fi
+
+exit 0
+'''
+PRERM = '''#!/bin/sh
+set -e
+
+version=@RELEASE@
+image_path=/boot/vmlinuz-$version
+
+if [ "$1" != remove ]; then
+    exit 0
+fi
+
+linux-check-removal $version
+
+if [ -d /etc/kernel/prerm.d ] || [ -d /usr/share/kernel/prerm.d ]; then
+    DEB_MAINT_PARAMS="$*" run-parts --report --exit-on-error --arg=$version \\
+        --arg=$image_path /etc/kernel/prerm.d /usr/share/kernel/prerm.d
+fi
+
+exit 0
+'''
+POSTRM = '''#!/bin/sh
+set -e
+
+version=@RELEASE@
+image_path=/boot/vmlinuz-$version
+
+rm -f /usr/lib/modules/$version/.fresh-install
+
+if [ "$1" != upgrade ] && command -v linux-update-symlinks >/dev/null; then
+    linux-update-symlinks remove $version $image_path
+fi
+
+if [ -d /etc/kernel/postrm.d ] || [ -d /usr/share/kernel/postrm.d ]; then
+    # We cannot trigger ourselves as at the end of this we will no longer
+    # exist and can no longer respond to the trigger.  The trigger would
+    # then become lost.  Therefore we clear any pending trigger and apply
+    # postrm directly.
+    if [ -f /usr/lib/linux/triggers/$version ]; then
+        echo "$0 ... removing pending trigger"
+        rm -f /usr/lib/linux/triggers/$version
+    fi
+    DEB_MAINT_PARAMS="$*" run-parts --report --exit-on-error --arg=$version \\
+        --arg=$image_path /etc/kernel/postrm.d /usr/share/kernel/postrm.d
+fi
+
+if [ "$1" = purge ]; then
+    for extra_file in modules.dep modules.isapnpmap modules.pcimap \\
+                      modules.usbmap modules.parportmap \\
+                      modules.generic_string modules.ieee1394map \\
+                      modules.ieee1394map modules.pnpbiosmap \\
+                      modules.alias modules.ccwmap modules.inputmap \\
+                      modules.symbols modules.ofmap \\
+                      modules.seriomap modules.\\*.bin \\
+                      modules.softdep modules.weakdep modules.devname; do
+        eval rm -f /usr/lib/modules/$version/$extra_file
+    done
+    rmdir /usr/lib/modules/$version || true
+fi
+
+exit 0
+'''
+
+
+def sha(path):
+    with path.open('rb') as stream:
+        return hashlib.file_digest(stream, 'sha256').hexdigest()
+
+
+def git(source, *words):
+    return subprocess.check_output(['git', '-C', str(source), *words], text=True).strip()
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--kernel-source', type=Path, required=True, help='Kernel Git checkout containing the built commit')
+    parser.add_argument('--kernel-out', type=Path, required=True, help='build-kernel.sh OUT with build-result.json')
+    parser.add_argument('--output', type=Path, required=True, help='New directory for the deb and manifest')
+    parser.add_argument('--maintainer', required=True, help='Local package builder identity, Name <email>')
+    args = parser.parse_args()
+    if '\n' in args.maintainer or '\r' in args.maintainer:
+        parser.error('Maintainer must be one control-file field')
+    source, kout = args.kernel_source.resolve(), args.kernel_out.resolve()
+    out = args.output.resolve()
+    os.umask(0o022)
+    out.mkdir(parents=True, exist_ok=False)
+    # build-kernel.sh holds this lock while it writes the OUT; hold it while reading.
+    with (kout / '.build.lock').open('rb') as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            parser.error(f'Kernel build output is in use: {kout}')
+        build = json.loads((kout / 'build-result.json').read_text())
+        for name, expected in build['files'].items():
+            if sha(kout / name) != expected:
+                parser.error(f'Build artifact differs from build-result.json: {name}')
+        commit = build['kernel_commit']
+        git(source, 'cat-file', '-e', commit + '^{commit}')
+        tag = git(source, 'describe', '--tags', '--abbrev=0', '--match', 'v[0-9]*', commit)
+        release = (kout / 'include/config/kernel.release').read_text().strip()
+        if not re.fullmatch(r'[0-9][A-Za-z0-9.+-]*', release) or not release.startswith(tag[1:]):
+            parser.error(f'Unexpected kernel release {release!r} for {tag}')
+        image = kout / 'arch/arm64/boot/Image'
+        if f'Linux version {release} '.encode() not in image.read_bytes():
+            parser.error('Image banner does not carry include/config/kernel.release')
+        config = (kout / '.config').read_text().splitlines()
+        modular = 'CONFIG_MODULES=y' in config
+        if (kout / 'modules.order').exists():
+            parser.error('A modules build is present; module packaging is not implemented by this tool yet')
+        dtbs = sorted(n for n in build['files'] if n.endswith('.dtb'))
+        if not dtbs:
+            parser.error('build-result.json records no DTB')
+        count = git(source, 'rev-list', '--count', f'{tag}..{commit}')
+        version = f'{tag[1:]}+piano{count}.g{commit[:12]}'
+        epoch = git(source, 'show', '-s', '--format=%ct', commit)
+        name = f'linux-image-{release}'
+        archive = out / f'{name}_{version}_arm64.deb'
+        with tempfile.TemporaryDirectory(prefix='stage-', dir=out) as temporary:
+            stage = Path(temporary)
+            stage.chmod(0o755)
+            files = {f'boot/vmlinuz-{release}': (image, 0o600),
+                     f'boot/System.map-{release}': (kout / 'System.map', 0o600),
+                     f'boot/config-{release}': (kout / '.config', 0o644)}
+            if modular:
+                # Built-in module lists only: the build ran no modules target (checked above).
+                for listing in ('modules.builtin', 'modules.builtin.modinfo'):
+                    files[f'usr/lib/modules/{release}/{listing}'] = (kout / listing, 0o644)
+            for dtb in dtbs:
+                relative = Path(dtb).relative_to('arch/arm64/boot/dts')
+                files[f'usr/lib/linux-image-{release}/{relative}'] = (kout / dtb, 0o644)
+            docs = f'usr/share/doc/{name}'
+            files[f'{docs}/build-result.json'] = (kout / 'build-result.json', 0o644)
+            for target, (path, mode) in files.items():
+                destination = stage / target
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(path, destination)
+                destination.chmod(mode)
+            (stage / docs / 'copyright').write_text(
+                'Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\n'
+                'Upstream-Name: Linux\n'
+                f'Source: local kernel commit {commit} based on {tag}\n\n'
+                'Files: *\n'
+                'Copyright: Linus Torvalds and the Linux kernel contributors\n'
+                'License: GPL-2.0-only WITH Linux-syscall-note\n'
+                ' See /usr/share/common-licenses/GPL-2 and the kernel source COPYING/LICENSES.\n')
+            for directory in (stage, *stage.rglob('*')):
+                if directory.is_dir():
+                    directory.chmod(0o755)
+            # Recheck the copied bytes against the build record while still holding the lock.
+            for dtb in dtbs:
+                relative = Path(dtb).relative_to('arch/arm64/boot/dts')
+                if sha(stage / f'usr/lib/linux-image-{release}' / relative) != build['files'][dtb]:
+                    raise RuntimeError(f'DTB changed while packaging: {dtb}')
+            if (sha(stage / f'boot/vmlinuz-{release}') != build['files']['arch/arm64/boot/Image'] or
+                    sha(stage / f'boot/config-{release}') != build['files']['.config']):
+                raise RuntimeError('Image/config changed while packaging')
+            installed_kib = sum((p.stat().st_size + 1023) // 1024 if p.is_file() else 1
+                                for p in [stage, *stage.rglob('*')])
+            control = stage / 'DEBIAN'
+            control.mkdir()
+            fields = Deb822({
+                'Package': name, 'Version': version, 'Architecture': 'arm64',
+                'Installed-Size': str(installed_kib), 'Maintainer': args.maintainer,
+                'Depends': 'kmod, linux-base (>= 4.5ubuntu1~16.04.1)',
+                'Recommends': 'dracut | linux-initramfs-tool',
+                'Section': 'kernel', 'Priority': 'optional',
+                'Description': f'Linux kernel {release} for Xiaomi Pad 8 Pro (piano)\n'
+                               f' Local build of {commit} ({", ".join(build["config_fragments"])}).\n'
+                               ' Contains the kernel Image, System.map, config and DTBs;\n'
+                               ' no loadable modules are built. No hardware support is implied.'})
+            (control / 'control').write_text(fields.dump())
+            for script, text in (('preinst', PREINST), ('postinst', POSTINST),
+                                 ('prerm', PRERM), ('postrm', POSTRM)):
+                (control / script).write_text(text.replace('@RELEASE@', release))
+                (control / script).chmod(0o755)
+            (control / 'triggers').write_text(f'interest linux-update-{release}\n')
+            payload = sorted(p for p in stage.rglob('*') if p.is_file() and control not in p.parents)
+            (control / 'md5sums').write_text(''.join(
+                f'{hashlib.md5(p.read_bytes(), usedforsecurity=False).hexdigest()}  {p.relative_to(stage)}\n'
+                for p in payload))
+            contents = {str(p.relative_to(stage)): sha(p) for p in payload}
+            partial = archive.with_suffix('.deb.partial')
+            env = dict(os.environ, SOURCE_DATE_EPOCH=epoch)
+            subprocess.run(['dpkg-deb', '--root-owner-group', '--threads-max=1', '-Zxz', '--build',
+                            str(stage), str(partial)], env=env, check=True)
+    partial.replace(archive)
+    manifest = {'state': 'LOCAL_KERNEL_PACKAGE_BUILT_NOT_INSTALLED', 'package': name, 'version': version,
+                'kernel_release': release, 'kernel_commit': commit, 'upstream_tag': tag,
+                'config_fragments': build['config_fragments'], 'build_result_sha256': sha(kout / 'build-result.json'),
+                'kernel_out': str(kout), 'modules': 'none built; built-in lists only' if modular else 'CONFIG_MODULES off',
+                'dtbs': dtbs, 'contents_sha256': contents, 'installed_size_kib': installed_kib,
+                'deb': archive.name, 'deb_bytes': archive.stat().st_size, 'deb_sha256': sha(archive),
+                'builder_sha256': sha(Path(__file__)), 'source_date_epoch': int(epoch),
+                'dpkg_deb_version': subprocess.check_output(['dpkg-deb', '--version'], text=True).splitlines()[0],
+                'maintainer': args.maintainer,
+                'limitations': 'Kernel package only; no install, initrd, boot image, flashing or device test'}
+    (out / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+    print(json.dumps({k: manifest[k] for k in ('package', 'version', 'deb', 'deb_sha256')}, indent=2))
+
+
+if __name__ == '__main__':
+    main()
