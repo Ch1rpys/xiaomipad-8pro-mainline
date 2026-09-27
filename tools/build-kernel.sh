@@ -92,8 +92,8 @@ done < <(cat "${fragments[@]}")
 
 printf 'Building %s with %s (%s jobs)\n' "$head" "$toolchain" "$jobs"
 make "${args[@]}" -j"$jobs" Image qcom/sm8750-xiaomi-piano.dtb \
-	qcom/sm8750-xiaomi-piano-gpu-diag.dtb qcom/sm8750-xiaomi-piano-thp-diag.dtb \
-	qcom/sm8750-xiaomi-piano-ufs-ro-diag.dtb 2>&1 | tee "$out/build.log"
+	qcom/sm8750-xiaomi-piano-gpu-diag.dtb qcom/sm8750-xiaomi-piano-power-diag.dtb \
+	qcom/sm8750-xiaomi-piano-thp-diag.dtb qcom/sm8750-xiaomi-piano-ufs-ro-diag.dtb 2>&1 | tee "$out/build.log"
 [[ $(git -C "$src" rev-parse HEAD) == "$head" && -z $(git -C "$src" status --porcelain --untracked-files=no) ]] || {
 	echo 'Source changed during build; output must not be used.' >&2; exit 1;
 }
@@ -102,6 +102,7 @@ import hashlib, json, pathlib, sys
 out, head, compiler, src = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3], pathlib.Path(sys.argv[4])
 files = ['arch/arm64/boot/Image', 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-gpu-diag.dtb',
+         'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-power-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-thp-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-ufs-ro-diag.dtb', '.config']
 result = {'status': 'OFFLINE_BUILD_ONLY', 'kernel_commit': head, 'compiler': compiler,

@@ -23,9 +23,10 @@ KERNEL_SOURCE=/path/to/independent/linux OUT_DIR="$PWD/out/kernel-diag" JOBS=8 \
 
 配置仅在内核仓 arch/arm64/configs/piano-diagnostic.config 维护。
 每次增量构建先运行原生 olddefconfig，处理源码新增的 Kconfig 项；片段变化时才重新生成/合并基线。
-生成 Image、sm8750-xiaomi-piano.dtb、sm8750-xiaomi-piano-thp-diag.dtb、sm8750-xiaomi-piano-ufs-ro-diag.dtb、最终 .config、日志与 build-result.json。
+生成 Image、sm8750-xiaomi-piano.dtb、各诊断变体 DTB（gpu/power/thp/ufs-ro）、最终 .config、日志与 build-result.json。
 thp-diag 是有人监督触控诊断用的变体，只额外启用 gpi_dma1、spi2 和触控节点；P15 已用它在真机取得触控流，默认 piano DTB 仍禁用它们。
 ufs-ro-diag 只把 UFS 主机与 QMP PHY 设为 okay，供有人监督的只读识盘；默认 DTB 和默认配置都不启用 UFS。
+power-diag 只把两颗 BQ27Z561 所在的 i2c5/i2c11、QUP2 包装器和 gpi_dma1/gpi_dma2 设为 okay，供有人监督的只读电量计/温度读取；配套 piano-power-diag.config 只把 I2C_QCOM_GENI 改为内建。它不描述充电器、电荷泵、电池通路 GPIO、monitored-battery 或温控策略，默认 DTB 两条总线仍 disabled。SE5 在原厂为多执行环境共享，本内核不做 GPI 锁，只能用于不启动远程处理器的有人监督 RAM 会话。
 可选 CONFIG_FRAGMENT_EXTRA=<内核仓内已跟踪的片段路径> 在固定片段之后再合并一份变体片段，两份片段中的 =y 都逐项断言，
 build-result.json 记录 config_fragments；变体必须使用独立 OUT_DIR，例如：
 
