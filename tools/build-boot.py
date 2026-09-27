@@ -17,6 +17,9 @@ CMDLINE_BASE = ('rdinit=/init console=ttyMSM0,115200n8 ignore_loglevel log_buf_l
 DEFAULT_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano.dtb'
 UFS_RO_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-ufs-ro-diag.dtb'
 GPU_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-gpu-diag.dtb'
+BT_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-bt-diag.dtb'
+BT_CONFIG = ('CONFIG_RFKILL=y', 'CONFIG_BT=y', 'CONFIG_BT_LE=y', 'CONFIG_BT_QCA=y', 'CONFIG_BT_HCIUART=y',
+             'CONFIG_BT_HCIUART_SERDEV=y', 'CONFIG_BT_HCIUART_QCA=y', 'CONFIG_POWER_SEQUENCING_QCOM_WCN=y')
 # MDSS stays disabled while simpledrm scans out, so the GPU needs its own DRM device.
 GPU_CMDLINE = 'msm.separate_gpu_kms=1'
 UFS_NODES = ('/soc@0/ufs@1d84000', '/soc@0/phy@1d80000')
@@ -52,6 +55,16 @@ def gpu_errors(config, dtb_source_name, firmware):
     errors = [] if 'CONFIG_DRM_MSM=y' in config else ['The GPU DTB needs the built-in MSM driver (GPU OUT)']
     if not firmware:
         errors.append('The GPU DTB needs an initramfs built with FIRMWARE_DIR')
+    return errors
+
+
+def bt_errors(config, diagnostic, dtb_source_name):
+    """The bt-diag DTB is only packaged with its built-in stack (bt-diag OUT) in the RAM desktop mode."""
+    if dtb_source_name != BT_DTB:
+        return []
+    errors = [f'The bt-diag DTB needs the bt-diag OUT: {s}' for s in BT_CONFIG if s not in config]
+    if diagnostic != 'ubuntu':
+        errors.append('The bt-diag DTB is only used in the ubuntu mode (runtime firmware bundle)')
     return errors
 
 
@@ -179,6 +192,8 @@ def main():
     firmware_text, firmware = firmware_manifest(cpio_bytes)
     if errors := gpu_errors(config, args.dtb_source_name, firmware):
         parser.error('; '.join(errors))
+    if errors := bt_errors(config, args.diagnostic, args.dtb_source_name):
+        parser.error('; '.join(errors))
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=False)
     boot = out / 'boot-piano-ram.img'
@@ -212,6 +227,9 @@ def main():
         # Identities only; the private bytes stay in the initramfs and its private source.
         manifest['inputs_sha256']['firmware_manifest'] = hashlib.sha256(firmware_text.encode()).hexdigest()
         manifest['firmware'] = firmware
+    if args.dtb_source_name == BT_DTB:
+        manifest['bt_diag'] = {'dtb_sha256': build['files'][BT_DTB], 'config_fragments': build.get('config_fragments'),
+                               'firmware': 'runtime bundle from run-mainline-probe.py --bt-firmware-dir, not in the image'}
     if args.dtb_source_name == GPU_DTB:
         manifest['gpu_diag'] = {'cmdline': GPU_CMDLINE, 'dtb_sha256': build['files'][GPU_DTB],
                                 'config_fragments': build.get('config_fragments')}

@@ -19,7 +19,7 @@ cross=${CROSS_COMPILE:-aarch64-linux-gnu-}
 fragment="$src/$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["config"])' "$repo/kernel/source.json")"
 # Optional variant fragment merged after the pinned one, e.g.
 # CONFIG_FRAGMENT_EXTRA=arch/arm64/configs/piano-ufs-ro-diag.config (or
-# piano-gpu-diag.config). It must be
+# piano-gpu-diag.config, piano-bt-diag.config). It must be
 # a tracked file in the kernel source and needs its own OUT_DIR.
 extra=${CONFIG_FRAGMENT_EXTRA:-}
 
@@ -92,7 +92,8 @@ done < <(cat "${fragments[@]}")
 
 printf 'Building %s with %s (%s jobs)\n' "$head" "$toolchain" "$jobs"
 make "${args[@]}" -j"$jobs" Image qcom/sm8750-xiaomi-piano.dtb \
-	qcom/sm8750-xiaomi-piano-gpu-diag.dtb qcom/sm8750-xiaomi-piano-power-diag.dtb \
+	qcom/sm8750-xiaomi-piano-bt-diag.dtb qcom/sm8750-xiaomi-piano-gpu-diag.dtb \
+	qcom/sm8750-xiaomi-piano-power-diag.dtb \
 	qcom/sm8750-xiaomi-piano-thp-diag.dtb qcom/sm8750-xiaomi-piano-ufs-ro-diag.dtb 2>&1 | tee "$out/build.log"
 [[ $(git -C "$src" rev-parse HEAD) == "$head" && -z $(git -C "$src" status --porcelain --untracked-files=no) ]] || {
 	echo 'Source changed during build; output must not be used.' >&2; exit 1;
@@ -101,6 +102,7 @@ python3 - "$out" "$head" "$toolchain" "$src" "${fragments[@]}" <<'PY'
 import hashlib, json, pathlib, sys
 out, head, compiler, src = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3], pathlib.Path(sys.argv[4])
 files = ['arch/arm64/boot/Image', 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano.dtb',
+         'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-bt-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-gpu-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-power-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-thp-diag.dtb',

@@ -23,10 +23,11 @@ KERNEL_SOURCE=/path/to/independent/linux OUT_DIR="$PWD/out/kernel-diag" JOBS=8 \
 
 配置仅在内核仓 arch/arm64/configs/piano-diagnostic.config 维护。
 每次增量构建先运行原生 olddefconfig，处理源码新增的 Kconfig 项；片段变化时才重新生成/合并基线。
-生成 Image、sm8750-xiaomi-piano.dtb、各诊断变体 DTB（gpu/power/thp/ufs-ro）、最终 .config、日志与 build-result.json。
+生成 Image、sm8750-xiaomi-piano.dtb、各诊断变体 DTB（bt/gpu/power/thp/ufs-ro）、最终 .config、日志与 build-result.json。
 thp-diag 是有人监督触控诊断用的变体，只额外启用 gpi_dma1、spi2 和触控节点；P15 已用它在真机取得触控流，默认 piano DTB 仍禁用它们。
 ufs-ro-diag 只把 UFS 主机与 QMP PHY 设为 okay，供有人监督的只读识盘；默认 DTB 和默认配置都不启用 UFS。
 power-diag 只把两颗 BQ27Z561 所在的 i2c5/i2c11、QUP2 包装器和 gpi_dma1/gpi_dma2 设为 okay，供有人监督的只读电量计/温度读取；配套 piano-power-diag.config 只把 I2C_QCOM_GENI 改为内建。它不描述充电器、电荷泵、电池通路 GPIO、monitored-battery 或温控策略，默认 DTB 两条总线仍 disabled。SE5 在原厂为多执行环境共享，本内核不做 GPI 锁，只能用于不启动远程处理器的有人监督 RAM 会话。
+bt-diag 只把 WCN7860 PMU 与 UART14（含蓝牙子节点）设为 okay，配合 piano-bt-diag.config 内建蓝牙/serdev/rfkill/pwrseq；PCIe0 与 WLAN 不启用，默认 DTB 和默认配置都不启用蓝牙。
 可选 CONFIG_FRAGMENT_EXTRA=<内核仓内已跟踪的片段路径> 在固定片段之后再合并一份变体片段，两份片段中的 =y 都逐项断言，
 build-result.json 记录 config_fragments；变体必须使用独立 OUT_DIR，例如：
 
@@ -115,6 +116,7 @@ initramfs 带 FIRMWARE_DIR 时，manifest 的 inputs_sha256.firmware_manifest �
 --dtb-source-name 为 sm8750-xiaomi-piano-gpu-diag.dtb 时要求配置内建 DRM_MSM（CONFIG_FRAGMENT_EXTRA=arch/arm64/configs/piano-gpu-diag.config
 的独立 OUT）且 initramfs 带固件清单，并在命令行加 msm.separate_gpu_kms=1：MDSS 保持关闭、simpledrm 继续扫描输出，
 GPU 需要独立的 DRM 设备。这只是诊断编排，GPU 尚无真机结论。
+--dtb-source-name 为 sm8750-xiaomi-piano-bt-diag.dtb 时只允许 --diagnostic ubuntu，并要求 bt-diag 独立 OUT 内建 RFKILL/BT/BT_LE/BT_QCA/HCIUART/SERDEV/HCIUART_QCA/POWER_SEQUENCING_QCOM_WCN；蓝牙固件不进镜像，由内部 runner 在桌面启动后作为运行时 bundle 送达，蓝牙尚无真机结论。
 它只生成 boot-piano-ram.img 和精确输入/输出 manifest，不执行 Fastboot。
 
 ## 实验性 Ubuntu RAM 交接
