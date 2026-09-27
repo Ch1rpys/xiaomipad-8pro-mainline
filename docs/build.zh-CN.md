@@ -53,6 +53,15 @@ BUSYBOX="$PWD/tools/local/busybox-arm64/usr/bin/busybox" \
 BusyBox 固定为 Ubuntu ARM64 static 1.36.1-6ubuntu3.1；包和二进制都校验。
 gen_init_cpio 由同一内核源码产生，可在无 root 权限下正确描述 /dev/console 等节点。
 ramdisk 无板级固件、存储挂载或账户；ACM/NCM 是实验用 root console，不进入默认产品。
+可选 FIRMWARE_DIR=<私有目录> 把其中的普通文件按相对路径放入 /lib/firmware/<相对路径>，
+供探测或首次打开时请求固件的驱动使用（GPU、PCIe Wi-Fi、ADSP 等）。只接受普通文件和目录，路径限于
+字母、数字和 `._+-`，拒绝空目录、符号链接和特殊文件。清单 `相对路径 字节数 sha256` 写入
+/etc/piano-firmware 并镜像到 OUT_DIR/firmware-manifest；清单进入 build-id，因此不同私有固件的候选身份不同，
+不带 FIRMWARE_DIR 时 build-id 算法与之前相同。Ubuntu 模式的 prepare-ubuntu 在交接前将这些文件复制到
+RAM overlay 的 /usr/lib/firmware 并按清单校验，交接后才首次请求固件的驱动也能取到。
+固件字节只存在于私有目录和输出 initramfs，不进入本仓；原厂固件没有再分发依据。
+`BUSYBOX=... GEN_INIT_CPIO=... python3 tools/test-build-initramfs.py` 用合成夹具检查 cpio 内容、清单、身份变化和拒绝路径。
+
 initramfs/network.json 是 NCM 的唯一网络配置，使用独立 USB 子网和仅一台主机的 DHCP 租约，无默认路由/DNS。
 默认 180 秒发出重启请求，piano.diag_timeout 可在 15-900 秒内调整。
 该机制的 QEMU 成功不证明 Xiaomi ABL 会回 Fastboot，真机恢复仍需验证。
@@ -101,6 +110,10 @@ USB 使用 ABL 的 androidboot.serialno 生成 piano-<serial> 标识；无该参
 主机实验不能将匿名标识当已绑定的实体设备。ACM 需要 tty 权限；NCM 使用主机已有自动 DHCP，不需要更改串口权限。
 NCM 短诊断与后续多 GB Ubuntu 根传输分别已有真机记录，不能相互替代各自验证范围。
 早于 PID1 的卡死不受用户态计时器保护，第一次测试需要人在设备旁边；不能保证自动恢复。
+initramfs 带 FIRMWARE_DIR 时，manifest 的 inputs_sha256.firmware_manifest 记录清单 hash，firmware 列出路径/大小/hash。
+--dtb-source-name 为 sm8750-xiaomi-piano-gpu-diag.dtb 时要求配置内建 DRM_MSM（CONFIG_FRAGMENT_EXTRA=arch/arm64/configs/piano-gpu-diag.config
+的独立 OUT）且 initramfs 带固件清单，并在命令行加 msm.separate_gpu_kms=1：MDSS 保持关闭、simpledrm 继续扫描输出，
+GPU 需要独立的 DRM 设备。这只是诊断编排，GPU 尚无真机结论。
 它只生成 boot-piano-ram.img 和精确输入/输出 manifest，不执行 Fastboot。
 
 ## 实验性 Ubuntu RAM 交接

@@ -5,7 +5,9 @@ set -euo pipefail
 umask 022
 repo=$(cd -- "$(dirname -- "$0")/.." && pwd)
 if [[ ${1:-} == --help ]]; then
-	echo 'Usage: BUSYBOX=... GEN_INIT_CPIO=... OUT_DIR=... build-initramfs.sh'
+	echo 'Usage: BUSYBOX=... GEN_INIT_CPIO=... OUT_DIR=... [FIRMWARE_DIR=...] build-initramfs.sh'
+	echo 'FIRMWARE_DIR: optional private tree copied to /lib/firmware/<relative path>;'
+	echo 'its manifest (path size sha256) goes to /etc/piano-firmware and OUT_DIR/firmware-manifest.'
 	exit 0
 fi
 [[ $# == 0 ]] || exit 2
@@ -29,7 +31,29 @@ usb_src="$repo/initramfs/usb-diag"
 network_src="$repo/initramfs/network.json"
 ubuntu_src="$repo/initramfs/prepare-ubuntu"
 state_src="$repo/initramfs/ubuntu-state"
-sha256sum "$init_src" "$usb_src" "$network_src" "$ubuntu_src" "$state_src" "$busybox" | cut -d' ' -f1 | sha256sum | cut -d' ' -f1 >"$stage/build-id"
+# Optional private firmware for drivers that request it at probe or first open.
+# Only regular files with plain relative paths; the bytes never leave OUT_DIR.
+rm -f "$out/firmware-manifest"
+if [[ -n ${FIRMWARE_DIR:-} ]]; then
+	fw_dir=$(realpath "$FIRMWARE_DIR")
+	[[ -d $fw_dir ]] || { echo "FIRMWARE_DIR is not a directory: $fw_dir" >&2; exit 1; }
+	[[ -z $(find "$fw_dir" -mindepth 1 ! -type f ! -type d -print -quit) ]] || {
+		echo 'FIRMWARE_DIR may only contain regular files and directories.' >&2; exit 1;
+	}
+	(cd "$fw_dir" && find . -type f -printf '%P\n' | LC_ALL=C sort) >"$stage/firmware-files"
+	[[ -s $stage/firmware-files ]] || { echo 'FIRMWARE_DIR contains no files.' >&2; exit 1; }
+	while IFS= read -r rel; do
+		[[ $rel =~ ^[A-Za-z0-9._+-]+(/[A-Za-z0-9._+-]+)*$ && ! $rel =~ (^|/)\.\.?(/|$) ]] || {
+			echo "Unsupported firmware path: $rel" >&2; exit 1;
+		}
+		printf '%s %s %s\n' "$rel" "$(stat -c %s -- "$fw_dir/$rel")" \
+			"$(sha256sum -- "$fw_dir/$rel" | cut -d' ' -f1)"
+	done <"$stage/firmware-files" >"$stage/piano-firmware"
+fi
+{
+	sha256sum "$init_src" "$usb_src" "$network_src" "$ubuntu_src" "$state_src" "$busybox" | cut -d' ' -f1
+	[[ ! -f $stage/piano-firmware ]] || sha256sum "$stage/piano-firmware" | cut -d' ' -f1
+} | sha256sum | cut -d' ' -f1 >"$stage/build-id"
 python3 - "$network_src" "$stage/piano-network" <<'PY'
 import json, pathlib, shlex, sys
 network = json.loads(pathlib.Path(sys.argv[1]).read_text())
@@ -49,11 +73,27 @@ PY
 	printf 'file /etc/piano-network %s 0644 0 0\n' "$stage/piano-network"
 	printf 'file /bin/busybox %s 0755 0 0\n' "$busybox"
 	printf 'file /etc/build-id %s 0644 0 0\n' "$stage/build-id"
+	if [[ -f $stage/piano-firmware ]]; then
+		printf 'file /etc/piano-firmware %s 0644 0 0\n' "$stage/piano-firmware"
+		printf 'dir /lib 0755 0 0\ndir /lib/firmware 0755 0 0\n'
+		sed -n 's|/[^/]*$||p' "$stage/firmware-files" | LC_ALL=C sort -u | while IFS= read -r d; do
+			path=
+			IFS=/ read -ra parts <<<"$d"
+			for part in "${parts[@]}"; do
+				path+=/$part
+				printf 'dir /lib/firmware%s 0755 0 0\n' "$path"
+			done
+		done | awk '!seen[$0]++'
+		while IFS= read -r rel; do
+			printf 'file /lib/firmware/%s %s 0644 0 0\n' "$rel" "$fw_dir/$rel"
+		done <"$stage/firmware-files"
+	fi
 	for app in sh mount mkdir cat uname sleep setsid cttyhack getty ln ls dmesg poweroff reboot ip touch udhcpd telnetd; do
 		printf 'slink /bin/%s busybox 0777 0 0\n' "$app"
 	done
 } >"$stage/cpio.list"
 "$gen_init_cpio" -t 0 "$stage/cpio.list" 2>"$out/cpio.log" | gzip -n >"$out/initramfs.cpio.gz.new"
 mv "$out/initramfs.cpio.gz.new" "$out/initramfs.cpio.gz"
+[[ ! -f $stage/piano-firmware ]] || cp "$stage/piano-firmware" "$out/firmware-manifest"
 sha256sum "$out/initramfs.cpio.gz" >"$out/initramfs.cpio.gz.sha256"
 echo "Built $out/initramfs.cpio.gz (RAM diagnostic userspace, not a boot image)"

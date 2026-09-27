@@ -16,6 +16,9 @@ CMDLINE_BASE = ('rdinit=/init console=ttyMSM0,115200n8 ignore_loglevel log_buf_l
                 'panic=15')
 DEFAULT_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano.dtb'
 UFS_RO_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-ufs-ro-diag.dtb'
+GPU_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-gpu-diag.dtb'
+# MDSS stays disabled while simpledrm scans out, so the GPU needs its own DRM device.
+GPU_CMDLINE = 'msm.separate_gpu_kms=1'
 UFS_NODES = ('/soc@0/ufs@1d84000', '/soc@0/phy@1d80000')
 RAM_ONLY = ('CONFIG_PSTORE_CONSOLE=y', 'CONFIG_PSTORE_RAM=y', '# CONFIG_MMC is not set',
             '# CONFIG_MTD is not set', '# CONFIG_BLK_DEV_NVME is not set')
@@ -41,6 +44,30 @@ def dtb_source_error(diagnostic, dtb_source_name):
     if (diagnostic == 'ufs-ro') != (dtb_source_name == UFS_RO_DTB):
         return f'The ufs-ro mode and {UFS_RO_DTB} are only used together'
     return None
+
+
+def gpu_errors(config, dtb_source_name, firmware):
+    if dtb_source_name != GPU_DTB:
+        return []
+    errors = [] if 'CONFIG_DRM_MSM=y' in config else ['The GPU DTB needs the built-in MSM driver (GPU OUT)']
+    if not firmware:
+        errors.append('The GPU DTB needs an initramfs built with FIRMWARE_DIR')
+    return errors
+
+
+def firmware_manifest(cpio_bytes):
+    """Return the initramfs /etc/piano-firmware text ('' without FIRMWARE_DIR) and its rows."""
+    listing = subprocess.run(['cpio', '--list', '--quiet'], input=cpio_bytes, capture_output=True,
+                             check=True).stdout.decode().split()
+    if 'etc/piano-firmware' not in listing:
+        return '', []
+    text = subprocess.check_output(['cpio', '--extract', '--to-stdout', '--quiet', 'etc/piano-firmware'],
+                                   input=cpio_bytes).decode()
+    rows = []
+    for line in text.splitlines():
+        path, size, digest = line.split(' ')
+        rows.append({'path': path, 'size': int(size), 'sha256': digest})
+    return text, rows
 
 
 def ufs_status(blob):
@@ -102,6 +129,8 @@ def main():
     timeout = 600 if ubuntu else 60
     cmdline = (f'{CMDLINE_BASE} piano.boot={args.boot_id} '
                f'piano.diag={args.diagnostic} piano.diag_timeout={timeout}')
+    if args.dtb_source_name == GPU_DTB:
+        cmdline += f' {GPU_CMDLINE}'
     if args.diagnostic == 'ufs-ro':
         # Documents intent only: the RAM root is the initramfs and has no root= device.
         cmdline += ' ro'
@@ -142,11 +171,14 @@ def main():
         if args.root_transport == 'nbd' and 'CONFIG_BLK_DEV_NBD=y' not in config:
             parser.error('NBD root requires the built-in upstream NBD client')
     image = kout / 'arch/arm64/boot/Image'
+    cpio_bytes = gzip.decompress(args.initramfs.read_bytes())
     ram_build_id = subprocess.check_output(
-        ['cpio', '--extract', '--to-stdout', '--quiet', 'etc/build-id'],
-        input=gzip.decompress(args.initramfs.read_bytes())).decode().strip()
+        ['cpio', '--extract', '--to-stdout', '--quiet', 'etc/build-id'], input=cpio_bytes).decode().strip()
     if not re.fullmatch(r'[0-9a-f]{64}', ram_build_id):
         parser.error('The ramdisk must contain its exact diagnostic build-id')
+    firmware_text, firmware = firmware_manifest(cpio_bytes)
+    if errors := gpu_errors(config, args.dtb_source_name, firmware):
+        parser.error('; '.join(errors))
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=False)
     boot = out / 'boot-piano-ram.img'
@@ -176,6 +208,13 @@ def main():
                   'fastboot boot only; diagnostic userspace, no persistent storage drivers or native panel support; firmware framebuffer support is candidate-specific'),
         'recovery': f'{timeout}-second initial PID1 timer and panic=15; Ubuntu mode hands off to a {args.session_seconds}-second early systemd timer; early hangs may require manual reset',
     }
+    if firmware:
+        # Identities only; the private bytes stay in the initramfs and its private source.
+        manifest['inputs_sha256']['firmware_manifest'] = hashlib.sha256(firmware_text.encode()).hexdigest()
+        manifest['firmware'] = firmware
+    if args.dtb_source_name == GPU_DTB:
+        manifest['gpu_diag'] = {'cmdline': GPU_CMDLINE, 'dtb_sha256': build['files'][GPU_DTB],
+                                'config_fragments': build.get('config_fragments')}
     if ubuntu:
         manifest['rootfs_sha256'] = args.rootfs_sha256
         manifest['session_seconds'] = args.session_seconds

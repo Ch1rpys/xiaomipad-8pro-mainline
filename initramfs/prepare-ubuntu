@@ -41,6 +41,16 @@ mkdir -p /newroot/etc/cloud /newroot/etc/systemd/network /newroot/etc/NetworkMan
 	/newroot/usr/local/libexec/piano
 touch /newroot/etc/cloud/cloud-init.disabled
 $bb rm -f /newroot/etc/apt/sources.list.d/cdrom.sources
+# Private firmware from build-initramfs.sh FIRMWARE_DIR: drivers that request it
+# after the switch (for example on the first open of a DRM node) read the root.
+if [ -f /etc/piano-firmware ]; then
+	while read -r rel _; do
+		$bb mkdir -p "$($bb dirname "/newroot/usr/lib/firmware/$rel")"
+		$bb cp "/lib/firmware/$rel" "/newroot/usr/lib/firmware/$rel"
+	done </etc/piano-firmware
+	$bb awk '{ print $3 "  /newroot/usr/lib/firmware/" $1 }' /etc/piano-firmware | $bb sha256sum -c -s -
+	echo "PIANO_FIRMWARE_INSTALLED files=$($bb wc -l </etc/piano-firmware) manifest=$($bb sha256sum /etc/piano-firmware | $bb cut -d' ' -f1)"
+fi
 $bb cp /etc/build-id /run/piano-build-id
 $bb cp /etc/piano-network /run/piano-network
 $bb cp "$bb" /newroot/usr/local/libexec/piano/busybox
