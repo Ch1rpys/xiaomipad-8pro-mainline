@@ -196,3 +196,13 @@ tools/kernel_modules.py and tools/stage-kernel-modules.py:
   native packaging and plain module-subset staging share that implementation.
   Dependency resolution uses kmod rather than a separate resolver. No kernel
   driver source, device firmware or calibration is copied here.
+
+initramfs/piano-modules, tools/prepare-module-initramfs.py and
+new subset/runtime helpers in tools/kernel_modules.py:
+  GPL-2.0-only. Explicit RAM diagnostic delivery using the existing Kbuild/kmod
+  subset receipt and pinned BusyBox. No independent module dependency resolver.
+
+tools/initramfs_archive.py:
+  GPL-2.0-only. Single-newc reader derived from this repository's diagnostic
+  test reader, extended to validate record boundaries, paths and file types.
+  Scope is the RAM builder format, not general cpio or distribution initrd support.

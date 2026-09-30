@@ -47,7 +47,8 @@ USB 尚未真机验证；电源输入拓扑、REFGEN 和完整 Type-C 路径仍�
 本机 GPIO12/13、4 mA 和 2.4 MHz 配置；RX/WSA/SoundWire 总线保持关闭。
 `usb-role-diag` 复用 ADSP 变体，只接 USB2 connector→DWC3 角色图，保持 high-speed，USB3/DP PHY 仍关闭。
 两者均已编译/schema 验证，尚无实际声卡、UCSI、外设或录音 PASS。
-现有 build-boot 明确拒绝这两种 DTB，因为模块/固件交付及观测/退出流程尚未接入 runner。
+mic-diag 已接入下述模块/固件交付、按序加载和采集，可装配 60 秒 NCM 探测候选；
+USB 角色的断网/回收流程仍未闭合，build-boot 继续拒绝 usb-role-diag。
 不能将宽泛 defconfig 的全部模块用于 USB 角色诊断：PMIC GLINK 会创建多个辅助消费者，
 本机 MCA 未证明兼容 battmgr；首轮只装明确选择的依赖闭包，不自动加载 battmgr/altmode/FastRPC。
 
@@ -296,7 +297,7 @@ build/source 主机链接不进入载荷。build-result.json 记录 release、�
 当前 1087 个模块来自广泛的 ARM64 defconfig，尚不是精简的产品配置。
 USB 音频、UCSI GLINK 和 Iris 的依赖闭包已在匹配 Image 的 ARM64 QEMU 中实际加载；
 这只验证模块 ABI/注册，不验证对应硬件。Iris DTB 保持独立诊断用途，尚无配套 RAM boot 镜像。
-新含模块包的归档/清单检查已通过，原生 APT 安装、initrd 生成和 piano 实测尚未完成。
+新含模块包的归档/清单检查已通过，原生 APT 安装、发行版 initrd 生成和 piano 实测尚未完成；下述 RAM initramfs 模块交付已单独验证。
 
 此前不含 .ko 的包曾在 ARM64 QEMU guest 中经原生 APT 安装并由发行版钩子生成 dracut initrd，
 随后以该 initrd 挂载 ext4 根；没有在 piano 上安装，也不生成或刷写 ABL boot 镜像。
@@ -385,3 +386,35 @@ snd_soc_lpass_va_macro、pinctrl_sm8650_lpass_lpi、q6prm_clocks、q6apm_dai、q
 实际 USB 25 个、录音 36 个模块的子集在 ARM64 QEMU 中通过 BusyBox modprobe 加载，禁止项未出现；
 这只证明子集完整和匹配内核 ABI，不验证本机 ADSP/UCSI/录音。
 输出尚未包含固件或 boot 镜像。产品继续交给发行版 initrd/设备发现机制，不把这个实验集合当永久产品配置。
+
+## 模块进入 RAM 诊断与 Ubuntu 临时根
+
+`build-initramfs.sh` 可选 `MODULES_DIR=<stage-kernel-modules 输出>`。它验证完整子集、复制到构建临时快照，
+把 JSON 身份、可读 checksum、release、显式根模块名单和标准 modprobe blacklist 纳入镜像身份。
+不启用自动模块加载；`/bin/piano-modules check` 校验运行 release/文件，`load MODULE` 只允许清单中的根模块，
+调用原生 BusyBox modprobe 并记入 `/run/piano-modules.log`。没有自制依赖解析、重试或设备管理服务。
+
+```sh
+MODULES_DIR=/path/to/verified/mic-modules FIRMWARE_DIR=/path/to/private/mic-firmware \
+BUSYBOX=/path/to/pinned/busybox GEN_INIT_CPIO=/path/to/gen_init_cpio \
+OUT_DIR="$PWD/out/initramfs-mic" bash tools/build-initramfs.sh
+```
+
+Ubuntu RAM 交接复用同一个 helper，将模块置于 `/usr/lib/modules/<release>`，同时保留 checksum、
+固件 manifest、临时 blacklist 和与 BusyBox 同目录的 `/usr/local/libexec/piano/modules`。
+已有相同 release 的根目录拒绝混合；这里的策略属于 RAM 诊断，产品使用发行版包/initrd/设备发现机制。
+两种 helper 路径都只在显式诊断中存在；核心硬件驱动不依赖 Ubuntu、APT、GDM 或固定账号。
+
+boot 打包器核对实际模块/固件字节、所用 Image/config/完整模块收据，不能仅凭清单文本放行。
+`initramfs_archive.py` 只读取本构建器的单段 newc，拒绝拼接覆盖、非规范路径、重复项、硬链接和非目录父项；
+不支持任意发行版 initrd 的格式。标准 GNU cpio 的首段读取和预读不能证明 Linux 最终展开结果一致，因此未用它作为完整性判据。
+没有 MODULES_DIR 时不注入模块 helper/策略，旧候选文件不被改写。
+
+mic 探测要求 `device/audio/diagnostic.json` 对应的拓扑与 56 个 ADSP 文件、精确模块集合和延后加载配置。
+主机 runner 必须显式 `--load-modules`：先取得 build-id/FDT/模块基线，再按固定顺序加载，最后回收
+module-load、/proc/modules、ALSA cards/PCM 和 remoteproc/rpmsg 状态。加载成功不等于声卡或录音成功。
+P23 的 DSP 基础验证仍在前；新候选仍需现场恢复条件和原厂电量准入。
+
+本轮离线验证覆盖真实 ARM64 helper、merged-/usr 复制、交互式串口上的主机编排与 60 秒退出；
+另用只读原始 Ubuntu 根验证 systemd 交接、原生 kmod blacklist/显式加载和逐文件校验。
+Ubuntu 的检查单元只属于 QEMU fixture，不注入真实候选。QEMU 不证明物理 DSP、USB、声源录音或平板恢复。

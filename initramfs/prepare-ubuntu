@@ -49,7 +49,12 @@ if [ -f /etc/piano-firmware ]; then
 		$bb cp "/lib/firmware/$rel" "/newroot/usr/lib/firmware/$rel"
 	done </etc/piano-firmware
 	$bb awk '{ print $3 "  /newroot/usr/lib/firmware/" $1 }' /etc/piano-firmware | $bb sha256sum -c -s -
+	$bb cp /etc/piano-firmware /newroot/etc/piano-firmware
 	echo "PIANO_FIRMWARE_INSTALLED files=$($bb wc -l </etc/piano-firmware) manifest=$($bb sha256sum /etc/piano-firmware | $bb cut -d' ' -f1)"
+fi
+# Retain matching modules and explicit-load policy across the RAM root switch.
+if [ -f /etc/piano-modules.json ]; then
+	/bin/piano-modules copy /newroot
 fi
 $bb cp /etc/build-id /run/piano-build-id
 $bb cp /etc/piano-network /run/piano-network

@@ -5,7 +5,8 @@ set -euo pipefail
 umask 022
 repo=$(cd -- "$(dirname -- "$0")/.." && pwd)
 if [[ ${1:-} == --help ]]; then
-	echo 'Usage: BUSYBOX=... GEN_INIT_CPIO=... OUT_DIR=... [FIRMWARE_DIR=...] build-initramfs.sh'
+	echo 'Usage: BUSYBOX=... GEN_INIT_CPIO=... OUT_DIR=... [FIRMWARE_DIR=...] [MODULES_DIR=...] build-initramfs.sh'
+	echo 'MODULES_DIR: optional verified stage-kernel-modules output; no automatic module loading.'
 	echo 'FIRMWARE_DIR: optional private tree copied to /lib/firmware/<relative path>;'
 	echo 'its manifest (path size sha256) goes to /etc/piano-firmware and OUT_DIR/firmware-manifest.'
 	exit 0
@@ -50,9 +51,17 @@ if [[ -n ${FIRMWARE_DIR:-} ]]; then
 			"$(sha256sum -- "$fw_dir/$rel" | cut -d' ' -f1)"
 	done <"$stage/firmware-files" >"$stage/piano-firmware"
 fi
+rm -f "$out/module-manifest.json"
+if [[ -n ${MODULES_DIR:-} ]]; then
+	python3 "$repo/tools/prepare-module-initramfs.py" --modules-tree "$MODULES_DIR" \
+		--stage "$stage/modules" >"$stage/modules.list"
+fi
 {
 	sha256sum "$init_src" "$usb_src" "$network_src" "$ubuntu_src" "$state_src" "$busybox" | cut -d' ' -f1
 	[[ ! -f $stage/piano-firmware ]] || sha256sum "$stage/piano-firmware" | cut -d' ' -f1
+	if [[ -f $stage/modules.list ]]; then
+		sha256sum "$stage/modules/etc/piano-modules.sha256" "$stage/modules/bin/piano-modules" | cut -d' ' -f1
+	fi
 } | sha256sum | cut -d' ' -f1 >"$stage/build-id"
 python3 - "$network_src" "$stage/piano-network" <<'PY'
 import json, pathlib, shlex, sys
@@ -61,7 +70,7 @@ pathlib.Path(sys.argv[2]).write_text(''.join(
     f'PIANO_{key.upper()}={shlex.quote(value)}\n' for key, value in network.items()))
 PY
 {
-	for d in / /bin /dev /proc /sys /run /etc; do
+	for d in . /bin /dev /proc /sys /run /etc; do
 		printf 'dir %s 0755 0 0\n' "$d"
 	done
 	printf 'nod /dev/console 0600 0 0 c 5 1\n'
@@ -73,9 +82,13 @@ PY
 	printf 'file /etc/piano-network %s 0644 0 0\n' "$stage/piano-network"
 	printf 'file /bin/busybox %s 0755 0 0\n' "$busybox"
 	printf 'file /etc/build-id %s 0644 0 0\n' "$stage/build-id"
+	if [[ -f $stage/piano-firmware || -f $stage/modules.list ]]; then
+		printf 'dir /lib 0755 0 0\n'
+	fi
+	[[ ! -f $stage/modules.list ]] || cat "$stage/modules.list"
 	if [[ -f $stage/piano-firmware ]]; then
 		printf 'file /etc/piano-firmware %s 0644 0 0\n' "$stage/piano-firmware"
-		printf 'dir /lib 0755 0 0\ndir /lib/firmware 0755 0 0\n'
+		printf 'dir /lib/firmware 0755 0 0\n'
 		sed -n 's|/[^/]*$||p' "$stage/firmware-files" | LC_ALL=C sort -u | while IFS= read -r d; do
 			path=
 			IFS=/ read -ra parts <<<"$d"
@@ -95,5 +108,6 @@ PY
 "$gen_init_cpio" -t 0 "$stage/cpio.list" 2>"$out/cpio.log" | gzip -n >"$out/initramfs.cpio.gz.new"
 mv "$out/initramfs.cpio.gz.new" "$out/initramfs.cpio.gz"
 [[ ! -f $stage/piano-firmware ]] || cp "$stage/piano-firmware" "$out/firmware-manifest"
+[[ ! -f $stage/modules.list ]] || cp "$stage/modules/etc/piano-modules.json" "$out/module-manifest.json"
 sha256sum "$out/initramfs.cpio.gz" >"$out/initramfs.cpio.gz.sha256"
 echo "Built $out/initramfs.cpio.gz (RAM diagnostic userspace, not a boot image)"

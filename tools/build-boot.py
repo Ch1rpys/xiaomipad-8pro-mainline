@@ -12,6 +12,9 @@ from pathlib import Path
 import re
 import subprocess
 
+from kernel_modules import runtime_metadata, subset_metadata
+from initramfs_archive import read_newc, regular_file
+
 CMDLINE_BASE = ('rdinit=/init console=ttyMSM0,115200n8 ignore_loglevel log_buf_len=2M '
                 'panic=15')
 ADSP_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-adsp-diag.dtb'
@@ -23,8 +26,8 @@ DEFAULT_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano.dtb'
 UFS_RO_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-ufs-ro-diag.dtb'
 GPU_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-gpu-diag.dtb'
 BT_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-bt-diag.dtb'
-DRAFT_DTBS = ('arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-mic-diag.dtb',
-              'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-usb-role-diag.dtb')
+MIC_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-mic-diag.dtb'
+DRAFT_DTBS = ('arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-usb-role-diag.dtb',)
 BT_CONFIG = ('CONFIG_RFKILL=y', 'CONFIG_BT=y', 'CONFIG_BT_LE=y', 'CONFIG_BT_QCA=y', 'CONFIG_BT_HCIUART=y',
              'CONFIG_BT_HCIUART_SERDEV=y', 'CONFIG_BT_HCIUART_QCA=y', 'CONFIG_POWER_SEQUENCING_QCOM_WCN=y')
 # MDSS stays disabled while simpledrm scans out, so the GPU needs its own DRM device.
@@ -78,15 +81,49 @@ def bt_errors(config, diagnostic, dtb_source_name):
     return errors
 
 
+def adsp_firmware_files():
+    lock = json.loads((Path(__file__).resolve().parents[1] / 'firmware/piano-os3.0.303.0.json').read_text())
+    return {f'qcom/sm8750/piano/{r["name"]}': (r['bytes'], r['sha256'])
+            for r in lock['files'] if r['name'].startswith(('adsp.', 'adsp_dtb.'))}
+
+
+def mic_errors(config, diagnostic, dtb_source_name, firmware, modules):
+    if dtb_source_name != MIC_DTB:
+        return [], None
+    profile_path = Path(__file__).resolve().parents[1] / 'device/audio/diagnostic.json'
+    profile = json.loads(profile_path.read_text())
+    errors = []
+    if diagnostic != 'ncm':
+        errors.append('Mic probe first uses the 60-second NCM mode')
+    for setting in ('CONFIG_MODULES=y', 'CONFIG_QCOM_Q6V5_PAS=m', 'CONFIG_QCOM_APR=m',
+                    'CONFIG_QCOM_PD_MAPPER=m', 'CONFIG_SND_SOC_SC8280XP=m'):
+        if setting not in config:
+            errors.append(f'Mic probe needs explicit late module loading: {setting}')
+    if any('CONFIG_' + name + '=y' in config for name in ('QCOM_PMIC_GLINK', 'QCOM_FASTRPC', 'BATTERY_QCOM_BATTMGR')):
+        errors.append('Mic probe must not have forbidden consumers built in')
+    if not modules or set(modules['requested']) != set(profile['module_order']):
+        errors.append('Mic probe needs its exact requested module set')
+    elif not set(profile['forbidden']) <= set(modules['forbidden']):
+        errors.append('Mic module subset must exclude charger/USB/FastRPC consumers')
+    topology = profile['topology']
+    if sha(profile_path.with_name(topology['source'])) != topology['source_sha256']:
+        errors.append('Mic topology source changed; rebuild and repin the diagnostic topology')
+    expected = adsp_firmware_files()
+    expected[topology['path']] = (topology['bytes'], topology['sha256'])
+    actual = {r['path']: (r['size'], r['sha256']) for r in firmware}
+    if actual != expected or len(actual) != len(firmware):
+        errors.append('Mic probe needs exactly the locked ADSP firmware and capture topology')
+    return errors, {'kind': profile['kind'], 'order': profile['module_order'],
+                    'profile_sha256': sha(profile_path), 'scope': profile['scope']}
+
+
 def adsp_errors(config, diagnostic, dtb_source_name, firmware):
     if dtb_source_name != ADSP_DTB:
         return []
     errors = [f'The ADSP DTB needs its isolated config: {s}' for s in ADSP_CONFIG if s not in config]
     if diagnostic != 'ncm':
         errors.append('The ADSP diagnostic uses the 60-second NCM mode')
-    lock = json.loads((Path(__file__).resolve().parents[1] / 'firmware/piano-os3.0.303.0.json').read_text())
-    expected = {f'qcom/sm8750/piano/{r["name"]}': (r['bytes'], r['sha256'])
-                for r in lock['files'] if r['name'].startswith(('adsp.', 'adsp_dtb.'))}
+    expected = adsp_firmware_files()
     actual = {r['path']: (r['size'], r['sha256']) for r in firmware}
     if len(actual) != len(firmware) or actual != expected:
         errors.append('ADSP initramfs firmware must exactly match the locked piano ADSP/DTB files')
@@ -94,18 +131,67 @@ def adsp_errors(config, diagnostic, dtb_source_name, firmware):
 
 
 def firmware_manifest(cpio_bytes):
-    """Return the initramfs /etc/piano-firmware text ('' without FIRMWARE_DIR) and its rows."""
-    listing = subprocess.run(['cpio', '--list', '--quiet'], input=cpio_bytes, capture_output=True,
-                             check=True).stdout.decode().split()
-    if 'etc/piano-firmware' not in listing:
+    """Return and verify the private firmware manifest and its actual archive bytes."""
+    entries = read_newc(cpio_bytes)
+    if 'etc/piano-firmware' not in entries:
         return '', []
-    text = subprocess.check_output(['cpio', '--extract', '--to-stdout', '--quiet', 'etc/piano-firmware'],
-                                   input=cpio_bytes).decode()
+    text = regular_file(entries, 'etc/piano-firmware').decode()
     rows = []
     for line in text.splitlines():
         path, size, digest = line.split(' ')
+        if (not re.fullmatch(r'[A-Za-z0-9._+-]+(?:/[A-Za-z0-9._+-]+)*', path) or
+                any(p in ('.', '..') for p in Path(path).parts) or
+                not re.fullmatch(r'[0-9a-f]{64}', digest)):
+            raise ValueError('Invalid firmware manifest path/hash')
+        data = regular_file(entries, 'lib/firmware/' + path)
+        if len(data) != int(size) or hashlib.sha256(data).hexdigest() != digest:
+            raise ValueError(f'Delivered firmware bytes do not match manifest: {path}')
         rows.append({'path': path, 'size': int(size), 'sha256': digest})
     return text, rows
+
+
+def module_manifest(cpio_bytes, build, build_result_sha256):
+    """Verify delivered module bytes against both the subset and matching Kbuild output."""
+    entries = read_newc(cpio_bytes)
+    listing = list(entries)
+    delivered = [n for n in listing if n.startswith(('lib/modules/', 'etc/piano-modules'))
+                 or n == 'etc/modprobe.d/piano-ram-modules.conf']
+    if 'etc/piano-modules.json' not in listing:
+        if delivered:
+            raise ValueError('Unmanifested module payload')
+        return None
+    extract = lambda n: regular_file(entries, n)
+    manifest = json.loads(extract('etc/piano-modules.json'))
+    subset_metadata(manifest)
+    if (not build.get('modules') or manifest['kernel_commit'] != build['kernel_commit'] or
+            manifest['kernel_release'] != build['modules']['kernel_release'] or
+            manifest['kernel_sha256'] != build['files']['arch/arm64/boot/Image'] or
+            manifest['config_sha256'] != build['files']['.config'] or
+            manifest['build_result_sha256'] != build_result_sha256):
+        raise ValueError('Module payload does not match this exact kernel build')
+    metadata = runtime_metadata(manifest)
+    regular_file(entries, 'bin/piano-modules')
+    if not entries['bin/piano-modules'][0] & 0o111:
+        raise ValueError('Module helper is not executable')
+    wanted = set(manifest['files']) | metadata.keys() | {'bin/piano-modules'}
+    if any(listing.count(n) != 1 for n in wanted):
+        raise ValueError('Module payload file missing or duplicated')
+    # Directories are also listed by cpio; allow only parents of verified files.
+    parents = {str(parent) for n in manifest['files'] for parent in Path(n).parents}
+    if set(delivered) - wanted - parents:
+        raise ValueError('Unexpected files in module payload')
+    for name, expected in manifest['files'].items():
+        if hashlib.sha256(extract(name)).hexdigest() != expected:
+            raise ValueError(f'Delivered module hash mismatch: {name}')
+        if (re.search(r'\.ko(?:\.(?:gz|xz|zst))?$', name) or
+                name.endswith(('/modules.builtin', '/modules.builtin.modinfo'))):
+            relative = name.removeprefix(f'lib/modules/{manifest["kernel_release"]}/')
+            if build['modules']['files'].get(relative) != expected:
+                raise ValueError(f'Module differs from Kbuild receipt: {name}')
+    for name, expected in metadata.items():
+        if extract(name) != expected:
+            raise ValueError(f'Delivered module policy/checksum mismatch: {name}')
+    return manifest
 
 
 def ufs_status(blob):
@@ -215,11 +301,15 @@ def main():
     if not re.fullmatch(r'[0-9a-f]{64}', ram_build_id):
         parser.error('The ramdisk must contain its exact diagnostic build-id')
     firmware_text, firmware = firmware_manifest(cpio_bytes)
+    modules = module_manifest(cpio_bytes, build, sha(kout / 'build-result.json'))
     if errors := gpu_errors(config, args.dtb_source_name, firmware):
         parser.error('; '.join(errors))
     if errors := bt_errors(config, args.diagnostic, args.dtb_source_name):
         parser.error('; '.join(errors))
     if errors := adsp_errors(config, args.diagnostic, args.dtb_source_name, firmware):
+        parser.error('; '.join(errors))
+    errors, activation = mic_errors(config, args.diagnostic, args.dtb_source_name, firmware, modules)
+    if errors:
         parser.error('; '.join(errors))
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=False)
@@ -247,9 +337,13 @@ def main():
         'scope': ('fastboot boot only; RAM boot, UFS probe; the host-sent stage sets every UFS block device '
                   'read-only before reading; no mount, no native panel support'
                   if args.diagnostic == 'ufs-ro' else
-                  'fastboot boot only; diagnostic userspace, no persistent storage drivers or native panel support; firmware framebuffer support is candidate-specific'),
+                  'fastboot boot only; diagnostic userspace, internal UFS/MMC/MTD/NVMe disabled and no native panel support; firmware framebuffer support is candidate-specific'),
         'recovery': f'{timeout}-second initial PID1 timer and panic=15; Ubuntu mode hands off to a {args.session_seconds}-second early systemd timer; early hangs may require manual reset',
     }
+    if modules:
+        manifest['modules'] = modules
+    if activation:
+        manifest['module_activation'] = activation
     if firmware:
         # Identities only; the private bytes stay in the initramfs and its private source.
         manifest['inputs_sha256']['firmware_manifest'] = hashlib.sha256(firmware_text.encode()).hexdigest()

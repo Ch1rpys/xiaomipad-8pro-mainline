@@ -15,31 +15,18 @@ import subprocess
 import tempfile
 import unittest
 
+from initramfs_archive import read_newc as newc
+
 TOOLS = Path(__file__).resolve().parent
 BUSYBOX, GEN_INIT_CPIO = os.environ.get('BUSYBOX'), os.environ.get('GEN_INIT_CPIO')
 FIXTURE = {'qcom/gen80000_sqe.fw': b'sqe' * 100, 'qcom/sm8750/vendor/board/zap.mbn': b'\x7fELF zap',
            'top.bin': b''}
 
 
-def newc(data):
-    """Parse a newc cpio archive into {name: (mode, bytes)}."""
-    entries, pos = {}, 0
-    while True:
-        assert data[pos:pos + 6] == b'070701'
-        field = lambda i: int(data[pos + 6 + 8 * i:pos + 14 + 8 * i], 16)
-        mode, size, namesize = field(1), field(6), field(11)
-        name_start = pos + 110
-        name = data[name_start:name_start + namesize - 1].decode()
-        body = (name_start + namesize + 3) & ~3
-        if name == 'TRAILER!!!':
-            return entries
-        entries[name] = (mode, data[body:body + size])
-        pos = (body + size + 3) & ~3
-
-
 def build(out, firmware=None):
     env = dict(os.environ, BUSYBOX=BUSYBOX, GEN_INIT_CPIO=GEN_INIT_CPIO, OUT_DIR=str(out))
     env.pop('FIRMWARE_DIR', None)
+    env.pop('MODULES_DIR', None)
     if firmware is not None:
         env['FIRMWARE_DIR'] = str(firmware)
     return subprocess.run(['bash', str(TOOLS / 'build-initramfs.sh')], env=env, capture_output=True, text=True)

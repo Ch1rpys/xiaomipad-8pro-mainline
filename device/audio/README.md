@@ -32,7 +32,7 @@ roundtrip equality is not claimed. No integrity check was disabled.
 The conventional loader path would be
 `qcom/sm8750/Piano-Capture-Diag-tplg.bin` for a card with that model name.
 The kernel now has an isolated `sm8750-xiaomi-piano-mic-diag.dtb` with that card
-name. It is not yet a boot candidate. Do not install this graph as a replacement
+name. The paired 60-second NCM probe can now be packaged with its exact firmware and module inputs. Do not install this graph as a replacement
 for an unrelated sound card. The output is topology data, independent
 of CPU architecture, distribution and desktop; native packaging remains separate.
 
@@ -51,9 +51,13 @@ not test real codec probing, aux-device registration, MMIO or DSP traffic.
 this is independent of Debian packaging. The audio set has been loaded by BusyBox
 modprobe in QEMU with its matching Image. It contains no PMIC GLINK, battmgr or
 FastRPC module. Physical ADSP/GPR/APM operation and runtime routing are untested.
-The boot packager rejects this DTS until firmware/module delivery, collection and
-bounded exit have been integrated into the RAM runner. The existing ADSP-only
-P23 remains the first supervised hardware step.
+`diagnostic.json` fixes the explicit module order, excluded consumers and compiled
+topology identity. The boot packager requires the exact 56 DSP firmware files,
+this topology, matching module bytes and modular PAS/APR/card drivers. The runner
+requires `--load-modules`, captures a baseline first, then loads once in order and
+collects module/ALSA/remoteproc state. Its original 60-second PID1 timer remains.
+The resulting P24 is an offline probe candidate, not an audio recording result.
+The existing ADSP-only P23 remains the first supervised hardware step.
 
 Real capture must establish the effective mixer controls, DMIC/decimator mapping,
 clock/power behavior, audible speech and reopening. Add UCM after those controls

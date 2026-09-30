@@ -1,0 +1,59 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# RAM diagnostic helper, colocated with the pinned executable named busybox.
+set -eu
+bb=${0%/*}/busybox
+
+check_payload() {
+	[ "$($bb uname -r)" = "$($bb cat /etc/piano-modules.release)" ] || {
+		echo 'PIANO_MODULE_KERNEL_MISMATCH' >&2; return 1;
+	}
+	(cd / && "$bb" sha256sum -c -s /etc/piano-modules.sha256)
+}
+
+case "${1:-}" in
+check)
+	[ "$#" -eq 1 ]
+	check_payload
+	echo 'PIANO_MODULES_VERIFIED'
+	;;
+load)
+	[ "$#" -eq 2 ]
+	case "$2" in ''|*[!A-Za-z0-9_]*) exit 2 ;; esac
+	"$bb" grep -Fxq "$2" /etc/piano-modules.requested || {
+		echo "Module is not an explicit diagnostic root: $2" >&2; exit 2;
+	}
+	check_payload
+	printf 'BEGIN %s uptime=%s\n' "$2" "$("$bb" cat /proc/uptime)" >>/run/piano-modules.log
+	status=0
+	"$bb" modprobe "$2" >>/run/piano-modules.log 2>&1 || status=$?
+	printf 'END %s status=%s uptime=%s\n' "$2" "$status" "$("$bb" cat /proc/uptime)" >>/run/piano-modules.log
+	printf 'PIANO_MODULE_LOAD name=%s status=%s\n' "$2" "$status"
+	exit "$status"
+	;;
+copy)
+	[ "$#" -eq 2 ] && [ "$2" != / ] && [ -d "$2/usr/lib" ]
+	check_payload
+	release=$("$bb" cat /etc/piano-modules.release)
+	[ ! -e "$2/usr/lib/modules/$release" ] || {
+		echo 'Refusing to mix an existing kernel module tree into the RAM overlay' >&2; exit 1;
+	}
+	while read -r digest name; do
+		case "$name" in
+		lib/modules/*) target="$2/usr/$name" ;;
+		etc/*) target="$2/$name" ;;
+		*) exit 2 ;;
+		esac
+		"$bb" mkdir -p "$("$bb" dirname "$target")"
+		"$bb" cp "/$name" "$target"
+		printf '%s  %s\n' "$digest" "$target" | "$bb" sha256sum -c -s -
+	done </etc/piano-modules.sha256
+	"$bb" cp /etc/piano-modules.sha256 "$2/etc/piano-modules.sha256"
+	"$bb" mkdir -p "$2/usr/local/libexec/piano"
+	"$bb" cp "$bb" "$2/usr/local/libexec/piano/busybox"
+	"$bb" cp "$0" "$2/usr/local/libexec/piano/modules"
+	"$bb" chmod 0755 "$2/usr/local/libexec/piano/modules"
+	echo "PIANO_MODULES_COPIED release=$release"
+	;;
+*) echo 'Usage: piano-modules check | load MODULE | copy RAM_ROOT' >&2; exit 2 ;;
+esac

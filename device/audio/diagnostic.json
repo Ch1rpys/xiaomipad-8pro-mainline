@@ -1,0 +1,29 @@
+{
+  "kind": "mic-probe",
+  "module_order": [
+    "qrtr_smd",
+    "qcom_pd_mapper",
+    "qcom_q6v5_pas",
+    "q6prm_clocks",
+    "q6apm_dai",
+    "q6apm_lpass_dais",
+    "pinctrl_sm8650_lpass_lpi",
+    "snd_soc_lpass_va_macro",
+    "snd_soc_lpass_tx_macro",
+    "snd_soc_sc8280xp"
+  ],
+  "forbidden": [
+    "qcom_battmgr",
+    "pmic_glink",
+    "pmic_glink_altmode",
+    "fastrpc"
+  ],
+  "topology": {
+    "path": "qcom/sm8750/Piano-Capture-Diag-tplg.bin",
+    "bytes": 5164,
+    "sha256": "c0051957c2161e9ed3b436e4b68047d5fac3501464f8166dd6e32b65d2897c28",
+    "source": "Piano-Capture-Diag.m4",
+    "source_sha256": "b08f01208bf9300219503218e711127d145458f9ef8585e198569d93c9692442"
+  },
+  "scope": "Supervised RAM-only ALSA/DSP probe after baseline capture. Not a recording result or product autoload policy."
+}
