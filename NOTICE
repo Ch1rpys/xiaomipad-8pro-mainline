@@ -155,3 +155,22 @@ mesa/a830-speedbin.patch:
   No Mesa source tree, firmware, calibration or unrelated ROCKNIX changes are copied.
   The upstream source retains its original per-file authors and licenses.
   tools/build-mesa.sh, mesa/check-device.c and mesa/egl-smoke.c are new MIT tools.
+
+device/sensors/hexagonrpc/:
+  Upstream: https://github.com/linux-msm/hexagonrpc.git
+  Base commit: 598b591ae9da6a6cfe2ca5ea78998019ca6395ea (0.5.0).
+  Patch 0001 modifies libhexagonrpc/hexagonrpc.c (LGPL-3.0-or-later), extends
+  tests/meson.build and adds a GPL-3.0-or-later wire regression using the ioctl
+  substitution method of tests/test_hexagonrpc.c (2025 HexagonRPC Contributors).
+  Patch 0002 modifies hexagonrpcd/iobuffer.c (2023 Sensor Shell Contributors,
+  GPL-3.0-or-later) and tests/test_hexagonrpc.c (GPL-3.0-or-later).
+  Preserve the upstream per-file license and author notices. The public API
+  header is GPL-3.0-or-later; these components are not relabeled as MIT.
+  Source and patches are built through upstream Meson. No DSP code, device
+  calibration, credentials or firmware bytes are copied or redistributed.
+  License texts: LICENSES/hexagonrpc-GPL-3.0.txt and LICENSES/LGPL-3.0.txt.
+
+tools/firmware_payload.py and tools/stage-firmware.py:
+  MIT. Extract the existing local DSP input validation/staging from
+  tools/build-firmware-deb.py so native package recipes and initramfs assembly
+  share the same payload. No proprietary bytes or redistribution grant.

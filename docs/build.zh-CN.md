@@ -316,3 +316,22 @@ Wayland scanner 须满足目标依赖版本；可用目标包的 scanner 经 qem
 链接时同时提供 stage/lib 与目标系统库的 rpath-link。运行可传必需的 renderer 子串，
 例如 `Adreno`，使软件渲染回退不能被当作 GPU 通过。
 本轮 ARM64 QEMU 的 softpipe 着色器/三角形回读通过，尚未在 piano 验证 A830 渲染、Vulkan 或 GNOME 合成。
+
+## 独立的固件暂存与 HexagonRPC 修复
+
+固件的文件校验/复制在 `tools/firmware_payload.py` 维护，deb 构建器与纯文件暂存入口复用它。
+完整暂存保留原锁的 76 个 DSP/服务映射文件；显式选择 ADSP 两个 MDT 时只含对应的 56 个文件：
+
+```sh
+python3 -S tools/stage-firmware.py --firmware-dir /path/to/own/modem/image \
+  --image adsp.mdt --image adsp_dtb.mdt --output /path/to/new/private-output
+```
+
+该入口只需 Python 标准库；输出 `root/usr/lib/firmware/qcom/sm8750/piano/` 和清单，
+不安装包或启用服务。失败不发布输出目录，已有输出不会被覆盖。
+initramfs 构建器可使用 `FIRMWARE_DIR=/path/to/private-output/root/usr/lib/firmware`；
+另一发行版的包配方可以消费同一文件树，包元数据与生命周期由其原生工具处理。
+本轮与旧版 deb、P23 ADSP 子集分别逐字节比对通过；没有重新安装或改变冻结候选。
+
+[HexagonRPC 来源与构建](../device/sensors/hexagonrpc/README.md)提供固定上游版本、两个局部修复和回归。
+沿用上游 Meson，主机 ASan/UBSan 与 ARM64 qemu-user 均为 14/14 通过；真实 FastRPC/SSC 输入仍待本机验证。
