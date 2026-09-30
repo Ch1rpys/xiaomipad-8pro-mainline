@@ -277,3 +277,42 @@ OUT 中已有 modules.order 时工具拒绝打包，模块打包尚未实现。
 随后以该 initrd 挂载 ext4 根；没有在 piano 上安装，也不生成或刷写 ABL boot 镜像。
 QEMU 中 flash-kernel 因 linux,dummy-virt 在其数据库中而无操作；piano 机型不在该数据库，
 按源码其触发器会报 Unsupported platform，产品安装前须明确处理。
+
+## ADSP 独立 RAM 诊断
+
+`CONFIG_FRAGMENT_EXTRA=arch/arm64/configs/piano-adsp-diag.config` 使用独立 OUT，
+对应 `sm8750-xiaomi-piano-adsp-diag.dtb`；基础板级保持禁用。
+私有 FIRMWARE_DIR 只提供 DSP 锁中 adsp.* / adsp_dtb.* 的 56 个文件，放在
+`qcom/sm8750/piano/` 下。build-boot 限定 `--diagnostic ncm`，并核其内建依赖、
+禁用的 PMIC GLINK/FastRPC/APR 和完整文件清单。不是充电/音频/传感器功能镜像。
+固件字节不随源码分发；离线检查不证明 PAS、DSP 或服务在平板可用。
+
+## 隔离 Mesa 用户态候选
+
+`mesa/source.json` 固定官方 Mesa 26.2.0 源码；`mesa/a830-speedbin.patch` 修正
+A830 revision 1 与 drm/msm speedbin 高位的匹配。此候选只用于后续显式诊断，
+前缀为 `/opt/piano/mesa-26.2.0`，未替换 Ubuntu 的默认图形软件包。
+
+```sh
+MESA_SOURCE=/path/to/pinned/mesa \
+CROSS_FILE=/path/to/arm64-cross.ini \
+OUT_DIR=/path/to/new/mesa-out JOBS=4 tools/build-mesa.sh
+```
+
+前置：Meson 1.9、Ninja、Mako、PyYAML、Python packaging、Bison/Flex、原生 glslangValidator，
+完整 ARM64 GCC/G++ 交叉工具链，以及显式 sysroot 的 Meson cross file。
+本轮目标依赖取自 Ubuntu 26.04 ARM64 签名快照：libdrm、zlib、zstd、expat、Wayland 1.24/
+wayland-protocols、X11/XCB 开发包；注意单独的 libwayland-egl-backend-dev 与 libx11-xcb-dev。
+Wayland scanner 须满足目标依赖版本；可用目标包的 scanner 经 qemu-aarch64 执行。
+所有包仅下载/解包到构建目录，不在主机安装。具体 sysroot/工具包身份由构建调用方锁定；
+这不是跨任意工具版本的完整产品发布锁。
+
+构建器从固定 commit 导出到 OUT_DIR/source 后应用唯一补丁，在 stage 下安装并生成 manifest。
+包含 Freedreno/Turnip、EGL/GLES/GLX/GBM、X11/Wayland 和 softpipe；GLVND 关闭是此隔离诊断的边界。
+默认产品须另行收敛原生设备包、GLVND、APT 升级和软件回退，不直接覆盖 /usr/lib。
+
+`mesa/check-device.c` 应链接实际 Mesa freedreno_dev_info.c 与生成表，验证已知速度档及未知 ID。
+`mesa/egl-smoke.c` 应用目标交叉编译器及 stage/include、stage/lib 编译，链接 EGL/GLESv2；
+链接时同时提供 stage/lib 与目标系统库的 rpath-link。运行可传必需的 renderer 子串，
+例如 `Adreno`，使软件渲染回退不能被当作 GPU 通过。
+本轮 ARM64 QEMU 的 softpipe 着色器/三角形回读通过，尚未在 piano 验证 A830 渲染、Vulkan 或 GNOME 合成。

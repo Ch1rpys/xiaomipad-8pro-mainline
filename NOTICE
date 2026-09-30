@@ -144,3 +144,14 @@ device/piano-thp/src/{stream,input,live_pipeline}.{cpp,hpp} and live.cpp:
 device/piano-thp/tests/{live,uinput}.cpp are new MIT test code. Synthetic
 contacts and virtual-machine input tests do not establish hardware support.
 device/piano-thp/diag/ (RAM-only diagnostic wrapper and unit) is new MIT code.
+
+mesa/a830-speedbin.patch:
+  Minimal modification of the MIT-licensed Mesa src/freedreno/common/freedreno_devices.py
+  at upstream mesa-26.2.0, commit 9f0a761020bca92f2b07156a0621e5360cb8eca5.
+  Source: https://gitlab.freedesktop.org/mesa/mesa.git
+  Uses the existing Mesa wildcard fuse-ID convention for A830 revision 1.
+  Reference: ROCKNIX distribution snapshot 92a6fca6afda5ab7e1874af8985095beee19b6a8,
+  projects/ROCKNIX/packages/graphics/mesa/patches/SM8750/0001-add-a830-chip-id.patch.
+  No Mesa source tree, firmware, calibration or unrelated ROCKNIX changes are copied.
+  The upstream source retains its original per-file authors and licenses.
+  tools/build-mesa.sh, mesa/check-device.c and mesa/egl-smoke.c are new MIT tools.
