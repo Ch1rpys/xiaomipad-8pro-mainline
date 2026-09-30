@@ -1,0 +1,10 @@
+{
+  "url": "https://github.com/linux-msm/qrtr.git",
+  "commit": "29e36ae164389580a0f8ea7a7fdb728140ae978d",
+  "license": "BSD-3-Clause",
+  "tool": "qrtr-lookup",
+  "role": "One-shot Linux QRTR nameservice discovery in the RAM diagnostic",
+  "patches": [],
+  "plugins": false,
+  "exit_condition": "Prefer the distribution qrtr-tools package in the installed root; no userspace nameservice or PD mapper daemon is deployed."
+}

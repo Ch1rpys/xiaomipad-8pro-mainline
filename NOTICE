@@ -227,3 +227,12 @@ TinyALSA RAM mixer diagnostic
   retains its own license.
 - The upstream utils/optparse.h dependency carries its public-domain dedication;
   it remains unmodified in the source checkout used for the build.
+
+QRTR nameservice lookup diagnostic
+- Upstream: https://github.com/linux-msm/qrtr.git
+- Commit: 29e36ae164389580a0f8ea7a7fdb728140ae978d
+- Uses upstream src/lookup.c, lib/ and include/ through the original Meson
+  targets, without source patches. No daemon or prebuilt executable is shipped.
+- Copyright 2015 Sony Mobile Communications Inc. and per-file upstream authors.
+  BSD-3-Clause; license text is in LICENSES/qrtr-BSD-3-Clause.txt. The build
+  wrapper is MIT; the compiler runtime retains its own license.

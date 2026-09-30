@@ -41,6 +41,7 @@ SOURCE_DATE_EPOCH=$(git -C "$src" show -s --format=%ct "$expected")
 # The upstream Makefiles leave TINYALSA_USES_PLUGINS undefined: hardware API only.
 # Command-line LDFLAGS override the utils Makefile's default dynamic PIE link.
 export CFLAGS="-O2 -ffile-prefix-map=$out/source=."
+export CPPFLAGS=
 make -C "$out/source/src" CROSS_COMPILE="$cross" CC="ccache ${cross}gcc" ARFLAGS=rcD libtinyalsa.a
 make -C "$out/source/utils" CROSS_COMPILE="$cross" CC="ccache ${cross}gcc" \
     LDFLAGS='-static -L../src' tinymix
