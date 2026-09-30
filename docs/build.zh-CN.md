@@ -23,7 +23,7 @@ KERNEL_SOURCE=/path/to/independent/linux OUT_DIR="$PWD/out/kernel-diag" JOBS=8 \
 
 配置仅在内核仓 arch/arm64/configs/piano-diagnostic.config 维护。
 每次增量构建先运行原生 olddefconfig，处理源码新增的 Kconfig 项；片段变化时才重新生成/合并基线。
-生成 Image、sm8750-xiaomi-piano.dtb、各诊断变体 DTB（adsp/bt/gpu/iris/power/thp/ufs-ro）、最终 .config、日志与 build-result.json。
+生成 Image、sm8750-xiaomi-piano.dtb、各诊断变体 DTB（adsp/bt/gpu/iris/mic/power/thp/ufs-ro/usb-role）、最终 .config、日志与 build-result.json。
 thp-diag 是有人监督触控诊断用的变体，只额外启用 gpi_dma1、spi2 和触控节点；P15 已用它在真机取得触控流，默认 piano DTB 仍禁用它们。
 ufs-ro-diag 只把 UFS 主机与 QMP PHY 设为 okay，供有人监督的只读识盘；默认 DTB 和默认配置都不启用 UFS。
 power-diag 只把两颗 BQ27Z561 所在的 i2c5/i2c11、QUP2 包装器和 gpi_dma1/gpi_dma2 设为 okay，供有人监督的只读电量计/温度读取；配套 piano-power-diag.config 只把 I2C_QCOM_GENI 改为内建。它不描述充电器、电荷泵、电池通路 GPIO、monitored-battery 或温控策略，默认 DTB 两条总线仍 disabled。SE5 在原厂为多执行环境共享，本内核不做 GPI 锁，只能用于不启动远程处理器的有人监督 RAM 会话。
@@ -40,6 +40,16 @@ USB 尚未真机验证；电源输入拓扑、REFGEN 和完整 Type-C 路径仍�
 日常保持同一 OUT 增量构建；换工具链或基线时使用新 OUT。
 构建输出锁避免并发写入，输入 commit/配置和输出 hash 可核查。
 源码现含回移的上游 NT36532 框架，但尚无 P81 面板 profile；默认诊断配置未启用该驱动。
+
+## USB2 角色与单麦设备树准备
+
+`mic-diag` 复用 ADSP 变体，只有 TX3 capture 声卡，VA 作为 aux-dev 提供共享 DMIC 时钟，
+本机 GPIO12/13、4 mA 和 2.4 MHz 配置；RX/WSA/SoundWire 总线保持关闭。
+`usb-role-diag` 复用 ADSP 变体，只接 USB2 connector→DWC3 角色图，保持 high-speed，USB3/DP PHY 仍关闭。
+两者均已编译/schema 验证，尚无实际声卡、UCSI、外设或录音 PASS。
+现有 build-boot 明确拒绝这两种 DTB，因为模块/固件交付及观测/退出流程尚未接入 runner。
+不能将宽泛 defconfig 的全部模块用于 USB 角色诊断：PMIC GLINK 会创建多个辅助消费者，
+本机 MCA 未证明兼容 battmgr；首轮只装明确选择的依赖闭包，不自动加载 battmgr/altmode/FastRPC。
 
 ## RAM 诊断用户态
 
@@ -350,3 +360,28 @@ initramfs 构建器可使用 `FIRMWARE_DIR=/path/to/private-output/root/usr/lib/
 
 [HexagonRPC 来源与构建](../device/sensors/hexagonrpc/README.md)提供固定上游版本、两个局部修复和回归。
 沿用上游 Meson，主机 ASan/UBSan 与 ARM64 qemu-user 均为 14/14 通过；真实 FastRPC/SSC 输入仍待本机验证。
+
+## 独立暂存模块子集
+
+`kernel_modules.py` 是内核 deb 与 plain 暂存的唯一收据验证实现；不依赖 python-debian/APT。
+`stage-kernel-modules.py` 复用 kmod 的 `modprobe --show-depends`，不自己实现模块依赖算法、也不在主机加载模块。
+输入为 BUILD_MODULES=1 的匹配构建，输出为独立 `lib/modules/<release>` 根目录及 module-manifest.json。
+只复制显式根模块及依赖，保留对应 built-in 清单、用 depmod 重建子集索引。
+
+```sh
+python3 tools/stage-kernel-modules.py --kernel-out out/kernel-modules \
+  --output out/usb-role-modules \
+  --module qcom_q6v5_pas --module qcom_pd_mapper --module qrtr_smd \
+  --module ucsi_glink --module usbhid --module usb_storage --module snd_usb_audio \
+  --forbid-module qcom_battmgr --forbid-module pmic_glink_altmode --forbid-module fastrpc
+```
+
+mic 子集的显式根为 qcom_q6v5_pas、qcom_pd_mapper、qrtr_smd、snd_soc_sc8280xp、snd_soc_lpass_tx_macro、
+snd_soc_lpass_va_macro、pinctrl_sm8650_lpass_lpi、q6prm_clocks、q6apm_dai、q6apm_lpass_dais；
+除上述 forbidden 三项，另禁止 pmic_glink。它们只是实验模块集合，不是新服务或产品自动加载策略。
+
+暂存持有 OUT 共享锁，核 Image/config、所有模块的 hash/vermagic；禁止模块包括间接依赖，拒绝未知模块与已有输出。
+输出 manifest 保存源码/内核/配置身份与相对文件 hash，不包含构建主机路径。
+实际 USB 25 个、录音 36 个模块的子集在 ARM64 QEMU 中通过 BusyBox modprobe 加载，禁止项未出现；
+这只证明子集完整和匹配内核 ABI，不验证本机 ADSP/UCSI/录音。
+输出尚未包含固件或 boot 镜像。产品继续交给发行版 initrd/设备发现机制，不把这个实验集合当永久产品配置。

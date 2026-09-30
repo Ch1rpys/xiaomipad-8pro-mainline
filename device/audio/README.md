@@ -11,6 +11,7 @@ Use existing m4 and alsatplg; no program here accesses audio or tablet devices:
 
 ```sh
 # Run from this integration repository; check out source.json's exact commit first.
+set -eu
 AUDIOREACH_SOURCE=/path/to/audioreach-topology
 expected=$(python3 -c 'import json; print(json.load(open("device/audio/source.json"))["commit"])')
 test "$(git -C "$AUDIOREACH_SOURCE" rev-parse HEAD)" = "$expected"
@@ -30,15 +31,29 @@ roundtrip equality is not claimed. No integrity check was disabled.
 
 The conventional loader path would be
 `qcom/sm8750/Piano-Capture-Diag-tplg.bin` for a card with that model name.
-No such card or boot candidate is enabled yet. Do not install this graph as a
-replacement for an unrelated sound card. The output is topology data, independent
+The kernel now has an isolated `sm8750-xiaomi-piano-mic-diag.dtb` with that card
+name. It is not yet a boot candidate. Do not install this graph as a replacement
+for an unrelated sound card. The output is topology data, independent
 of CPU architecture, distribution and desktop; native packaging remains separate.
 
-Hardware preparation still requires ADSP/GPR/q6prm, the VA fsgen clock provider,
-TX macro, piano LPI GPIO12/13 pin control, and a codec-only DAI path with correct
-channel/lifecycle handling. The current shared machine driver invokes SoundWire
-helpers for TX3; its behavior without a SoundWire codec needs review. Topology
-compilation cannot settle it. Do not add a dummy SoundWire device to force probe.
+The diagnostic DTS connects TX3 to the TX macro, selects the saved piano LPI
+GPIO12/13 settings at 4 mA, and adds the VA macro through standard ASoC `aux-devs`.
+`TX DMIC4 <- VA DMIC4` and `VA DMIC4 <- VA_MCLK` reuse VA's existing shared clock
+control. Its 2.4 MHz setting matches the stock TX divisor of 4 from a 9.6 MHz
+source. There is no second VA register owner in the TX driver.
+
+A direct-DMIC stream leak in the shared SoundWire helper is fixed in the kernel;
+its five ARM64 KUnit tests pass. A generic ASoC DAPM test confirms clock/gate order
+and closing/reopening for this routing shape. It uses synthetic widgets, and does
+not test real codec probing, aux-device registration, MMIO or DSP traffic.
+
+`tools/stage-kernel-modules.py` can stage the explicit audio dependency closure;
+this is independent of Debian packaging. The audio set has been loaded by BusyBox
+modprobe in QEMU with its matching Image. It contains no PMIC GLINK, battmgr or
+FastRPC module. Physical ADSP/GPR/APM operation and runtime routing are untested.
+The boot packager rejects this DTS until firmware/module delivery, collection and
+bounded exit have been integrated into the RAM runner. The existing ADSP-only
+P23 remains the first supervised hardware step.
 
 Real capture must establish the effective mixer controls, DMIC/decimator mapping,
 clock/power behavior, audible speech and reopening. Add UCM after those controls

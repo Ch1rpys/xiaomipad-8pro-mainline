@@ -23,6 +23,8 @@ DEFAULT_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano.dtb'
 UFS_RO_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-ufs-ro-diag.dtb'
 GPU_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-gpu-diag.dtb'
 BT_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-bt-diag.dtb'
+DRAFT_DTBS = ('arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-mic-diag.dtb',
+              'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-usb-role-diag.dtb')
 BT_CONFIG = ('CONFIG_RFKILL=y', 'CONFIG_BT=y', 'CONFIG_BT_LE=y', 'CONFIG_BT_QCA=y', 'CONFIG_BT_HCIUART=y',
              'CONFIG_BT_HCIUART_SERDEV=y', 'CONFIG_BT_HCIUART_QCA=y', 'CONFIG_POWER_SEQUENCING_QCOM_WCN=y')
 # MDSS stays disabled while simpledrm scans out, so the GPU needs its own DRM device.
@@ -49,6 +51,9 @@ def config_errors(config, diagnostic):
 
 
 def dtb_source_error(diagnostic, dtb_source_name):
+    if dtb_source_name in DRAFT_DTBS:
+        return ('This DTB is offline preparation only: its restricted module/firmware payload '
+                'and observation/recovery sequence are not integrated into the RAM runner yet')
     if (diagnostic == 'ufs-ro') != (dtb_source_name == UFS_RO_DTB):
         return f'The ufs-ro mode and {UFS_RO_DTB} are only used together'
     return None
