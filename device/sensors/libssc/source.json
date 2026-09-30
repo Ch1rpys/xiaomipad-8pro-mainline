@@ -1,0 +1,13 @@
+{
+  "url": "https://codeberg.org/DylanVanAssche/libssc.git",
+  "commit": "54dd13e36d65c21263cf5b0f4a70c230a77b26bc",
+  "version": "0.4.4",
+  "patches": [
+    {
+      "path": "patches/0001-propagate-test-process-exit-status.patch",
+      "sha256": "19f705efb23edb0370227b52eb0ad1c895c3debe047d7f36e6bdb533e3fff285"
+    }
+  ],
+  "scope": "ARM64 build and wrapper exit-status regression only. Full QRTR protocol tests did not run before guest preparation timed out. No piano service installed.",
+  "exit_condition": "Use the distribution package when it includes the required SSC support; drop the wrapper patch once upstream propagates child failures correctly."
+}

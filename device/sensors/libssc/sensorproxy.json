@@ -1,0 +1,10 @@
+{
+  "url": "https://gitlab.freedesktop.org/hadess/iio-sensor-proxy.git",
+  "commit": "0085ddf8ecb173a1c5fcf2344aa40e561125354f",
+  "version": "3.9",
+  "options": {
+    "ssc-support": "enabled"
+  },
+  "patches": [],
+  "scope": "ARM64 build only; no installed service or physical sensor validation"
+}

@@ -174,3 +174,11 @@ tools/firmware_payload.py and tools/stage-firmware.py:
   MIT. Extract the existing local DSP input validation/staging from
   tools/build-firmware-deb.py so native package recipes and initramfs assembly
   share the same payload. No proprietary bytes or redistribution grant.
+
+device/sensors/libssc/patches/0001-propagate-test-process-exit-status.patch:
+  Upstream: https://codeberg.org/DylanVanAssche/libssc.git
+  Base commit: 54dd13e36d65c21263cf5b0f4a70c230a77b26bc (0.4.4).
+  One-line change to mocking/ssc_server/ssc-server.in, GPL-3.0-or-later,
+  Copyright (C) 2022-2026 Dylan Van Assche. Retain its original notices.
+  Only test process status propagation changes; no sensor data or firmware.
+  GPL v3 text is already retained as LICENSES/hexagonrpc-GPL-3.0.txt.
