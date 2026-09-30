@@ -12,13 +12,15 @@ import fcntl
 import hashlib
 import json
 import os
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 import re
 import shutil
 import subprocess
 import tempfile
 
 from debian.deb822 import Deb822
+
+from kernel_modules import verified_modules
 
 # Ubuntu 26.04 linux-image-7.0.0-14-generic maintainer scripts with the release substituted.
 PREINST = '''#!/bin/sh
@@ -153,36 +155,6 @@ def sha(path):
 
 def git(source, *words):
     return subprocess.check_output(['git', '-C', str(source), *words], text=True).strip()
-
-
-def verified_modules(kout, build, release):
-    """Consume the Kbuild/depmod staging receipt; never rebuild or guess modules."""
-    receipt = build.get('modules')
-    if receipt is None:
-        if (kout / 'modules.order').exists():
-            raise ValueError('Modules were built but no verified staging receipt is present')
-        return {}
-    expected_root = f'modules-root/lib/modules/{release}'
-    if receipt['kernel_release'] != release or receipt['root'] != expected_root:
-        raise ValueError('Module release or staging root differs from the Image')
-    root = kout / expected_root
-    paths = sorted(root.rglob('*'))
-    if any(p.is_symlink() or not (p.is_file() or p.is_dir()) for p in paths):
-        raise ValueError('Unexpected module staging entry')
-    files = {str(p.relative_to(root)): p for p in paths if p.is_file()}
-    if set(files) != set(receipt['files']) or not {'modules.dep', 'modules.alias', 'modules.builtin'} <= files.keys():
-        raise ValueError('Module staging file set differs from its receipt')
-    for name, digest in receipt['files'].items():
-        relative = PurePosixPath(name)
-        if relative.is_absolute() or '..' in relative.parts or sha(files[name]) != digest:
-            raise ValueError(f'Module staging hash/path mismatch: {name}')
-    modules = [p for n, p in files.items() if re.fullmatch(r'.+\.ko(?:\.(?:gz|xz|zst))?', n)]
-    if not modules or len(modules) != receipt['count']:
-        raise ValueError('Module count differs from the staging receipt')
-    vermagic = subprocess.check_output(['modinfo', '-F', 'vermagic', *map(str, modules)], text=True).splitlines()
-    if len(vermagic) != len(modules) or any(not line.startswith(release + ' ') for line in vermagic):
-        raise ValueError('A staged module does not match the kernel release')
-    return files
 
 
 def main():

@@ -190,3 +190,9 @@ device/audio/Piano-Capture-Diag.m4:
   secondary capture and other devices are omitted. The upstream macro library
   is consumed from its pinned checkout, not copied here.
   License: LICENSES/audioreach-BSD-3-Clause.txt. No proprietary firmware.
+
+tools/kernel_modules.py and tools/stage-kernel-modules.py:
+  GPL-2.0-only. Receipt validation is extracted from tools/build-kernel-deb.py;
+  native packaging and plain module-subset staging share that implementation.
+  Dependency resolution uses kmod rather than a separate resolver. No kernel
+  driver source, device firmware or calibration is copied here.
