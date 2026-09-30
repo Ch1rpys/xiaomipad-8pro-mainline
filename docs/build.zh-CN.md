@@ -281,6 +281,9 @@ python3 tools/build-kernel-deb.py --kernel-source /path/to/linux \
 以及 /usr/lib/modules/<release>/ 下的内建清单和可选匹配模块。
 维护脚本与 linux-update-<release> 触发器取自 Ubuntu 26.04 linux-image 包，只替换版本；
 postinst 经 depmod、linux-update-symlinks 和 /etc/kernel/postinst.d 调用发行版钩子（dracut 生成 initrd）。
+模块包只拥有匹配 `.ko` 与 Kbuild 清单；`modules.dep/alias/symbols` 等 depmod 缓存由目标系统的 kmod
+在 postinst 生成，不将构建机缓存作为不可变包文件交付。包 manifest 的 `modules.files` 只列实际包载荷，
+`omitted_depmod_indexes` 记录省略项；完整输入身份仍由 build-result.json 校验。plain RAM 暂存继续保留其验证过的索引。
 依赖 kmod、linux-base，推荐 dracut。默认 BUILD_MODULES=0 保留无 .ko 的 RAM 诊断构建。
 需要模块时显式使用独立 OUT：
 
