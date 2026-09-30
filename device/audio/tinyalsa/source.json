@@ -1,0 +1,10 @@
+{
+  "url": "https://github.com/tinyalsa/tinyalsa.git",
+  "commit": "961babfe962e71d952ae734074cc89576b28a9e7",
+  "license": "BSD-3-Clause",
+  "tool": "tinymix",
+  "role": "Static ARM64 mixer inspection in the minimal RAM diagnostic, not a replacement audio stack",
+  "patches": [],
+  "plugins": false,
+  "exit_condition": "Use the distribution ALSA tools in the installed system; keep this binary restricted to the RAM diagnostic."
+}

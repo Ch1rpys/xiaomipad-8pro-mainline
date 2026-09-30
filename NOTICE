@@ -215,3 +215,15 @@ ubuntu/systemd/worker-cap.patch:
   override preparation, not an installed binary or a separate udev service.
   License text: LICENSES/systemd-GPL-2.0-or-later.txt, from the authenticated
   systemd source's LICENSE.GPL2.
+
+TinyALSA RAM mixer diagnostic
+- Upstream: https://github.com/tinyalsa/tinyalsa.git
+- Commit: 961babfe962e71d952ae734074cc89576b28a9e7
+- Uses upstream src/ and utils/tinymix.c through their original Makefiles,
+  with no source patch. The generated binary is not stored in this repository.
+- Copyright 2011 The Android Open Source Project; copyright 2019 The Linux
+  Foundation and the per-file upstream authors. BSD-3-Clause; full text is in
+  LICENSES/tinyalsa-BSD-3-Clause.txt. The wrapper is MIT; the compiler runtime
+  retains its own license.
+- The upstream utils/optparse.h dependency carries its public-domain dedication;
+  it remains unmodified in the source checkout used for the build.
