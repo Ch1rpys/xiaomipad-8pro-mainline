@@ -11,16 +11,12 @@ import json
 import os
 from pathlib import Path
 import shutil
-import stat
 import subprocess
 import tempfile
 
 from debian.deb822 import Deb822
-
-
-def sha(path):
-    with path.open('rb') as src:
-        return hashlib.file_digest(src, 'sha256').hexdigest()
+import firmware_payload
+from firmware_payload import sha
 
 
 def main():
@@ -33,15 +29,9 @@ def main():
         parser.error('Maintainer must be one control-file field')
     repo = Path(__file__).resolve().parent.parent
     source_lock = repo / 'firmware/piano-os3.0.303.0.json'
-    inputs = json.loads(source_lock.read_text())
+    inputs = firmware_payload.load_lock(source_lock)
     names = [row['name'] for row in inputs['files']]
-    if len(names) != len(set(names)) or any(Path(name).name != name or name in ('.', '..') for name in names):
-        raise ValueError('Firmware lock must contain unique flat filenames')
     firmware = args.firmware_dir.resolve()
-    for row in inputs['files']:
-        source = firmware / row['name']
-        if not stat.S_ISREG(source.lstat().st_mode) or source.stat().st_size != row['bytes']:
-            raise ValueError(f'Expected matching regular firmware file: {row["name"]}')
     os.umask(0o022)
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=False, mode=0o700)
@@ -51,14 +41,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix='stage-', dir=out) as temporary:
         stage = Path(temporary)
         stage.chmod(0o755)
-        payload = stage / inputs['firmware_directory']
-        payload.mkdir(parents=True)
-        for row in inputs['files']:
-            target = payload / row['name']
-            shutil.copyfile(firmware / row['name'], target)
-            target.chmod(0o644)
-            if sha(target) != row['sha256']:
-                raise ValueError(f'Firmware hash mismatch: {row["name"]}')
+        firmware_payload.stage_payload(inputs, firmware, stage)
         docs = stage / 'usr/share/doc' / name
         docs.mkdir(parents=True)
         shutil.copyfile(source_lock, docs / 'inputs.json')
@@ -94,6 +77,7 @@ def main():
                 'package': name, 'version': inputs['version'], 'firmware_files': len(names),
                 'firmware_directory': '/' + inputs['firmware_directory'],
                 'input_lock_sha256': sha(source_lock), 'builder_sha256': sha(Path(__file__)),
+                'payload_builder_sha256': sha(Path(firmware_payload.__file__)),
                 'deb': archive.name, 'deb_bytes': archive.stat().st_size, 'deb_sha256': sha(archive),
                 'installed_size_kib': installed_kib,
                 'dpkg_deb_version': subprocess.check_output(['dpkg-deb', '--version'], text=True).splitlines()[0],
