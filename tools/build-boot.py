@@ -33,7 +33,7 @@ BT_CONFIG = ('CONFIG_RFKILL=y', 'CONFIG_BT=y', 'CONFIG_BT_LE=y', 'CONFIG_BT_QCA=
 # MDSS stays disabled while simpledrm scans out, so the GPU needs its own DRM device.
 GPU_CMDLINE = 'msm.separate_gpu_kms=1'
 UFS_NODES = ('/soc@0/ufs@1d84000', '/soc@0/phy@1d80000')
-RAM_ONLY = ('CONFIG_PSTORE_CONSOLE=y', 'CONFIG_PSTORE_RAM=y', '# CONFIG_MMC is not set',
+RAM_ONLY = ('# CONFIG_USB_DUMMY_HCD is not set', 'CONFIG_PSTORE_CONSOLE=y', 'CONFIG_PSTORE_RAM=y', '# CONFIG_MMC is not set',
             '# CONFIG_MTD is not set', '# CONFIG_BLK_DEV_NVME is not set')
 UFS_RO_CONFIG = ('CONFIG_SCSI_UFSHCD=y', 'CONFIG_SCSI_UFSHCD_PLATFORM=y', 'CONFIG_SCSI_UFS_QCOM=y',
                  'CONFIG_PHY_QCOM_QMP_UFS=y', '# CONFIG_SCSI_UFS_CRYPTO is not set',
