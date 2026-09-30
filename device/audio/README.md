@@ -71,7 +71,22 @@ collects module/ALSA/remoteproc state. Its original 60-second PID1 timer remains
 The frozen P24 probe contains the older mono topology. Its probe-only evidence
 remains historical; recording needs this corrected topology in a newly identified
 payload. Existing P24 boot bytes have not been replaced.
-The existing ADSP-only P23 remains the first supervised hardware step.
+The existing ADSP-only P23 remains the first bounded hardware step.
+
+The TX mixer now uses its channel bitmap as the single source of state. Repeated
+writes and disabling an inactive channel leave other channels intact; channel
+counts are derived from the bitmap and stream mute covers all selected channels.
+The real ALSA controls and DAI callbacks pass five ARM64 software regressions
+using a synthetic register bus. This does not test codec power, clocks or DSP
+capture, and the frozen P24 still contains the earlier driver.
+
+For the first native ALSA recording, also inspect the negotiated buffer sizes.
+At 48 kHz/S16_LE/two channels, q6apm requires at least 6144 bytes per period and
+period/buffer sizes in multiples of 480 frames. A 1920-frame period with four
+periods (7680-frame buffer) satisfies these source constraints; it is a starting
+request, not a hardware result. Preserve `arecord -v` output and the live ALSA
+hardware parameters. The original Ubuntu desktop already supplies ALSA tools;
+the static tinymix utility remains a mixer-inspection tool.
 
 Real capture must establish the effective mixer controls, DMIC/decimator mapping,
 clock/power behavior, audible speech and reopening. Add UCM after those controls
