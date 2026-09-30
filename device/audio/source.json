@@ -1,0 +1,9 @@
+{
+  "url": "https://github.com/linux-msm/audioreach-topology.git",
+  "commit": "2af1f1ebb8d4fd03b5f53891467ddde2e208a8a0",
+  "license": "BSD-3-Clause",
+  "reference": "SM8550-HDK.m4; upstream CMake also uses it for SM8750-MTP/QRD",
+  "local_source": "Piano-Capture-Diag.m4",
+  "scope": "Mono TX3 capture diagnostic graph only; compile/decode offline, no hardware claim",
+  "exit_condition": "Prefer a maintained upstream piano topology once physical capture and power lifecycle are verified."
+}
