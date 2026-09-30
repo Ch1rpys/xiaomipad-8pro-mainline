@@ -1,0 +1,17 @@
+{
+  "url": "https://github.com/linux-msm/hexagonrpc.git",
+  "commit": "598b591ae9da6a6cfe2ca5ea78998019ca6395ea",
+  "version": "0.5.0",
+  "patches": [
+    {
+      "path": "patches/0001-fix-type-sequence-marshalling.patch",
+      "sha256": "4b252f3ef9602eaadaf6605a8c295d132310d027ac421b92561b80210c8ef61d"
+    },
+    {
+      "path": "patches/0002-avoid-unaligned-metadata-store-and-null-test-comparison.patch",
+      "sha256": "09d8873f144a2201b7451bac5c27f5ae9e43b05223a34517cc4918d2b55164db"
+    }
+  ],
+  "scope": "Offline-tested upstream fixes; no installed service or piano sensor support claim",
+  "exit_condition": "Drop local patches after an upstream release covers these fixes and the same regressions pass."
+}
