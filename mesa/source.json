@@ -1,0 +1,8 @@
+{
+  "url": "https://gitlab.freedesktop.org/mesa/mesa.git",
+  "tag": "mesa-26.2.0",
+  "commit": "9f0a761020bca92f2b07156a0621e5360cb8eca5",
+  "patch": "mesa/a830-speedbin.patch",
+  "prefix": "/opt/piano/mesa-26.2.0",
+  "scope": "Isolated ARM64 diagnostic userspace; not the default Ubuntu graphics stack or a hardware support claim"
+}
