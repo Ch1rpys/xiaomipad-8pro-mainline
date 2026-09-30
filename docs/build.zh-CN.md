@@ -23,7 +23,7 @@ KERNEL_SOURCE=/path/to/independent/linux OUT_DIR="$PWD/out/kernel-diag" JOBS=8 \
 
 配置仅在内核仓 arch/arm64/configs/piano-diagnostic.config 维护。
 每次增量构建先运行原生 olddefconfig，处理源码新增的 Kconfig 项；片段变化时才重新生成/合并基线。
-生成 Image、sm8750-xiaomi-piano.dtb、各诊断变体 DTB（bt/gpu/power/thp/ufs-ro）、最终 .config、日志与 build-result.json。
+生成 Image、sm8750-xiaomi-piano.dtb、各诊断变体 DTB（adsp/bt/gpu/iris/power/thp/ufs-ro）、最终 .config、日志与 build-result.json。
 thp-diag 是有人监督触控诊断用的变体，只额外启用 gpi_dma1、spi2 和触控节点；P15 已用它在真机取得触控流，默认 piano DTB 仍禁用它们。
 ufs-ro-diag 只把 UFS 主机与 QMP PHY 设为 okay，供有人监督的只读识盘；默认 DTB 和默认配置都不启用 UFS。
 power-diag 只把两颗 BQ27Z561 所在的 i2c5/i2c11、QUP2 包装器和 gpi_dma1/gpi_dma2 设为 okay，供有人监督的只读电量计/温度读取；配套 piano-power-diag.config 只把 I2C_QCOM_GENI 改为内建。它不描述充电器、电荷泵、电池通路 GPIO、monitored-battery 或温控策略，默认 DTB 两条总线仍 disabled。SE5 在原厂为多执行环境共享，本内核不做 GPI 锁，只能用于不启动远程处理器的有人监督 RAM 会话。
@@ -267,13 +267,28 @@ python3 tools/build-kernel-deb.py --kernel-source /path/to/linux \
 `<tag>+piano<自 tag 的提交数>.g<commit12>`，SOURCE_DATE_EPOCH 取内核提交时间；同输入重建字节一致。
 内容：/boot 的 vmlinuz（未压缩 Image，与 build-result 同 hash）、System.map、config，
 /usr/lib/linux-image-<release>/qcom/ 下 build-result 记录的全部 DTB，
-以及内建模块清单 /usr/lib/modules/<release>/modules.builtin{,.modinfo}。
+以及 /usr/lib/modules/<release>/ 下的内建清单和可选匹配模块。
 维护脚本与 linux-update-<release> 触发器取自 Ubuntu 26.04 linux-image 包，只替换版本；
 postinst 经 depmod、linux-update-symlinks 和 /etc/kernel/postinst.d 调用发行版钩子（dracut 生成 initrd）。
-依赖 kmod、linux-base，推荐 dracut。当前诊断构建 CONFIG_MODULES=y 但未构建任何 .ko；
-OUT 中已有 modules.order 时工具拒绝打包，模块打包尚未实现。
+依赖 kmod、linux-base，推荐 dracut。默认 BUILD_MODULES=0 保留无 .ko 的 RAM 诊断构建。
+需要模块时显式使用独立 OUT：
 
-该包只在 ARM64 QEMU guest 中经原生 APT 安装并由发行版钩子生成过 dracut initrd，
+```sh
+BUILD_MODULES=1 KERNEL_SOURCE=/path/to/independent/linux \
+  OUT_DIR="$PWD/out/kernel-modules" bash tools/build-kernel.sh
+```
+
+复用 Kbuild 的 modules/modules_install、目标 strip 和主机 depmod，暂存到 OUT/modules-root；
+build/source 主机链接不进入载荷。build-result.json 记录 release、逐文件 SHA、模块数和 depmod 版本。
+已有 modules.order 的 OUT 不接受 BUILD_MODULES=0，避免混合构建身份。
+打包器消费同一暂存树，核对文件集合、hash、release 和每个模块的 vermagic，再复制到包；
+缺收据、错版本/文件/hash/模块数都拒绝。标准暂存树也可供其他发行版配方消费，不依赖 deb。
+当前 1087 个模块来自广泛的 ARM64 defconfig，尚不是精简的产品配置。
+USB 音频、UCSI GLINK 和 Iris 的依赖闭包已在匹配 Image 的 ARM64 QEMU 中实际加载；
+这只验证模块 ABI/注册，不验证对应硬件。Iris DTB 保持独立诊断用途，尚无配套 RAM boot 镜像。
+新含模块包的归档/清单检查已通过，原生 APT 安装、initrd 生成和 piano 实测尚未完成。
+
+此前不含 .ko 的包曾在 ARM64 QEMU guest 中经原生 APT 安装并由发行版钩子生成 dracut initrd，
 随后以该 initrd 挂载 ext4 根；没有在 piano 上安装，也不生成或刷写 ABL boot 镜像。
 QEMU 中 flash-kernel 因 linux,dummy-virt 在其数据库中而无操作；piano 机型不在该数据库，
 按源码其触发器会报 Unsupported platform，产品安装前须明确处理。

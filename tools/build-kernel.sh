@@ -22,12 +22,14 @@ fragment="$src/$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))
 # piano-gpu-diag.config, piano-bt-diag.config). It must be
 # a tracked file in the kernel source and needs its own OUT_DIR.
 extra=${CONFIG_FRAGMENT_EXTRA:-}
+modules=${BUILD_MODULES:-0}
 
 if [[ ${1:-} == --help ]]; then
-	echo "Usage: $0 (KERNEL_SOURCE, OUT_DIR, JOBS, CROSS_COMPILE, CONFIG_FRAGMENT_EXTRA optional)"
+	echo "Usage: $0 (KERNEL_SOURCE, OUT_DIR, JOBS, CROSS_COMPILE, CONFIG_FRAGMENT_EXTRA, BUILD_MODULES=0|1 optional)"
 	exit 0
 fi
 [[ $# == 0 ]] || { echo "Unexpected arguments; use --help" >&2; exit 2; }
+[[ $modules == 0 || $modules == 1 ]] || { echo 'BUILD_MODULES must be 0 or 1' >&2; exit 2; }
 src=$(realpath "$src")
 [[ $(git -C "$src" rev-parse --show-toplevel) == "$src" ]] || {
 	echo 'Kernel source must have its own Git repository.' >&2
@@ -45,6 +47,10 @@ mkdir -p "$out"
 out=$(realpath "$out")
 exec 9>"$out/.build.lock"
 flock -n 9 || { echo "Build output is already in use: $out" >&2; exit 1; }
+if [[ $modules == 0 && -f $out/modules.order ]]; then
+	echo 'This OUT contains a modules build; keep BUILD_MODULES=1 or use another OUT.' >&2
+	exit 1
+fi
 
 head=$(git -C "$src" rev-parse HEAD)
 expected=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["commit"])' "$repo/kernel/source.json")
@@ -91,28 +97,62 @@ while IFS= read -r setting; do
 done < <(cat "${fragments[@]}")
 
 printf 'Building %s with %s (%s jobs)\n' "$head" "$toolchain" "$jobs"
+module_target=()
+if [[ $modules == 1 ]]; then
+	grep -Fxq CONFIG_MODULES=y "$out/.config" || { echo 'Modules require CONFIG_MODULES=y' >&2; exit 1; }
+	command -v depmod >/dev/null
+	module_target=(modules)
+fi
 make "${args[@]}" -j"$jobs" Image qcom/sm8750-xiaomi-piano.dtb \
 	qcom/sm8750-xiaomi-piano-adsp-diag.dtb \
 	qcom/sm8750-xiaomi-piano-bt-diag.dtb qcom/sm8750-xiaomi-piano-gpu-diag.dtb \
+	qcom/sm8750-xiaomi-piano-iris-diag.dtb \
 	qcom/sm8750-xiaomi-piano-power-diag.dtb \
-	qcom/sm8750-xiaomi-piano-thp-diag.dtb qcom/sm8750-xiaomi-piano-ufs-ro-diag.dtb 2>&1 | tee "$out/build.log"
+	qcom/sm8750-xiaomi-piano-thp-diag.dtb qcom/sm8750-xiaomi-piano-ufs-ro-diag.dtb \
+	"${module_target[@]}" 2>&1 | tee "$out/build.log"
+if [[ $modules == 1 ]]; then
+	make "${args[@]}" INSTALL_MOD_PATH="$out/modules-root" INSTALL_MOD_STRIP=1 \
+		DEPMOD="$(command -v depmod)" modules_install 2>&1 | tee "$out/modules-install.log"
+fi
 [[ $(git -C "$src" rev-parse HEAD) == "$head" && -z $(git -C "$src" status --porcelain --untracked-files=no) ]] || {
 	echo 'Source changed during build; output must not be used.' >&2; exit 1;
 }
-python3 - "$out" "$head" "$toolchain" "$src" "${fragments[@]}" <<'PY'
-import hashlib, json, pathlib, sys
+python3 - "$out" "$head" "$toolchain" "$src" "$modules" "${fragments[@]}" <<'PY'
+import hashlib, json, pathlib, subprocess, sys
 out, head, compiler, src = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3], pathlib.Path(sys.argv[4])
 files = ['arch/arm64/boot/Image', 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-adsp-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-bt-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-gpu-diag.dtb',
+         'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-iris-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-power-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-thp-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-ufs-ro-diag.dtb', '.config']
 result = {'status': 'OFFLINE_BUILD_ONLY', 'kernel_commit': head, 'compiler': compiler,
-          'config_fragments': [str(pathlib.Path(f).relative_to(src)) for f in sys.argv[5:]],
+          'config_fragments': [str(pathlib.Path(f).relative_to(src)) for f in sys.argv[6:]],
           'note': 'RAM-only piano skeleton. Building does not establish hardware support.',
           'files': {f: hashlib.sha256((out / f).read_bytes()).hexdigest() for f in files}}
+if sys.argv[5] == '1':
+    release = (out / 'include/config/kernel.release').read_text().strip()
+    root = out / 'modules-root/lib/modules' / release
+    # Kbuild's build/source links point to the build host, not runtime inputs.
+    for name in ('build', 'source'):
+        path = root / name
+        if path.is_symlink():
+            path.unlink()
+    entries = sorted(root.rglob('*'))
+    if not root.is_dir() or any(p.is_symlink() or not (p.is_file() or p.is_dir()) for p in entries):
+        raise RuntimeError('Unexpected module staging tree')
+    def sha(path):
+        with path.open('rb') as stream:
+            return hashlib.file_digest(stream, 'sha256').hexdigest()
+    module_files = {str(p.relative_to(root)): sha(p) for p in entries if p.is_file()}
+    count = sum('.ko' in p.name for p in entries if p.is_file())
+    if not count or not {'modules.dep', 'modules.alias', 'modules.builtin'} <= module_files.keys():
+        raise RuntimeError('Modules or depmod metadata missing')
+    result['modules'] = {'root': str(root.relative_to(out)), 'kernel_release': release,
+                         'count': count, 'files': module_files,
+                         'depmod_version': subprocess.check_output(['depmod', '--version'], text=True).strip()}
 (out / 'build-result.json').write_text(json.dumps(result, indent=2) + '\n')
 PY
 echo "Piano kernel build complete: $out/build-result.json (boot packaging is separate)"

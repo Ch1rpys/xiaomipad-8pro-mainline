@@ -12,7 +12,7 @@ import fcntl
 import hashlib
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import shutil
 import subprocess
@@ -155,6 +155,36 @@ def git(source, *words):
     return subprocess.check_output(['git', '-C', str(source), *words], text=True).strip()
 
 
+def verified_modules(kout, build, release):
+    """Consume the Kbuild/depmod staging receipt; never rebuild or guess modules."""
+    receipt = build.get('modules')
+    if receipt is None:
+        if (kout / 'modules.order').exists():
+            raise ValueError('Modules were built but no verified staging receipt is present')
+        return {}
+    expected_root = f'modules-root/lib/modules/{release}'
+    if receipt['kernel_release'] != release or receipt['root'] != expected_root:
+        raise ValueError('Module release or staging root differs from the Image')
+    root = kout / expected_root
+    paths = sorted(root.rglob('*'))
+    if any(p.is_symlink() or not (p.is_file() or p.is_dir()) for p in paths):
+        raise ValueError('Unexpected module staging entry')
+    files = {str(p.relative_to(root)): p for p in paths if p.is_file()}
+    if set(files) != set(receipt['files']) or not {'modules.dep', 'modules.alias', 'modules.builtin'} <= files.keys():
+        raise ValueError('Module staging file set differs from its receipt')
+    for name, digest in receipt['files'].items():
+        relative = PurePosixPath(name)
+        if relative.is_absolute() or '..' in relative.parts or sha(files[name]) != digest:
+            raise ValueError(f'Module staging hash/path mismatch: {name}')
+    modules = [p for n, p in files.items() if re.fullmatch(r'.+\.ko(?:\.(?:gz|xz|zst))?', n)]
+    if not modules or len(modules) != receipt['count']:
+        raise ValueError('Module count differs from the staging receipt')
+    vermagic = subprocess.check_output(['modinfo', '-F', 'vermagic', *map(str, modules)], text=True).splitlines()
+    if len(vermagic) != len(modules) or any(not line.startswith(release + ' ') for line in vermagic):
+        raise ValueError('A staged module does not match the kernel release')
+    return files
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--kernel-source', type=Path, required=True, help='Kernel Git checkout containing the built commit')
@@ -189,8 +219,9 @@ def main():
             parser.error('Image banner does not carry include/config/kernel.release')
         config = (kout / '.config').read_text().splitlines()
         modular = 'CONFIG_MODULES=y' in config
-        if (kout / 'modules.order').exists():
-            parser.error('A modules build is present; module packaging is not implemented by this tool yet')
+        module_files = verified_modules(kout, build, release)
+        if module_files and not modular:
+            parser.error('Module payload requires CONFIG_MODULES=y')
         dtbs = sorted(n for n in build['files'] if n.endswith('.dtb'))
         if not dtbs:
             parser.error('build-result.json records no DTB')
@@ -205,7 +236,10 @@ def main():
             files = {f'boot/vmlinuz-{release}': (image, 0o600),
                      f'boot/System.map-{release}': (kout / 'System.map', 0o600),
                      f'boot/config-{release}': (kout / '.config', 0o644)}
-            if modular:
+            if module_files:
+                for relative, path in module_files.items():
+                    files[f'usr/lib/modules/{release}/{relative}'] = (path, 0o644)
+            elif modular:
                 # Built-in module lists only: the build ran no modules target (checked above).
                 for listing in ('modules.builtin', 'modules.builtin.modinfo'):
                     files[f'usr/lib/modules/{release}/{listing}'] = (kout / listing, 0o644)
@@ -238,6 +272,9 @@ def main():
             if (sha(stage / f'boot/vmlinuz-{release}') != build['files']['arch/arm64/boot/Image'] or
                     sha(stage / f'boot/config-{release}') != build['files']['.config']):
                 raise RuntimeError('Image/config changed while packaging')
+            for relative in module_files:
+                if sha(stage / f'usr/lib/modules/{release}/{relative}') != build['modules']['files'][relative]:
+                    raise RuntimeError(f'Module changed while packaging: {relative}')
             installed_kib = sum((p.stat().st_size + 1023) // 1024 if p.is_file() else 1
                                 for p in [stage, *stage.rglob('*')])
             control = stage / 'DEBIAN'
@@ -251,7 +288,8 @@ def main():
                 'Description': f'Linux kernel {release} for Xiaomi Pad 8 Pro (piano)\n'
                                f' Local build of {commit} ({", ".join(build["config_fragments"])}).\n'
                                ' Contains the kernel Image, System.map, config and DTBs;\n'
-                               ' no loadable modules are built. No hardware support is implied.'})
+                               + (f' includes {build["modules"]["count"]} matching loadable modules.' if module_files else
+                                  ' no loadable modules are built.') + ' No hardware support is implied.'})
             (control / 'control').write_text(fields.dump())
             for script, text in (('preinst', PREINST), ('postinst', POSTINST),
                                  ('prerm', PRERM), ('postrm', POSTRM)):
@@ -271,7 +309,9 @@ def main():
     manifest = {'state': 'LOCAL_KERNEL_PACKAGE_BUILT_NOT_INSTALLED', 'package': name, 'version': version,
                 'kernel_release': release, 'kernel_commit': commit, 'upstream_tag': tag,
                 'config_fragments': build['config_fragments'], 'build_result_sha256': sha(kout / 'build-result.json'),
-                'kernel_out': str(kout), 'modules': 'none built; built-in lists only' if modular else 'CONFIG_MODULES off',
+                'kernel_out': str(kout),
+                'modules': (build['modules'] if module_files else
+                            'none built; built-in lists only' if modular else 'CONFIG_MODULES off'),
                 'dtbs': dtbs, 'contents_sha256': contents, 'installed_size_kib': installed_kib,
                 'deb': archive.name, 'deb_bytes': archive.stat().st_size, 'deb_sha256': sha(archive),
                 'builder_sha256': sha(Path(__file__)), 'source_date_epoch': int(epoch),
