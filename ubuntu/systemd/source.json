@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "state": "AUTHENTICATED_SOURCE_WITH_UPSTREAM_PATCH_NOT_BINARY_BUILD",
+  "base_version": "259.5-0ubuntu3.4",
+  "local_version": "259.5-0ubuntu3.4+piano1",
+  "snapshot": "20260930T000000Z",
+  "files": [
+    {
+      "file": "systemd_259.5.orig.tar.gz",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20260930T000000Z/pool/main/s/systemd/systemd_259.5.orig.tar.gz",
+      "sha256": "80ed55a8a69c4bd1fb12a36659303372b37baf9ee224ef4f032db4b748be0f76",
+      "bytes": 17336729
+    },
+    {
+      "file": "systemd_259.5-0ubuntu3.4.debian.tar.xz",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20260930T000000Z/pool/main/s/systemd/systemd_259.5-0ubuntu3.4.debian.tar.xz",
+      "sha256": "34048bc4b67dce61835a5a959d903f912d68bb09a93ba654e6ae33410c74aaa9",
+      "bytes": 267032
+    },
+    {
+      "file": "systemd_259.5-0ubuntu3.4.dsc",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20260930T000000Z/pool/main/s/systemd/systemd_259.5-0ubuntu3.4.dsc",
+      "sha256": "c4c764e0b98b7840619f16f42fb8229a344bc2946bd1a74612280d5e218f8177",
+      "bytes": 8779
+    }
+  ],
+  "authentication": {
+    "chain": "Ubuntu Archive InRelease -> Sources SHA256 -> DSC/orig/debian archives SHA256",
+    "inrelease_sha256": "c73c04e538b29eedbb569e62179477edaef4ff3751abf243dc58784c340b2f18",
+    "sources_sha256": "5295c3fe838846673817bf0f77500f320a4e15897f9f7b0a9397f7c4f9e4c996",
+    "archive_key_fingerprint": "F6ECB3762474EDA9D21B7022871920D1991BC93C",
+    "dsc_maintainer_signature": "Not separately verified",
+    "inrelease_url": "https://snapshot.ubuntu.com/ubuntu/20260930T000000Z/dists/resolute-updates/InRelease",
+    "sources_url": "https://snapshot.ubuntu.com/ubuntu/20260930T000000Z/dists/resolute-updates/main/source/Sources.xz",
+    "keyring_sha256": "80a36b0a6de2f69f49d2df75ef473ccde121e9e190b9ea01d20a4f63778d5c31"
+  },
+  "patch": {
+    "file": "worker-cap.patch",
+    "sha256": "5adee9071111e5d46503c648921308bbb235dafa3f1da1fd9d39fa9db7aa93f5",
+    "upstream_commit": "181a9f65a7cf9059da0f2a44e2152d7636446b33",
+    "upstream_url": "https://github.com/systemd/systemd/commit/181a9f65a7cf9059da0f2a44e2152d7636446b33.patch",
+    "upstream_patch_sha256": "1a4fbaf57ce502524fc0e9b4e3bb9cc7d349d1ddaac91aa7a4272118d8829581",
+    "license": "GPL-2.0-or-later"
+  },
+  "changelog_entry_sha256": "ae9d6bb00f3915938653a4491265d4707fc16cec72f812339c9e43d9722190c1",
+  "exit_condition": "Drop this override when the selected official Ubuntu source includes the same fix and appropriate native regression passes."
+}

@@ -206,3 +206,12 @@ tools/initramfs_archive.py:
   GPL-2.0-only. Single-newc reader derived from this repository's diagnostic
   test reader, extended to validate record boundaries, paths and file types.
   Scope is the RAM builder format, not general cpio or distribution initrd support.
+
+ubuntu/systemd/worker-cap.patch:
+  Upstream systemd commit 181a9f65a7cf9059da0f2a44e2152d7636446b33,
+  authored by Daan De Meyer. The diff is unchanged; its source file
+  src/udev/udev-manager.c is GPL-2.0-or-later. Source inputs and SHA-256 values
+  are pinned in ubuntu/systemd/source.json. This is an Ubuntu source-package
+  override preparation, not an installed binary or a separate udev service.
+  License text: LICENSES/systemd-GPL-2.0-or-later.txt, from the authenticated
+  systemd source's LICENSE.GPL2.

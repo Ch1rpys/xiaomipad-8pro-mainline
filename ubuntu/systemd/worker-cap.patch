@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+Description: Leave events queued until a worker slot is released
+Author: Daan De Meyer <daan@amutable.com>
+Origin: upstream, https://github.com/systemd/systemd/commit/181a9f65a7cf9059da0f2a44e2152d7636446b33
+Forwarded: not-needed
+Last-Update: 2026-09-30
+
+diff --git a/src/udev/udev-manager.c b/src/udev/udev-manager.c
+index 46c8a85d9860..7c2530f17fec 100644
+--- a/src/udev/udev-manager.c
++++ b/src/udev/udev-manager.c
+@@ -631,8 +631,13 @@ static int event_run(Event *event) {
+                 return 0;
+         }
+ 
++        /* No idle worker could accept the event. If we already reached the worker limit, e.g. because
++         * we just killed the only idle worker above, leave the event queued and wait for SIGCHLD of an
++         * exiting worker to free up a slot. on_post() will retry processing the queue. */
++        if (hashmap_size(manager->workers) >= manager->config.children_max)
++                return 0;
++
+         /* start new worker and pass initial device */
+-        assert(hashmap_size(manager->workers) < manager->config.children_max);
+         r = worker_spawn(manager, event);
+         if (r < 0)
+                 return r;

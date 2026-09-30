@@ -1,0 +1,2 @@
+# A unified diff represents a blank context line with one required space.
+ubuntu/systemd/worker-cap.patch whitespace=-blank-at-eol

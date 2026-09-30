@@ -1,0 +1,7 @@
+systemd (259.5-0ubuntu3.4+piano1) UNRELEASED; urgency=medium
+
+  * Apply upstream 181a9f65 to keep udev events queued while killed workers
+    still occupy the worker limit. Local source preparation; binary and
+    device validation remain pending.
+
+ -- Codex <codex@localhost>  Wed, 30 Sep 2026 12:32:47 +0000
