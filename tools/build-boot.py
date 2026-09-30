@@ -14,6 +14,11 @@ import subprocess
 
 CMDLINE_BASE = ('rdinit=/init console=ttyMSM0,115200n8 ignore_loglevel log_buf_len=2M '
                 'panic=15')
+ADSP_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-adsp-diag.dtb'
+ADSP_CONFIG = ('CONFIG_QCOM_Q6V5_PAS=y', 'CONFIG_QCOM_SYSMON=y', 'CONFIG_QCOM_MDT_LOADER=y',
+               'CONFIG_RPMSG_QCOM_GLINK_SMEM=y', 'CONFIG_QRTR=y', 'CONFIG_QRTR_SMD=y',
+               'CONFIG_QCOM_PD_MAPPER=y', '# CONFIG_QCOM_PMIC_GLINK is not set',
+               '# CONFIG_QCOM_FASTRPC is not set', '# CONFIG_QCOM_APR is not set')
 DEFAULT_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano.dtb'
 UFS_RO_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-ufs-ro-diag.dtb'
 GPU_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-gpu-diag.dtb'
@@ -65,6 +70,21 @@ def bt_errors(config, diagnostic, dtb_source_name):
     errors = [f'The bt-diag DTB needs the bt-diag OUT: {s}' for s in BT_CONFIG if s not in config]
     if diagnostic != 'ubuntu':
         errors.append('The bt-diag DTB is only used in the ubuntu mode (runtime firmware bundle)')
+    return errors
+
+
+def adsp_errors(config, diagnostic, dtb_source_name, firmware):
+    if dtb_source_name != ADSP_DTB:
+        return []
+    errors = [f'The ADSP DTB needs its isolated config: {s}' for s in ADSP_CONFIG if s not in config]
+    if diagnostic != 'ncm':
+        errors.append('The ADSP diagnostic uses the 60-second NCM mode')
+    lock = json.loads((Path(__file__).resolve().parents[1] / 'firmware/piano-os3.0.303.0.json').read_text())
+    expected = {f'qcom/sm8750/piano/{r["name"]}': (r['bytes'], r['sha256'])
+                for r in lock['files'] if r['name'].startswith(('adsp.', 'adsp_dtb.'))}
+    actual = {r['path']: (r['size'], r['sha256']) for r in firmware}
+    if len(actual) != len(firmware) or actual != expected:
+        errors.append('ADSP initramfs firmware must exactly match the locked piano ADSP/DTB files')
     return errors
 
 
@@ -193,6 +213,8 @@ def main():
     if errors := gpu_errors(config, args.dtb_source_name, firmware):
         parser.error('; '.join(errors))
     if errors := bt_errors(config, args.diagnostic, args.dtb_source_name):
+        parser.error('; '.join(errors))
+    if errors := adsp_errors(config, args.diagnostic, args.dtb_source_name, firmware):
         parser.error('; '.join(errors))
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=False)
