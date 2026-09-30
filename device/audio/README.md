@@ -1,10 +1,22 @@
 # Piano capture diagnostic topology
 
-This is a small board graph using upstream AudioReach macros. It has one mono
-48 kHz S16_LE capture stream (MultiMedia3) and the TX_CODEC_DMA_TX_3 backend.
+This is a small board graph using upstream AudioReach macros. It has one
+48 kHz S16_LE two-channel capture stream (MultiMedia3) and the TX_CODEC_DMA_TX_3 backend,
+intended to test one physical DMIC.
 The stock sun machine source maps that backend to tx_macro_tx1; the saved piano
 ODM override selects DMIC4 through DEC2 for the main microphone. These are source
 and stock configuration facts, not successful Linux recording.
+
+The Linux capture frontend has a two-channel minimum. Separately, the sound-card
+fixup sets TX3's backend channel interval to 1–2, and `q6dma_hw_params()` takes
+its upper bound (2). AudioReach therefore constructs a contiguous 0x3 DMA mask,
+which excludes the stock DEC2 route (0x4). This is a source trace, not DSP readback.
+The initial Linux route should use `TX DEC0 MUX=MSM_DMIC`,
+`TX DMIC MUX0=DMIC4` and `TX_AIF1_CAP Mixer DEC0`; verify the real controls and
+clock/power state before recording. This chooses a decoder for piano's DMIC4,
+without importing another tablet's microphone, bias or gain settings.
+Record both PCM channels and evaluate them separately; the second channel's
+behavior and the active channel's correlation with sound require hardware evidence.
 
 Build against a clean independent checkout at the exact commit in `source.json`.
 Use existing m4 and alsatplg; no program here accesses audio or tablet devices:
@@ -56,7 +68,9 @@ topology identity. The boot packager requires the exact 56 DSP firmware files,
 this topology, matching module bytes and modular PAS/APR/card drivers. The runner
 requires `--load-modules`, captures a baseline first, then loads once in order and
 collects module/ALSA/remoteproc state. Its original 60-second PID1 timer remains.
-The resulting P24 is an offline probe candidate, not an audio recording result.
+The frozen P24 probe contains the older mono topology. Its probe-only evidence
+remains historical; recording needs this corrected topology in a newly identified
+payload. Existing P24 boot bytes have not been replaced.
 The existing ADSP-only P23 remains the first supervised hardware step.
 
 Real capture must establish the effective mixer controls, DMIC/decimator mapping,

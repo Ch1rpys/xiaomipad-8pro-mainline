@@ -186,7 +186,7 @@ device/sensors/libssc/patches/0001-propagate-test-process-exit-status.patch:
 device/audio/Piano-Capture-Diag.m4:
   Derived from linux-msm/audioreach-topology SM8550-HDK.m4, commit
   2af1f1ebb8d4fd03b5f53891467ddde2e208a8a0, Copyright Linaro Ltd, 2023,
-  BSD-3-Clause. Retains one mono capture graph and TX3 backend; playback,
+  BSD-3-Clause. Retains one physical microphone with a two-channel capture graph and TX3 backend; playback,
   secondary capture and other devices are omitted. The upstream macro library
   is consumed from its pinned checkout, not copied here.
   License: LICENSES/audioreach-BSD-3-Clause.txt. No proprietary firmware.

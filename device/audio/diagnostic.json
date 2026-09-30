@@ -21,9 +21,9 @@
   "topology": {
     "path": "qcom/sm8750/Piano-Capture-Diag-tplg.bin",
     "bytes": 5164,
-    "sha256": "c0051957c2161e9ed3b436e4b68047d5fac3501464f8166dd6e32b65d2897c28",
+    "sha256": "2727c427dff9f7360f993a8552a5681fb653a0a8c81c7bcb3c727a2b9685dc1e",
     "source": "Piano-Capture-Diag.m4",
-    "source_sha256": "b08f01208bf9300219503218e711127d145458f9ef8585e198569d93c9692442"
+    "source_sha256": "ddb9b48497ba065123c2ac5f1f5784de1c9dc5087850f5cc6053a42b0e183563"
   },
   "scope": "Supervised RAM-only ALSA/DSP probe after baseline capture. Not a recording result or product autoload policy."
 }
