@@ -16,6 +16,15 @@
       "changes": "Imported unchanged; no device-specific parameters"
     },
     {
+      "path": "sensorproxy-patches/0005-iio-sensor-proxy-cancel-released-pending-claims.patch",
+      "sha256": "c46633a0ff858cd4d28fcdc14226f473a874c7fc6073970a215bc77b1be11aaf",
+      "source_repository": "liuqin integration",
+      "source_commit": "7df47f82f6e6ca5a04ab02fbcc4a3486c6a259be",
+      "source_path": "device/sensors/patches/0005-iio-sensor-proxy-cancel-released-pending-claims.patch",
+      "license": "GPL-3.0-only (modified upstream C file)",
+      "changes": "Imported unchanged; cancel only the releasing sender's pending claims"
+    },
+    {
       "path": "sensorproxy-patches/0006-iio-sensor-proxy-broadcast-sensor-availability.patch",
       "sha256": "c260ff38fc9f08e0ac9e84e0c661a3c692166f8969e2402f9ad50108cd6dc35c",
       "source_repository": "liuqin integration",
@@ -30,6 +39,6 @@
       "scope": "Upstream SSC tests only; await capability notification using existing timeout"
     }
   ],
-  "scope": "ARM64 build and three targeted QEMU startup/availability/claim checks passed with synthetic sensors; software matrix/orientation tests also passed separately. No physical sensors, installed service or full desktop startup claim.",
-  "exit_condition": "Return to the distribution package when SSC and equivalent coldplug/availability fixes are present; drop local patches after the same regressions pass upstream."
+  "scope": "ARM64 build, three targeted SSC startup/availability/claim checks and two pending-release/multi-client scenarios passed in QEMU with synthetic sensors. No physical sensor, installed service or full desktop startup claim.",
+  "exit_condition": "Return to the distribution package when SSC and equivalent coldplug/availability/pending-claim fixes are present; drop local patches after the same regressions pass upstream."
 }

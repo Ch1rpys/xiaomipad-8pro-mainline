@@ -240,11 +240,12 @@ QRTR nameservice lookup diagnostic
 SensorProxy SSC startup and availability
 - Upstream iio-sensor-proxy: https://gitlab.freedesktop.org/hadess/iio-sensor-proxy.git
   at 0085ddf8ecb173a1c5fcf2344aa40e561125354f.
-- The unchanged coldplug and availability patches in
+- The unchanged coldplug, pending-claim cancellation and availability patches in
   device/sensors/libssc/sensorproxy-patches/ are reused from the independent
   liuqin integration snapshot 7df47f82f6e6ca5a04ab02fbcc4a3486c6a259be,
   device/sensors/patches/0003-iio-sensor-proxy-start-preclaimed-coldplug-sensor.patch
-  and 0006-iio-sensor-proxy-broadcast-sensor-availability.patch.
+  0005-iio-sensor-proxy-cancel-released-pending-claims.patch and
+  0006-iio-sensor-proxy-broadcast-sensor-availability.patch.
   Original patch author headers are retained; the snapshot commit, not a
   synthetic mail header hash, identifies the source. No board parameters,
   sensor matrix, firmware, service policy or dependency on that workspace is copied.

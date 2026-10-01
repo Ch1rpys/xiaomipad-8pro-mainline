@@ -17,10 +17,12 @@ and use the original Meson build with `-Dssc-support=enabled`. Use its existing
 service, D-Bus API and rules. SSC accelerometer/proximity rules remain disabled
 upstream; these changes do not enable physical rotation.
 
-The two C patches are reused unchanged from the liuqin integration snapshot
+The three C patches are reused unchanged from the liuqin integration snapshot
 identified in the lock and `NOTICE`. They start sensors claimed during coldplug
-and broadcast availability to observers before claims. Measurement notifications
-remain directed to claimants. No board identity, SLPI service policy, calibration
+and broadcast availability to observers before claims. Releasing a pending
+claim completes that sender's call with a cancellation error while retaining
+other clients' claims. Measurement notifications remain directed to claimants.
+No board identity, SLPI service policy, calibration
 or mounting matrix is imported. The test patch waits for the resulting capability
 notification using the existing assertion deadline, keeping functional checks
 and the upstream disabled tests.
@@ -32,6 +34,12 @@ startup fixes, three targeted SensorProxy checks passed: an early light claim
 starts sampling once, light readings reach D-Bus, and compass availability is
 announced. Unclaimed broadcasts are checked to contain no light/heading readings.
 The earlier library checks were not repeated; the library/test bytes are unchanged.
+
+The pending-release fix also passes two scenarios on the upstream synthetic IIO
+buffer: cancel before the first reading and reopen, and cancel one of two clients
+while the other continues to receive data. The three SSC checks pass with this
+new daemon too. These cases exercise the common D-Bus ownership layer; they do
+not establish SSC-internal task cancellation, sensor power-down or suspend.
 
 These are real ARM64 programs using a local QRTR namespace, private D-Bus and
 upstream synthetic sensors. The raw package-data runtime does not verify APT
