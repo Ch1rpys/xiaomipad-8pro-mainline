@@ -236,3 +236,22 @@ QRTR nameservice lookup diagnostic
 - Copyright 2015 Sony Mobile Communications Inc. and per-file upstream authors.
   BSD-3-Clause; license text is in LICENSES/qrtr-BSD-3-Clause.txt. The build
   wrapper is MIT; the compiler runtime retains its own license.
+
+SensorProxy SSC startup and availability
+- Upstream iio-sensor-proxy: https://gitlab.freedesktop.org/hadess/iio-sensor-proxy.git
+  at 0085ddf8ecb173a1c5fcf2344aa40e561125354f.
+- The unchanged coldplug and availability patches in
+  device/sensors/libssc/sensorproxy-patches/ are reused from the independent
+  liuqin integration snapshot 7df47f82f6e6ca5a04ab02fbcc4a3486c6a259be,
+  device/sensors/patches/0003-iio-sensor-proxy-start-preclaimed-coldplug-sensor.patch
+  and 0006-iio-sensor-proxy-broadcast-sensor-availability.patch.
+  Original patch author headers are retained; the snapshot commit, not a
+  synthetic mail header hash, identifies the source. No board parameters,
+  sensor matrix, firmware, service policy or dependency on that workspace is copied.
+- The modified upstream src/iio-sensor-proxy.c is GPL-3.0-only, copyright
+  2014-2016 Bastien Nocera. License text: LICENSES/hexagonrpc-GPL-3.0.txt.
+- The local discovery-notification regression patch modifies tests/ssc-test.py,
+  retaining its GPL-2.0-or-later notices and upstream authors (Martin Pitt and
+  Bastien Nocera). License text: LICENSES/systemd-GPL-2.0-or-later.txt.
+  It waits for the existing capability event, preserves functional assertions,
+  and checks that unclaimed broadcasts contain no readings.

@@ -5,6 +5,31 @@
   "options": {
     "ssc-support": "enabled"
   },
-  "patches": [],
-  "scope": "ARM64 build only; no installed service or physical sensor validation"
+  "patches": [
+    {
+      "path": "sensorproxy-patches/0003-iio-sensor-proxy-start-preclaimed-coldplug-sensor.patch",
+      "sha256": "84bd7c4986d5e1ad68a6edfe241147e41262db3c95f69b054e464a95846ac808",
+      "source_repository": "liuqin integration",
+      "source_commit": "7df47f82f6e6ca5a04ab02fbcc4a3486c6a259be",
+      "source_path": "device/sensors/patches/0003-iio-sensor-proxy-start-preclaimed-coldplug-sensor.patch",
+      "license": "GPL-3.0-only (modified upstream C file)",
+      "changes": "Imported unchanged; no device-specific parameters"
+    },
+    {
+      "path": "sensorproxy-patches/0006-iio-sensor-proxy-broadcast-sensor-availability.patch",
+      "sha256": "c260ff38fc9f08e0ac9e84e0c661a3c692166f8969e2402f9ad50108cd6dc35c",
+      "source_repository": "liuqin integration",
+      "source_commit": "7df47f82f6e6ca5a04ab02fbcc4a3486c6a259be",
+      "source_path": "device/sensors/patches/0006-iio-sensor-proxy-broadcast-sensor-availability.patch",
+      "license": "GPL-3.0-only (modified upstream C file)",
+      "changes": "Imported unchanged; no device-specific parameters"
+    },
+    {
+      "path": "sensorproxy-patches/0001-wait-for-discovery-notifications.patch",
+      "sha256": "ee92fbd3a3155d4ecb100ffe90df14d9784e43c5ccd26fc1f2162f1039b66622",
+      "scope": "Upstream SSC tests only; await capability notification using existing timeout"
+    }
+  ],
+  "scope": "ARM64 build and three targeted QEMU startup/availability/claim checks passed with synthetic sensors; software matrix/orientation tests also passed separately. No physical sensors, installed service or full desktop startup claim.",
+  "exit_condition": "Return to the distribution package when SSC and equivalent coldplug/availability fixes are present; drop local patches after the same regressions pass upstream."
 }
