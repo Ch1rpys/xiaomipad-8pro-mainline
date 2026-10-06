@@ -34,6 +34,8 @@ KBD_CONFIG = ('CONFIG_I2C_QCOM_GENI=y', 'CONFIG_QCOM_GPI_DMA=y', 'CONFIG_HID_GEN
 KBD_FIRMWARE = {'nanosic/piano/MCU_Upgrade.bin':
                 (83436, 'c03d6b650cb85a983359c6686d831875df10ee1206fd31afc1403baefeb7e407')}
 DRAFT_DTBS = ('arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-usb-role-diag.dtb',)
+BT_RAMPATCH = 'qca/gngbtfw20.mbn'
+BT_FIRMWARE_NAME = re.compile(r'qca/gngbt(?:fw20\.mbn|nv20\.(?:bin|b[0-9a-f]{2}))')
 BT_CONFIG = ('CONFIG_RFKILL=y', 'CONFIG_BT=y', 'CONFIG_BT_LE=y', 'CONFIG_BT_QCA=y', 'CONFIG_BT_HCIUART=y',
              'CONFIG_BT_HCIUART_SERDEV=y', 'CONFIG_BT_HCIUART_QCA=y', 'CONFIG_POWER_SEQUENCING_QCOM_WCN=y')
 # MDSS stays disabled while simpledrm scans out, so the GPU needs its own DRM device.
@@ -77,13 +79,22 @@ def gpu_errors(config, dtb_source_name, firmware):
     return errors
 
 
-def bt_errors(config, diagnostic, dtb_source_name):
-    """The bt-diag DTB is only packaged with its built-in stack (bt-diag OUT) in the RAM desktop mode."""
+def bt_errors(config, diagnostic, dtb_source_name, firmware=()):
+    """The bt-diag DTB is only packaged with its built-in stack (bt-diag OUT) in the RAM desktop mode.
+
+    The GANGES rom 0x20 rampatch/NVM set is either delivered at run time by the runner or carried by the
+    initramfs (FIRMWARE_DIR, copied into the RAM root by prepare-ubuntu); nothing else may ride along.
+    """
     if dtb_source_name != BT_DTB:
         return []
     errors = [f'The bt-diag DTB needs the bt-diag OUT: {s}' for s in BT_CONFIG if s not in config]
     if diagnostic != 'ubuntu':
-        errors.append('The bt-diag DTB is only used in the ubuntu mode (runtime firmware bundle)')
+        errors.append('The bt-diag DTB is only used in the ubuntu mode (RAM root firmware)')
+    paths = [row['path'] for row in firmware]
+    if stray := [p for p in paths if not BT_FIRMWARE_NAME.fullmatch(p)]:
+        errors.append('The bt-diag initramfs may only carry the rom 0x20 rampatch/NVM set: ' + ', '.join(stray))
+    if paths and BT_RAMPATCH not in paths:
+        errors.append(f'The bt-diag initramfs firmware must include {BT_RAMPATCH}')
     return errors
 
 
@@ -323,7 +334,7 @@ def main():
     modules = module_manifest(cpio_bytes, build, sha(kout / 'build-result.json'))
     if errors := gpu_errors(config, args.dtb_source_name, firmware):
         parser.error('; '.join(errors))
-    if errors := bt_errors(config, args.diagnostic, args.dtb_source_name):
+    if errors := bt_errors(config, args.diagnostic, args.dtb_source_name, firmware):
         parser.error('; '.join(errors))
     if errors := kbd_errors(config, args.diagnostic, args.dtb_source_name, firmware):
         parser.error('; '.join(errors))
@@ -371,7 +382,8 @@ def main():
         manifest['firmware'] = firmware
     if args.dtb_source_name == BT_DTB:
         manifest['bt_diag'] = {'dtb_sha256': build['files'][BT_DTB], 'config_fragments': build.get('config_fragments'),
-                               'firmware': 'runtime bundle from run-mainline-probe.py --bt-firmware-dir, not in the image'}
+                               'firmware': ('initramfs and RAM root (see firmware)' if firmware else
+                                            'runtime bundle from run-mainline-probe.py --bt-firmware-dir, not in the image')}
     if args.dtb_source_name == KBD_DTB:
         manifest['kbd_diag'] = {'dtb_sha256': build['files'][KBD_DTB], 'config_fragments': build.get('config_fragments'),
                                 'pm': 'bridge held awake while bound; no runtime/system PM'}

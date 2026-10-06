@@ -60,6 +60,23 @@ class GpuPairingTest(unittest.TestCase):
         self.assertEqual(len(check(config, 'ubuntu', kbd, [dict(row, sha256='0' * 64)])), 1)
         self.assertEqual(check([], 'console', boot['DEFAULT_DTB'], []), [])
 
+    def test_bt_dtb_firmware_is_runtime_or_exactly_the_rom20_names(self):
+        boot = runpy.run_path(str(TOOLS / 'build-boot.py'))
+        check, bt = boot['bt_errors'], boot['BT_DTB']
+        config = list(boot['BT_CONFIG'])
+        row = lambda path: {'path': path, 'size': 1, 'sha256': '0' * 64}
+        names = ['qca/gngbtfw20.mbn', 'qca/gngbtnv20.bin', 'qca/gngbtnv20.b11', 'qca/gngbtnv20.b3f']
+        self.assertEqual(check(config, 'ubuntu', bt), [])
+        self.assertEqual(check(config, 'ubuntu', bt, []), [])
+        self.assertEqual(check(config, 'ubuntu', bt, [row(n) for n in names]), [])
+        self.assertEqual(len(check(config[1:], 'ncm', bt, [])), 2)
+        # Other firmware, other ROM numbers, upper-case board ids and a missing rampatch are refused.
+        for stray in ('qcom/x', 'qca/gngbtfw21.mbn', 'qca/gngbtnv20.b3F', 'qca/gngbtnv20.b123', 'qca/hpbtfw20.tlv',
+                      'top/qca/gngbtnv20.bin'):
+            self.assertEqual(len(check(config, 'ubuntu', bt, [row(names[0]), row(stray)])), 1, stray)
+        self.assertEqual(len(check(config, 'ubuntu', bt, [row('qca/gngbtnv20.bin')])), 1)
+        self.assertEqual(check([], 'console', boot['DEFAULT_DTB'], [row('qcom/x')]), [])
+
 
 @unittest.skipUnless(BUSYBOX and GEN_INIT_CPIO, 'set BUSYBOX and GEN_INIT_CPIO')
 class FirmwareInjectionTest(unittest.TestCase):
