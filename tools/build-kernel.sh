@@ -19,7 +19,7 @@ cross=${CROSS_COMPILE:-aarch64-linux-gnu-}
 fragment="$src/$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["config"])' "$repo/kernel/source.json")"
 # Optional variant fragment merged after the pinned one, e.g.
 # CONFIG_FRAGMENT_EXTRA=arch/arm64/configs/piano-ufs-ro-diag.config (or
-# piano-gpu-diag.config, piano-bt-diag.config). It must be
+# piano-gpu-diag.config, piano-bt-diag.config, piano-kbd-diag.config). It must be
 # a tracked file in the kernel source and needs its own OUT_DIR.
 extra=${CONFIG_FRAGMENT_EXTRA:-}
 modules=${BUILD_MODULES:-0}
@@ -107,6 +107,7 @@ make "${args[@]}" -j"$jobs" Image qcom/sm8750-xiaomi-piano.dtb \
 	qcom/sm8750-xiaomi-piano-adsp-diag.dtb \
 	qcom/sm8750-xiaomi-piano-bt-diag.dtb qcom/sm8750-xiaomi-piano-gpu-diag.dtb \
 	qcom/sm8750-xiaomi-piano-iris-diag.dtb \
+	qcom/sm8750-xiaomi-piano-kbd-diag.dtb \
 	qcom/sm8750-xiaomi-piano-mic-diag.dtb qcom/sm8750-xiaomi-piano-usb-role-diag.dtb \
 	qcom/sm8750-xiaomi-piano-power-diag.dtb \
 	qcom/sm8750-xiaomi-piano-thp-diag.dtb qcom/sm8750-xiaomi-piano-ufs-ro-diag.dtb \
@@ -126,6 +127,7 @@ files = ['arch/arm64/boot/Image', 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano.
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-bt-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-gpu-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-iris-diag.dtb',
+         'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-kbd-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-mic-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-usb-role-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-power-diag.dtb',

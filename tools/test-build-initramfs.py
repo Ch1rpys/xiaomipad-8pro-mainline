@@ -48,6 +48,18 @@ class GpuPairingTest(unittest.TestCase):
         self.assertEqual(len(check(['CONFIG_DRM_MSM=m'], gpu, [])), 2)
         self.assertEqual(check([], boot['DEFAULT_DTB'], []), [])
 
+    def test_kbd_dtb_needs_transport_ubuntu_and_exact_mcu_application(self):
+        boot = runpy.run_path(str(TOOLS / 'build-boot.py'))
+        check, kbd = boot['kbd_errors'], boot['KBD_DTB']
+        (path, (size, digest)), = boot['KBD_FIRMWARE'].items()
+        row = {'path': path, 'size': size, 'sha256': digest}
+        config = list(boot['KBD_CONFIG'])
+        self.assertEqual(check(config, 'ubuntu', kbd, [row]), [])
+        self.assertEqual(len(check(config[1:], 'ncm', kbd, [])), 3)
+        self.assertEqual(len(check(config, 'ubuntu', kbd, [row, dict(row, path='qcom/x')])), 1)
+        self.assertEqual(len(check(config, 'ubuntu', kbd, [dict(row, sha256='0' * 64)])), 1)
+        self.assertEqual(check([], 'console', boot['DEFAULT_DTB'], []), [])
+
 
 @unittest.skipUnless(BUSYBOX and GEN_INIT_CPIO, 'set BUSYBOX and GEN_INIT_CPIO')
 class FirmwareInjectionTest(unittest.TestCase):

@@ -27,6 +27,12 @@ UFS_RO_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-ufs-ro-diag.dtb'
 GPU_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-gpu-diag.dtb'
 BT_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-bt-diag.dtb'
 MIC_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-mic-diag.dtb'
+KBD_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-kbd-diag.dtb'
+KBD_CONFIG = ('CONFIG_I2C_QCOM_GENI=y', 'CONFIG_QCOM_GPI_DMA=y', 'CONFIG_HID_GENERIC=y',
+              'CONFIG_HID_MULTITOUCH=y', 'CONFIG_HID_NANOSIC=y', 'CONFIG_INPUT_EVDEV=y')
+# Stock ODM application the transport loads into bridge RAM at probe (identity only).
+KBD_FIRMWARE = {'nanosic/piano/MCU_Upgrade.bin':
+                (83436, 'c03d6b650cb85a983359c6686d831875df10ee1206fd31afc1403baefeb7e407')}
 DRAFT_DTBS = ('arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-usb-role-diag.dtb',)
 BT_CONFIG = ('CONFIG_RFKILL=y', 'CONFIG_BT=y', 'CONFIG_BT_LE=y', 'CONFIG_BT_QCA=y', 'CONFIG_BT_HCIUART=y',
              'CONFIG_BT_HCIUART_SERDEV=y', 'CONFIG_BT_HCIUART_QCA=y', 'CONFIG_POWER_SEQUENCING_QCOM_WCN=y')
@@ -78,6 +84,19 @@ def bt_errors(config, diagnostic, dtb_source_name):
     errors = [f'The bt-diag DTB needs the bt-diag OUT: {s}' for s in BT_CONFIG if s not in config]
     if diagnostic != 'ubuntu':
         errors.append('The bt-diag DTB is only used in the ubuntu mode (runtime firmware bundle)')
+    return errors
+
+
+def kbd_errors(config, diagnostic, dtb_source_name, firmware):
+    """The kbd-diag DTB needs its built-in transport and exactly the stock MCU application."""
+    if dtb_source_name != KBD_DTB:
+        return []
+    errors = [f'The kbd-diag DTB needs the kbd-diag OUT: {s}' for s in KBD_CONFIG if s not in config]
+    if diagnostic != 'ubuntu':
+        errors.append('The kbd-diag DTB is only used in the ubuntu mode (desktop input check)')
+    actual = {r['path']: (r['size'], r['sha256']) for r in firmware}
+    if len(actual) != len(firmware) or actual != KBD_FIRMWARE:
+        errors.append('The kbd-diag initramfs must carry exactly the stock MCU application')
     return errors
 
 
@@ -306,6 +325,8 @@ def main():
         parser.error('; '.join(errors))
     if errors := bt_errors(config, args.diagnostic, args.dtb_source_name):
         parser.error('; '.join(errors))
+    if errors := kbd_errors(config, args.diagnostic, args.dtb_source_name, firmware):
+        parser.error('; '.join(errors))
     if errors := adsp_errors(config, args.diagnostic, args.dtb_source_name, firmware):
         parser.error('; '.join(errors))
     errors, activation = mic_errors(config, args.diagnostic, args.dtb_source_name, firmware, modules)
@@ -351,6 +372,9 @@ def main():
     if args.dtb_source_name == BT_DTB:
         manifest['bt_diag'] = {'dtb_sha256': build['files'][BT_DTB], 'config_fragments': build.get('config_fragments'),
                                'firmware': 'runtime bundle from run-mainline-probe.py --bt-firmware-dir, not in the image'}
+    if args.dtb_source_name == KBD_DTB:
+        manifest['kbd_diag'] = {'dtb_sha256': build['files'][KBD_DTB], 'config_fragments': build.get('config_fragments'),
+                                'pm': 'bridge held awake while bound; no runtime/system PM'}
     if args.dtb_source_name == GPU_DTB:
         manifest['gpu_diag'] = {'cmdline': GPU_CMDLINE, 'dtb_sha256': build['files'][GPU_DTB],
                                 'config_fragments': build.get('config_fragments')}
