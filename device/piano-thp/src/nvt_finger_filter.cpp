@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+// Modified from xiaomi-sheng-thp src/nvt_finger_filter.cpp by ianchb; changes listed in NOTICE.
 
 #include "nvt_finger_filter.hpp"
 

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+// Modified from xiaomi-sheng-thp src/nvt_touch_core.hpp by ianchb; changes listed in NOTICE.
 
 #pragma once
 
