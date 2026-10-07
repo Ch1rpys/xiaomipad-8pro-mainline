@@ -107,6 +107,7 @@ make "${args[@]}" -j"$jobs" Image qcom/sm8750-xiaomi-piano.dtb \
 	qcom/sm8750-xiaomi-piano-adsp-diag.dtb \
 	qcom/sm8750-xiaomi-piano-bt-diag.dtb qcom/sm8750-xiaomi-piano-gpu-diag.dtb \
 	qcom/sm8750-xiaomi-piano-iris-diag.dtb \
+	qcom/sm8750-xiaomi-piano-desktop-diag.dtb \
 	qcom/sm8750-xiaomi-piano-input-diag.dtb \
 	qcom/sm8750-xiaomi-piano-kbd-diag.dtb \
 	qcom/sm8750-xiaomi-piano-mic-diag.dtb qcom/sm8750-xiaomi-piano-usb-role-diag.dtb \
@@ -128,6 +129,7 @@ files = ['arch/arm64/boot/Image', 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano.
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-bt-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-gpu-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-iris-diag.dtb',
+         'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-desktop-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-input-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-kbd-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-mic-diag.dtb',

@@ -8,9 +8,9 @@ runtime identity and DT capture, and timed return to Android on piano. P08 addit
 verified the Ubuntu 26.04 RAM root and native systemd. P12/P13 now render the native
 GNOME desktop and terminal; the operator confirmed the internal display on P13,
 with 200% scaling. Automatic Android return passed. In the supervised RAM diagnostic
-session P15, piano produced its first real touch input. A panel orientation transform
-has been added but is not verified on the device, held contacts still break up, touch
-is not a product service, and there is no installable image.
+session P15, piano produced its first real touch input. P18 confirmed the corrected touch position, and P25 has real keyboard input evidence.
+Held contacts and power management remain incomplete. The combined desktop candidate
+is under validation; there is no installable image.
 
 This repository owns Ubuntu integration, device userspace, build and installation
 tools, and user documentation. Kernel drivers, device trees and configuration
@@ -48,9 +48,11 @@ supports private device calibration, host/ARM64 offline stock-record replay and
 live NTP1 processing into uinput, verified in an ARM64 virtual machine. A RAM-only
 diagnostic wrapper and unit exist for supervised sessions; they are not a product
 service. P15 streamed frames over the physical SPI/IRQ path and produced real taps and
-swipes; orientation, held contacts, multitouch and accuracy remain unverified, so this
-does not establish touch support.
+swipes; P18 subsequently confirmed corrected orientation and basic interaction.
+Held contacts, multitouch and accuracy remain unverified.
 
 Original project code is MIT unless stated otherwise. Imported code retains its
 original license and attribution in NOTICE and LICENSES, including GPL-2.0-only
 diagnostic tools. See CONTRIBUTING.md.
+
+The combined `sm8750-xiaomi-piano-desktop-diag` variant uses `piano-desktop-diag.config` and matching modules. Wi-Fi code inclusion does not establish networking: the PCIe PHY power mapping remains unresolved. Bluetooth scanning, GPU probe, audio registration and gauge reads are narrower than pairing/audio, rendering, recording and charging. The early physical-platform helper is limited to the observed piano Gunyah HLOS role and leaves raw FDT/kernel OF data intact.

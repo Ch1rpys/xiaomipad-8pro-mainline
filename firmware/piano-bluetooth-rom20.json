@@ -1,0 +1,117 @@
+{
+  "schema": 1,
+  "purpose": "Pinned WCN7860 GANGES ROM 0x20 rampatch/NVM identities; not a redistribution license",
+  "source": "User-supplied OS3.0.303.0.WPYCNXM bluetooth_a FAT image, /image directory; firmware bytes are not distributed",
+  "install_dir": "/usr/lib/firmware/qca",
+  "selection": "btqca (WCN7860 import) requests qca/gngbtfw%02x.mbn and qca/gngbtnv%02x.b%02x by board id, falling back to .bin; rom 0x20 follows the stock SOC version 0x40210200. All rom-0x20 NVMs are delivered so the driver's own board-id choice shows in dmesg.",
+  "files": {
+    "gngbtfw20.mbn": {
+      "bytes": 232436,
+      "sha256": "5f01e1337ba561eb1412e6eace707dd49d4bde8eafb1bf58008297b1d3219e26"
+    },
+    "gngbtnv20.b11": {
+      "bytes": 13399,
+      "sha256": "14ecebe04ed2554aa80addf87ad01a6bab8f80fafbd12dbc21c00bd8d3474bce"
+    },
+    "gngbtnv20.b24": {
+      "bytes": 13399,
+      "sha256": "14ecebe04ed2554aa80addf87ad01a6bab8f80fafbd12dbc21c00bd8d3474bce"
+    },
+    "gngbtnv20.b25": {
+      "bytes": 13399,
+      "sha256": "14ecebe04ed2554aa80addf87ad01a6bab8f80fafbd12dbc21c00bd8d3474bce"
+    },
+    "gngbtnv20.b26": {
+      "bytes": 13399,
+      "sha256": "14ecebe04ed2554aa80addf87ad01a6bab8f80fafbd12dbc21c00bd8d3474bce"
+    },
+    "gngbtnv20.b27": {
+      "bytes": 13399,
+      "sha256": "14ecebe04ed2554aa80addf87ad01a6bab8f80fafbd12dbc21c00bd8d3474bce"
+    },
+    "gngbtnv20.b29": {
+      "bytes": 13399,
+      "sha256": "14ecebe04ed2554aa80addf87ad01a6bab8f80fafbd12dbc21c00bd8d3474bce"
+    },
+    "gngbtnv20.b2a": {
+      "bytes": 13399,
+      "sha256": "14ecebe04ed2554aa80addf87ad01a6bab8f80fafbd12dbc21c00bd8d3474bce"
+    },
+    "gngbtnv20.b2b": {
+      "bytes": 13399,
+      "sha256": "14ecebe04ed2554aa80addf87ad01a6bab8f80fafbd12dbc21c00bd8d3474bce"
+    },
+    "gngbtnv20.b2c": {
+      "bytes": 13399,
+      "sha256": "14ecebe04ed2554aa80addf87ad01a6bab8f80fafbd12dbc21c00bd8d3474bce"
+    },
+    "gngbtnv20.b2d": {
+      "bytes": 13399,
+      "sha256": "d78a5f53e331c77f2c6988d85a20fef8fcb19e83170fea341e52dd09376cb1ba"
+    },
+    "gngbtnv20.b2e": {
+      "bytes": 13291,
+      "sha256": "383162a9f2afeba8dcdec02150b6838bb7f5cd02b69e260d4e78e3b9f1341642"
+    },
+    "gngbtnv20.b2f": {
+      "bytes": 13399,
+      "sha256": "14ecebe04ed2554aa80addf87ad01a6bab8f80fafbd12dbc21c00bd8d3474bce"
+    },
+    "gngbtnv20.b30": {
+      "bytes": 13399,
+      "sha256": "14ecebe04ed2554aa80addf87ad01a6bab8f80fafbd12dbc21c00bd8d3474bce"
+    },
+    "gngbtnv20.b31": {
+      "bytes": 13399,
+      "sha256": "14ecebe04ed2554aa80addf87ad01a6bab8f80fafbd12dbc21c00bd8d3474bce"
+    },
+    "gngbtnv20.b32": {
+      "bytes": 13399,
+      "sha256": "14ecebe04ed2554aa80addf87ad01a6bab8f80fafbd12dbc21c00bd8d3474bce"
+    },
+    "gngbtnv20.b33": {
+      "bytes": 13399,
+      "sha256": "14ecebe04ed2554aa80addf87ad01a6bab8f80fafbd12dbc21c00bd8d3474bce"
+    },
+    "gngbtnv20.b3a": {
+      "bytes": 13399,
+      "sha256": "14ecebe04ed2554aa80addf87ad01a6bab8f80fafbd12dbc21c00bd8d3474bce"
+    },
+    "gngbtnv20.b3b": {
+      "bytes": 13399,
+      "sha256": "14ecebe04ed2554aa80addf87ad01a6bab8f80fafbd12dbc21c00bd8d3474bce"
+    },
+    "gngbtnv20.b3c": {
+      "bytes": 13399,
+      "sha256": "14ecebe04ed2554aa80addf87ad01a6bab8f80fafbd12dbc21c00bd8d3474bce"
+    },
+    "gngbtnv20.b3d": {
+      "bytes": 13399,
+      "sha256": "14ecebe04ed2554aa80addf87ad01a6bab8f80fafbd12dbc21c00bd8d3474bce"
+    },
+    "gngbtnv20.b3e": {
+      "bytes": 13291,
+      "sha256": "e167cca1774c73b1c9fa718acbed643110fa5f5918b49b17ba87a7a23e2da739"
+    },
+    "gngbtnv20.b3f": {
+      "bytes": 13399,
+      "sha256": "14ecebe04ed2554aa80addf87ad01a6bab8f80fafbd12dbc21c00bd8d3474bce"
+    },
+    "gngbtnv20.b40": {
+      "bytes": 13399,
+      "sha256": "14ecebe04ed2554aa80addf87ad01a6bab8f80fafbd12dbc21c00bd8d3474bce"
+    },
+    "gngbtnv20.b42": {
+      "bytes": 13399,
+      "sha256": "14ecebe04ed2554aa80addf87ad01a6bab8f80fafbd12dbc21c00bd8d3474bce"
+    },
+    "gngbtnv20.b43": {
+      "bytes": 13399,
+      "sha256": "14ecebe04ed2554aa80addf87ad01a6bab8f80fafbd12dbc21c00bd8d3474bce"
+    },
+    "gngbtnv20.bin": {
+      "bytes": 13399,
+      "sha256": "b5a9a76227960972c9165728cb10b79075420ef22c0cf3e898a5f9810bcb6fe0"
+    }
+  }
+}

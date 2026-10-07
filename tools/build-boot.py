@@ -27,6 +27,8 @@ UFS_RO_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-ufs-ro-diag.dtb'
 GPU_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-gpu-diag.dtb'
 BT_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-bt-diag.dtb'
 MIC_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-mic-diag.dtb'
+DESKTOP_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-desktop-diag.dtb'
+DESKTOP_EXTRA_MODULES = ('ath12k_wifi7', 'rfcomm', 'bnep', 'hidp', 'snd_seq', 'snd_usb_audio')
 INPUT_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-input-diag.dtb'
 KBD_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-kbd-diag.dtb'
 KBD_CONFIG = ('CONFIG_I2C_QCOM_GENI=y', 'CONFIG_QCOM_GPI_DMA=y', 'CONFIG_HID_GENERIC=y',
@@ -72,7 +74,7 @@ def dtb_source_error(diagnostic, dtb_source_name):
 
 
 def gpu_errors(config, dtb_source_name, firmware):
-    if dtb_source_name != GPU_DTB:
+    if dtb_source_name not in (GPU_DTB, DESKTOP_DTB):
         return []
     errors = [] if 'CONFIG_DRM_MSM=y' in config else ['The GPU DTB needs the built-in MSM driver (GPU OUT)']
     if not firmware:
@@ -120,21 +122,33 @@ def adsp_firmware_files():
             for r in lock['files'] if r['name'].startswith(('adsp.', 'adsp_dtb.'))}
 
 
+def desktop_peripheral_files():
+    directory = Path(__file__).resolve().parents[1] / 'firmware'
+    expected = dict(KBD_FIRMWARE)
+    for filename, prefix in (('piano-bluetooth-rom20.json', 'qca/'), ('piano-gpu.json', '')):
+        rows = json.loads((directory / filename).read_text())['files']
+        expected.update({prefix + name: (row['bytes'], row['sha256']) for name, row in rows.items()})
+    return expected
+
+
 def mic_errors(config, diagnostic, dtb_source_name, firmware, modules):
-    if dtb_source_name != MIC_DTB:
+    if dtb_source_name not in (MIC_DTB, DESKTOP_DTB):
         return [], None
+    desktop = dtb_source_name == DESKTOP_DTB
     profile_path = Path(__file__).resolve().parents[1] / 'device/audio/diagnostic.json'
     profile = json.loads(profile_path.read_text())
     errors = []
-    if diagnostic != 'ncm':
-        errors.append('Mic probe first uses the 60-second NCM mode')
+    required_mode = 'ubuntu' if desktop else 'ncm'
+    if diagnostic != required_mode:
+        errors.append(f'This audio profile requires the {required_mode} mode')
+    order = profile['module_order'] + (list(DESKTOP_EXTRA_MODULES) if desktop else [])
     for setting in ('CONFIG_MODULES=y', 'CONFIG_QCOM_Q6V5_PAS=m', 'CONFIG_QCOM_APR=m',
                     'CONFIG_QCOM_PD_MAPPER=m', 'CONFIG_SND_SOC_SC8280XP=m'):
         if setting not in config:
             errors.append(f'Mic probe needs explicit late module loading: {setting}')
     if any('CONFIG_' + name + '=y' in config for name in ('QCOM_PMIC_GLINK', 'QCOM_FASTRPC', 'BATTERY_QCOM_BATTMGR')):
         errors.append('Mic probe must not have forbidden consumers built in')
-    if not modules or set(modules['requested']) != set(profile['module_order']):
+    if not modules or set(modules['requested']) != set(order):
         errors.append('Mic probe needs its exact requested module set')
     elif not set(profile['forbidden']) <= set(modules['forbidden']):
         errors.append('Mic module subset must exclude charger/USB/FastRPC consumers')
@@ -143,10 +157,15 @@ def mic_errors(config, diagnostic, dtb_source_name, firmware, modules):
         errors.append('Mic topology source changed; rebuild and repin the diagnostic topology')
     expected = adsp_firmware_files()
     expected[topology['path']] = (topology['bytes'], topology['sha256'])
+    if desktop:
+        expected.update(desktop_peripheral_files())
+        required = KBD_CONFIG + BT_CONFIG + ('CONFIG_DRM_MSM=y', 'CONFIG_TOUCHSCREEN_NT36532E_THP=y',
+                    'CONFIG_BATTERY_BQ27XXX_I2C=y', '# CONFIG_BATTERY_BQ27XXX_DT_UPDATES_NVM is not set')
+        errors += [f'Combined desktop dependency missing: {s}' for s in required if s not in config]
     actual = {r['path']: (r['size'], r['sha256']) for r in firmware}
     if actual != expected or len(actual) != len(firmware):
         errors.append('Mic probe needs exactly the locked ADSP firmware and capture topology')
-    return errors, {'kind': profile['kind'], 'order': profile['module_order'],
+    return errors, {'kind': 'desktop-probe' if desktop else profile['kind'], 'order': order,
                     'profile_sha256': sha(profile_path), 'scope': profile['scope']}
 
 
@@ -286,7 +305,7 @@ def main():
     timeout = 600 if ubuntu else 60
     cmdline = (f'{CMDLINE_BASE} piano.boot={args.boot_id} '
                f'piano.diag={args.diagnostic} piano.diag_timeout={timeout}')
-    if args.dtb_source_name == GPU_DTB:
+    if args.dtb_source_name in (GPU_DTB, DESKTOP_DTB):
         cmdline += f' {GPU_CMDLINE}'
     if args.diagnostic == 'ufs-ro':
         # Documents intent only: the RAM root is the initramfs and has no root= device.
@@ -383,15 +402,15 @@ def main():
         # Identities only; the private bytes stay in the initramfs and its private source.
         manifest['inputs_sha256']['firmware_manifest'] = hashlib.sha256(firmware_text.encode()).hexdigest()
         manifest['firmware'] = firmware
-    if args.dtb_source_name == BT_DTB:
-        manifest['bt_diag'] = {'dtb_sha256': build['files'][BT_DTB], 'config_fragments': build.get('config_fragments'),
+    if args.dtb_source_name in (BT_DTB, DESKTOP_DTB):
+        manifest['bt_diag'] = {'dtb_sha256': build['files'][args.dtb_source_name], 'config_fragments': build.get('config_fragments'),
                                'firmware': ('initramfs and RAM root (see firmware)' if firmware else
                                             'runtime bundle from run-mainline-probe.py --bt-firmware-dir, not in the image')}
-    if args.dtb_source_name in (KBD_DTB, INPUT_DTB):
+    if args.dtb_source_name in (KBD_DTB, INPUT_DTB, DESKTOP_DTB):
         manifest['kbd_diag'] = {'dtb_sha256': build['files'][args.dtb_source_name], 'config_fragments': build.get('config_fragments'),
                                 'pm': 'bridge held awake while bound; no runtime/system PM'}
-    if args.dtb_source_name == GPU_DTB:
-        manifest['gpu_diag'] = {'cmdline': GPU_CMDLINE, 'dtb_sha256': build['files'][GPU_DTB],
+    if args.dtb_source_name in (GPU_DTB, DESKTOP_DTB):
+        manifest['gpu_diag'] = {'cmdline': GPU_CMDLINE, 'dtb_sha256': build['files'][args.dtb_source_name],
                                 'config_fragments': build.get('config_fragments')}
     if ubuntu:
         manifest['rootfs_sha256'] = args.rootfs_sha256

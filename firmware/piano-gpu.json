@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "kind": "User-supplied piano GPU firmware identity lock; no redistribution permission",
+  "stock_build": "OS3.0.303.0.WPYCNXM",
+  "files": {
+    "qcom/gen80000_aqe.fw": {
+      "bytes": 25044,
+      "sha256": "67562ad5baae3a133c92a6e48a9d1b1a9a867fe2f85b49324e244e963f3b89c5"
+    },
+    "qcom/gen80000_gmu.bin": {
+      "bytes": 88896,
+      "sha256": "1ad8175e6cd01ea76c64d20b83600038c52dd29844b48d57b11b769b038863a5"
+    },
+    "qcom/gen80000_sqe.fw": {
+      "bytes": 111476,
+      "sha256": "30ee3301534f95799d4afaf73864f3c369baa5a5dea8481e7f0cb8cc941f396c"
+    },
+    "qcom/sm8750/xiaomi/piano/gen80000_zap.mbn": {
+      "bytes": 12088,
+      "sha256": "bb9424138209bdee7e8e11e9a00eca7f103a4e715550be2b0f70c1a0245e0f19"
+    }
+  }
+}
