@@ -171,6 +171,8 @@ def main():
     parser.add_argument('--kernel-out', type=Path, required=True, help='build-kernel.sh OUT with build-result.json')
     parser.add_argument('--output', type=Path, required=True, help='New directory for the deb and manifest')
     parser.add_argument('--maintainer', required=True, help='Local package builder identity, Name <email>')
+    parser.add_argument('--boot-dtb', type=Path, help='Audited piano ABL packaging DTB for this build')
+    parser.add_argument('--dtb-source-name', default='arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-desktop.dtb')
     args = parser.parse_args()
     if '\n' in args.maintainer or '\r' in args.maintainer:
         parser.error('Maintainer must be one control-file field')
@@ -216,6 +218,12 @@ def main():
             files = {f'boot/vmlinuz-{release}': (image, 0o600),
                      f'boot/System.map-{release}': (kout / 'System.map', 0o600),
                      f'boot/config-{release}': (kout / '.config', 0o644)}
+            if args.boot_dtb:
+                audit = json.loads((args.boot_dtb.parent / 'manifest.json').read_text())
+                if (audit['inputs_sha256']['mainline_dtb'] != build['files'].get(args.dtb_source_name)
+                        or audit['outputs_sha256'][args.boot_dtb.name] != sha(args.boot_dtb)):
+                    raise ValueError('Packaging DTB is not bound to this kernel build')
+                files[f'usr/lib/linux-image-{release}/piano-boot.dtb'] = (args.boot_dtb, 0o644)
             packaged_modules = {relative:path for relative,path in module_files.items()
                                 if relative not in DEPMOD_INDEXES}
             if module_files:

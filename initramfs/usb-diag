@@ -3,7 +3,7 @@
 set -e
 mode=$1
 case "$mode" in acm|ncm) ;; *) exit 2 ;; esac
-mount -t configfs configfs /sys/kernel/config
+[ -d /sys/kernel/config/usb_gadget ] || mount -t configfs configfs /sys/kernel/config
 g=/sys/kernel/config/usb_gadget/piano-diag
 mkdir "$g"
 # Linux gadget development IDs, not a production USB identity.

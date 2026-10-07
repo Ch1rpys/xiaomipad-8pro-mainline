@@ -1,0 +1,4 @@
+# Device input lifecycle; no desktop/user/account dependency.
+SUBSYSTEM=="misc", KERNEL=="nvt-thp-*", SYMLINK+="piano-touch", TAG+="systemd", ENV{SYSTEMD_ALIAS}="/dev/piano-touch", ENV{SYSTEMD_WANTS}+="piano-thp.service"
+# The explicitly enabled USB development gadget owns its address/DHCP service.
+SUBSYSTEM=="net", ATTR{address}=="02:00:00:88:00:02", ENV{NM_UNMANAGED}="1"

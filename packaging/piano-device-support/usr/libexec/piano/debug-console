@@ -1,0 +1,29 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+set -eu
+bb=/usr/libexec/piano/busybox
+"$bb" mkdir -p /run/piano-debug-bin
+for app in mount mkdir cat sleep ln ip touch udhcpd; do
+    "$bb" ln -sf "$bb" /run/piano-debug-bin/$app
+done
+export PATH=/run/piano-debug-bin:/usr/sbin:/usr/bin:/sbin:/bin
+. /etc/piano-network
+case " $(cat /proc/cmdline) " in *' piano.debug=1 '*) ;; *) exit 0;; esac
+if [ ! -d /sys/kernel/config/usb_gadget/piano-diag ]; then
+    /usr/libexec/piano/usb-diag ncm
+else
+    "$bb" ip link set usb0 up
+    "$bb" ip address replace "$PIANO_DEVICE_IP/24" dev usb0
+    cat >/run/udhcpd.conf <<EOF
+start $PIANO_HOST_IP
+end $PIANO_HOST_IP
+interface usb0
+lease_file /run/udhcpd.leases
+pidfile /run/udhcpd.pid
+max_leases 1
+option subnet 255.255.255.0
+EOF
+    "$bb" touch /run/udhcpd.leases
+    "$bb" udhcpd /run/udhcpd.conf
+fi
+exec "$bb" telnetd -F -b "$PIANO_DEVICE_IP:2323" -l /usr/libexec/piano/debug-shell

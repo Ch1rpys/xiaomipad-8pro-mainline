@@ -266,3 +266,13 @@ SensorProxy SSC startup and availability
   Bastien Nocera). License text: LICENSES/systemd-GPL-2.0-or-later.txt.
   It waits for the existing capability event, preserves functional assertions,
   and checks that unclaimed broadcasts contain no readings.
+
+tools/build-persistent-boot.py:
+  Adapted from the independent local erhai integration repository,
+  tools/build-mainline-gki.py at 91128256d7e09f2026e160665fba7bed1a6e0f3b and
+  tools/sign-boot-triplet.py at b4cc2c74a6fcb1ab18979b496839848931e7540b.
+  License: GPL-2.0-only. Changes: explicit piano stock geometry and rollback
+  input, distro initrd/root PARTUUID, private local Bluetooth address injection,
+  v2 RAM root check and v4 triplet; no disk/device operations or old workspace
+  dependencies. Self-signed footers provide unlocked-ABL compatibility, not a
+  claim of an OEM verified-boot trust chain.

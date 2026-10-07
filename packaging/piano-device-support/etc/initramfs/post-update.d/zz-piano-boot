@@ -1,0 +1,7 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+set -eu
+case "${1:-}" in *-piano*) ;; *) exit 0;; esac
+[ -e /etc/piano/layout.json ] || exit 0
+[ -e "/boot/initrd.img-$1" ] || exit 0
+exec /usr/sbin/piano-boot-update "$1"

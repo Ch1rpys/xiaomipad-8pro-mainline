@@ -1,0 +1,158 @@
+#!/usr/bin/python3
+# SPDX-License-Identifier: MIT
+"""Write a checked active-A boot triplet from piano Linux, then read it all back."""
+import argparse
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import stat
+import struct
+import subprocess
+import uuid
+import zlib
+
+NAMES = ('init_boot', 'vendor_boot', 'boot')
+
+
+def digest(path):
+    with path.open('rb') as f:
+        return hashlib.file_digest(f, 'sha256').hexdigest()
+
+
+def images(directory):
+    sums = {}
+    for line in (directory / 'SHA256SUMS').read_text().splitlines():
+        sha, name = line.split()
+        if name in [n + '.img' for n in NAMES]:
+            if name in sums or not re.fullmatch('[0-9a-f]{64}', sha):
+                raise ValueError('Duplicate or invalid image checksum')
+            sums[name] = sha
+    for name in NAMES:
+        file = directory / (name + '.img')
+        if not file.is_file() or digest(file) != sums.get(file.name):
+            raise ValueError('Image checksum mismatch: ' + str(file))
+    return sums
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument('--images', type=Path, required=True)
+    ap.add_argument('--rollback', type=Path, required=True)
+    ap.add_argument('--partition-map', type=Path, default=Path('/etc/piano/boot-partitions.json'))
+    ap.add_argument('--profile', type=Path, default=Path('/etc/piano/boot-profile.json'))
+    ap.add_argument('--reboot', action='store_true')
+    a = ap.parse_args()
+    if os.geteuid() != 0:
+        ap.error('Root is required')
+    compatibles = Path('/sys/firmware/devicetree/base/compatible').read_bytes().split(b'\0')
+    if b'xiaomi,piano' not in compatibles:
+        ap.error('This command only runs on the restored piano Linux identity')
+    serial = json.loads(a.profile.read_text())['serial']
+    words = Path('/proc/cmdline').read_text().split()
+    if 'androidboot.serialno=' + serial not in words:
+        ap.error('Current firmware serial differs from the installed device profile')
+    slot = next((w.split('=', 1)[1] for w in words if w.startswith('androidboot.slot_suffix=')), None)
+    if slot is None and Path('/proc/bootconfig').exists():
+        match = re.search(r'^androidboot.slot_suffix\s*=\s*"(_[ab])"',
+                          Path('/proc/bootconfig').read_text(), re.M)
+        slot = match[1] if match else None
+    if slot != '_a':
+        ap.error('This installation map is only valid for the observed active A slot')
+    for word in words:
+        if word.startswith('piano.debug_timeout='):
+            if int(word.split('=', 1)[1]) - float(Path('/proc/uptime').read_text().split()[0]) < 60:
+                ap.error('Less than 60 seconds remain in the bounded installation session')
+    mapping = json.loads(a.partition_map.read_text())
+    if {r['label'] for r in mapping} != {n + '_a' for n in NAMES} or len(mapping) != 3:
+        ap.error('The map must describe exactly boot_a/init_boot_a/vendor_boot_a')
+    desired, rollback = images(a.images), images(a.rollback)
+    nodes = {}
+    for row in mapping:
+        name = row['label'].removesuffix('_a')
+        node = (Path('/dev/disk/by-partuuid') / row['partuuid']).resolve(strict=True)
+        if not stat.S_ISBLK(node.stat().st_mode):
+            ap.error('Mapped path is not a block device')
+        sys = (Path('/sys/class/block') / node.name).resolve(strict=True)
+        disk = sys.parent
+        device = (disk / 'device').resolve(strict=True)
+        if '1d84000' not in str(device) or not device.name.endswith(':0:0:4') or row['lun'] != 4:
+            ap.error('Boot partition is not on the expected piano UFS LUN4')
+        lbs = int((disk / 'queue/logical_block_size').read_text())
+        start = int((sys / 'start').read_text()) * 512
+        size = int((sys / 'size').read_text()) * 512
+        if lbs != 4096 or start != row['start_bytes'] or size != row['bytes']:
+            ap.error('Current partition geometry differs from the installation map')
+        if any((d / (name + '.img')).stat().st_size != size for d in (a.images, a.rollback)):
+            ap.error('Images must cover the complete current partition')
+        number = int((sys / 'partition').read_text())
+        with (Path('/dev') / disk.name).open('rb', buffering=0) as f:
+            f.seek(lbs)
+            header = bytearray(f.read(lbs))
+            if header[:8] != b'EFI PART' or str(uuid.UUID(bytes_le=bytes(header[56:72]))) != row['disk_guid']:
+                ap.error('Current disk GUID does not match the saved map')
+            header_size, crc = struct.unpack_from('<II', header, 12)
+            struct.pack_into('<I', header, 16, 0)
+            if not 92 <= header_size <= lbs or zlib.crc32(header[:header_size]) & 0xffffffff != crc:
+                ap.error('GPT header CRC mismatch')
+            entries_lba, count, entry_size, entries_crc = struct.unpack_from('<QIII', header, 72)
+            if not 1 <= number <= count <= 128 or entry_size != 128:
+                ap.error('Unexpected GPT entry geometry')
+            f.seek(entries_lba * lbs)
+            entries = f.read(count * entry_size)
+        if zlib.crc32(entries) & 0xffffffff != entries_crc:
+            ap.error('GPT entry CRC mismatch')
+        entry = entries[(number-1)*entry_size:number*entry_size]
+        label = entry[56:128].decode('utf-16-le').split('\0')[0]
+        first, last = struct.unpack_from('<QQ', entry, 32)
+        if first * lbs != start or (last - first + 1) * lbs != size:
+            ap.error('On-disk GPT and current kernel partition geometry disagree')
+        if label != row['label'] or str(uuid.UUID(bytes_le=entry[16:32])) != row['partuuid']:
+            ap.error('Current GPT label/partition GUID differs from the saved map')
+        dev = (sys / 'dev').read_text().strip()
+        if any(line.split()[2] == dev for line in Path('/proc/self/mountinfo').read_text().splitlines()):
+            ap.error('A boot partition is mounted')
+        nodes[name] = node
+
+    with Path('/run/piano-boot-switch.lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        current = {n + '.img': digest(nodes[n]) for n in NAMES}
+        if current != desired:
+            if current != rollback:
+                ap.error('Current triplet is neither the target nor the checked rollback; inspect before writing')
+
+            def write_set(directory, expected):
+                for name in NAMES:
+                    fd = os.open(nodes[name], os.O_RDWR | os.O_CLOEXEC)
+                    try:
+                        with (directory / (name + '.img')).open('rb') as src:
+                            while chunk := src.read(1024*1024):
+                                view = memoryview(chunk)
+                                while view:
+                                    count = os.write(fd, view)
+                                    if count <= 0:
+                                        raise IOError('Short block write')
+                                    view = view[count:]
+                        os.fsync(fd)
+                    finally:
+                        os.close(fd)
+                    if digest(nodes[name]) != expected[name + '.img']:
+                        raise IOError('Full partition readback mismatch: ' + name)
+
+            try:
+                write_set(a.images, desired)
+            except Exception:
+                write_set(a.rollback, rollback)
+                raise
+        final = {n + '.img': digest(nodes[n]) for n in NAMES}
+        if final != desired:
+            raise RuntimeError('Final triplet readback mismatch; reboot refused')
+        print(json.dumps({'state': 'ALL_THREE_PARTITIONS_READBACK_VERIFIED', 'sha256': final}), flush=True)
+    if a.reboot:
+        subprocess.run(['systemctl', 'reboot'], check=True)
+
+
+if __name__ == '__main__':
+    main()

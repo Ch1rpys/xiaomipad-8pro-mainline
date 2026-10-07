@@ -1,0 +1,15 @@
+[Unit]
+Description=Explicit piano USB development console
+DefaultDependencies=no
+ConditionKernelCommandLine=piano.debug=1
+After=systemd-udevd.service
+Before=initrd-switch-root.target
+Conflicts=initrd-switch-root.target
+
+[Service]
+Type=simple
+ExecStart=/usr/libexec/piano/debug-console
+KillMode=control-group
+
+[Install]
+WantedBy=sysinit.target

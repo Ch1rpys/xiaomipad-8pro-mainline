@@ -1,0 +1,16 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+set -eu
+limit=0
+for arg in $(cat /proc/cmdline); do
+    case "$arg" in piano.debug_timeout=*) limit=${arg#*=};; esac
+done
+case "$limit" in ''|*[!0-9]*) exit 0;; esac
+[ "$limit" -ge 60 ] && [ "$limit" -le 900 ] || exit 0
+read uptime rest </proc/uptime
+left=$((limit - ${uptime%%.*}))
+[ "$left" -le 0 ] || sleep "$left"
+sync
+modprobe nvmem_qcom-spmi-sdam
+modprobe nvmem-reboot-mode
+exec systemctl --force --force --reboot-argument=bootloader reboot

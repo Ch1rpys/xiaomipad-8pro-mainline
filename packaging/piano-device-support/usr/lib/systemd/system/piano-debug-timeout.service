@@ -1,0 +1,13 @@
+[Unit]
+Description=Bounded piano installation boot
+DefaultDependencies=no
+ConditionKernelCommandLine=piano.debug=1
+ConditionKernelCommandLine=piano.debug_timeout
+Before=initrd-switch-root.target
+Conflicts=initrd-switch-root.target
+[Service]
+Type=simple
+ExecStart=/usr/libexec/piano/debug-timeout
+KillMode=control-group
+[Install]
+WantedBy=sysinit.target

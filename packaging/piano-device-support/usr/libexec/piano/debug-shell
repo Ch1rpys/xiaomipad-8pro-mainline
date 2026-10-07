@@ -1,0 +1,8 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+phase=root
+[ ! -e /etc/initrd-release ] || phase=initrd
+echo "PIANO_PERSISTENT_CONSOLE phase=$phase"
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PS1='# '
+exec /usr/libexec/piano/busybox sh

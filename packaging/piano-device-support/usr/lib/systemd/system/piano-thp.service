@@ -1,0 +1,13 @@
+[Unit]
+Description=Piano touchscreen input processing
+BindsTo=dev-piano\x2dtouch.device
+After=dev-piano\x2dtouch.device
+Before=display-manager.service
+
+[Service]
+Type=simple
+ExecStart=/usr/libexec/piano/piano-thp-live /etc/piano/thp-calibration.json /dev/piano-touch
+Restart=no
+
+[Install]
+WantedBy=multi-user.target

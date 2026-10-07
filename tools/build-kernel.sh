@@ -20,7 +20,7 @@ fragment="$src/$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))
 # Optional variant fragment merged after the pinned one, e.g.
 # CONFIG_FRAGMENT_EXTRA=arch/arm64/configs/piano-ufs-ro-diag.config (or
 # piano-gpu-diag.config, piano-bt-diag.config, piano-kbd-diag.config). It must be
-# a tracked file in the kernel source and needs its own OUT_DIR.
+# tracked files in the kernel source, separated by spaces, and need their own OUT_DIR.
 extra=${CONFIG_FRAGMENT_EXTRA:-}
 modules=${BUILD_MODULES:-0}
 
@@ -37,12 +37,13 @@ src=$(realpath "$src")
 }
 [[ -f $fragment ]]
 fragments=("$fragment")
-if [[ -n $extra ]]; then
-	git -C "$src" ls-files --error-unmatch -- "$extra" >/dev/null 2>&1 || {
-		echo "CONFIG_FRAGMENT_EXTRA must be a tracked kernel source path: $extra" >&2; exit 1;
+read -r -a extras <<<"$extra"
+for extra_path in "${extras[@]}"; do
+	git -C "$src" ls-files --error-unmatch -- "$extra_path" >/dev/null 2>&1 || {
+		echo "CONFIG_FRAGMENT_EXTRA must contain tracked kernel source paths: $extra_path" >&2; exit 1;
 	}
-	fragments+=("$src/$extra")
-fi
+	fragments+=("$src/$extra_path")
+done
 mkdir -p "$out"
 out=$(realpath "$out")
 exec 9>"$out/.build.lock"
@@ -107,6 +108,7 @@ make "${args[@]}" -j"$jobs" Image qcom/sm8750-xiaomi-piano.dtb \
 	qcom/sm8750-xiaomi-piano-adsp-diag.dtb \
 	qcom/sm8750-xiaomi-piano-bt-diag.dtb qcom/sm8750-xiaomi-piano-gpu-diag.dtb \
 	qcom/sm8750-xiaomi-piano-iris-diag.dtb \
+	qcom/sm8750-xiaomi-piano-desktop.dtb \
 	qcom/sm8750-xiaomi-piano-desktop-diag.dtb \
 	qcom/sm8750-xiaomi-piano-input-diag.dtb \
 	qcom/sm8750-xiaomi-piano-kbd-diag.dtb \
@@ -129,6 +131,7 @@ files = ['arch/arm64/boot/Image', 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano.
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-bt-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-gpu-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-iris-diag.dtb',
+         'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-desktop.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-desktop-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-input-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-kbd-diag.dtb',

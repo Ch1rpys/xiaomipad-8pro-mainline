@@ -1,0 +1,8 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+set -eu
+mkdir -p /proc /sys
+[ -r /proc/self/mounts ] || mount -t proc -o nosuid,nodev,noexec proc /proc
+[ -d /sys/kernel ] || mount -t sysfs -o nosuid,nodev,noexec sysfs /sys
+/usr/libexec/piano/piano-physical-platform /sys
+exec /usr/lib/systemd/systemd "$@"

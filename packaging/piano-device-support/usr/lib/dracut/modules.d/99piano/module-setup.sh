@@ -1,0 +1,31 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-only
+check() { [[ -f /etc/piano/layout.json ]]; }
+depends() { echo systemd; }
+installkernel() { instmods nvmem_qcom-spmi-sdam nvmem-reboot-mode; }
+install() {
+    inst_multiple /bin/sh mount mkdir tr grep od awk readlink sleep sync modprobe systemctl
+    inst_simple /usr/libexec/piano/piano-physical-platform
+    # PID1 caches virtualization before ordinary dracut hooks run.
+    rm -f "$initdir/init"
+    inst_simple "$moddir/init" /init
+    inst_simple /usr/libexec/piano/busybox
+    inst_simple /usr/libexec/piano/usb-diag
+    inst_simple /usr/libexec/piano/debug-console
+    inst_simple /usr/libexec/piano/debug-shell
+    inst_simple /etc/piano-network
+    inst_simple /usr/lib/systemd/system/piano-debug.service
+    mkdir -p "$initdir/usr/lib/systemd/system/sysinit.target.wants"
+    ln_r /usr/lib/systemd/system/piano-debug.service /usr/lib/systemd/system/sysinit.target.wants/piano-debug.service
+    inst_simple /usr/libexec/piano/debug-timeout
+    inst_simple /usr/lib/systemd/system/piano-debug-timeout.service
+    ln_r /usr/lib/systemd/system/piano-debug-timeout.service /usr/lib/systemd/system/sysinit.target.wants/piano-debug-timeout.service
+    # PAS and input consumers probe before the persistent root exists.
+    inst_simple /usr/lib/firmware/nanosic/piano/MCU_Upgrade.bin
+    for f in /usr/lib/firmware/qca/gngbtfw20.mbn /usr/lib/firmware/qca/gngbtnv20.*; do
+        inst_simple "$f"
+    done
+    for f in /usr/lib/firmware/qcom/sm8750/piano/adsp.* /usr/lib/firmware/qcom/sm8750/piano/adsp_dtb.*; do
+        inst_simple "$f"
+    done
+}
