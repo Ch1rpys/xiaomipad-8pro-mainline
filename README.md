@@ -12,6 +12,40 @@ session P15, piano produced its first real touch input. P18 confirmed the correc
 Held contacts and power management remain incomplete. The combined desktop candidate
 is under validation; there is no installable image.
 
+## Known Limitations and Risks (2026-10-08)
+
+Evidence comes from one unlocked piano unit on stock build OS3.0.303.0.WPYCNXM.
+Nothing here is a supported or stable release.
+
+- Linux does not charge the battery: both fuel gauges report discharge even
+  with USB connected. Return to Android to charge.
+- Not enabled or not working: Wi-Fi networking (PCIe PHY power unresolved),
+  speaker playback, USB host/Type-C role switching and external display.
+  Bluetooth is verified only to power-on and scanning; the microphone only to
+  sound-card registration, without recording.
+- The display uses the bootloader's firmware scanout: no native panel driver,
+  brightness control or screen-off/wake. Intermittent whole-screen black
+  flicker has been reported and is not resolved.
+- Deep suspend is untested on this kernel. The default GNOME idle policy can
+  suspend after 15 minutes and the tablet may not wake without a forced restart.
+  The RTC reads 1970 and there is no network time source.
+- Touch: position and basic interaction are confirmed; long press, multi-touch
+  and power management are not. The keyboard accessory has no touchpad.
+- Firmware, touch calibration and the Bluetooth address must come from your
+  own device. None of them are distributed here.
+- The dual-boot layout re-creates Android userdata, so Android data is lost.
+  Back up every other partition and the GPT first. Persistent boot replaces the
+  active A-slot boot/init_boot/vendor_boot images with self-signed AVB footers,
+  which only an unlocked bootloader accepts; vbmeta is not modified. On the
+  tested unit slot B holds an older stock chain that does not boot Android.
+- Normal Linux boot images have no debug console or automatic return. If Linux
+  shows nothing, enter Fastboot (power + volume down) and write back your own
+  stock triplet, for example with `tools/piano-switch.py`; see
+  [device/boot](device/boot/README.md).
+- The partitioning, root filesystem and boot-profile steps of the installation
+  are not published yet; this repository contains the image builders and the
+  slot switch tool only.
+
 This repository owns Ubuntu integration, device userspace, build and installation
 tools, and user documentation. Kernel drivers, device trees and configuration
 belong in an independent Linux repository; its public remote is not established.
