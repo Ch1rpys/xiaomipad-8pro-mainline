@@ -8,3 +8,27 @@ __pycache__/
 *.deb
 .env
 /device/piano-thp/build/
+
+# Generated images, archives and modules; build them from the pinned inputs.
+*.img
+*.dtb
+*.dtbo
+*.ko
+*.cpio
+*.cpio.gz
+*.squashfs
+*.ext4
+*.tar
+# Signing keys and per-device installation inputs stay with the device owner.
+*.pem
+*.key
+boot-profile.json
+layout.json
+bluetooth-address
+# Proprietary firmware bytes and raw touch captures are never redistributed here.
+*.bin
+*.fw
+*.mbn
+*.mdt
+*.b[0-9a-f][0-9a-f]
+*.ntp1
