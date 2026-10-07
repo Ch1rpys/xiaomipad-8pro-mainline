@@ -21,8 +21,11 @@ Per-device maps and images are installation inputs; they are never public
 payloads. `tools/piano-switch.py` is the host Fastboot recovery writer and
 intentionally leaves Fastboot running for a separate RAM readback.
 
-The first local filesystem installation is complete, but its first RAM boot
-lost the USB control channel. Persistent root mounting, v4 cold boot and
-bidirectional switching are not yet verified. These components are not a
-validated general installer, and existing RAM diagnostics are not flashable
-persistent system images.
+The local filesystem installation and v4 boot from the active A slot have
+been verified. Boot version/SPL and AVB properties must come from the local
+stock image; an unlocked loader still needs a well-formed boot contract.
+The user has confirmed a black physical panel despite a populated framebuffer.
+Touch input and GPU startup also fail in this persistent configuration. This
+is not a usable or fully validated installer release. Keep a recoverable debug
+entry until actual panel output is confirmed; process state is not display
+acceptance. Existing RAM diagnostics remain RAM-only images.

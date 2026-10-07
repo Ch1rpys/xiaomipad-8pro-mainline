@@ -50,7 +50,8 @@ def main():
     compatibles = Path('/sys/firmware/devicetree/base/compatible').read_bytes().split(b'\0')
     if b'xiaomi,piano' not in compatibles:
         ap.error('This command only runs on the restored piano Linux identity')
-    serial = json.loads(a.profile.read_text())['serial']
+    profile = json.loads(a.profile.read_text())
+    serial = profile['serial']
     words = Path('/proc/cmdline').read_text().split()
     if 'androidboot.serialno=' + serial not in words:
         ap.error('Current firmware serial differs from the installed device profile')
@@ -59,8 +60,9 @@ def main():
         match = re.search(r'^androidboot.slot_suffix\s*=\s*"(_[ab])"',
                           Path('/proc/bootconfig').read_text(), re.M)
         slot = match[1] if match else None
-    if slot != '_a':
+    if slot not in (None, '_a'):
         ap.error('This installation map is only valid for the observed active A slot')
+    slot_confirmed = slot == '_a'
     for word in words:
         if word.startswith('piano.debug_timeout='):
             if int(word.split('=', 1)[1]) - float(Path('/proc/uptime').read_text().split()[0]) < 60:
@@ -104,6 +106,16 @@ def main():
             entries = f.read(count * entry_size)
         if zlib.crc32(entries) & 0xffffffff != entries_crc:
             ap.error('GPT entry CRC mismatch')
+        if slot is None:
+            flags = {}
+            for offset in range(0, len(entries), entry_size):
+                item = entries[offset:offset+entry_size]
+                item_label = item[56:128].decode('utf-16-le').split('\0')[0]
+                if item_label in ('boot_a', 'boot_b'):
+                    flags[item_label] = struct.unpack_from('<Q', item, 48)[0]
+            slot_confirmed = (profile.get('observed_active_slot') == 'a' and
+                              flags == profile.get('observed_slot_attributes') and
+                              set(flags) == {'boot_a', 'boot_b'} and flags['boot_a'] != flags['boot_b'])
         entry = entries[(number-1)*entry_size:number*entry_size]
         label = entry[56:128].decode('utf-16-le').split('\0')[0]
         first, last = struct.unpack_from('<QQ', entry, 32)
@@ -116,6 +128,8 @@ def main():
             ap.error('A boot partition is mounted')
         nodes[name] = node
 
+    if not slot_confirmed:
+        ap.error('Missing slot bootargs and no matching device GPT/Fastboot slot observation')
     with Path('/run/piano-boot-switch.lock').open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         current = {n + '.img': digest(nodes[n]) for n in NAMES}

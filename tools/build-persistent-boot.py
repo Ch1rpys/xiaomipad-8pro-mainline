@@ -38,6 +38,7 @@ def main():
             p.error('Expected verified stock v4 geometry')
     a.output.mkdir(parents=True, exist_ok=False)
     out = a.output.resolve()
+    shutil.copyfile(a.profile, out / 'profile.json')
     dtb = out / 'piano-boot.dtb'
     shutil.copyfile(a.dtb, dtb)
     if a.bt_address_file:
@@ -75,9 +76,12 @@ def main():
     empty.write_bytes(gzip.compress(blob, mtime=0))
     mk = ['python3', str(a.mkbootimg)]
     common = ['--header_version', '4', '--pagesize', str(profile['vendor_boot']['page_size'])]
-    subprocess.run(mk + common + ['--kernel', str(a.kernel), '--cmdline', cmdline,
+    os_version = profile['boot']['avb_properties']['com.android.build.boot.os_version']
+    patch = profile['boot']['avb_properties']['com.android.build.boot.security_patch']
+    boot_version = ['--os_version', os_version + '.0.0', '--os_patch_level', patch[:7]]
+    subprocess.run(mk + common + boot_version + ['--kernel', str(a.kernel), '--cmdline', cmdline,
                                   '--output', str(out / 'boot.img')], check=True)
-    subprocess.run(mk + common + ['--ramdisk', str(empty), '--output', str(out / 'init_boot.img')], check=True)
+    subprocess.run(mk + common + boot_version + ['--ramdisk', str(empty), '--output', str(out / 'init_boot.img')], check=True)
     vendor = profile['vendor_boot']
     offsets = ['--base', '0', '--kernel_offset', str(vendor['kernel_addr']),
                '--ramdisk_offset', str(vendor['ramdisk_addr']), '--tags_offset', str(vendor['tags_addr']),
@@ -93,6 +97,8 @@ def main():
                    '--partition_name', name, '--partition_size', str(profile[name]['capacity']),
                    '--rollback_index', str(profile[name]['rollback_index']), '--salt', salt,
                    '--algorithm', 'SHA256_RSA4096', '--key', str(a.key)]
+        for prop, value in profile[name].get('avb_properties', {}).items():
+            command += ['--prop', prop + ':' + value]
         subprocess.run(command, check=True)
         subprocess.run(['python3', str(a.avbtool), 'verify_image', '--image', str(image),
                         '--key', str(a.key)], check=True)
