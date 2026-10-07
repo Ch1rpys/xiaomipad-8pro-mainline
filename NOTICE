@@ -276,3 +276,22 @@ tools/build-persistent-boot.py:
   v2 RAM root check and v4 triplet; no disk/device operations or old workspace
   dependencies. Self-signed footers provide unlocked-ABL compatibility, not a
   claim of an OEM verified-boot trust chain.
+
+Third-party files placed in locally generated packages (tools/build-device-debs.py):
+  piano-device-support copies tools that this repository does not contain:
+  - mkbootimg.py and gki/ (tests excluded) from the AOSP checkout fetched by
+    tools/fetch-aosp-mkbootimg.sh (platform/system/tools/mkbootimg at
+    954bc3ead5e679005fddf3484d247f2557b3c2c9); Apache-2.0 per-file headers,
+    Copyright The Android Open Source Project.
+  - avbtool.py, supplied by the caller through --avbtool. AOSP external/avb,
+    Copyright 2016 The Android Open Source Project, MIT notice in the file
+    header. This repository does not yet pin or fetch this input.
+  - the BusyBox binary supplied through --busybox (see
+    tools/fetch-busybox-arm64.sh); a GPL-2.0 Ubuntu package with its own
+    source availability.
+  - the piano-thp-live binary built from device/piano-thp (Apache-2.0 and MIT
+    sources listed above, plus the external MIT nlohmann JSON headers).
+  piano-mesa contains a Mesa build (MIT and other per-file upstream licenses).
+  The generated packages do not yet carry /usr/share/doc/<package>/copyright
+  files with these notices. Until they do, keep them local like the firmware
+  package, which is never redistributable under this repository's license.
