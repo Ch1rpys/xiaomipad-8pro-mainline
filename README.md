@@ -26,9 +26,11 @@ Nothing here is a supported or stable release.
 - The display uses the bootloader's firmware scanout: no native panel driver,
   brightness control or screen-off/wake. Intermittent whole-screen black
   flicker has been reported and is not resolved.
-- Deep suspend is untested on this kernel. The default GNOME idle policy can
-  suspend after 15 minutes and the tablet may not wake without a forced restart.
-  The RTC reads 1970 and there is no network time source.
+- Suspend and resume are untested on this kernel, so piano-device-support
+  disables all sleep states and GNOME idle suspend. Without that policy the
+  default GNOME idle setting can suspend after 15 minutes, and the tablet may
+  not wake without a forced restart. The RTC reads 1970 and there is no
+  network time source.
 - Touch: position and basic interaction are confirmed; long press, multi-touch
   and power management are not. The keyboard accessory has no touchpad.
 - Firmware, touch calibration and the Bluetooth address must come from your
