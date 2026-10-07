@@ -6,8 +6,9 @@ source identity and changes are recorded in the repository `NOTICE`.
 
 The live software path is tested offline, including real Linux uinput/input/evdev
 inside an ARM64 virtual machine. One supervised piano session streamed frames and
-produced taps and swipes; held contacts still break up, and orientation (below),
-accuracy, multitouch, GNOME interaction and pen support are not validated.
+produced taps and swipes; held contacts still break up, and orientation (below,
+corrected but not rerun), accuracy, multitouch, GNOME interaction and pen support
+are not validated.
 No Android libraries, firmware, electrode calibration or device records are shipped.
 
 The pinned kernel now contains an experimental `nt36532e-thp` misc transport,
@@ -96,15 +97,17 @@ does not keep a stale finger down, and old queued records do not replay clicks.
 NTP1 timestamps must use the same CLOCK_BOOTTIME as the running Linux kernel.
 
 Input ranges come from the supplied calibration, transformed to the panel by
-`src/orientation.hpp`. In a supervised piano session the operator tapped top-left,
-top-right, bottom-right and bottom-left (landscape, USB port on the right) and
-confirmed that order; processor X ran top to bottom and processor Y right to left.
-The device therefore reports `ABS_MT_POSITION_X = row_maximum - 1 - Y` along the
-3200-pixel side (range `0..row_maximum - 1`) and `ABS_MT_POSITION_Y = X` along the
-2136-pixel side (range `0..column_maximum - 1`). This is a linear full-range mapping;
-edge linearity and accuracy are unmeasured. If a later test contradicts the tap
-evidence, `panelContact()` is the single place to change. Tracking IDs
-are allocated within 0..65535 without colliding with held contacts. Twelve
+`src/orientation.hpp`. In a supervised piano session (2026-10-07, landscape, USB
+port on the right) a one-finger swipe from the left edge to the right edge raised
+processor X at constant Y, and a swipe from the top edge to the bottom edge lowered
+processor Y at constant X. The device therefore reports `ABS_MT_POSITION_X = X`
+along the 3200-pixel side (range `0..column_maximum - 1`) and
+`ABS_MT_POSITION_Y = row_maximum - 1 - Y` along the 2136-pixel side (range
+`0..row_maximum - 1`). An earlier reading of four corner taps had these two outputs
+swapped; the swipes replace it. This is a linear full-range mapping; edge linearity
+and accuracy are unmeasured, and the corrected mapping has not yet been run on the
+device. If a later test contradicts the swipe evidence, `panelContact()` is the
+single place to change. Tracking IDs are allocated within 0..65535 without colliding with held contacts. Twelve
 algorithm slots are supported in software; this is not a physical finger-count
 claim. Pressure is only a binary contact indicator, not measured force.
 

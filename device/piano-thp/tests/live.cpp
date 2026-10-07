@@ -214,11 +214,13 @@ void orientation() {
     value.column_maximum = 32000;
     value.row_maximum = 21360;
     const auto axes = nvt::panelAxes(value);
-    check(axes.width == 21360 && axes.height == 32000, "panel ranges do not follow the swapped axes");
-    // Processor coordinates of the P15 corner taps, in the operator-confirmed order.
+    check(axes.width == 32000 && axes.height == 21360, "panel ranges do not follow the panel axes");
+    // Processor coordinates of the P15 corner taps in recorded order. The 2026-10-07
+    // swipes place them at top-left, bottom-left, bottom-right and top-right; the
+    // 2026-09-25 confirmed clockwise order did not match the recorded taps.
     constexpr std::array<std::array<int, 4>, 5> corners{{
-        {520, 21291, 68, 520}, {1603, 661, 20698, 1603}, {31412, 384, 20975, 31412},
-        {31198, 20866, 493, 31198}, {-5, 40000, 0, 0}}};
+        {520, 21291, 520, 68}, {1603, 661, 1603, 20698}, {31412, 384, 31412, 20975},
+        {31198, 20866, 31198, 493}, {-5, 40000, 0, 0}}};
     std::vector<nvt::Slot> slots(corners.size()), panel;
     for (size_t index = 0; index < corners.size(); ++index) {
         slots[index].number = int(index);
@@ -229,8 +231,36 @@ void orientation() {
     for (size_t index = 0; index < corners.size(); ++index)
         check(panel[index].number == int(index) && panel[index].contact.x == corners[index][2] &&
               panel[index].contact.y == corners[index][3], "P15 corner mapped to the wrong panel position");
-    const auto &tl = panel[0].contact, &tr = panel[1].contact, &br = panel[2].contact, &bl = panel[3].contact;
+    const auto &tl = panel[0].contact, &bl = panel[1].contact, &br = panel[2].contact, &tr = panel[3].contact;
     check(tl.x < tr.x && bl.x < br.x && tl.y < bl.y && tr.y < br.y, "panel corners are not upright");
+
+    const auto at = [&](int x, int y) {
+        nvt::Contact contact;
+        contact.x = x;
+        contact.y = y;
+        return nvt::panelContact(contact, value);
+    };
+    // Left-to-right swipe: constant processor row, increasing processor column.
+    nvt::Contact previous;
+    for (int column : {141, 9000, 18000, 27795}) {
+        const auto point = at(column, 12000);
+        check(point.y == 21359 - 12000 && (column == 141 || point.x > previous.x),
+              "left-to-right swipe does not increase X at constant Y");
+        previous = point;
+    }
+    // Top-to-bottom swipe: constant processor column, processor row falling from the top edge.
+    for (int row : {21108, 14000, 7000, 37}) {
+        const auto point = at(16000, row);
+        check(point.x == 16000 && (row == 21108 || point.y > previous.y),
+              "top-to-bottom swipe does not increase Y at constant X");
+        previous = point;
+    }
+    // P18 swipe endpoints as emitted by the ccb78ad transform (X, Y) become (Y, X) now.
+    constexpr std::array<std::array<int, 2>, 4> emitted{{{8813, 141}, {9442, 27795}, {251, 16057}, {21322, 15722}}};
+    for (const auto &old : emitted) {
+        const auto point = at(old[1], 21359 - old[0]);
+        check(point.x == old[1] && point.y == old[0], "P18 swipe endpoint is not the transposed output");
+    }
 }
 
 void stock(const char *configuration, const char *path) {
@@ -274,8 +304,8 @@ int main(int argc, char **argv) {
         framing();
         lifecycle();
         orientation();
-        std::cout << "PASS: synthetic NTP1 splits/bounds, contact release lifecycle and P15 corner "
-                     "orientation; not hardware evidence\n";
+        std::cout << "PASS: synthetic NTP1 splits/bounds, contact release lifecycle, P15 corner and "
+                     "P18 swipe orientation; not hardware evidence\n";
         if (argc == 3)
             stock(argv[1], argv[2]);
         return 0;
