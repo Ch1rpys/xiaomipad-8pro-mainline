@@ -29,9 +29,12 @@ def main():
     p.add_argument('--bt-address-file', type=Path)
     p.add_argument('--debug', action='store_true')
     p.add_argument('--debug-timeout', type=int, default=0)
+    p.add_argument('--module-blacklist', help='Explicit comma-separated module control for a debug boot')
     a = p.parse_args()
     if a.debug_timeout and (not a.debug or not 60 <= a.debug_timeout <= 900):
         p.error('A 60–900 second timeout is only available for explicit debug boots')
+    if a.module_blacklist and (not a.debug or not re.fullmatch(r'[a-z0-9_]+(?:,[a-z0-9_]+)*', a.module_blacklist)):
+        p.error('Module controls require an explicit debug boot and valid module names')
     profile = json.loads(a.profile.read_text())
     for name in ('boot', 'init_boot', 'vendor_boot'):
         if profile[name]['header_version'] != 4 or profile[name]['capacity'] <= 0:
@@ -68,6 +71,8 @@ def main():
         cmdline += ' piano.debug=1'
     if a.debug_timeout:
         cmdline += f' piano.debug_timeout={a.debug_timeout}'
+    if a.module_blacklist:
+        cmdline += ' module_blacklist=' + a.module_blacklist
     name = b'TRAILER!!!\0'
     blob = b'070701' + b''.join(f'{n:08x}'.encode() for n in
                               (0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, len(name), 0)) + name
