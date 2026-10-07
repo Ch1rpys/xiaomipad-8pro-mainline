@@ -3,7 +3,7 @@
 目标是在 Xiaomi Pad 8 Pro（piano / SM8750）上原生运行主线系 Linux 与 Ubuntu ARM64 桌面。
 [English](README.md)
 
-**已在 piano 原生运行 Ubuntu 26.04 GNOME 内屏桌面；200% 缩放、触控位置与基本键盘输入已有本机确认。正在将输入、蓝牙、GPU、ADSP/音频基础、电量与匹配的无线模块合入同一开发候选。仍为有界 RAM 会话，没有可安装发行版。**
+**已在 piano 原生运行 Ubuntu 26.04 GNOME 内屏桌面；200% 缩放、触控位置与基本键盘输入已有本机确认。已将输入、蓝牙、GPU、ADSP/音频基础、电量与匹配的无线模块合入同一开发候选；已知黑闪问题仍在定位。仍为有界 RAM 会话，没有可安装发行版。**
 本仓库提供最小 piano 内核/DTS 构建、诊断 ramdisk、原厂 overlay 隔离打包和 RAM 镜像生成，
 以及保留属主、硬链接和扩展属性的无 root Ubuntu 桌面层合并。有界 RAM 诊断启动不能视作可用 Ubuntu 系统。
 还提供本地 DSP 固件 deb、隔离 APT 输入和无 root ext4 装配；根系统已在 QEMU 运行 Ubuntu systemd/指定命令，
@@ -54,3 +54,7 @@ Wi-Fi 的 WCN7860 驱动已纳入，PCIe PHY 供电仍未闭合，尚未联网�
 请阅读[贡献规范](CONTRIBUTING.md)及[来源说明](NOTICE)。
 除文件另有声明外，本项目原创代码采用 [MIT](LICENSE)。复用的一加诊断工具保持 GPL-2.0-only，
 小米集成工具保持 MIT；Linux、BusyBox、Ubuntu 与 AOSP 保留各自许可。
+
+2026-10-07：合并候选已取得 A830 原生 EGL 绘制/回读及 GNOME 进程真实 GPU 提交与桌面帧，
+隔离 Mesa 26.2 已接入自动 RAM 交付。触控初始化后偶发整屏黑闪仍在定位；补齐原厂关闭笔扫描命令仅通过短窗，
+不宣称长期稳定。配对/联网、实际录音、充电/PM与持久安装仍按各自边界验收。

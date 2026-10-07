@@ -56,3 +56,5 @@ original license and attribution in NOTICE and LICENSES, including GPL-2.0-only
 diagnostic tools. See CONTRIBUTING.md.
 
 The combined `sm8750-xiaomi-piano-desktop-diag` variant uses `piano-desktop-diag.config` and matching modules. Wi-Fi code inclusion does not establish networking: the PCIe PHY power mapping remains unresolved. Bluetooth scanning, GPU probe, audio registration and gauge reads are narrower than pairing/audio, rendering, recording and charging. The early physical-platform helper is limited to the observed piano Gunyah HLOS role and leaves raw FDT/kernel OF data intact.
+
+The combined candidate now has real Adreno 830 EGL draw/readback and GNOME GPU submission/frame evidence, with automatic isolated Mesa delivery. Intermittent whole-screen black/brightness flicker after touch initialization remains under investigation; the stock pen-disable startup command has only passed a short idle check. This is not a stable or installable release.
