@@ -32,6 +32,7 @@ usb_src="$repo/initramfs/usb-diag"
 network_src="$repo/initramfs/network.json"
 ubuntu_src="$repo/initramfs/prepare-ubuntu"
 state_src="$repo/initramfs/ubuntu-state"
+platform_src="$repo/device/platform/piano-physical-platform"
 # Optional private firmware for drivers that request it at probe or first open.
 # Only regular files with plain relative paths; the bytes never leave OUT_DIR.
 rm -f "$out/firmware-manifest"
@@ -57,7 +58,7 @@ if [[ -n ${MODULES_DIR:-} ]]; then
 		--stage "$stage/modules" >"$stage/modules.list"
 fi
 {
-	sha256sum "$init_src" "$usb_src" "$network_src" "$ubuntu_src" "$state_src" "$busybox" | cut -d' ' -f1
+	sha256sum "$init_src" "$usb_src" "$network_src" "$ubuntu_src" "$state_src" "$platform_src" "$busybox" | cut -d' ' -f1
 	[[ ! -f $stage/piano-firmware ]] || sha256sum "$stage/piano-firmware" | cut -d' ' -f1
 	if [[ -f $stage/modules.list ]]; then
 		sha256sum "$stage/modules/etc/piano-modules.sha256" "$stage/modules/bin/piano-modules" | cut -d' ' -f1
@@ -79,6 +80,7 @@ PY
 	printf 'file /bin/usb-diag %s 0755 0 0\n' "$usb_src"
 	printf 'file /bin/prepare-ubuntu %s 0755 0 0\n' "$ubuntu_src"
 	printf 'file /bin/ubuntu-state %s 0755 0 0\n' "$state_src"
+	printf 'file /bin/piano-physical-platform %s 0755 0 0\n' "$platform_src"
 	printf 'file /etc/piano-network %s 0644 0 0\n' "$stage/piano-network"
 	printf 'file /bin/busybox %s 0755 0 0\n' "$busybox"
 	printf 'file /etc/build-id %s 0644 0 0\n' "$stage/build-id"
@@ -101,7 +103,7 @@ PY
 			printf 'file /lib/firmware/%s %s 0644 0 0\n' "$rel" "$fw_dir/$rel"
 		done <"$stage/firmware-files"
 	fi
-	for app in sh mount mkdir cat uname sleep setsid cttyhack getty ln ls dmesg poweroff reboot ip touch udhcpd telnetd; do
+	for app in sh mount mkdir cat uname sleep setsid cttyhack getty ln ls dmesg poweroff reboot ip touch udhcpd telnetd tr grep od awk readlink; do
 		printf 'slink /bin/%s busybox 0777 0 0\n' "$app"
 	done
 } >"$stage/cpio.list"

@@ -59,6 +59,10 @@ class GpuPairingTest(unittest.TestCase):
         self.assertEqual(len(check(config, 'ubuntu', kbd, [row, dict(row, path='qcom/x')])), 1)
         self.assertEqual(len(check(config, 'ubuntu', kbd, [dict(row, sha256='0' * 64)])), 1)
         self.assertEqual(check([], 'console', boot['DEFAULT_DTB'], []), [])
+        combined = boot['INPUT_DTB']
+        self.assertEqual(len(check(config, 'ubuntu', combined, [row])), 1)
+        self.assertEqual(check(config + ['CONFIG_TOUCHSCREEN_NT36532E_THP=y'],
+                               'ubuntu', combined, [row]), [])
 
     def test_bt_dtb_firmware_is_runtime_or_exactly_the_rom20_names(self):
         boot = runpy.run_path(str(TOOLS / 'build-boot.py'))

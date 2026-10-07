@@ -60,6 +60,10 @@ $bb cp /etc/build-id /run/piano-build-id
 $bb cp /etc/piano-network /run/piano-network
 $bb cp "$bb" /newroot/usr/local/libexec/piano/busybox
 $bb cp /bin/ubuntu-state /newroot/usr/local/libexec/piano-ubuntu-state
+$bb cp /bin/piano-physical-platform /newroot/usr/local/libexec/piano-physical-platform
+# /sys (including this bounded overlay) moves to the real root in init.
+# Apply before systemd PID1 starts and caches its virtualization classification.
+/bin/piano-physical-platform /sys
 
 cat > /newroot/etc/systemd/network/10-piano-ram.link <<EOF
 [Match]

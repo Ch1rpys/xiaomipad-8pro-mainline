@@ -27,6 +27,7 @@ UFS_RO_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-ufs-ro-diag.dtb'
 GPU_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-gpu-diag.dtb'
 BT_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-bt-diag.dtb'
 MIC_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-mic-diag.dtb'
+INPUT_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-input-diag.dtb'
 KBD_DTB = 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-kbd-diag.dtb'
 KBD_CONFIG = ('CONFIG_I2C_QCOM_GENI=y', 'CONFIG_QCOM_GPI_DMA=y', 'CONFIG_HID_GENERIC=y',
               'CONFIG_HID_MULTITOUCH=y', 'CONFIG_HID_NANOSIC=y', 'CONFIG_INPUT_EVDEV=y')
@@ -100,9 +101,11 @@ def bt_errors(config, diagnostic, dtb_source_name, firmware=()):
 
 def kbd_errors(config, diagnostic, dtb_source_name, firmware):
     """The kbd-diag DTB needs its built-in transport and exactly the stock MCU application."""
-    if dtb_source_name != KBD_DTB:
+    if dtb_source_name not in (KBD_DTB, INPUT_DTB):
         return []
     errors = [f'The kbd-diag DTB needs the kbd-diag OUT: {s}' for s in KBD_CONFIG if s not in config]
+    if dtb_source_name == INPUT_DTB and 'CONFIG_TOUCHSCREEN_NT36532E_THP=y' not in config:
+        errors.append('The combined input DTB needs the built-in THP transport')
     if diagnostic != 'ubuntu':
         errors.append('The kbd-diag DTB is only used in the ubuntu mode (desktop input check)')
     actual = {r['path']: (r['size'], r['sha256']) for r in firmware}
@@ -384,8 +387,8 @@ def main():
         manifest['bt_diag'] = {'dtb_sha256': build['files'][BT_DTB], 'config_fragments': build.get('config_fragments'),
                                'firmware': ('initramfs and RAM root (see firmware)' if firmware else
                                             'runtime bundle from run-mainline-probe.py --bt-firmware-dir, not in the image')}
-    if args.dtb_source_name == KBD_DTB:
-        manifest['kbd_diag'] = {'dtb_sha256': build['files'][KBD_DTB], 'config_fragments': build.get('config_fragments'),
+    if args.dtb_source_name in (KBD_DTB, INPUT_DTB):
+        manifest['kbd_diag'] = {'dtb_sha256': build['files'][args.dtb_source_name], 'config_fragments': build.get('config_fragments'),
                                 'pm': 'bridge held awake while bound; no runtime/system PM'}
     if args.dtb_source_name == GPU_DTB:
         manifest['gpu_diag'] = {'cmdline': GPU_CMDLINE, 'dtb_sha256': build['files'][GPU_DTB],

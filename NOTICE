@@ -1,5 +1,15 @@
 Third-party attribution
 
+device/platform/piano-physical-platform:
+  Adapted from the independent local erhai integration repository, commit
+  8f41f82dd431a4d74f2dc26f4e19f10c3b208623, source path
+  packaging/erhai-device-support/tree/usr/libexec/erhai-physical-platform.
+  License: GPL-2.0-only. No public source URL is assumed.
+  Changes: require piano's restored identity and observed HLOS VMID=3;
+  inspect bound platform devices by their OF node; leave other boards/QEMU
+  unchanged; include the helper in the RAM handoff with its content hash.
+  This is a temporary userspace export policy, not a kernel hypervisor change.
+
 tools/fetch-aosp-mkbootimg.sh:
   Adapted from the liuqin mainline project.
   Repository: https://github.com/yzddmr6/xiaomipad-6pro-mainline
