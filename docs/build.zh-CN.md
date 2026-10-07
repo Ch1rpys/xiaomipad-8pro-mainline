@@ -429,3 +429,17 @@ Ubuntu 的检查单元只属于 QEMU fixture，不注入真实候选。QEMU 不�
 不能用于平板；build-boot 要求 CONFIG_USB_DUMMY_HCD 未启用，并用实际测试 OUT 验证拒绝。
 它不改变产品驱动归属或 USB 板级参数。项目内核当前包含 device_move 成功路径的 glue-dir 引用释放修正；
 ARM64 设备模型测试与软件 NCM 注销/重挂接数据验证通过，物理 DWC3/Type-C/供电仍未验证。
+
+## 合并桌面诊断与隔离 Mesa
+
+`piano-desktop-diag.config` / `sm8750-xiaomi-piano-desktop-diag.dtb` 合并已有输入、BT、GPU、
+ADSP/音频基础和电量计；仍是 RAM 开发配置，UFS 写入、PCIe/WLAN、USB host/DP 未启用。
+使用 `BUILD_MODULES=1`，通过 stage-kernel-modules 交付与该 Image/config 匹配的显式子集。
+WLAN 模块纳入不意味着无线网络已可用；蓝牙/音频/其他功能支持范围以 README 为准。
+
+可为 build-initramfs.sh 显式设置 `MESA_DIR=<build-mesa.sh 的输出目录>`，将锁定的 Mesa
+安装到 RAM 根的隔离 `/opt/piano` 前缀。输入必须包含原构建 manifest 与 stage；脚本核对
+mesa/source.json、补丁 hash、全部文件内容和符号链接边界，并将清单绑定进 RAM build-id。
+build-boot 只允许该载荷与合并 desktop-diag 配对，逐文件核实际 CPIO 字节。
+prepare-ubuntu 在原生 GDM 启动前通过标准环境配置选择此栈，不覆盖发行版库，也不修改原始根。
+这仍是显式诊断策略；发行版覆盖 A830 后应撤销，产品交付需按原生 Mesa 包收敛。

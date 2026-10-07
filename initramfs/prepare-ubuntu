@@ -65,6 +65,26 @@ $bb cp /bin/piano-physical-platform /newroot/usr/local/libexec/piano-physical-pl
 # Apply before systemd PID1 starts and caches its virtualization classification.
 /bin/piano-physical-platform /sys
 
+# Explicit isolated Mesa diagnostic, verified against its build receipt.
+# The pristine root and distribution libraries stay intact; this is RAM only.
+if [ -f /etc/piano-mesa.json ]; then
+	prefix=$($bb cat /etc/piano-mesa-prefix)
+	$bb sha256sum -c -s /etc/piano-mesa.sha256
+	[ ! -e "/newroot$prefix" ] && [ ! -L "/newroot$prefix" ]
+	$bb mkdir -p /newroot/opt/piano /newroot/etc/environment.d /newroot/etc/systemd/system/gdm.service.d
+	[ "$($bb readlink -f /newroot/opt/piano)" = /newroot/opt/piano ]
+	$bb cp -a "$prefix" /newroot/opt/piano/
+	$bb sed 's|  /|  /newroot/|' /etc/piano-mesa.sha256 | $bb sha256sum -c -s -
+	$bb cp /etc/piano-mesa.json /newroot/etc/piano-mesa.json
+	cat >/newroot/etc/environment.d/50-piano-mesa-diag.conf <<EOF
+LD_LIBRARY_PATH=$prefix/lib
+LIBGL_DRIVERS_PATH=$prefix/lib/dri
+EOF
+	{ echo '[Service]'; $bb sed 's/^/Environment=/' /newroot/etc/environment.d/50-piano-mesa-diag.conf; } \
+		>/newroot/etc/systemd/system/gdm.service.d/50-piano-mesa-diag.conf
+	echo "PIANO_MESA_INSTALLED: isolated $prefix RAM desktop override (TD-004/007)"
+fi
+
 cat > /newroot/etc/systemd/network/10-piano-ram.link <<EOF
 [Match]
 MACAddress=$PIANO_DEVICE_MAC

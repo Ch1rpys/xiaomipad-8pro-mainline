@@ -9,7 +9,9 @@ import gzip
 import hashlib
 import json
 from pathlib import Path
+import posixpath
 import re
+import stat
 import subprocess
 
 from kernel_modules import runtime_metadata, subset_metadata
@@ -202,6 +204,45 @@ def firmware_manifest(cpio_bytes):
     return text, rows
 
 
+def mesa_manifest(cpio_bytes, dtb_source_name):
+    entries = read_newc(cpio_bytes)
+    if 'etc/piano-mesa.json' not in entries:
+        return None
+    if dtb_source_name != DESKTOP_DTB:
+        raise ValueError('The isolated Mesa payload belongs to the combined desktop diagnostic')
+    metadata_bytes = regular_file(entries, 'etc/piano-mesa.json')
+    metadata = json.loads(metadata_bytes)
+    lock = json.loads((Path(__file__).resolve().parents[1] / 'mesa/source.json').read_text())
+    if metadata['source'] != lock:
+        raise ValueError('Mesa payload source lock changed')
+    prefix = lock['prefix'].lstrip('/')
+    if regular_file(entries, 'etc/piano-mesa-prefix') != (lock['prefix'] + '\n').encode():
+        raise ValueError('Mesa runtime prefix differs from its lock')
+    expected = set(metadata['files']) | set(metadata['symlinks'])
+    actual = {name for name, (mode, _) in entries.items()
+              if name.startswith(prefix + '/') and not stat.S_ISDIR(mode)}
+    if actual != expected:
+        raise ValueError('Mesa payload has missing or additional files')
+    for name, digest in metadata['files'].items():
+        if hashlib.sha256(regular_file(entries, name)).hexdigest() != digest:
+            raise ValueError(f'Mesa delivered file changed: {name}')
+    for name, target in metadata['symlinks'].items():
+        mode, data = entries[name]
+        resolved = posixpath.normpath(posixpath.join(posixpath.dirname(name), target))
+        if (not stat.S_ISLNK(mode) or data.removesuffix(b'\0').decode() != target or
+                target.startswith('/') or not resolved.startswith(prefix + '/')):
+            raise ValueError('Mesa delivered symlink changed or escapes its prefix')
+        for parent in Path(name).parents:
+            if str(parent) not in entries or not stat.S_ISDIR(entries[str(parent)][0]):
+                raise ValueError('Mesa symlink has a non-directory parent')
+    checks = ''.join(f'{digest}  /{name}\n' for name, digest in metadata['files'].items()).encode()
+    if regular_file(entries, 'etc/piano-mesa.sha256') != checks:
+        raise ValueError('Mesa runtime checksum list changed')
+    return {'source': lock, 'metadata_sha256': hashlib.sha256(metadata_bytes).hexdigest(),
+            'files': len(metadata['files']), 'symlinks': len(metadata['symlinks']),
+            'scope': 'Explicit isolated RAM desktop override; not a distribution Mesa package'}
+
+
 def module_manifest(cpio_bytes, build, build_result_sha256):
     """Verify delivered module bytes against both the subset and matching Kbuild output."""
     entries = read_newc(cpio_bytes)
@@ -353,6 +394,7 @@ def main():
     if not re.fullmatch(r'[0-9a-f]{64}', ram_build_id):
         parser.error('The ramdisk must contain its exact diagnostic build-id')
     firmware_text, firmware = firmware_manifest(cpio_bytes)
+    mesa = mesa_manifest(cpio_bytes, args.dtb_source_name)
     modules = module_manifest(cpio_bytes, build, sha(kout / 'build-result.json'))
     if errors := gpu_errors(config, args.dtb_source_name, firmware):
         parser.error('; '.join(errors))
@@ -396,6 +438,8 @@ def main():
     }
     if modules:
         manifest['modules'] = modules
+    if mesa:
+        manifest['mesa'] = mesa
     if activation:
         manifest['module_activation'] = activation
     if firmware:

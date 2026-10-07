@@ -7,6 +7,7 @@ repo=$(cd -- "$(dirname -- "$0")/.." && pwd)
 if [[ ${1:-} == --help ]]; then
 	echo 'Usage: BUSYBOX=... GEN_INIT_CPIO=... OUT_DIR=... [FIRMWARE_DIR=...] [MODULES_DIR=...] build-initramfs.sh'
 	echo 'MODULES_DIR: optional verified stage-kernel-modules output; no automatic module loading.'
+	echo 'MESA_DIR: optional locked build-mesa output; isolated RAM desktop graphics only.'
 	echo 'FIRMWARE_DIR: optional private tree copied to /lib/firmware/<relative path>;'
 	echo 'its manifest (path size sha256) goes to /etc/piano-firmware and OUT_DIR/firmware-manifest.'
 	exit 0
@@ -57,12 +58,17 @@ if [[ -n ${MODULES_DIR:-} ]]; then
 	python3 "$repo/tools/prepare-module-initramfs.py" --modules-tree "$MODULES_DIR" \
 		--stage "$stage/modules" >"$stage/modules.list"
 fi
+if [[ -n ${MESA_DIR:-} ]]; then
+	python3 "$repo/tools/prepare-mesa-initramfs.py" --mesa-build "$MESA_DIR" \
+		--stage "$stage/mesa" >"$stage/mesa.list"
+fi
 {
 	sha256sum "$init_src" "$usb_src" "$network_src" "$ubuntu_src" "$state_src" "$platform_src" "$busybox" | cut -d' ' -f1
 	[[ ! -f $stage/piano-firmware ]] || sha256sum "$stage/piano-firmware" | cut -d' ' -f1
 	if [[ -f $stage/modules.list ]]; then
 		sha256sum "$stage/modules/etc/piano-modules.sha256" "$stage/modules/bin/piano-modules" | cut -d' ' -f1
 	fi
+	[[ ! -f $stage/mesa.list ]] || sha256sum "$stage/mesa/etc/piano-mesa.json" | cut -d' ' -f1
 } | sha256sum | cut -d' ' -f1 >"$stage/build-id"
 python3 - "$network_src" "$stage/piano-network" <<'PY'
 import json, pathlib, shlex, sys
@@ -88,6 +94,7 @@ PY
 		printf 'dir /lib 0755 0 0\n'
 	fi
 	[[ ! -f $stage/modules.list ]] || cat "$stage/modules.list"
+	[[ ! -f $stage/mesa.list ]] || cat "$stage/mesa.list"
 	if [[ -f $stage/piano-firmware ]]; then
 		printf 'file /etc/piano-firmware %s 0644 0 0\n' "$stage/piano-firmware"
 		printf 'dir /lib/firmware 0755 0 0\n'
