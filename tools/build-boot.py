@@ -57,9 +57,10 @@ def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def config_errors(config, diagnostic):
-    """Every mode except ufs-ro stays free of UFS; ufs-ro gets exactly the reviewed driver set."""
-    storage = UFS_RO_CONFIG if diagnostic == 'ufs-ro' else ('# CONFIG_SCSI_UFSHCD is not set',)
+def config_errors(config, diagnostic, ufs_disabled=False):
+    """RAM Ubuntu may include UFS code only with verified unavailable UFS devices."""
+    storage = (UFS_RO_CONFIG if diagnostic == 'ufs-ro' else ()
+               if diagnostic == 'ubuntu' and ufs_disabled else ('# CONFIG_SCSI_UFSHCD is not set',))
     errors = [f'Missing RAM-only diagnostic configuration: {s}' for s in RAM_ONLY + storage if s not in config]
     if diagnostic in ('ncm', 'ubuntu', 'ufs-ro') and 'CONFIG_USB_CONFIGFS_NCM=y' not in config:
         errors.append('NCM requires the built-in kernel function')
@@ -299,6 +300,34 @@ def ufs_status(blob):
     return status
 
 
+def ram_ufs_errors(blob, label):
+    """Check every UFS host/PHY and its ancestors, including overlay-added nodes."""
+    import libfdt
+    fdt = libfdt.Fdt(blob)
+    nodes, unavailable = set(), {}
+    offset, depth = -1, -1
+    while True:
+        offset, depth = fdt.next_node(offset, depth, quiet=(libfdt.NOTFOUND,))
+        if offset < 0 or depth < 0:
+            break
+        path = fdt.get_path(offset)
+        status = fdt.getprop(offset, 'status', quiet=(libfdt.NOTFOUND,))
+        unavailable[path] = (not isinstance(status, int) and status.as_str() not in ('ok', 'okay'))
+        compatible = fdt.getprop(offset, 'compatible', quiet=(libfdt.NOTFOUND,))
+        compatibles = (bytes(compatible).rstrip(b'\0').decode().split('\0')
+                       if not isinstance(compatible, int) else [])
+        if path in UFS_NODES or any(
+                'ufshc' in c or c.startswith('jedec,ufs-') or ('ufs' in c and 'phy' in c)
+                for c in compatibles):
+            nodes.add(path)
+    errors = [f'{label}: expected UFS node missing: {p}' for p in UFS_NODES if p not in nodes]
+    for path in sorted(nodes):
+        ancestors = (path, *(str(p) for p in Path(path).parents))
+        if not any(unavailable.get(p, False) for p in ancestors):
+            errors.append(f'{label}: UFS device is available: {path}')
+    return errors
+
+
 def ufs_dtb_errors(default_blob, variant_blob, packaging_blob):
     """The default board DTB of the same build must still keep both UFS nodes disabled."""
     errors = []
@@ -372,7 +401,20 @@ def main():
     if overlay['inputs_sha256']['mainline_dtb'] != build['files'][args.dtb_source_name]:
         parser.error('Packaging DTB was built from another kernel DTB')
     config = (kout / '.config').read_text().splitlines()
-    if errors := config_errors(config, args.diagnostic):
+    ufs_disabled = False
+    if ubuntu and any(s in config for s in ('CONFIG_SCSI_UFSHCD=y', 'CONFIG_SCSI_UFSHCD=m')):
+        # Drivers can be present without enabling their hardware. Keep this
+        # exception tied to the actual packaged tree and audited stock overlay.
+        simulated = args.dtb.parent / 'stock-overlay-simulated.dtb'
+        if (not simulated.is_file() or
+                overlay['outputs_sha256'].get(simulated.name) != sha(simulated)):
+            parser.error('UFS-capable RAM Ubuntu requires the verified stock-overlay simulation')
+        errors = ram_ufs_errors(args.dtb.read_bytes(), 'packaging DTB')
+        errors += ram_ufs_errors(simulated.read_bytes(), 'stock-overlay DTB')
+        if errors:
+            parser.error('; '.join(errors))
+        ufs_disabled = True
+    if errors := config_errors(config, args.diagnostic, ufs_disabled):
         parser.error('; '.join(errors))
     if args.diagnostic == 'ufs-ro':
         if DEFAULT_DTB not in build['files']:
@@ -438,6 +480,12 @@ def main():
     }
     if modules:
         manifest['modules'] = modules
+    if ufs_disabled:
+        manifest['ufs_ram_guard'] = {
+            'kernel_support': 'compiled, devices unavailable',
+            'checked_trees': {'packaging': sha(args.dtb), 'stock_overlay': sha(simulated)},
+            'check': 'Every UFS host/PHY unavailable after evaluating ancestor status',
+        }
     if mesa:
         manifest['mesa'] = mesa
     if activation:
