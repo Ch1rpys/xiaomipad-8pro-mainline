@@ -1,4 +1,4 @@
-# Persistent boot integration (initial device validation in progress)
+# Persistent boot integration
 
 The persistent desktop kernel variant enables the reviewed UFS path and ext4.
 `build-kernel-deb.py --boot-dtb` carries its audited ABL DTB with the matching
@@ -21,14 +21,17 @@ Per-device maps and images are installation inputs; they are never public
 payloads. `tools/piano-switch.py` is the host Fastboot recovery writer and
 intentionally leaves Fastboot running for a separate RAM readback.
 
-The local filesystem installation and v4 boot from the active A slot have
-been verified. Boot version/SPL and AVB properties must come from the local
+The local filesystem installation and v4 boot from the active A slot work
+on the test unit. Boot version/SPL and AVB properties must come from the local
 stock image; an unlocked loader still needs a well-formed boot contract.
-The user has confirmed a black physical panel despite a populated framebuffer.
-Touch input and GPU startup also fail in this persistent configuration. This
-is not a usable or fully validated installer release. Keep a recoverable debug
-entry until actual panel output is confirmed; process state is not display
-acceptance. Existing RAM diagnostics remain RAM-only images.
+With the full module set, sync_state releases the boot-time power, clock and
+interconnect state. The display therefore depends on the kernel DTS declaring
+the firmware scanout's power domains, clocks and bandwidth on the
+simple-framebuffer node, and the GPU on its MX and GMXC power-domain votes.
+ABL decrements the slot's retry counter on every boot and the Ubuntu side
+does not yet mark the slot successful; see
+[docs/STATUS.md](../../docs/STATUS.md#known-issues). The installer is not
+published. Existing RAM diagnostics remain RAM-only images.
 
 ## Suspend is disabled in the first release
 
