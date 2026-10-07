@@ -1,0 +1,8 @@
+# Suspend and resume have not been validated on piano, and systemd refuses
+# sleep through sleep.conf.d/50-piano-first-release.conf. Keep GNOME from
+# requesting suspend when idle. A vendor override also reaches the GDM and
+# initial-setup sessions, whose dconf profiles have no system database.
+# Remove together with the sleep.conf.d file (project debt TD-017).
+[org.gnome.settings-daemon.plugins.power]
+sleep-inactive-ac-type='nothing'
+sleep-inactive-battery-type='nothing'

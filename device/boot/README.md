@@ -29,3 +29,29 @@ Touch input and GPU startup also fail in this persistent configuration. This
 is not a usable or fully validated installer release. Keep a recoverable debug
 entry until actual panel output is confirmed; process state is not display
 acceptance. Existing RAM diagnostics remain RAM-only images.
+
+## Suspend is disabled in the first release
+
+Suspend and resume have not been validated on piano. The kernel offers
+`s2idle` and `deep`, but neither wake path has been exercised, and a stuck
+resume can only be cleared with a forced reboot. `piano-device-support`
+therefore ships one policy in two standard places:
+
+- `/usr/lib/systemd/sleep.conf.d/50-piano-first-release.conf` sets
+  `AllowSuspend`, `AllowHibernation`, `AllowHybridSleep` and
+  `AllowSuspendThenHibernate` to `no`, so logind refuses every sleep request
+  from any desktop, key handler or command line.
+- `/usr/share/glib-2.0/schemas/50_piano-first-release.gschema.override` sets
+  the GNOME idle actions (`sleep-inactive-ac-type`,
+  `sleep-inactive-battery-type`) to `'nothing'`, so the session does not
+  request suspend. A GSettings vendor override is used because the GDM and
+  gnome-initial-setup dconf profiles have no system database; the distro
+  `glib-compile-schemas` trigger compiles it.
+
+Lock screen and power-button settings are unchanged. Ubuntu's power-button
+action is the interactive end-session dialog; a `suspend` action would fall
+back to that dialog because logind reports suspend as unavailable. UPower's
+critical-battery action falls back from hybrid sleep and hibernation to
+power-off. An administrator can re-enable sleep for testing with a same-named
+file in `/etc/systemd/sleep.conf.d/`. Both files are removed once s2idle and
+deep suspend/resume are validated on piano.
