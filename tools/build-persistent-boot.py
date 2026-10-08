@@ -22,6 +22,12 @@ def sha(path):
         return hashlib.file_digest(f, 'sha256').hexdigest()
 
 
+def kernel_release(path):
+    """Release string of an uncompressed arm64 Image, from its linux_banner."""
+    match = re.search(rb'Linux version ([0-9][A-Za-z0-9.+-]*) \(', Path(path).read_bytes())
+    return match[1].decode() if match else None
+
+
 def empty_ramdisk():
     """gzip of an empty newc archive, byte-identical on every Python version.
 
@@ -45,6 +51,7 @@ def main():
     for name in ('kernel', 'dtb', 'initrd', 'profile', 'mkbootimg', 'avbtool', 'key', 'output'):
         p.add_argument('--' + name, type=Path, required=True)
     p.add_argument('--root-partuuid', type=uuid.UUID, required=True)
+    p.add_argument('--kernel-release', help='Expected release; the Image banner must carry it')
     p.add_argument('--bt-address-file', type=Path)
     p.add_argument('--debug', action='store_true')
     p.add_argument('--debug-timeout', type=int, default=0)
@@ -54,6 +61,11 @@ def main():
         p.error('A 60–900 second timeout is only available for explicit debug boots')
     if a.module_blacklist and (not a.debug or not re.fullmatch(r'[a-z0-9_]+(?:,[a-z0-9_]+)*', a.module_blacklist)):
         p.error('Module controls require an explicit debug boot and valid module names')
+    release = kernel_release(a.kernel)
+    if not release:
+        p.error('Kernel has no Linux version banner; expected an uncompressed arm64 Image')
+    if a.kernel_release and a.kernel_release != release:
+        p.error(f'Kernel banner is {release}, not {a.kernel_release}')
     profile = json.loads(a.profile.read_text())
     for name in ('boot', 'init_boot', 'vendor_boot'):
         if profile[name]['header_version'] != 4 or profile[name]['capacity'] <= 0:
@@ -129,7 +141,8 @@ def main():
     subprocess.run(mk + ['--header_version', '2', '--pagesize', str(vendor['page_size'])] + offsets +
                    ['--kernel', str(a.kernel), '--ramdisk', str(a.initrd), '--dtb', str(dtb),
                     '--cmdline', cmdline, '--output', str(ram)], check=True)
-    manifest = {'kind': 'piano-persistent-v4', 'cmdline': cmdline, 'root_partuuid': str(a.root_partuuid),
+    manifest = {'kind': 'piano-persistent-v4', 'kernel_release': release,
+                'cmdline': cmdline, 'root_partuuid': str(a.root_partuuid),
                 'debug': a.debug, 'debug_timeout': a.debug_timeout,
                 'inputs': {n: sha(getattr(a, n)) for n in ('kernel', 'dtb', 'initrd', 'profile', 'mkbootimg', 'avbtool')},
                 'private_bt_address_injected': bool(a.bt_address_file), 'effective_dtb_sha256': sha(dtb),
