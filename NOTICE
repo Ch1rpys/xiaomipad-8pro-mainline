@@ -295,6 +295,11 @@ device/boot/piano-slot-success and device/boot/piano_bootslot.py:
   for byte with the single-bit change. Unit ordering after boot-complete.target
   follows Debian's qbootctl.service; no qbootctl code is used.
 device/boot/tests/ is new MIT test code with synthetic disks and images only.
+packaging/piano-device-support/usr/share/polkit-1/actions/io.github.piano.switch.policy:
+  The single-action structure (exec.path plus exec.argv1 selecting one
+  subcommand for the desktop entry) follows device/gnome-overlay/usr/share/
+  polkit-1/actions/io.github.liuqin.switch.policy of the same liuqin commit
+  (MIT). Changes: piano program path and texts, auth_admin_keep.
 
 Third-party files placed in locally generated packages (tools/build-device-debs.py):
   piano-device-support copies tools that this repository does not contain:

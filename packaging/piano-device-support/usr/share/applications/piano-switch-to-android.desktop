@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: MIT
+[Desktop Entry]
+Type=Application
+Name=Switch to Android
+Name[zh_CN]=切换到 Android
+Comment=Write the Android boot images into slot A and restart now
+Comment[zh_CN]=将 Android 启动镜像写入 A 槽并立即重启
+Exec=pkexec /usr/sbin/piano-boot-switch to-android --desktop
+Icon=system-reboot
+Terminal=false
+StartupNotify=false
+Categories=System;
+Keywords=Android;reboot;dual boot;
+Keywords[zh_CN]=安卓;重启;双系统;

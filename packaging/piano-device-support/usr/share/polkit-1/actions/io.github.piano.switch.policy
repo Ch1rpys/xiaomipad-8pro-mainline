@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- SPDX-License-Identifier: MIT -->
+<!--
+  pkexec selects this action only for program /usr/sbin/piano-boot-switch with
+  first argument to-android, as started by piano-switch-to-android.desktop.
+  Every other piano-boot-switch invocation through pkexec falls back to the
+  generic org.freedesktop.policykit.exec action. Structure follows the liuqin
+  project's io.github.liuqin.switch.policy (MIT); see NOTICE.
+-->
+<policyconfig>
+  <vendor>xiaomipad-8pro-mainline</vendor>
+  <action id="io.github.piano.switch.to-android">
+    <description>Switch to Android</description>
+    <description xml:lang="zh_CN">切换到 Android</description>
+    <message>Authentication is required to write the Android boot images into slot A and restart the tablet now</message>
+    <message xml:lang="zh_CN">需要认证才能将 Android 启动镜像写入 A 槽并立即重启平板</message>
+    <icon_name>system-reboot</icon_name>
+    <defaults>
+      <allow_any>auth_admin_keep</allow_any>
+      <allow_inactive>auth_admin_keep</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/sbin/piano-boot-switch</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">to-android</annotate>
+  </action>
+</policyconfig>
