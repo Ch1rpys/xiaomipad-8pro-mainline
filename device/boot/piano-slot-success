@@ -1,0 +1,180 @@
+#!/usr/bin/python3
+# SPDX-License-Identifier: MIT
+"""Mark piano's running slot A successful in the boot LUN's GPT, fail closed.
+
+ABL decrements the retry count of an unsuccessful slot on every boot and
+`fastboot flash boot_a` clears the successful bit, so a slot that only ever
+boots Ubuntu runs out of retries.  This sets bit 54 (successful) of the
+boot_a entry and nothing else: not priority, active, retry, unbootable,
+boot_b, other entries, other LUNs, type GUIDs or vbmeta.  Both GPT copies are
+validated first and must be identical; the backup copy is written before the
+primary, then both are read back and compared byte for byte with the
+expected result.  Only slot A is accepted: piano's slot B holds an older stock
+chain, and this tool never selects a slot.
+
+Adapted from device/boot/liuqin-mark-slot-successful.c (MIT) in
+https://github.com/yzddmr6/xiaomipad-6pro-mainline at
+265b26fb268809167cfc45e3071e6956d735e1bb; see NOTICE.  The shared GPT and
+slot checks live in /usr/lib/piano/boot/piano_bootslot.py.
+
+Exit status: 0 marked/already successful (--check: successful),
+1 refused or not successful (--check), 2 usage.
+"""
+import argparse
+from datetime import datetime, timezone
+import json
+import os
+import struct
+import sys
+
+sys.path.insert(0, '/usr/lib/piano/boot')
+import piano_bootslot as slot  # noqa: E402
+
+PROG = 'piano-slot-success'
+SNAPSHOTS = '/var/lib/piano/slot'
+
+
+def marked_copies(disk, index):
+    """New entry array and header blocks with only bit 54 of boot_a set."""
+    entries = bytearray(disk.primary.entries)
+    entries[index * slot.ENTRY_SIZE + slot.SUCCESSFUL_BYTE] |= slot.SUCCESSFUL_MASK
+    entries = bytes(entries)
+    headers = {}
+    for which, copy in (('backup', disk.backup), ('primary', disk.primary)):
+        block = bytearray(copy.block)
+        struct.pack_into('<I', block, 88, slot.crc32(entries))
+        struct.pack_into('<I', block, 16, 0)
+        struct.pack_into('<I', block, 16, slot.crc32(block[:copy.header_size]))
+        headers[which] = bytes(block)
+    return entries, headers
+
+
+def only_allowed_changes(before, after, index):
+    """Per copy, the only bytes that may differ: entry byte 54 of boot_a and the two CRCs."""
+    for old, new in ((before.primary, after.primary), (before.backup, after.backup)):
+        if old.lba != new.lba or old.entries_lba != new.entries_lba:
+            return False
+        moved = [i for i in range(len(old.entries)) if old.entries[i] != new.entries[i]]
+        if moved != [index * slot.ENTRY_SIZE + slot.SUCCESSFUL_BYTE]:
+            return False
+        if any(old.block[i] != new.block[i] for i in range(len(old.block)) if not (16 <= i < 20 or 88 <= i < 92)):
+            return False
+    return True
+
+
+def snapshot(host, stamp, label, disk):
+    directory = host.path(SNAPSHOTS)
+    directory.mkdir(parents=True, exist_ok=True)
+    for which, copy in (('primary', disk.primary), ('backup', disk.backup)):
+        for part, data in (('header', copy.block), ('entries', copy.entries)):
+            path = directory / f'{stamp}-{disk.name}-{label}-{which}-{part}.bin'
+            with open(path, 'wb') as f:
+                f.write(data)
+                f.flush()
+                os.fsync(f.fileno())
+
+
+def write_mark(host, disk, index):
+    entries, headers = marked_copies(disk, index)
+    fd = os.open(disk.node, os.O_RDWR | os.O_CLOEXEC)
+    try:
+        with slot.signals_blocked():
+            # The backup first: an interruption leaves an intact primary for ABL.
+            slot.pwrite_all(fd, entries, disk.backup.entries_lba * disk.lbs)
+            slot.pwrite_all(fd, headers['backup'], disk.backup.lba * disk.lbs)
+            os.fsync(fd)
+            slot.pwrite_all(fd, entries, disk.primary.entries_lba * disk.lbs)
+            slot.pwrite_all(fd, headers['primary'], disk.primary.lba * disk.lbs)
+            os.fsync(fd)
+        os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)
+    finally:
+        os.close(fd)
+    return entries, headers
+
+
+def run(host, mode, report):
+    host.require_root()
+    slot.require_piano(host)
+    if slot.UBUNTU_MARKER not in slot.kernel_words(host):
+        raise slot.Refusal('not-persistent-boot', f'The kernel command line lacks {slot.UBUNTU_MARKER}')
+    with slot.slot_lock(host):
+        disk = slot.boot_disk(host, strict=True)
+        report.update(disk.report())
+        state = slot.slot_state(host, disk)
+        report.update(state)
+        a = state['boot_a']
+        if a['successful']:
+            report['state'] = 'already-successful'
+            return 0
+        if mode == 'check':
+            report['state'] = 'not-successful'
+            return 1
+        if a['retry'] == 0:
+            raise slot.Refusal('retry-count-zero', 'boot_a is unsuccessful with retry count 0; '
+                               'ABL should not have booted it, refusing to mark')
+        if disk.read_only:
+            raise slot.Refusal('disk-read-only', f'{disk.name} is read-only')
+        parts = {n: disk.partition(n + '_a') for n in slot.NAMES}
+        heads = slot.slot_heads(parts)
+        slot.booted_from_slot(host, heads)
+        sums, _ = slot.known_sums(host)
+        hashes = slot.slot_hashes(parts)
+        known = slot.occupant(hashes, {n: sums[n] for n in slot.UBUNTU_SETS if n in sums})
+        report['slot_set'] = known
+        if known is None:
+            raise slot.Refusal('slot-set-unregistered', 'Slot A holds an image set that is neither '
+                               f'{slot.STORE}/ubuntu nor ubuntu.prev; if this boot is good, register it with '
+                               '`piano-boot-switch import-ubuntu`, then run this again')
+        index = disk.entry('boot_a').index
+        if mode == 'dry-run':
+            report['state'] = 'would-mark'
+            report['boot_a_after'] = slot.flags(disk.entry('boot_a').attrs | slot.SUCCESSFUL)
+            return 0
+        stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')
+        snapshot(host, stamp, 'before', disk)
+        entries, headers = write_mark(host, disk, index)
+        try:
+            after = slot.Disk(host, disk.name, strict=True)
+        except slot.Refusal as error:
+            raise slot.Refusal('write-verify-failed', f'GPT readback after the write: {error}; '
+                               f'inspect {SNAPSHOTS}/{stamp}-*') from None
+        snapshot(host, stamp, 'after', after)
+        if (after.primary.entries != entries or after.backup.entries != entries or
+                after.primary.block != headers['primary'] or after.backup.block != headers['backup'] or
+                not only_allowed_changes(disk, after, index)):
+            raise slot.Refusal('write-verify-failed', 'GPT readback differs from the single-bit change; '
+                               f'inspect {SNAPSHOTS}/{stamp}-*')
+        report['state'] = 'marked'
+        report['boot_a'] = slot.flags(after.entry('boot_a').attrs)
+        report['snapshots'] = f'{SNAPSHOTS}/{stamp}-{disk.name}-*'
+        return 0
+
+
+def main(argv=None, host=None):
+    ap = argparse.ArgumentParser(prog=PROG, description=__doc__.split('\n\n')[0])
+    mode = ap.add_mutually_exclusive_group(required=True)
+    mode.add_argument('--check', action='store_const', dest='mode', const='check',
+                      help='exit 0 if boot_a is already successful, 1 if not; never writes')
+    mode.add_argument('--mark', action='store_const', dest='mode', const='mark',
+                      help='set boot_a successful when every check passes')
+    mode.add_argument('--dry-run', action='store_const', dest='mode', const='dry-run',
+                      help='run every --mark check and report the change without writing')
+    a = ap.parse_args(argv)
+    host = host or slot.Host()
+    report = {'tool': PROG, 'mode': a.mode}
+    try:
+        rc = run(host, a.mode, report)
+    except slot.Refusal as error:
+        report.update(state='refused', code=error.code, message=str(error))
+        rc = 1
+    except OSError as error:
+        report.update(state='failed', code='io-error', message=str(error))
+        rc = 1
+    print(json.dumps(report, indent=2, sort_keys=True), flush=True)
+    summary = f"{report['state']}" + (f": {report['message']}" if 'message' in report else '')
+    host.log(PROG, f'{a.mode}: {summary}', error=report['state'] in ('refused', 'failed'))
+    return rc
+
+
+if __name__ == '__main__':
+    sys.exit(main())

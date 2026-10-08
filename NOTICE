@@ -277,6 +277,25 @@ tools/build-persistent-boot.py:
   dependencies. Self-signed footers provide unlocked-ABL compatibility, not a
   claim of an OEM verified-boot trust chain.
 
+device/boot/piano-slot-success and device/boot/piano_bootslot.py:
+  The GPT validation and slot-A success marking are adapted from the liuqin
+  mainline project.
+  Repository: https://github.com/yzddmr6/xiaomipad-6pro-mainline
+  Source commit: 265b26fb268809167cfc45e3071e6956d735e1bb (the file was last
+  changed in fb4413f; clean checkout)
+  Source path: device/boot/liuqin-mark-slot-successful.c
+  License: MIT; full original notice in LICENSES/liuqin-MIT.txt.
+  Changes: Python rewrite; GPT locations are read from both headers and
+  cross-checked instead of pinned device geometry; the boot LUN is found by
+  its boot_a/boot_b entries below the piano UFS controller, never by sdX name;
+  a damaged or differing backup copy is refused instead of being rebuilt from
+  the primary; only bit 54 is set, bit 55 is never cleared and an unbootable
+  slot or retry count 0 is refused; the boot must come from the slot image and
+  the slot must hold a registered image set; the written GPT is compared byte
+  for byte with the single-bit change. Unit ordering after boot-complete.target
+  follows Debian's qbootctl.service; no qbootctl code is used.
+device/boot/tests/ is new MIT test code with synthetic disks and images only.
+
 Third-party files placed in locally generated packages (tools/build-device-debs.py):
   piano-device-support copies tools that this repository does not contain:
   - mkbootimg.py and gki/ (tests excluded) from the AOSP checkout fetched by

@@ -56,6 +56,8 @@ def main():
         if p.is_file() and p.read_bytes().startswith(b'#!'):
             p.chmod(0o755)
     copy(repo / 'device/boot/piano-boot-switch', support, 'usr/sbin/piano-boot-switch', 0o755)
+    copy(repo / 'device/boot/piano-slot-success', support, 'usr/sbin/piano-slot-success', 0o755)
+    copy(repo / 'device/boot/piano_bootslot.py', support, 'usr/lib/piano/boot/piano_bootslot.py', 0o644)
     copy(a.thp_live, support, 'usr/libexec/piano/piano-thp-live', 0o755)
     copy(a.busybox, support, 'usr/libexec/piano/busybox', 0o755)
     copy(repo / 'device/platform/piano-physical-platform', support, 'usr/libexec/piano/piano-physical-platform', 0o755)
