@@ -12,7 +12,7 @@ Ubuntu 层提取另需 curl、7z、unsquashfs；模拟器验证使用 QEMU syste
 不需要先拥有任何旧平板工作区或旧构建输出。
 
 下列命令在本仓根目录执行。KERNEL_SOURCE 指向独立 Linux Git，其 HEAD 必须与
-kernel/source.json 相符。项目内核远端尚未建立，当前不能仅从 stable 上游获取包含本地配置的提交。
+kernel/source.json 相符。项目内核源码以 `kernel/source.json` 的 `url` 为准（当前为私有仓库，正式公开前不对外开放）；仅从 stable 上游无法获取包含本地配置与板级提交的版本。
 
 ## 诊断内核
 
