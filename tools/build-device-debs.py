@@ -74,7 +74,8 @@ def main():
             'python3, openssl, device-tree-compiler, dracut, kmod, init-system-helpers',
             'Piano platform, touchscreen and persistent boot integration',
             '#!/bin/sh\nset -e\nif [ "$1" = configure ]; then\n'
-            ' deb-systemd-helper enable piano-thp.service piano-debug.service piano-debug-timeout.service >/dev/null\nfi\n')
+            ' deb-systemd-helper enable piano-thp.service piano-slot-success.service piano-debug.service '
+            'piano-debug-timeout.service >/dev/null\nfi\n')
     if a.support_only:
         (a.output / 'manifest.json').write_text(json.dumps(receipts, indent=2) + '\n')
         return

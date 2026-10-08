@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: MIT
+# ABL decrements slot A's retry count on every boot until the slot is marked
+# successful.  Ordering follows the Debian qbootctl.service convention: health
+# checks order themselves before the standard boot-complete.target, and the
+# marker runs only once that target is reached.  Only persistent boots
+# (piano.boot=persistent) qualify; the tool itself refuses images started with
+# `fastboot boot` and slot content that is not a registered store set.
+[Unit]
+Description=Mark piano boot slot A successful
+Documentation=man:systemd.special(7)
+Requires=boot-complete.target
+After=boot-complete.target basic.target
+ConditionKernelCommandLine=piano.boot=persistent
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/piano-slot-success --mark
+
+[Install]
+WantedBy=multi-user.target
