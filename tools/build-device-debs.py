@@ -75,7 +75,10 @@ def main():
             'python3, openssl, device-tree-compiler, dracut, kmod, init-system-helpers',
             'Piano platform, touchscreen and persistent boot integration',
             '#!/bin/sh\nset -e\nif [ "$1" = configure ]; then\n'
-            ' deb-systemd-helper enable piano-thp.service piano-slot-success.service piano-debug.service '
+            # piano-thp.service is udev-activated only; remove the multi-user.target link
+            # and deb-systemd-helper state left by versions that enabled it.
+            ' deb-systemd-helper purge piano-thp.service >/dev/null\n'
+            ' deb-systemd-helper enable piano-slot-success.service piano-debug.service '
             'piano-debug-timeout.service >/dev/null\nfi\n',
             recommends='openssh-server')  # developer mode only; piano-devmode refuses without sshd
     if a.support_only:
