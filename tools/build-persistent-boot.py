@@ -6,19 +6,38 @@ Adapted from erhai build-mainline-gki.py/sign-boot-triplet.py; see NOTICE.
 This tool writes regular output files only. It never discovers or flashes disks.
 """
 import argparse
-import gzip
 import hashlib
 import json
 from pathlib import Path
 import re
 import shutil
+import struct
 import subprocess
 import uuid
+import zlib
 
 
 def sha(path):
     with Path(path).open('rb') as f:
         return hashlib.file_digest(f, 'sha256').hexdigest()
+
+
+def empty_ramdisk():
+    """gzip of an empty newc archive, byte-identical on every Python version.
+
+    gzip.compress() wrote OS byte 0x03 under Python 3.12 and 0xff under 3.14,
+    so init_boot.img depended on the interpreter. The header is written here
+    with mtime 0, XFL 2 (level 9) and OS 3, the bytes of the 3.12-built release
+    set; the body is zlib's raw deflate at level 9.
+    """
+    name = b'TRAILER!!!\0'
+    blob = b'070701' + b''.join(f'{n:08x}'.encode() for n in
+                              (0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, len(name), 0)) + name
+    blob += b'\0' * (-len(blob) % 4)
+    deflate = zlib.compressobj(9, zlib.DEFLATED, -zlib.MAX_WBITS)
+    body = deflate.compress(blob) + deflate.flush()
+    return (b'\x1f\x8b\x08\x00' + struct.pack('<I', 0) + b'\x02\x03' + body +
+            struct.pack('<II', zlib.crc32(blob) & 0xffffffff, len(blob)))
 
 
 def main():
@@ -73,12 +92,8 @@ def main():
         cmdline += f' piano.debug_timeout={a.debug_timeout}'
     if a.module_blacklist:
         cmdline += ' module_blacklist=' + a.module_blacklist
-    name = b'TRAILER!!!\0'
-    blob = b'070701' + b''.join(f'{n:08x}'.encode() for n in
-                              (0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, len(name), 0)) + name
-    blob += b'\0' * (-len(blob) % 4)
     empty = out / 'empty.cpio.gz'
-    empty.write_bytes(gzip.compress(blob, mtime=0))
+    empty.write_bytes(empty_ramdisk())
     mk = ['python3', str(a.mkbootimg)]
     common = ['--header_version', '4', '--pagesize', str(profile['vendor_boot']['page_size'])]
     os_version = profile['boot']['avb_properties']['com.android.build.boot.os_version']
