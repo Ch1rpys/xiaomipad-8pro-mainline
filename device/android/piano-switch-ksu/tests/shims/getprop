@@ -1,0 +1,6 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Test shim: Android getprop.
+case $1 in
+ro.product.device) echo "${FAKE_DEVICE-piano}" ;;
+esac

@@ -1,0 +1,24 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Test shim: real dd ($REAL_DD), with fault injection for one partition.
+#   FAIL_DD_ON=<label>  FAIL_DD_MODE=fail|corrupt  FAIL_DD_TIMES=<n> (default 1)
+echo "dd $*" >>"$SHIM_LOG"
+target=
+for a in "$@"; do
+	case $a in of=*) target=${a#of=} ;; esac
+done
+if [ -n "${FAIL_DD_ON-}" ] && [ "${target##*/}" = "$FAIL_DD_ON" ]; then
+	done=$(cat "$FAIL_DD_COUNTER" 2>/dev/null || echo 0)
+	if [ "$done" -lt "${FAIL_DD_TIMES-1}" ]; then
+		echo $((done + 1)) >"$FAIL_DD_COUNTER"
+		if [ "$FAIL_DD_MODE" = fail ]; then
+			# Leave a damaged partial write behind, then fail like an I/O error.
+			$REAL_DD if=/dev/zero of="$target" bs=4096 count=64 conv=notrunc 2>/dev/null
+			exit 1
+		fi
+		$REAL_DD "$@" || exit
+		printf 'X' | $REAL_DD of="$target" bs=1 seek=4097 conv=notrunc 2>/dev/null
+		exit 0
+	fi
+fi
+exec $REAL_DD "$@"

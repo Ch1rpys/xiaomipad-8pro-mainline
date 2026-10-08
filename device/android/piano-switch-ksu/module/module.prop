@@ -1,0 +1,6 @@
+id=piano-switch
+name=Piano: switch to Ubuntu
+version=v0.1.0
+versionCode=1
+author=piano mainline project contributors
+description=Action writes the Ubuntu boot set stored on linux_rootfs into slot A (init_boot_a, vendor_boot_a, boot_a), verifies it and reboots. No images bundled.

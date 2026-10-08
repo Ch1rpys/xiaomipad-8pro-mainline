@@ -1,0 +1,4 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Test shim: record the reboot request.
+echo "svc $*" >>"$SHIM_LOG"

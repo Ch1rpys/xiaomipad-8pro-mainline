@@ -1,0 +1,7 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Test shim: undo the mount shim.
+echo "umount $*" >>"$SHIM_LOG"
+chmod -R u+w "$1/var" && rm -rf "$1/var" || exit 1
+grep -v " $1 ext4 " "$PIANO_MOUNTS" >"$PIANO_MOUNTS.new"
+mv "$PIANO_MOUNTS.new" "$PIANO_MOUNTS"

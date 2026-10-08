@@ -1,0 +1,9 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Test shim: blockdev on regular files standing in for partitions.
+echo "blockdev $*" >>"$SHIM_LOG"
+case $1 in
+--getsize64) n=$(wc -c <"$2") && echo $((n)) ;;
+--getro) echo 0 ;;
+*) exit 1 ;;
+esac

@@ -1,0 +1,9 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Test shim: "mount" an ext4 image by extracting /var with debugfs, read-only.
+echo "mount $*" >>"$SHIM_LOG"
+[ $# = 6 ] && [ "$1 $2 $3 $4" = "-t ext4 -o ro,noload" ] || { echo "mount shim: unexpected arguments: $*" >&2; exit 2; }
+[ -n "${FAKE_MOUNT_FAIL-}" ] && exit 32
+debugfs -R "rdump /var $6" "$5" 2>/dev/null && [ -d "$6/var" ] || exit 32
+chmod -R a-w "$6/var"
+printf '%s %s ext4 ro 0 0\n' "$(readlink -f "$5")" "$6" >>"$PIANO_MOUNTS"
