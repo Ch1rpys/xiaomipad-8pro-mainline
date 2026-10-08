@@ -294,7 +294,8 @@ device/boot/piano-slot-success and device/boot/piano_bootslot.py:
   the slot must hold a registered image set; the written GPT is compared byte
   for byte with the single-bit change. Unit ordering after boot-complete.target
   follows Debian's qbootctl.service; no qbootctl code is used.
-device/boot/tests/ is new MIT test code with synthetic disks and images only.
+device/boot/tests/ is new test code with synthetic disks and images only: MIT,
+except test_boot_update.py, GPL-2.0-only like the piano-boot-update hook it tests.
 packaging/piano-device-support/usr/share/polkit-1/actions/io.github.piano.switch.policy:
   The single-action structure (exec.path plus exec.argv1 selecting one
   subcommand for the desktop entry) follows device/gnome-overlay/usr/share/

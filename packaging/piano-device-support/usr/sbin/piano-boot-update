@@ -1,6 +1,15 @@
 #!/usr/bin/python3
 # SPDX-License-Identifier: GPL-2.0-only
-"""Build and retain a coherent boot image set after the distro initrd hook."""
+"""Build and retain a coherent boot image set after the distro initrd hook.
+
+The new set becomes /var/lib/piano/switch/ubuntu and the previous one
+ubuntu.prev.  On a running persistent piano boot (devicetree xiaomi,piano and
+piano.boot=persistent) `piano-boot-switch to-ubuntu --only-if-ubuntu` then
+rewrites slot A in place when it holds an Ubuntu store set, so the booted
+kernel and initrd keep matching the installed modules; Android in slot A is
+left alone.  Anywhere else (an image-building chroot, QEMU, a RAM root) only
+the store changes and no disk is inspected.
+"""
 import fcntl
 import json
 from pathlib import Path
@@ -10,35 +19,55 @@ import subprocess
 import sys
 import tempfile
 
-release = sys.argv[1]
-if not re.fullmatch(r'[0-9][A-Za-z0-9.+-]*-piano[A-Za-z0-9.+-]*', release):
-    raise SystemExit('Not a piano kernel release')
-config = Path('/etc/piano')
-layout = json.loads((config / 'layout.json').read_text())
-store = Path('/var/lib/piano/switch')
-store.mkdir(parents=True, exist_ok=True)
-tools = Path('/usr/lib/piano/boot')
-with (store / '.lock').open('a') as lock:
-    fcntl.flock(lock, fcntl.LOCK_EX)
-    with tempfile.TemporaryDirectory(prefix='.build-', dir=store) as tmp:
-        output = Path(tmp) / 'images'
-        subprocess.run([
-            'python3', str(tools / 'build-persistent-boot.py'),
-            '--kernel', f'/boot/vmlinuz-{release}',
-            '--dtb', f'/usr/lib/linux-image-{release}/piano-boot.dtb',
-            '--initrd', f'/boot/initrd.img-{release}',
-            '--profile', str(config / 'boot-profile.json'),
-            '--root-partuuid', layout['root_partuuid'],
-            '--bt-address-file', str(config / 'bluetooth-address'),
-            '--mkbootimg', str(tools / 'mkbootimg.py'),
-            '--avbtool', str(tools / 'avbtool.py'),
-            '--key', str(config / 'boot-signing.pem'), '--output', str(output)
-        ], check=True)
-        if (store / 'ubuntu.prev').exists():
-            shutil.rmtree(store / 'ubuntu.prev')
-        if (store / 'ubuntu').exists():
-            (store / 'ubuntu').rename(store / 'ubuntu.prev')
-        output.rename(store / 'ubuntu')
-# Switching/writing is a separate explicit operation; image generation is safe
-# in an offline chroot and does not inspect or modify the build host's disks.
-print(f'Piano boot image set prepared for {release}')
+
+def on_persistent_piano(root):
+    compatible = root / 'sys/firmware/devicetree/base/compatible'
+    cmdline = root / 'proc/cmdline'
+    return (compatible.is_file() and b'xiaomi,piano' in compatible.read_bytes().split(b'\0') and
+            cmdline.is_file() and 'piano.boot=persistent' in cmdline.read_text().split())
+
+
+def main(argv, root=Path('/'), run=subprocess.run):
+    release = argv[1] if len(argv) > 1 else ''
+    if not re.fullmatch(r'[0-9][A-Za-z0-9.+-]*-piano[A-Za-z0-9.+-]*', release):
+        raise SystemExit('Not a piano kernel release')
+    config = root / 'etc/piano'
+    layout = json.loads((config / 'layout.json').read_text())
+    store = root / 'var/lib/piano/switch'
+    store.mkdir(parents=True, exist_ok=True)
+    tools = root / 'usr/lib/piano/boot'
+    with (store / '.lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        with tempfile.TemporaryDirectory(prefix='.build-', dir=store) as tmp:
+            output = Path(tmp) / 'images'
+            run([
+                'python3', str(tools / 'build-persistent-boot.py'),
+                '--kernel', str(root / f'boot/vmlinuz-{release}'),
+                '--dtb', str(root / f'usr/lib/linux-image-{release}/piano-boot.dtb'),
+                '--initrd', str(root / f'boot/initrd.img-{release}'),
+                '--profile', str(config / 'boot-profile.json'),
+                '--root-partuuid', layout['root_partuuid'],
+                '--bt-address-file', str(config / 'bluetooth-address'),
+                '--mkbootimg', str(tools / 'mkbootimg.py'),
+                '--avbtool', str(tools / 'avbtool.py'),
+                '--key', str(config / 'boot-signing.pem'), '--output', str(output)
+            ], check=True)
+            if (store / 'ubuntu.prev').exists():
+                shutil.rmtree(store / 'ubuntu.prev')
+            if (store / 'ubuntu').exists():
+                (store / 'ubuntu').rename(store / 'ubuntu.prev')
+            output.rename(store / 'ubuntu')
+    print(f'Piano boot image set prepared for {release}')
+    if not on_persistent_piano(root):
+        print('Slot A not inspected: not a running persistent piano boot')
+        return 0
+    # The store lock is released: the switch takes it together with the device lock.
+    result = run([str(root / 'usr/sbin/piano-boot-switch'), 'to-ubuntu', '--only-if-ubuntu'])
+    if result.returncode:
+        raise SystemExit(f'piano-boot-switch to-ubuntu failed (exit {result.returncode}); the new set is in '
+                         f'{store}/ubuntu, see `piano-boot-switch status`')
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))
