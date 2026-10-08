@@ -18,7 +18,7 @@ GNOME 桌面，与 Android 共存。两个系统都从当前活动的 A 槽启�
 
 | 组件 | 状态 | 说明 |
 |---|---|---|
-| 启动（ABL、AVB） | 部分可用 | ABL 从 A 槽启动 v4 `boot`/`init_boot`/`vendor_boot` 镜像组。AVB footer 用设备所有者的密钥签名，只有已解锁的引导程序接受；不修改 `vbmeta`。系统尚不会把该槽标记为启动成功，若不重置，约 7 次 Ubuntu 启动后该槽将不可启动。 |
+| 启动（ABL、AVB） | 部分可用 | ABL 从 A 槽启动 v4 `boot`/`init_boot`/`vendor_boot` 镜像组。AVB footer 用设备所有者的密钥签名，只有已解锁的引导程序接受；不修改 `vbmeta`。主机 Fastboot 安装后，ABL 会递减 A 槽的重试计数，直到该槽被标记为启动成功。`piano-slot-success` 在每次持久 Ubuntu 启动后标记该槽；尚未在设备上验证，未标记时若不重置，约 7 次 Ubuntu 启动后该槽将不可启动。 |
 | 显示 | 部分可用 | 3200×2136、120 Hz，经 simpledrm 使用引导程序的帧缓冲（固件扫描输出）。没有原生 MDSS/DSI/面板驱动：亮度保持引导程序设定，不能关屏或唤醒。触控运行时出现过偶发整屏闪烁。 |
 | GNOME 桌面 | 可用 | Ubuntu 26.04 GNOME（Wayland，GDM），GPU 合成，200 % 缩放。 |
 | GPU | 可用 | Adreno 830（msm DRM），OpenGL ES 由 Mesa 26.2.0 加一个补丁提供，打包为 `piano-mesa`。Ubuntu 自带的 Mesa 26.0.3 不支持 A830。Vulkan、持续负载与 GPU 电源管理未验证。 |
@@ -73,10 +73,11 @@ GNOME 桌面，与 Android 共存。两个系统都从当前活动的 A 槽启�
 - **Ubuntu 镜像组：** `boot.img`（内核、含根分区 PARTUUID 的命令行）、`init_boot.img`（空 ramdisk）、
   `vendor_boot.img`（发行版 dracut initrd、写入本机蓝牙地址的启动 DTB），大小与原厂分区一致（96、8、96 MiB）。
 - **镜像位置：** 主机构建目录保存镜像、`SHA256SUMS` 和 `manifest.json`。安装后的系统中，内核 postinst
-  钩子 `piano-boot-update` 在内核或 initrd 更新后于 `/var/lib/piano/switch/ubuntu/` 重建 Ubuntu 镜像组，
-  不写分区；Android 镜像组保存在 `/var/lib/piano/switch/android/`。
-- **软件包：** `linux-image-7.2.6-piano+`；`piano-device-support`（启动钩子、触控服务、平台辅助程序、
-  挂起策略）；`piano-local-firmware`（设备固件，仅限本地使用）；`piano-mesa` 与 `piano-ubuntu-desktop`
+  钩子 `piano-boot-update` 在内核或 initrd 更新后于 `/var/lib/piano/switch/ubuntu/` 重建 Ubuntu 镜像组
+  （上一组移到 `ubuntu.prev/`），A 槽为 Ubuntu 组时原位重写该槽；Android 镜像组保存在
+  `/var/lib/piano/switch/android/`。存储布局见 [device/boot/README.md](device/boot/README.md)。
+- **软件包：** `linux-image-7.2.6-piano+`；`piano-device-support`（启动钩子、槽切换与启动成功标记、
+  触控服务、平台辅助程序、挂起策略）；`piano-local-firmware`（设备固件，仅限本地使用）；`piano-mesa` 与 `piano-ubuntu-desktop`
   （Mesa 环境、显示缩放）。
 
 ## 安装
@@ -108,6 +109,10 @@ adb -s <serial> reboot bootloader
 python3 tools/piano-switch.py --serial <serial> --images <ubuntu-set> --rollback <android-set>
 fastboot -s <serial> reboot
 ```
+
+在 Ubuntu 中，应用网格里的 **切换到 Android**（或 `sudo piano-boot-switch to-android --reboot`）以同样的
+校验、整分区读回和回滚写入 `/var/lib/piano/switch/android/` 中的 Android 组，然后重启。尚未在设备上验证，
+见 [device/boot/README.md](device/boot/README.md)。
 
 - **无画面或无响应：** 长按电源 + 音量下进入 Fastboot，切回 Android。正式镜像没有调试控制台。
 - **停在 Fastboot 且 `slot-unbootable:a` 为 `yes`：** 执行 `fastboot -s <serial> --set-active=a` 重置 A 槽

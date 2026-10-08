@@ -22,7 +22,7 @@ the project scope
 
 | Component | Status | Notes |
 |---|---|---|
-| Boot (ABL, AVB) | Partial | ABL boots a v4 `boot`/`init_boot`/`vendor_boot` set from slot A. AVB footers are signed with the owner's key, which only an unlocked bootloader accepts; `vbmeta` is unchanged. The slot is not yet marked as successfully booted, so it becomes unbootable after about seven Ubuntu boots unless reset. |
+| Boot (ABL, AVB) | Partial | ABL boots a v4 `boot`/`init_boot`/`vendor_boot` set from slot A. AVB footers are signed with the owner's key, which only an unlocked bootloader accepts; `vbmeta` is unchanged. After a host Fastboot install ABL counts slot A's retries down until the slot is marked successful. `piano-slot-success` marks it after each persistent Ubuntu boot; this is not yet verified on the device, and without it the slot becomes unbootable after about seven Ubuntu boots unless reset. |
 | Display | Partial | 3200×2136 at 120 Hz through simpledrm on the bootloader framebuffer (firmware scanout). No native MDSS/DSI/panel driver: brightness stays at the bootloader level; no screen-off or wake. Intermittent whole-screen flicker has been observed with touch active. |
 | GNOME desktop | Working | Ubuntu 26.04 GNOME on Wayland with GDM, GPU-composited, 200 % scaling. |
 | GPU | Working | Adreno 830 (msm DRM) with OpenGL ES from Mesa 26.2.0 plus one patch, packaged as `piano-mesa`. Ubuntu's Mesa 26.0.3 does not support the A830. Vulkan, sustained load and GPU power management are untested. |
@@ -84,11 +84,13 @@ the project scope
   Bluetooth address), sized like the stock partitions (96, 8 and 96 MiB).
 - **Image locations:** the host build directory holds the images, `SHA256SUMS` and
   `manifest.json`. On the installed system the kernel postinst hook `piano-boot-update` rebuilds the
-  Ubuntu set in `/var/lib/piano/switch/ubuntu/` after kernel or initrd updates without writing
-  partitions; the Android set is kept in `/var/lib/piano/switch/android/`.
-- **Packages:** `linux-image-7.2.6-piano+`; `piano-device-support` (boot hooks, touch service,
-  platform helper, suspend policy); `piano-local-firmware` (device firmware, local use only);
-  `piano-mesa` and `piano-ubuntu-desktop` (Mesa environment, display scale).
+  Ubuntu set in `/var/lib/piano/switch/ubuntu/` (the previous one in `ubuntu.prev/`) after kernel or
+  initrd updates and rewrites slot A in place when it holds an Ubuntu set; the Android set is kept in
+  `/var/lib/piano/switch/android/`. Store layout: [device/boot/README.md](device/boot/README.md).
+- **Packages:** `linux-image-7.2.6-piano+`; `piano-device-support` (boot hooks, slot switching and
+  success marking, touch service, platform helper, suspend policy); `piano-local-firmware` (device
+  firmware, local use only); `piano-mesa` and `piano-ubuntu-desktop` (Mesa environment, display
+  scale).
 
 ## Installation
 
@@ -122,6 +124,11 @@ adb -s <serial> reboot bootloader
 python3 tools/piano-switch.py --serial <serial> --images <ubuntu-set> --rollback <android-set>
 fastboot -s <serial> reboot
 ```
+
+From Ubuntu, **Switch to Android** in the app grid (or `sudo piano-boot-switch to-android --reboot`)
+writes the Android set from `/var/lib/piano/switch/android/` with the same checks, full readback and
+rollback, then restarts. It is not yet verified on the device; see
+[device/boot/README.md](device/boot/README.md).
 
 - **No picture or no response:** hold Power + Volume Down to enter Fastboot and switch to Android.
   Release images have no debug console.
