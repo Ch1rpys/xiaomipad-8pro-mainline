@@ -12,7 +12,7 @@ All hardware statuses refer to this configuration only.
 |---|---|
 | Device | Xiaomi Pad 8 Pro (`piano`), model 25091RP04C (China), SoC SM8750P, 16 GB RAM, 512 GB UFS; bootloader unlocked |
 | Stock build | OS3.0.303.0.WPYCNXM |
-| Kernel | `7.2.6-piano+`, kernel repository commit `b136d29d2` as pinned in [`kernel/source.json`](../kernel/source.json); fragments `piano-diagnostic.config`, `piano-desktop-diag.config`, `piano-persistent.config`; DTB `sm8750-xiaomi-piano-desktop.dtb`; 1071 modules |
+| Kernel | `7.2.6-piano+`, kernel repository commit `b136d29d2`; fragments `piano-diagnostic.config`, `piano-desktop-diag.config`, `piano-persistent.config`; DTB `sm8750-xiaomi-piano-desktop.dtb`; 1071 modules. [`kernel/source.json`](../kernel/source.json) now pins `65bf28a0f`, whose package `linux-image-7.2.6-piano1` (unique release, see [`kernel/abi.json`](../kernel/abi.json)) is built but not installed |
 | Integration | this repository at `48964a9`; `piano-device-support` 0.1+20261008.1 |
 | Userspace | Ubuntu 26.04 Desktop ARM64; Mesa 26.2.0 with `mesa/a830-speedbin.patch` |
 
