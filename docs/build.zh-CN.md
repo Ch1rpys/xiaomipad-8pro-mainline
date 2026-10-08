@@ -295,7 +295,8 @@ ABI 是整数：被打包内核的提交或最终 .config 一变（含只改 DTS
 upload 只在以不同包内容重新打包同一构建时增加；包 `Provides: linux-image`，各 ABI 之间不冲突。
 不带 piano-release.config 的构建保留诊断后缀（如 `7.2.6-piano-diag`），打包器拒绝。
 旧版 `7.2.6-piano+` 在 `linux-version sort` 中排在所有 `7.2.6-piano<N>` 之后（更高），与新 release 并存期间
-`update-initramfs -u` 仍选中它；安装新 ABI 并从其启动后应移除旧包，启动钩子的相应修改见 Ubuntu 专项。
+`update-initramfs -u` 仍选中它，而 piano-device-support 现有启动钩子接受任何 `*-piano*` release；
+因此迁移需要钩子只认 `-piano<N>` 且只写最新安装的内核，并在从新 ABI 启动后移除旧包。
 内容：/boot 的 vmlinuz（未压缩 Image，与 build-result 同 hash）、System.map、config，
 /usr/lib/linux-image-<release>/qcom/ 下 build-result 记录的全部 DTB，
 以及 /usr/lib/modules/<release>/ 下的内建清单和可选匹配模块。
