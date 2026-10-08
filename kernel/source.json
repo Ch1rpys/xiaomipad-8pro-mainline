@@ -1,12 +1,17 @@
 {
   "schema": 1,
-  "purpose": "piano RAM-only bring-up; no installed system or peripheral support claim",
+  "purpose": "piano kernel pin for the RAM bring-up variants and the installed first-release Ubuntu system (persistent boot images, full module tree); hardware status is in docs/STATUS.md, not implied by this pin",
   "upstream_url": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git",
   "upstream_tag": "v7.2.6",
   "upstream_commit": "500df175a7f9e6bc1a9c328590ca5150f84f9ff0",
-  "url": null,
+  "url": "https://github.com/yzddmr6/linux-sm8750-piano",
   "commit": "b136d29d2333549910c93aa5856379e571321921",
   "branch": "piano/dev",
   "config": "arch/arm64/configs/piano-diagnostic.config",
-  "note": "The project kernel remote is not published. Supply the independent local checkout as KERNEL_SOURCE; no remote build reproducibility is claimed yet."
+  "release_config_fragments": [
+    "arch/arm64/configs/piano-diagnostic.config",
+    "arch/arm64/configs/piano-desktop-diag.config",
+    "arch/arm64/configs/piano-persistent.config"
+  ],
+  "note": "The kernel repository is private (owner yzddmr6) until publication; cloning needs access. 'config' is the base fragment read by tools/build-kernel.sh; the installed release merges the remaining release_config_fragments in that order via CONFIG_FRAGMENT_EXTRA (space separated)."
 }
