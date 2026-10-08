@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: MIT
+# Hide every partition on piano's internal UFS that is not a Linux filesystem
+# partition from udisks clients (GNOME Files, Shell): Android, firmware,
+# persist and modem volumes are not offered for mounting.  Only the GPT type
+# GUID decides, not labels or this unit's partition GUIDs.  Runs after
+# 60-persistent-storage.rules, which imports ID_PART_ENTRY_TYPE.
+#
+# Whole-disk nodes are left alone: each LUN carries a GPT and no filesystem,
+# so udisks offers no volume for it, and UDISKS_IGNORE would not change the
+# Drive objects that GNOME's About page sums (the internal total stays the
+# whole UFS size).  GNOME Disks ignores these hints; modifying an internal
+# disk there still needs administrator authentication.
+ACTION=="remove", GOTO="piano_internal_storage_end"
+SUBSYSTEM!="block", GOTO="piano_internal_storage_end"
+KERNEL!="sd*", GOTO="piano_internal_storage_end"
+ENV{DEVTYPE}!="partition", GOTO="piano_internal_storage_end"
+ENV{ID_PART_ENTRY_TYPE}=="0fc63daf-8483-4772-8e79-3d69d8477de4", GOTO="piano_internal_storage_end"
+SUBSYSTEMS=="platform", KERNELS=="1d84000.ufshc", ENV{UDISKS_IGNORE}="1"
+LABEL="piano_internal_storage_end"

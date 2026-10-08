@@ -39,5 +39,26 @@ done
 grep -q 'piano-slot-success.service' "$here/../../../tools/build-device-debs.py" ||
 	bad 'build-device-debs.py does not enable piano-slot-success.service'
 
+# udev rule: parse with udevadm; the decisions are the controller and type GUID.
+rule=$pkg/usr/lib/udev/rules.d/90-piano-internal-storage.rules
+if command -v udevadm >/dev/null 2>&1 && udevadm verify --help >/dev/null 2>&1; then
+	if udevadm verify --resolve-names=never "$rule" >/dev/null; then
+		ok 'udevadm verify 90-piano-internal-storage.rules'
+	else
+		bad 'udevadm verify 90-piano-internal-storage.rules'
+	fi
+else
+	skip 'udevadm verify unavailable'
+fi
+grep -qx 'SUBSYSTEMS=="platform", KERNELS=="1d84000.ufshc", ENV{UDISKS_IGNORE}="1"' "$rule" ||
+	bad 'rule does not restrict UDISKS_IGNORE to the UFS controller'
+grep -qx 'ENV{ID_PART_ENTRY_TYPE}=="0fc63daf-8483-4772-8e79-3d69d8477de4", GOTO="piano_internal_storage_end"' "$rule" ||
+	bad 'rule does not exempt the Linux filesystem type GUID'
+grep -qx 'ENV{DEVTYPE}!="partition", GOTO="piano_internal_storage_end"' "$rule" ||
+	bad 'rule does not leave whole-disk nodes alone'
+if grep -Eq 'PARTLABEL|ID_PART_ENTRY_NAME|ID_PART_ENTRY_UUID|sd[a-f][0-9]' "$rule"; then
+	bad 'rule depends on labels, partition GUIDs or sdX names'
+fi
+
 [ "$fail" = 0 ] && echo 'integration files: all checks passed'
 exit "$fail"
