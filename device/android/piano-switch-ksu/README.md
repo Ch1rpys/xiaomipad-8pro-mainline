@@ -5,8 +5,9 @@ Ubuntu boot set into the active A slot and reboots. The module holds scripts
 only; the images come from the Ubuntu root filesystem.
 
 Status: the host tests pass. The script has also run on the device, as the
-shell user, against regular files. The module has not been installed, and it
-has not written a real partition.
+shell user, against regular files. A read-only `--check` against the real
+partitions and store also passed (see the end of this file). The module has
+not been installed, and it has not written a real partition.
 
 ## What the action does
 
@@ -106,7 +107,7 @@ adb reboot
 
 You can also install from the Modules page of the KernelSU Next manager.
 
-## Device verification (not yet done)
+## Device verification
 
 1. `adb shell su -c 'ksud module list'` lists `piano-switch`, and the manager
    shows its action button.
@@ -124,3 +125,33 @@ You can also install from the Modules page of the KernelSU Next manager.
    - The log shows all three readbacks.
    - The device reboots into Ubuntu.
    - Fastboot `slot-successful:a` and `slot-retry-count:a` are unchanged.
+
+### 2026-10-08 read-only results (module not installed)
+
+Shell root came from KernelSU-Next v3.4.0 LKM (`uid=0`, `u:r:ksu:s0`). Nothing
+was written to a partition, and the device did not reboot.
+
+- **`/proc/bootconfig`** is readable as root and contains
+  `androidboot.slot_suffix = "_a"`.
+- **`linux_rootfs`** is ext4 with incompat `0x22c2`, so `needs_recovery` is
+  clear, and it was not mounted.
+  - `mount -t ext4 -o ro,noload` from the KernelSU domain works; it shows up as
+    `ro,seclabel,relatime,norecovery`.
+  - The store files carry `u:object_r:unlabeled:s0` and can still be read.
+- **The store sets:**
+  - `android/` and `ubuntu/` each list the three images in SHA256SUMS, and the
+    images are the full partition sizes (8,388,608 and 100,663,296 bytes).
+  - `ubuntu/` also holds extra files, such as `boot-ram-check.img` and
+    `manifest.json`, which the script ignores.
+- **`--check`** ran with `PIANO_STATE` set to a temporary directory. It
+  verified both sets, then refused with exit status 1:
+
+  ```
+  REFUSED: slot A does not hold the stored android set; boot Ubuntu and run 'piano-boot-switch import-android' (or refresh /var/lib/piano/switch/android) before switching from Android
+  ```
+
+  This was expected: the store's `android/init_boot.img` is still the Magisk
+  image, while slot A holds the KernelSU init_boot. After the refusal the
+  filesystem was unmounted and the lock was released.
+
+Not yet run: the module install, the action button, and a real write.
