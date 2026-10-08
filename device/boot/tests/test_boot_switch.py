@@ -1,0 +1,405 @@
+# SPDX-License-Identifier: MIT
+"""piano-boot-switch with temporary files standing in for slot-A partitions."""
+import contextlib
+import fcntl
+import io
+import json
+import os
+import pwd
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+from unittest import mock
+
+import fakepiano as fp
+from fakepiano import slot
+
+tool = fp.load_tool('piano-boot-switch')
+
+
+class Base(unittest.TestCase):
+    occupant = 'ubuntu'
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.p = fp.FakePiano(self.tmp.name, occupant=self.occupant)
+        self.store = self.p.root / 'var/lib/piano/switch'
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def run_tool(self, *argv, env=None):
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err), \
+                mock.patch.dict(os.environ, env or {}, clear=False):
+            rc = tool.main(list(argv), host=self.p.host)
+        self.stderr = err.getvalue()
+        return rc, json.loads(out.getvalue())
+
+    def runs(self):
+        return [e[1] for e in self.p.host.events if e[0] == 'run']
+
+    def assert_slot(self, name):
+        self.assertEqual(self.p.slot_content(), self.p.sets[name])
+
+    def refused(self, code, *argv):
+        before = self.p.slot_content()
+        rc, report = self.run_tool(*argv)
+        self.assertEqual((rc, report['result'], report['code']), (1, 'refused', code), report)
+        self.assertEqual(self.p.slot_content(), before)
+        return report
+
+
+class Switch(Base):
+    def test_to_android_writes_reads_back_and_records(self):
+        rc, report = self.run_tool('to-android')
+        self.assertEqual((rc, report['result'], report['rollback']), (0, 'written', 'ubuntu'), report)
+        self.assert_slot('android')
+        state = json.loads((self.store / 'state.json').read_text())
+        self.assertEqual((state['result'], state['occupant'], state['command']), ('written', 'android', 'to-android'))
+        log = (self.store / 'switch.log').read_text()
+        self.assertIn('Slot A now holds store/android', log)
+        self.assertEqual(self.runs(), [], 'no reboot without --reboot/--desktop')
+        self.assertTrue(any(e[0] == 'log' for e in self.p.host.events))
+
+    def test_desktop_reboots_after_success(self):
+        rc, report = self.run_tool('to-android', '--desktop')
+        self.assertEqual(rc, 0)
+        self.assertEqual(self.runs(), [['systemctl', 'reboot']])
+
+    def test_already_target_is_unchanged_and_still_reboots_for_desktop(self):
+        self.p.fill_slot(self.p.sets['android'])
+        rc, report = self.run_tool('to-android', '--desktop')
+        self.assertEqual((rc, report['result']), (0, 'unchanged'))
+        self.assertEqual(self.runs(), [['systemctl', 'reboot']])
+
+    def test_to_ubuntu_from_android(self):
+        self.p.fill_slot(self.p.sets['android'])
+        rc, report = self.run_tool('to-ubuntu', '--reboot')
+        self.assertEqual((rc, report['result'], report['rollback']), (0, 'written', 'android'))
+        self.assert_slot('ubuntu')
+        self.assertEqual(self.runs(), [['systemctl', 'reboot']])
+
+    def test_occupant_ignores_slot_attributes(self):
+        # The former bit-exact attribute snapshot refused after every ABL decrement.
+        for a in (0x3f, 0x37, 0x2f, 0x77):
+            self.p.set_boot_attrs(a=a)
+            rc, report = self.run_tool('status')
+            self.assertEqual((rc, report['occupant']), (0, 'ubuntu'), a)
+        self.assertEqual(self.run_tool('to-android')[0], 0)
+
+    def test_dry_run_writes_nothing(self):
+        rc, report = self.run_tool('to-android', '--dry-run', '--desktop')
+        self.assertEqual((rc, report['result']), (0, 'would-write'))
+        self.assert_slot('ubuntu')
+        self.assertEqual(self.runs(), [])
+
+    def test_kernel_update_rewrites_previous_ubuntu(self):
+        self.p.fill_slot(self.p.sets['ubuntu.prev'])
+        rc, report = self.run_tool('to-ubuntu', '--only-if-ubuntu')
+        self.assertEqual((rc, report['result'], report['rollback']), (0, 'written', 'ubuntu.prev'))
+        self.assert_slot('ubuntu')
+        self.assertEqual(self.runs(), [])
+
+    def test_kernel_update_leaves_android_in_place(self):
+        self.p.fill_slot(self.p.sets['android'])
+        rc, report = self.run_tool('to-ubuntu', '--only-if-ubuntu')
+        self.assertEqual((rc, report['result']), (0, 'skipped'))
+        self.assert_slot('android')
+
+    def test_kernel_update_refuses_unknown_occupant(self):
+        self.p.fill_slot(fp.image_set('ubuntu', 'unregistered'))
+        self.refused('occupant-unknown', 'to-ubuntu', '--only-if-ubuntu')
+
+    def test_signals_blocked_during_writes(self):
+        seen = []
+        real = tool.write_set
+
+        def check(*a):
+            seen.append(slot.signal.SIGTERM in slot.signal.pthread_sigmask(slot.signal.SIG_BLOCK, []))
+            real(*a)
+        with mock.patch.object(tool, 'write_set', check):
+            self.assertEqual(self.run_tool('to-android')[0], 0)
+        self.assertEqual(seen, [True])
+        self.assertNotIn(slot.signal.SIGTERM, slot.signal.pthread_sigmask(slot.signal.SIG_BLOCK, []))
+
+
+class Rollback(Base):
+    def corrupt_readback(self, bad):
+        real = slot.digest
+
+        def digest(path, size):
+            if path == self.p.lun4.part_node(bad):
+                with open(path, 'rb') as f:
+                    if f.read(4096) == self.p.sets['android'][bad[:-2]][:4096]:
+                        return '0' * 64
+            return real(path, size)
+        return mock.patch.object(slot, 'digest', digest)
+
+    def test_readback_failure_restores_the_occupant(self):
+        with self.corrupt_readback('vendor_boot_a'):
+            rc, report = self.run_tool('to-android', '--desktop', env={'PKEXEC_UID': str(os.getuid())})
+        self.assertEqual((rc, report['result']), (1, 'rolled-back'), report)
+        self.assert_slot('ubuntu')
+        state = json.loads((self.store / 'state.json').read_text())
+        self.assertEqual((state['result'], state['occupant']), ('rolled-back', 'ubuntu'))
+        runs = self.runs()
+        self.assertNotIn(['systemctl', 'reboot'], runs)
+        self.assertEqual(len(runs), 1)
+        user = pwd.getpwuid(os.getuid()).pw_name
+        self.assertEqual(runs[0][:4], ['busctl', '--user', f'--machine={user}@.host', 'call'])
+        self.assertIn('Notify', runs[0])
+        self.assertIn('store/ubuntu was written back', runs[0][-4])
+
+    def test_write_error_restores_the_occupant(self):
+        real = slot.pwrite_all
+        calls = []
+
+        def fail_second(fd, data, offset):
+            calls.append(offset)
+            if len(calls) == 2:
+                raise OSError(5, 'Input/output error')
+            real(fd, data, offset)
+        with mock.patch.object(slot, 'pwrite_all', fail_second):
+            rc, report = self.run_tool('to-android')
+        self.assertEqual((rc, report['result']), (1, 'rolled-back'))
+        self.assert_slot('ubuntu')
+
+    def test_failed_rollback_is_reported(self):
+        with mock.patch.object(slot, 'pwrite_all', side_effect=OSError(5, 'Input/output error')):
+            rc, report = self.run_tool('to-android', '--desktop')
+        self.assertEqual((rc, report['result']), (1, 'rollback-failed'))
+        self.assertIn('recover from Fastboot', report['message'])
+        self.assertEqual(self.runs(), [], 'no PKEXEC_UID: no notification, and never a reboot')
+
+    def test_cli_failure_without_desktop_does_not_notify(self):
+        with self.corrupt_readback('boot_a'):
+            rc, report = self.run_tool('to-android', env={'PKEXEC_UID': str(os.getuid())})
+        self.assertEqual((rc, self.runs()), (1, []))
+        self.assertIn('ERROR', (self.store / 'switch.log').read_text())
+
+
+class Refusals(Base):
+    def test_unknown_occupant(self):
+        self.p.fill_slot(fp.image_set('android', 'other-android'))
+        report = self.refused('occupant-unknown', 'to-android', '--desktop')
+        self.assertIn('nothing was written', report['message'])
+
+    def test_target_set_digest(self):
+        img = self.store / 'android/boot.img'
+        img.write_bytes(img.read_bytes()[:-1] + b'\x01')
+        self.refused('set-digest', 'to-android')
+
+    def test_target_set_size(self):
+        img = self.store / 'android/init_boot.img'
+        img.write_bytes(img.read_bytes() + b'\0')
+        self.refused('set-size', 'to-android')
+
+    def test_rollback_set_must_verify_before_the_first_write(self):
+        img = self.store / 'ubuntu/vendor_boot.img'
+        img.write_bytes(img.read_bytes()[:-1] + b'\x01')
+        self.refused('set-digest', 'to-android')
+
+    def test_android_set_with_ubuntu_marker(self):
+        marked = fp.image_set('ubuntu', 'fake-android')
+        self.p.store_set('android', marked)
+        self.refused('set-kind', 'to-android')
+
+    def test_ubuntu_set_without_marker(self):
+        self.p.fill_slot(self.p.sets['android'])
+        self.p.store_set('ubuntu', fp.image_set('android', 'not-ubuntu'))
+        self.refused('set-kind', 'to-ubuntu')
+
+    def test_malformed_sums(self):
+        (self.store / 'android/SHA256SUMS').write_text('nonsense\n')
+        self.refused('set-sums-invalid', 'to-android')
+
+    def test_slot_b_and_unselected_slot(self):
+        self.p.cmdline(fp.UBUNTU_CMDLINE + ' androidboot.slot_suffix=_b')
+        self.refused('not-slot-a', 'to-android')
+        self.p.cmdline(fp.UBUNTU_CMDLINE + ' ' + fp.ABL_APPEND)
+        self.p.set_boot_attrs(a=0x37, b=0x06)
+        self.refused('slot-a-not-selected', 'to-android')
+
+    def test_serial(self):
+        self.p.cmdline(fp.UBUNTU_CMDLINE.replace(fp.SERIAL, 'other'))
+        self.refused('serial-mismatch', 'to-android')
+
+    def test_malformed_map(self):
+        (self.p.root / 'etc/piano/boot-partitions.json').write_text('[{"label": "boot_a"}')
+        self.refused('invalid-input', 'to-android')
+
+    def test_map_mismatch(self):
+        rows = json.loads((self.p.root / 'etc/piano/boot-partitions.json').read_text())
+        rows[0]['start_bytes'] += 4096
+        (self.p.root / 'etc/piano/boot-partitions.json').write_text(json.dumps(rows))
+        self.refused('map-mismatch', 'to-android')
+
+    def test_mounted(self):
+        mount = self.p.root / 'proc/self/mountinfo'
+        boot = next(i for i, r in enumerate(self.p.lun4.rows, 1) if r.name == 'boot_a')
+        mount.write_text(mount.read_text() + f'30 22 8:{4 * 16 + boot} / /mnt rw - vfat /dev/x rw\n')
+        self.refused('partition-mounted', 'to-android')
+
+    def test_expiring_debug_session(self):
+        self.p.cmdline(fp.UBUNTU_CMDLINE + ' piano.debug=1 piano.debug_timeout=150')
+        self.refused('session-expiring', 'to-android')
+        # Read-only commands stay available.
+        self.assertEqual(self.run_tool('status')[0], 0)
+
+    def test_lock_shared_with_marker(self):
+        with open(self.p.root / 'run/piano-boot-switch.lock', 'a') as held:
+            fcntl.flock(held, fcntl.LOCK_EX)
+            self.refused('locked', 'to-android')
+
+    def test_backup_gpt_damage_is_reported_not_blocking(self):
+        self.p.lun4.write_gpt(after_seal=lambda b: b['backup_header'].__setitem__(40, 1))
+        rc, report = self.run_tool('status')
+        self.assertEqual(report['backup_gpt']['code'], 'gpt-header-crc')
+        self.assertEqual(self.run_tool('to-android')[0], 0)
+
+
+class StatusVerify(Base):
+    def test_status_reports_stale_android_set_by_image(self):
+        ksu = dict(self.p.sets['android'])
+        ksu['init_boot'] = fp.boot_image(fp.SIZES['init_boot'], '', 'ksu')
+        self.p.fill_slot(ksu)
+        rc, report = self.run_tool('status')
+        self.assertEqual((rc, report['occupant'], report['slot_content']), (0, 'unknown', 'android'))
+        self.assertEqual(report['store']['android']['matches_slot'],
+                         {'boot.img': True, 'init_boot.img': False, 'vendor_boot.img': True})
+        self.assertEqual(report['slot_sha256']['init_boot.img'], fp.sha(ksu['init_boot']))
+        rc, report = self.run_tool('verify')
+        self.assertEqual((rc, report['code']), (1, 'verify-failed'))
+
+    def test_status_lists_each_set_and_stray_entries(self):
+        for stray in ('ubuntu-debug', 'ubuntu-debug-fixed', 'ubuntu-original-v4'):
+            self.p.store_set(stray, fp.image_set('ubuntu', stray))
+        (self.store / '.lock').touch()
+        (self.store / '.build-x1').mkdir()
+        rc, report = self.run_tool('status')
+        self.assertEqual(report['stray'], ['ubuntu-debug', 'ubuntu-debug-fixed', 'ubuntu-original-v4'])
+        self.assertEqual(set(report['store']), {'android', 'ubuntu', 'ubuntu.prev'})
+        self.assertEqual({n: v['equals_slot'] for n, v in report['store'].items()},
+                         {'android': False, 'ubuntu': True, 'ubuntu.prev': False})
+        self.assertEqual(report['store']['ubuntu']['sha256']['boot.img'], fp.sha(self.p.sets['ubuntu']['boot']))
+        # A stray set identical to the slot is never taken as the occupant.
+        self.p.fill_slot(fp.image_set('ubuntu', 'ubuntu-debug'))
+        self.assertEqual(self.run_tool('status')[1]['occupant'], 'unknown')
+        self.refused('occupant-unknown', 'to-android')
+
+    def test_verify_passes(self):
+        rc, report = self.run_tool('verify')
+        self.assertEqual((rc, report['occupant'], report['android'], report['ubuntu']),
+                         (0, 'ubuntu', 'verified', 'verified'), report)
+
+    def test_status_reports_last_state(self):
+        self.run_tool('to-android')
+        rc, report = self.run_tool('status')
+        self.assertEqual((report['occupant'], report['last']['result']), ('android', 'written'))
+
+
+class Import(Base):
+    occupant = 'android'
+
+    def test_import_android_from_slot_replaces_stale_set(self):
+        ksu = dict(self.p.sets['android'])
+        ksu['init_boot'] = fp.boot_image(fp.SIZES['init_boot'], '', 'ksu')
+        self.p.fill_slot(ksu)
+        rc, report = self.run_tool('import-android')
+        self.assertEqual((rc, report['result'], report['source']), (0, 'imported', 'slot-a'), report)
+        self.assertEqual((self.store / 'android/init_boot.img').read_bytes(), ksu['init_boot'])
+        sums = (self.store / 'android/SHA256SUMS').read_text().splitlines()
+        self.assertEqual(sums, [f'{fp.sha(ksu[n])}  {n}.img' for n in ('boot', 'init_boot', 'vendor_boot')])
+        self.assertEqual(self.run_tool('status')[1]['occupant'], 'android')
+        self.assertFalse((self.store / '.android.new').exists() or (self.store / '.android.old').exists())
+
+    def test_import_android_from_directory(self):
+        ksu = dict(self.p.sets['android'])
+        ksu['init_boot'] = fp.boot_image(fp.SIZES['init_boot'], '', 'ksu')
+        source = self.p.image_dir('tmp-ksu', ksu)
+        rc, report = self.run_tool('import-android', '--from', str(source))
+        self.assertEqual((rc, report['result']), (0, 'imported'), report)
+        self.assertEqual((self.store / 'android/init_boot.img').read_bytes(), ksu['init_boot'])
+        # Slot A still holds the old Android set, which is no longer in the store.
+        self.assertEqual(self.run_tool('status')[1]['occupant'], 'unknown')
+
+    def test_import_android_refuses_ubuntu_content(self):
+        self.p.fill_slot(fp.image_set('ubuntu', 'host-release'))
+        before = (self.store / 'android/SHA256SUMS').read_text()
+        self.refused('ubuntu-content', 'import-android')
+        self.assertEqual((self.store / 'android/SHA256SUMS').read_text(), before)
+        source = self.p.image_dir('tmp-ubuntu', fp.image_set('ubuntu', 'y'))
+        self.refused('ubuntu-content', 'import-android', '--from', str(source))
+
+    def test_import_android_from_directory_checks_sizes_and_digests(self):
+        source = self.p.image_dir('tmp-bad', self.p.sets['android'])
+        (source / 'boot.img').write_bytes(b'short')
+        self.refused('set-size', 'import-android', '--from', str(source))
+        shutil.rmtree(source)
+        source = self.p.image_dir('tmp-bad', self.p.sets['android'])
+        (source / 'SHA256SUMS').write_text((source / 'SHA256SUMS').read_text().replace('a', 'b', 1))
+        self.refused('set-digest', 'import-android', '--from', str(source))
+
+    def test_import_unchanged(self):
+        rc, report = self.run_tool('import-android')
+        self.assertEqual((rc, report['result']), (0, 'unchanged'))
+
+
+class ImportUbuntu(Base):
+    def setUp(self):
+        super().setUp()
+        self.release = fp.image_set('ubuntu', 'host-release')
+        self.p.fill_slot(self.release)
+
+    def test_registers_running_slot_set(self):
+        old_ubuntu = (self.store / 'ubuntu/SHA256SUMS').read_text()
+        rc, report = self.run_tool('import-ubuntu')
+        self.assertEqual((rc, report['result']), (0, 'imported'), report)
+        self.assertEqual((self.store / 'ubuntu.prev/SHA256SUMS').read_text(), old_ubuntu)
+        self.assertEqual(self.run_tool('status')[1]['occupant'], 'ubuntu')
+        # The marker now accepts the slot.
+        marker = fp.load_tool('piano-slot-success')
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(marker.main(['--mark'], host=self.p.host), 0)
+
+    def test_from_directory(self):
+        self.p.fill_slot(self.p.sets['android'])
+        source = self.p.image_dir('tmp-release', self.release)
+        rc, report = self.run_tool('import-ubuntu', '--from', str(source))
+        self.assertEqual((rc, report['result']), (0, 'imported'), report)
+        self.assertEqual((self.store / 'ubuntu/boot.img').read_bytes(), self.release['boot'])
+
+    def test_refuses_debug_session(self):
+        self.p.cmdline(fp.UBUNTU_CMDLINE + ' piano.debug=1 piano.debug_timeout=900')
+        self.refused('not-booted-from-slot', 'import-ubuntu')
+
+    def test_refuses_android_content(self):
+        self.p.fill_slot(self.p.sets['android'])
+        self.p.store_set('android', fp.image_set('android', 'unrelated'))
+        self.refused('wrong-content', 'import-ubuntu')
+
+
+class Cli(unittest.TestCase):
+    @unittest.skipIf(os.geteuid() == 0, 'checks the unprivileged refusal')
+    def test_standalone_script_runs_and_requires_root(self):
+        for script, argv in (('piano-boot-switch', ['status']), ('piano-slot-success', ['--check'])):
+            r = subprocess.run([sys.executable, str(fp.BOOT / script), *argv], capture_output=True, text=True)
+            self.assertEqual((r.returncode, json.loads(r.stdout)['code']), (1, 'not-root'), r.stderr)
+            r = subprocess.run([sys.executable, str(fp.BOOT / script), '--help'], capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0)
+
+    def test_subcommand_required(self):
+        with self.assertRaises(SystemExit) as ctx, contextlib.redirect_stderr(io.StringIO()):
+            tool.main([], host=slot.Host('/nonexistent'))
+        self.assertEqual(ctx.exception.code, 2)
+
+    def test_only_if_ubuntu_is_a_to_ubuntu_option(self):
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            tool.main(['to-android', '--only-if-ubuntu'], host=slot.Host('/nonexistent'))
+
+
+if __name__ == '__main__':
+    unittest.main()

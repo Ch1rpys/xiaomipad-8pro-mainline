@@ -1,172 +1,410 @@
 #!/usr/bin/python3
 # SPDX-License-Identifier: MIT
-"""Write a checked active-A boot triplet from piano Linux, then read it all back."""
+"""Rotate piano's Android and Ubuntu boot image sets through slot A from Linux.
+
+Both systems boot from slot A: boot_a, init_boot_a and vendor_boot_a hold one
+system's set, the store /var/lib/piano/switch/{ubuntu,ubuntu.prev,android}/
+holds the sets as files with SHA256SUMS.  The slot occupant is identified by
+the SHA-256 of the three partitions' content, which slot attribute changes in
+the GPT do not affect.  Only slot A is accepted and no slot is ever selected;
+vbmeta, slot B, the GPT and every other partition are never written.
+
+A write happens only when the current occupant is a known store set, so the
+occupant's set is the verified way back: if any write or full-partition
+readback fails, that set is written back and the command fails without a
+reboot.  The three writes are not atomic.  Content carrying the persistent
+Ubuntu marker (piano.boot=persistent) is never archived as Android.
+
+Store contract: only android/, ubuntu/ and ubuntu.prev/ are image sets, each
+with boot.img, init_boot.img, vendor_boot.img (each exactly its partition's
+size) and SHA256SUMS ("<sha256>  <name>" lines, one per image).  The store
+also holds .lock, state.json and switch.log; `status` reports anything else as
+stray and nothing here reads it.  The Android-side KernelSU module reads the
+same layout.  Subcommands and layout follow liuqin-switch (MIT) and the erhai
+switch design; no code is copied.
+"""
 import argparse
-import fcntl
+from datetime import datetime, timezone
 import hashlib
 import json
 import os
 from pathlib import Path
-import re
-import stat
-import struct
-import subprocess
-import uuid
-import zlib
+import pwd
+import shutil
+import sys
 
-NAMES = ('init_boot', 'vendor_boot', 'boot')
+sys.path.insert(0, '/usr/lib/piano/boot')
+import piano_bootslot as slot  # noqa: E402
 
-
-def digest(path):
-    with path.open('rb') as f:
-        return hashlib.file_digest(f, 'sha256').hexdigest()
-
-
-def images(directory):
-    sums = {}
-    for line in (directory / 'SHA256SUMS').read_text().splitlines():
-        sha, name = line.split()
-        if name in [n + '.img' for n in NAMES]:
-            if name in sums or not re.fullmatch('[0-9a-f]{64}', sha):
-                raise ValueError('Duplicate or invalid image checksum')
-            sums[name] = sha
-    for name in NAMES:
-        file = directory / (name + '.img')
-        if not file.is_file() or digest(file) != sums.get(file.name):
-            raise ValueError('Image checksum mismatch: ' + str(file))
-    return sums
+PROG = 'piano-boot-switch'
+PROFILE = '/etc/piano/boot-profile.json'
+MAP = '/etc/piano/boot-partitions.json'
+KIND = {'ubuntu': 'ubuntu', 'ubuntu.prev': 'ubuntu', 'android': 'android'}
+STORE_FILES = {'.lock', 'state.json', 'switch.log', '.state.json.tmp'}
+TRANSIENT = {'.android.new', '.android.old', '.ubuntu.new'}
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--images', type=Path, required=True)
-    ap.add_argument('--rollback', type=Path, required=True)
-    ap.add_argument('--partition-map', type=Path, default=Path('/etc/piano/boot-partitions.json'))
-    ap.add_argument('--profile', type=Path, default=Path('/etc/piano/boot-profile.json'))
-    ap.add_argument('--reboot', action='store_true')
-    a = ap.parse_args()
-    if os.geteuid() != 0:
-        ap.error('Root is required')
-    compatibles = Path('/sys/firmware/devicetree/base/compatible').read_bytes().split(b'\0')
-    if b'xiaomi,piano' not in compatibles:
-        ap.error('This command only runs on the restored piano Linux identity')
-    profile = json.loads(a.profile.read_text())
-    serial = profile['serial']
-    words = Path('/proc/cmdline').read_text().split()
-    if 'androidboot.serialno=' + serial not in words:
-        ap.error('Current firmware serial differs from the installed device profile')
-    slot = next((w.split('=', 1)[1] for w in words if w.startswith('androidboot.slot_suffix=')), None)
-    if slot is None and Path('/proc/bootconfig').exists():
-        match = re.search(r'^androidboot.slot_suffix\s*=\s*"(_[ab])"',
-                          Path('/proc/bootconfig').read_text(), re.M)
-        slot = match[1] if match else None
-    if slot not in (None, '_a'):
-        ap.error('This installation map is only valid for the observed active A slot')
-    slot_confirmed = slot == '_a'
-    for word in words:
-        if word.startswith('piano.debug_timeout='):
-            if int(word.split('=', 1)[1]) - float(Path('/proc/uptime').read_text().split()[0]) < 60:
-                ap.error('Less than 60 seconds remain in the bounded installation session')
-    mapping = json.loads(a.partition_map.read_text())
-    if {r['label'] for r in mapping} != {n + '_a' for n in NAMES} or len(mapping) != 3:
-        ap.error('The map must describe exactly boot_a/init_boot_a/vendor_boot_a')
-    desired, rollback = images(a.images), images(a.rollback)
-    nodes = {}
-    for row in mapping:
-        name = row['label'].removesuffix('_a')
-        node = (Path('/dev/disk/by-partuuid') / row['partuuid']).resolve(strict=True)
-        if not stat.S_ISBLK(node.stat().st_mode):
-            ap.error('Mapped path is not a block device')
-        sys = (Path('/sys/class/block') / node.name).resolve(strict=True)
-        disk = sys.parent
-        device = (disk / 'device').resolve(strict=True)
-        if '1d84000' not in str(device) or not device.name.endswith(':0:0:4') or row['lun'] != 4:
-            ap.error('Boot partition is not on the expected piano UFS LUN4')
-        lbs = int((disk / 'queue/logical_block_size').read_text())
-        start = int((sys / 'start').read_text()) * 512
-        size = int((sys / 'size').read_text()) * 512
-        if lbs != 4096 or start != row['start_bytes'] or size != row['bytes']:
-            ap.error('Current partition geometry differs from the installation map')
-        if any((d / (name + '.img')).stat().st_size != size for d in (a.images, a.rollback)):
-            ap.error('Images must cover the complete current partition')
-        number = int((sys / 'partition').read_text())
-        with (Path('/dev') / disk.name).open('rb', buffering=0) as f:
-            f.seek(lbs)
-            header = bytearray(f.read(lbs))
-            if header[:8] != b'EFI PART' or str(uuid.UUID(bytes_le=bytes(header[56:72]))) != row['disk_guid']:
-                ap.error('Current disk GUID does not match the saved map')
-            header_size, crc = struct.unpack_from('<II', header, 12)
-            struct.pack_into('<I', header, 16, 0)
-            if not 92 <= header_size <= lbs or zlib.crc32(header[:header_size]) & 0xffffffff != crc:
-                ap.error('GPT header CRC mismatch')
-            entries_lba, count, entry_size, entries_crc = struct.unpack_from('<QIII', header, 72)
-            if not 1 <= number <= count <= 128 or entry_size != 128:
-                ap.error('Unexpected GPT entry geometry')
-            f.seek(entries_lba * lbs)
-            entries = f.read(count * entry_size)
-        if zlib.crc32(entries) & 0xffffffff != entries_crc:
-            ap.error('GPT entry CRC mismatch')
-        if slot is None:
-            flags = {}
-            for offset in range(0, len(entries), entry_size):
-                item = entries[offset:offset+entry_size]
-                item_label = item[56:128].decode('utf-16-le').split('\0')[0]
-                if item_label in ('boot_a', 'boot_b'):
-                    flags[item_label] = struct.unpack_from('<Q', item, 48)[0]
-            slot_confirmed = (profile.get('observed_active_slot') == 'a' and
-                              flags == profile.get('observed_slot_attributes') and
-                              set(flags) == {'boot_a', 'boot_b'} and flags['boot_a'] != flags['boot_b'])
-        entry = entries[(number-1)*entry_size:number*entry_size]
-        label = entry[56:128].decode('utf-16-le').split('\0')[0]
-        first, last = struct.unpack_from('<QQ', entry, 32)
-        if first * lbs != start or (last - first + 1) * lbs != size:
-            ap.error('On-disk GPT and current kernel partition geometry disagree')
-        if label != row['label'] or str(uuid.UUID(bytes_le=entry[16:32])) != row['partuuid']:
-            ap.error('Current GPT label/partition GUID differs from the saved map')
-        dev = (sys / 'dev').read_text().strip()
-        if any(line.split()[2] == dev for line in Path('/proc/self/mountinfo').read_text().splitlines()):
-            ap.error('A boot partition is mounted')
-        nodes[name] = node
+class Failed(slot.Refusal):
+    """A write was attempted and did not complete as requested."""
 
-    if not slot_confirmed:
-        ap.error('Missing slot bootargs and no matching device GPT/Fastboot slot observation')
-    with Path('/run/piano-boot-switch.lock').open('a') as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        current = {n + '.img': digest(nodes[n]) for n in NAMES}
-        if current != desired:
-            if current != rollback:
-                ap.error('Current triplet is neither the target nor the checked rollback; inspect before writing')
 
-            def write_set(directory, expected):
-                for name in NAMES:
-                    fd = os.open(nodes[name], os.O_RDWR | os.O_CLOEXEC)
-                    try:
-                        with (directory / (name + '.img')).open('rb') as src:
-                            while chunk := src.read(1024*1024):
-                                view = memoryview(chunk)
-                                while view:
-                                    count = os.write(fd, view)
-                                    if count <= 0:
-                                        raise IOError('Short block write')
-                                    view = view[count:]
-                        os.fsync(fd)
-                    finally:
-                        os.close(fd)
-                    if digest(nodes[name]) != expected[name + '.img']:
-                        raise IOError('Full partition readback mismatch: ' + name)
+def now():
+    return datetime.now(timezone.utc).isoformat(timespec='seconds')
 
+
+def say(host, message, error=False):
+    print(f'{PROG}: {message}', file=sys.stderr, flush=True)
+    host.log(PROG, message, error)
+    log = slot.store(host) / 'switch.log'
+    if log.parent.is_dir():
+        with open(log, 'a') as f:
+            f.write(f'{now()} {"ERROR " if error else ""}{message}\n')
+
+
+def record(host, command, result, parts, message):
+    hashes = slot.slot_hashes(parts)
+    sums, _ = slot.known_sums(host)
+    state = {'schema': 1, 'time': now(), 'command': command, 'result': result,
+             'occupant': slot.occupant(hashes, sums) or 'unknown', 'slot_sha256': hashes,
+             'message': message}
+    if slot.store(host).is_dir():
+        slot.write_json(slot.store(host) / 'state.json', state)
+    return state
+
+
+class Context:
+    """Identity, boot LUN, slot-A judgement and the installed partition map."""
+
+    def __init__(self, host, write, check_slot=True):
+        host.require_root()
+        slot.require_piano(host)
+        words = slot.kernel_words(host)
+        serial = json.loads(host.path(PROFILE).read_text()).get('serial')
+        if not isinstance(serial, str) or 'androidboot.serialno=' + serial not in words:
+            raise slot.Refusal('serial-mismatch', 'Firmware serial differs from the installed device profile')
+        self.host = host
+        self.disk = slot.boot_disk(host, strict=False)
+        self.state = slot.slot_state(host, self.disk) if check_slot else None
+        mapping = json.loads(host.path(MAP).read_text())
+        if len(mapping) != 3 or {r.get('label') for r in mapping} != {n + '_a' for n in slot.NAMES}:
+            raise slot.Refusal('map-invalid', f'{MAP} must describe exactly boot_a, init_boot_a, vendor_boot_a')
+        mounted = {line.split()[2] for line in host.path('/proc/self/mountinfo').read_text().splitlines()}
+        self.parts = {}
+        for row in mapping:
+            part = self.disk.partition(row['label'])
+            if (part.entry.unique_guid != str(row['partuuid']).lower() or row['lun'] != 4 or
+                    not self.disk.scsi.endswith(':4') or part.start != row['start_bytes'] or
+                    part.size != row['bytes'] or self.disk.primary.disk_guid != str(row['disk_guid']).lower()):
+                raise slot.Refusal('map-mismatch', f'{row["label"]}: GPT, LUN or geometry differs from {MAP}')
+            if part.dev in mounted:
+                raise slot.Refusal('partition-mounted', f'{row["label"]} is mounted')
+            self.parts[row['label'][:-2]] = part
+        if write:
+            for word in words:
+                if word.startswith('piano.debug_timeout='):
+                    uptime = float(host.path('/proc/uptime').read_text().split()[0])
+                    if int(word.split('=', 1)[1]) - uptime < 60:
+                        raise slot.Refusal('session-expiring',
+                                           'Less than 60 seconds remain in the bounded debug session')
+
+
+def write_set(parts, directory, sums):
+    for n in slot.NAMES:
+        part = parts[n]
+        fd = os.open(part.node, os.O_RDWR | os.O_CLOEXEC)
+        try:
+            with open(directory / (n + '.img'), 'rb') as src:
+                offset = 0
+                while chunk := src.read(1 << 20):
+                    slot.pwrite_all(fd, chunk, offset)
+                    offset += len(chunk)
+            if offset != part.size:
+                raise OSError(f'{n}.img changed size during the write')
+            os.fsync(fd)
+            os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)
+        finally:
+            os.close(fd)
+        if slot.digest(part.node, part.size) != sums[n + '.img']:
+            raise OSError(f'Full readback of {n}_a does not match {directory.name}/SHA256SUMS')
+
+
+def matches(hashes, sums):
+    """Per image: does the slot partition equal this set's SHA256SUMS entry?"""
+    return {name: hashes[name] == sums[name] for name in slot.IMAGES}
+
+
+def stray(host):
+    """Store entries outside the contract; reported, never read."""
+    store = slot.store(host)
+    if not store.is_dir():
+        return []
+    known = set(slot.SETS) | STORE_FILES | TRANSIENT
+    return sorted(e.name for e in store.iterdir() if e.name not in known and not e.name.startswith('.build-'))
+
+
+def cmd_status(host, args):
+    ctx = Context(host, write=False, check_slot=False)
+    report = ctx.disk.report()
+    report['boot_a'] = slot.flags(ctx.disk.entry('boot_a').attrs)
+    report['boot_b'] = slot.flags(ctx.disk.entry('boot_b').attrs)
+    try:
+        report['slot'] = slot.slot_state(host, ctx.disk)['source']
+    except slot.Refusal as error:
+        report['slot'] = {'code': error.code, 'message': str(error)}
+    hashes = slot.slot_hashes(ctx.parts)
+    sums, errors = slot.known_sums(host)
+    report['occupant'] = slot.occupant(hashes, sums) or 'unknown'
+    report['slot_content'] = slot.heads_kind(slot.slot_heads(ctx.parts)) or 'not-boot-images'
+    report['slot_sha256'] = hashes
+    report['store'] = {n: ({'sha256': sums[n], 'equals_slot': sums[n] == hashes,
+                            'matches_slot': matches(hashes, sums[n])} if n in sums
+                           else {'error': errors[n]}) for n in slot.SETS if n in sums or n in errors}
+    report['stray'] = stray(host)
+    state = slot.store(host) / 'state.json'
+    report['last'] = json.loads(state.read_text()) if state.is_file() else None
+    return report
+
+
+def cmd_verify(host, args):
+    ctx = Context(host, write=False)
+    report = {'slot': ctx.state}
+    problems = []
+    for name in slot.SETS:
+        if name == 'ubuntu.prev' and not (slot.store(host) / name).is_dir():
+            continue
+        try:
+            slot.check_set(host, name, ctx.parts, KIND[name])
+            report[name] = 'verified'
+        except slot.Refusal as error:
+            report[name] = {'code': error.code, 'message': str(error)}
+            problems.append(f'{name}: {error}')
+    sums, _ = slot.known_sums(host)
+    hashes = slot.slot_hashes(ctx.parts)
+    report['occupant'] = slot.occupant(hashes, sums) or 'unknown'
+    report['matches_slot'] = {n: matches(hashes, sums[n]) for n in sums}
+    if report['occupant'] == 'unknown':
+        problems.append('slot A holds no known store set (see matches_slot)')
+    if ctx.disk.backup_error:
+        report['backup_gpt'] = ctx.disk.backup_error
+    if problems:
+        raise slot.Refusal('verify-failed', '; '.join(problems))
+    return report
+
+
+def cmd_switch(host, args):
+    target = 'android' if args.command == 'to-android' else 'ubuntu'
+    ctx = Context(host, write=not args.dry_run)
+    report = {'target': target}
+    with slot.slot_lock(host):
+        sums, _ = slot.known_sums(host)
+        current = slot.occupant(slot.slot_hashes(ctx.parts), sums)
+        report['occupant_before'] = current or 'unknown'
+        if target == 'ubuntu' and args.only_if_ubuntu and current == 'android':
+            report['result'] = 'skipped'
+            say(host, 'Slot A holds Android; the new Ubuntu set stays in the store')
+            return report
+        if current == target:
+            report['result'] = 'unchanged'
+            say(host, f'Slot A already holds store/{target}')
+            return report
+        if current is None:
+            raise slot.Refusal('occupant-unknown', 'Slot A holds no known store set; nothing was written. '
+                               'Register Android content with `import-android` or the running Ubuntu set '
+                               'with `import-ubuntu`')
+        target_sums = slot.check_set(host, target, ctx.parts, KIND[target])
+        rollback_sums = slot.check_set(host, current, ctx.parts, KIND[current])
+        report['rollback'] = current
+        if args.dry_run:
+            report['result'] = 'would-write'
+            return report
+        directory, rollback = slot.store(host) / target, slot.store(host) / current
+        say(host, f'Writing store/{target} into slot A (rollback: store/{current})')
+        with slot.signals_blocked():
             try:
-                write_set(a.images, desired)
-            except Exception:
-                write_set(a.rollback, rollback)
-                raise
-        final = {n + '.img': digest(nodes[n]) for n in NAMES}
-        if final != desired:
-            raise RuntimeError('Final triplet readback mismatch; reboot refused')
-        print(json.dumps({'state': 'ALL_THREE_PARTITIONS_READBACK_VERIFIED', 'sha256': final}), flush=True)
-    if a.reboot:
-        subprocess.run(['systemctl', 'reboot'], check=True)
+                write_set(ctx.parts, directory, target_sums)
+                result, message = 'written', f'Slot A now holds store/{target}'
+            except Exception as error:  # every failure must attempt the verified way back
+                message = f'Writing store/{target} failed: {error}'
+                try:
+                    write_set(ctx.parts, rollback, rollback_sums)
+                    result, message = 'rolled-back', message + f'; store/{current} was written back'
+                except Exception as again:
+                    result = 'rollback-failed'
+                    message += (f'; writing store/{current} back also failed: {again}. '
+                                'Do not reboot into slot A; recover from Fastboot')
+            state = record(host, args.command, result, ctx.parts, message)
+            if result == 'written' and state['occupant'] != target:
+                result = 'final-mismatch'
+                message = f'Slot A does not read back as store/{target} after the write; recover from Fastboot'
+                state = record(host, args.command, result, ctx.parts, message)
+            report['state'] = state
+        report['result'] = result
+        if result != 'written':
+            raise Failed(result, message)
+        say(host, message)
+        return report
+
+
+def copy_set(host, sources, sizes, expected, name):
+    """Copy three images into a fresh hidden store directory; returns its path."""
+    store = slot.store(host)
+    tmp = store / f'.{name}.new'
+    shutil.rmtree(tmp, ignore_errors=True)
+    tmp.mkdir()
+    for n in slot.NAMES:
+        h = hashlib.sha256()
+        with open(sources[n], 'rb', buffering=0) as src, open(tmp / (n + '.img'), 'wb') as dst:
+            left = sizes[n]
+            while left:
+                chunk = src.read(min(left, 1 << 20))
+                if not chunk:
+                    raise OSError(f'Short read from {sources[n]}')
+                h.update(chunk)
+                dst.write(chunk)
+                left -= len(chunk)
+            dst.flush()
+            os.fsync(dst.fileno())
+        if h.hexdigest() != expected[n + '.img']:
+            raise OSError(f'{sources[n]} changed while it was being copied')
+    with open(tmp / 'SHA256SUMS', 'w') as f:
+        f.write(''.join(f'{expected[n + ".img"]}  {n}.img\n' for n in sorted(slot.NAMES)))
+        f.flush()
+        os.fsync(f.fileno())
+    return tmp
+
+
+def cmd_import(host, args):
+    android = args.command == 'import-android'
+    ctx = Context(host, write=False)
+    if not android and not args.source and slot.UBUNTU_MARKER not in slot.kernel_words(host):
+        raise slot.Refusal('not-persistent-boot', f'import-ubuntu needs a {slot.UBUNTU_MARKER} boot from slot A')
+    slot.store(host).mkdir(parents=True, exist_ok=True)
+    sizes = {n: ctx.parts[n].size for n in slot.NAMES}
+    report = {}
+    with slot.slot_lock(host):
+        if args.source:
+            source = Path(args.source)
+            expected = slot.read_sums(source)
+            sources = {n: source / (n + '.img') for n in slot.NAMES}
+            for n, path in sources.items():
+                if not path.is_file() or path.stat().st_size != sizes[n]:
+                    raise slot.Refusal('set-size', f'{path} must be a file of exactly {sizes[n]} B')
+                if slot.digest(path, sizes[n]) != expected[n + '.img']:
+                    raise slot.Refusal('set-digest', f'{path} does not match SHA256SUMS')
+            heads = {n: slot.read_head(p) for n, p in sources.items()}
+        else:
+            sources = {n: ctx.parts[n].node for n in slot.NAMES}
+            expected = slot.slot_hashes(ctx.parts)
+            heads = slot.slot_heads(ctx.parts)
+        kind = slot.heads_kind(heads)
+        want = 'android' if android else 'ubuntu'
+        if kind != want:
+            raise slot.Refusal('ubuntu-content' if kind == 'ubuntu' else 'wrong-content',
+                               f'The source holds {kind or "non-boot"} images, not {want}; nothing was imported')
+        if not android and not args.source:
+            slot.booted_from_slot(host, heads)
+        sums, _ = slot.known_sums(host)
+        report['source'] = str(args.source) if args.source else 'slot-a'
+        report['sha256'] = expected
+        candidates = ('android',) if android else slot.UBUNTU_SETS
+        existing = slot.occupant(expected, {n: sums[n] for n in candidates if n in sums})
+        if existing:
+            report['result'] = 'unchanged'
+            say(host, f'The source already matches store/{existing}')
+            return report
+        if args.dry_run:
+            report['result'] = 'would-import'
+            return report
+        store = slot.store(host)
+        with slot.signals_blocked():
+            tmp = copy_set(host, sources, sizes, expected, want)
+            if android:
+                old = store / '.android.old'
+                shutil.rmtree(old, ignore_errors=True)
+                if (store / 'android').exists():
+                    (store / 'android').rename(old)
+                tmp.rename(store / 'android')
+                shutil.rmtree(old, ignore_errors=True)
+            else:
+                shutil.rmtree(store / 'ubuntu.prev', ignore_errors=True)
+                if (store / 'ubuntu').exists():
+                    (store / 'ubuntu').rename(store / 'ubuntu.prev')
+                tmp.rename(store / 'ubuntu')
+            message = f'Imported {report["source"]} as store/{want}'
+            report['state'] = record(host, args.command, 'imported', ctx.parts, message)
+        report['result'] = 'imported'
+        say(host, message)
+        return report
+
+
+def notify_failure(host, command, message):
+    """Desktop path: tell the pkexec caller what happened, through their session bus."""
+    uid = os.environ.get('PKEXEC_UID', '')
+    if not uid.isdigit():
+        return
+    try:
+        user = pwd.getpwuid(int(uid)).pw_name
+    except KeyError:
+        return
+    title = 'Switch to Android failed / 切换到 Android 失败' if command == 'to-android' else \
+        'Switch to Ubuntu failed / 切换到 Ubuntu 失败'
+    body = (message + '\n\nThe tablet was not restarted. 平板未重启。\n'
+            'Details / 详情: journalctl -t piano-boot-switch; /var/lib/piano/switch/switch.log')
+    host.run(['busctl', '--user', f'--machine={user}@.host', 'call', 'org.freedesktop.Notifications',
+              '/org/freedesktop/Notifications', 'org.freedesktop.Notifications', 'Notify', 'susssasa{sv}i',
+              PROG, '0', 'dialog-error', title, body, '0', '0', '0'], check=False)
+
+
+def main(argv=None, host=None):
+    ap = argparse.ArgumentParser(prog=PROG, description=__doc__.split('\n\n')[0])
+    sub = ap.add_subparsers(dest='command', required=True)
+    sub.add_parser('status', help='report slot attributes, the occupant and the store')
+    sub.add_parser('verify', help='check every set and the occupant; never writes')
+    for name, target in (('to-android', 'Android'), ('to-ubuntu', 'Ubuntu')):
+        p = sub.add_parser(name, help=f'write the {target} set into slot A')
+        p.add_argument('--dry-run', action='store_true', help='check everything, write nothing')
+        p.add_argument('--reboot', action='store_true', help='reboot after the slot holds the set')
+        p.add_argument('--desktop', action='store_true',
+                       help='desktop entry: reboot on success, notify the pkexec caller on failure')
+        if name == 'to-ubuntu':
+            p.add_argument('--only-if-ubuntu', action='store_true',
+                           help='kernel updates: rewrite only if an Ubuntu set occupies the slot')
+    for name, what in (('import-android', 'replace store/android with the slot content or --from DIR'),
+                       ('import-ubuntu', 'register the running slot-A set or --from DIR as store/ubuntu '
+                        '(store/ubuntu becomes ubuntu.prev)')):
+        p = sub.add_parser(name, help=what)
+        p.add_argument('--from', dest='source', metavar='DIR',
+                       help='directory with boot.img, init_boot.img, vendor_boot.img and SHA256SUMS')
+        p.add_argument('--dry-run', action='store_true')
+    args = ap.parse_args(argv)
+    host = host or slot.Host()
+    handler = {'status': cmd_status, 'verify': cmd_verify, 'to-android': cmd_switch, 'to-ubuntu': cmd_switch,
+               'import-android': cmd_import, 'import-ubuntu': cmd_import}[args.command]
+    try:
+        report = handler(host, args)
+        rc = 0
+    except (slot.Refusal, OSError, ValueError, KeyError) as error:
+        code = getattr(error, 'code', 'io-error' if isinstance(error, OSError) else 'invalid-input')
+        report = {'result': code if isinstance(error, Failed) else 'refused', 'code': code, 'message': str(error)}
+        if not isinstance(error, Failed):
+            report['message'] += '; nothing was written' if args.command.startswith(('to-', 'import-')) else ''
+        say(host, report['message'], error=True)
+        if getattr(args, 'desktop', False):
+            notify_failure(host, args.command, report['message'])
+        rc = 1
+    report = {'tool': PROG, 'command': args.command, **report}
+    print(json.dumps(report, indent=2, sort_keys=True), flush=True)
+    if rc == 0 and (getattr(args, 'reboot', False) or getattr(args, 'desktop', False)) and \
+            report.get('result') in ('written', 'unchanged'):
+        say(host, 'Rebooting')
+        if host.run(['systemctl', 'reboot'], check=False) != 0:
+            message = f'Slot A holds the {report["target"]} set, but systemctl reboot failed; restart manually'
+            say(host, message, error=True)
+            if args.desktop:
+                notify_failure(host, args.command, message)
+            rc = 1
+    return rc
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
