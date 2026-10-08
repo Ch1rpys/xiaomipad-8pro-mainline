@@ -33,7 +33,11 @@ import syslog
 import uuid
 import zlib
 
-UFS_CONTROLLER = '1d84000.ufshc'
+# The internal UFS host is identified by its devicetree node and bound driver, not
+# by device name: mainline names it 1d84000.ufs (node ufs@1d84000), while ABL's
+# androidboot.bootdevice says 1d84000.ufshc.  On piano ufshcd-qcom binds only it.
+UFS_COMPATIBLE = b'qcom,sm8750-ufshc'
+UFS_DRIVER = 'ufshcd-qcom'
 NAMES = ('init_boot', 'vendor_boot', 'boot')  # write order: the kernel last
 IMAGES = tuple(n + '.img' for n in NAMES)
 SETS = ('ubuntu', 'ubuntu.prev', 'android')
@@ -309,7 +313,8 @@ class Disk:
         return Partition(name, entry, node, start, size, (sys / 'dev').read_text().strip())
 
     def report(self):
-        return {'disk': self.name, 'scsi': self.scsi, 'logical_block_size': self.lbs,
+        return {'controller': getattr(self, 'controller', None), 'disk': self.name, 'scsi': self.scsi,
+                'logical_block_size': self.lbs,
                 'disk_guid': self.primary.disk_guid,
                 'backup_gpt': 'valid' if self.backup else self.backup_error}
 
@@ -319,27 +324,46 @@ class Partition:
         self.name, self.entry, self.node, self.start, self.size, self.dev = name, entry, node, start, size, dev
 
 
+def ufs_controller(host):
+    """The one platform device with a qcom,sm8750-ufshc devicetree node, bound to ufshcd-qcom."""
+    hits = []
+    for dev in sorted(host.path('/sys/bus/platform/devices').iterdir()):
+        compatible = dev / 'of_node/compatible'
+        if compatible.is_file() and UFS_COMPATIBLE in compatible.read_bytes().split(b'\0'):
+            hits.append(dev)
+    if len(hits) != 1:
+        raise Refusal('ufs-controller-missing' if not hits else 'ufs-controller-ambiguous',
+                      f'Expected one platform device compatible with {UFS_COMPATIBLE.decode()}, '
+                      f'found {[d.name for d in hits]}')
+    driver = hits[0] / 'driver'
+    if not driver.exists() or driver.resolve().name != UFS_DRIVER:
+        raise Refusal('ufs-controller-unbound', f'{hits[0].name} is not bound to {UFS_DRIVER}')
+    return hits[0].resolve()
+
+
 def ufs_disks(host):
-    names = []
-    for sysdir in sorted(host.path('/sys/block').glob('sd*')):
-        if UFS_CONTROLLER in sysdir.resolve().parts:
-            names.append(sysdir.name)
-    return names
+    """(controller, whole-disk names) of the sd* disks below the internal UFS host."""
+    controller = ufs_controller(host)
+    names = [d.name for d in sorted(host.path('/sys/block').glob('sd*'))
+             if d.resolve().is_relative_to(controller)]
+    return controller, names
 
 
 def boot_disk(host, strict):
     """The single UFS LUN whose GPT holds boot_a and boot_b; never by sdX name."""
     hits = []
-    for name in ufs_disks(host):
+    controller, names = ufs_disks(host)
+    for name in names:
         disk = Disk(host, name, strict=False)
         labels = [r.name for r in disk.rows]
         if 'boot_a' in labels or 'boot_b' in labels:
             hits.append(name)
     if not hits:
-        raise Refusal('boot-lun-missing', f'No LUN below {UFS_CONTROLLER} has boot_a/boot_b')
+        raise Refusal('boot-lun-missing', f'No LUN below {controller.name} has boot_a/boot_b')
     if len(hits) > 1:
         raise Refusal('boot-lun-ambiguous', f'boot_a/boot_b appear on several LUNs: {hits}')
     disk = Disk(host, hits[0], strict)
+    disk.controller = controller.name
     disk.entry('boot_a')
     disk.entry('boot_b')
     return disk

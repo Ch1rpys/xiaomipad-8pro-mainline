@@ -290,6 +290,11 @@ class StatusVerify(Base):
         self.assertEqual(self.run_tool('status')[1]['occupant'], 'unknown')
         self.refused('occupant-unknown', 'to-android')
 
+    def test_status_names_the_mainline_controller(self):
+        rc, report = self.run_tool('status')
+        self.assertEqual((rc, report['controller'], report['disk'], report['scsi']),
+                         (0, '1d84000.ufs', 'sde', '0:0:0:4'))
+
     def test_verify_passes(self):
         rc, report = self.run_tool('verify')
         self.assertEqual((rc, report['occupant'], report['android'], report['ubuntu']),

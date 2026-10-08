@@ -69,9 +69,13 @@ piano-boot-switch import-ubuntu  [--from DIR] [--dry-run]
 
 - It runs only on the restored piano identity with the installed device
   profile serial and partition map, finds the boot LUN by its GPT entries
-  below `1d84000.ufshc`, and accepts only slot A: A active with priority 3
+  below the internal UFS host, and accepts only slot A: A active with priority 3
   and not unbootable, B inactive, and any slot suffix in bootconfig or the
-  command line `_a`. It never selects a slot and never writes the GPT,
+  command line `_a`. The UFS host is the one platform device whose devicetree
+  node is compatible with `qcom,sm8750-ufshc` and which `ufshcd-qcom` has
+  bound; it is never found by name. Mainline calls it `1d84000.ufs`
+  (`/sys/devices/platform/soc@0/1d84000.ufs`); `1d84000.ufshc` is only ABL's
+  `androidboot.bootdevice` name. It never selects a slot and never writes the GPT,
   `vbmeta`, slot B or other partitions.
 - `to-*` writes only when slot A holds a known store set, which then serves
   as the rollback. Both sets are checked against `SHA256SUMS` and the
@@ -135,8 +139,9 @@ Before and after copies go to `/var/lib/piano/slot/`. `--check` and
 
 ### Internal storage in GNOME
 
-`90-piano-internal-storage.rules` sets `UDISKS_IGNORE=1` on every UFS
-partition whose GPT type is not the Linux filesystem GUID, so Files and the
+`90-piano-internal-storage.rules` sets `UDISKS_IGNORE=1` on every partition
+below the platform device bound to `ufshcd-qcom` (the internal UFS; USB disks
+never match) whose GPT type is not the Linux filesystem GUID, so Files and the
 Shell no longer offer Android, firmware, `persist` or modem volumes. GNOME's
 About page still reports the whole UFS, because it adds up disks, not
 partitions.

@@ -34,6 +34,12 @@ ABL_APPEND = ('androidboot.verifiedbootstate=orange androidboot.bootdevice=1d840
 ANDROID_VENDOR_CMDLINE = 'video=vfb:640x400,bpp=32,memsize=3072000 androidboot.hardware=qcom'
 SIZES = {'boot': 8 * LBS, 'init_boot': 4 * LBS, 'vendor_boot': 8 * LBS}
 LINUX_TYPE = '0fc63daf-8483-4772-8e79-3d69d8477de4'
+# As observed on piano (mainline sysfs, live FDT ufs@1d84000, kmsg "ufshcd-qcom 1d84000.ufs").
+UFS_DEVICE = 'soc@0/1d84000.ufs'
+UFS_NODE = 'soc@0/ufs@1d84000'
+UFS_COMPATIBLE = b'qcom,sm8750-ufshc\0qcom,ufshc\0jedec,ufs-2.0\0'
+UFS_DRIVER = 'ufshcd-qcom'
+USB_DEVICE = 'soc@0/a600000.usb/xhci-hcd.0.auto/usb1/1-1/1-1:1.0'
 QC_TYPE = '20117f86-e985-4357-b9ee-374bc1d8487d'
 
 
@@ -107,11 +113,11 @@ def attrs(byte):
 
 
 class FakeDisk:
-    def __init__(self, fp, name, lun, rows, layout='xiaomi', controller=slot.UFS_CONTROLLER):
+    def __init__(self, fp, name, lun, rows, layout='xiaomi', parent=None):
+        parent = parent or fp.ufs_device
         self.fp, self.name, self.lun, self.rows, self.layout = fp, name, lun, rows, layout
         self.disk_guid = guid('disk:' + name)
-        host = 'soc@0/' + controller if controller == slot.UFS_CONTROLLER else 'usb1/1-1/1-1:1.0'
-        self.sys = fp.root / f'sys/devices/platform/{host}/host0/target0:0:0/0:0:0:{lun}/block/{name}'
+        self.sys = fp.root / f'sys/devices/platform/{parent}/host0/target0:0:0/0:0:0:{lun}/block/{name}'
         self.sys.mkdir(parents=True)
         (self.sys / 'queue').mkdir()
         (self.sys / 'queue/logical_block_size').write_text(f'{LBS}\n')
@@ -196,11 +202,34 @@ class FakeDisk:
         return struct.unpack_from('<Q', data, lba * LBS + i * 128 + 48)[0]
 
 
+def platform_device(root, device, node, compatible, driver):
+    """sysfs platform device with of_node and driver links, plus its bus entry."""
+    dev = root / 'sys/devices/platform' / device
+    dev.mkdir(parents=True, exist_ok=True)
+    of = root / 'sys/firmware/devicetree/base' / node
+    of.mkdir(parents=True, exist_ok=True)
+    (of / 'compatible').write_bytes(compatible)
+    (dev / 'of_node').symlink_to(os.path.relpath(of, dev))
+    if driver:
+        drv = root / 'sys/bus/platform/drivers' / driver
+        drv.mkdir(parents=True, exist_ok=True)
+        (dev / 'driver').symlink_to(os.path.relpath(drv, dev))
+    bus = root / 'sys/bus/platform/devices' / dev.name
+    bus.parent.mkdir(parents=True, exist_ok=True)
+    bus.symlink_to(os.path.relpath(dev, bus.parent))
+    return dev
+
+
 class FakePiano:
-    def __init__(self, root, boot_lun_name='sde', layout='xiaomi', occupant='ubuntu'):
+    def __init__(self, root, boot_lun_name='sde', layout='xiaomi', occupant='ubuntu',
+                 ufs=(UFS_DEVICE, UFS_NODE, UFS_COMPATIBLE, UFS_DRIVER)):
         self.root = Path(root)
         for d in ('proc/self', 'run', 'dev', 'etc/piano', 'sys/firmware/devicetree/base', 'var/lib/piano'):
             (self.root / d).mkdir(parents=True, exist_ok=True)
+        self.ufs_device = ufs[0]
+        platform_device(self.root, *ufs)
+        platform_device(self.root, 'soc@0/a600000.usb', 'soc@0/usb@a600000', b'qcom,sm8750-dwc3\0qcom,snps-dwc3\0',
+                        'dwc3-qcom')
         (self.root / 'sys/firmware/devicetree/base/compatible').write_bytes(b'xiaomi,piano\0qcom,sm8750\0')
         (self.root / 'proc/uptime').write_text('100.00 400.00\n')
         (self.root / 'proc/self/mountinfo').write_text(

@@ -140,8 +140,47 @@ class Mark(Base):
 
     def test_boot_a_on_a_non_ufs_disk_is_ignored(self):
         fp.FakeDisk(self.p, 'sdz', 0, [fp.Row('boot_a', 6, 8, fp.attrs(UNMARKED)), fp.Row('boot_b', 14, 8)],
-                    controller='usb')
+                    parent=fp.USB_DEVICE)
         self.assertEqual(self.run_tool('--mark')[0], 0)
+
+    def test_reports_the_mainline_controller(self):
+        rc, report = self.run_tool('--check')
+        self.assertEqual((report['controller'], report['disk'], report['scsi']),
+                         ('1d84000.ufs', self.lun_name, '0:0:0:4'))
+
+
+class Controller(unittest.TestCase):
+    """The UFS host is found by devicetree compatible and driver, never by device name."""
+
+    def make(self, ufs, extra=None):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        p = fp.FakePiano(self.tmp.name, ufs=ufs)
+        if extra:
+            fp.platform_device(p.root, *extra)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            rc = tool.main(['--check'], host=p.host)
+        return rc, json.loads(out.getvalue())
+
+    def test_other_device_name_same_node(self):
+        rc, report = self.make(('soc@0/renamed-host', fp.UFS_NODE, fp.UFS_COMPATIBLE, fp.UFS_DRIVER))
+        self.assertEqual((rc, report['controller']), (1, 'renamed-host'))
+        self.assertEqual(report['state'], 'not-successful')
+
+    def test_other_soc_compatible_is_not_piano_ufs(self):
+        rc, report = self.make((fp.UFS_DEVICE, fp.UFS_NODE, b'qcom,sm8650-ufshc\0qcom,ufshc\0jedec,ufs-2.0\0',
+                                fp.UFS_DRIVER))
+        self.assertEqual(report['code'], 'ufs-controller-missing')
+
+    def test_unbound_controller(self):
+        rc, report = self.make((fp.UFS_DEVICE, fp.UFS_NODE, fp.UFS_COMPATIBLE, None))
+        self.assertEqual(report['code'], 'ufs-controller-unbound')
+
+    def test_two_compatible_controllers(self):
+        rc, report = self.make((fp.UFS_DEVICE, fp.UFS_NODE, fp.UFS_COMPATIBLE, fp.UFS_DRIVER),
+                               extra=('soc@0/1d90000.ufs', 'soc@0/ufs@1d90000', fp.UFS_COMPATIBLE, fp.UFS_DRIVER))
+        self.assertEqual(report['code'], 'ufs-controller-ambiguous')
 
 
 class StandardLayout(Mark):

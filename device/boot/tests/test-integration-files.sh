@@ -50,8 +50,12 @@ if command -v udevadm >/dev/null 2>&1 && udevadm verify --help >/dev/null 2>&1; 
 else
 	skip 'udevadm verify unavailable'
 fi
-grep -qx 'SUBSYSTEMS=="platform", KERNELS=="1d84000.ufshc", ENV{UDISKS_IGNORE}="1"' "$rule" ||
-	bad 'rule does not restrict UDISKS_IGNORE to the UFS controller'
+# Observed on piano: kmsg "ufshcd-qcom 1d84000.ufs", sysfs .../platform/soc@0/1d84000.ufs/host0/...
+grep -qx 'SUBSYSTEMS=="platform", DRIVERS=="ufshcd-qcom", ENV{UDISKS_IGNORE}="1"' "$rule" ||
+	bad 'rule does not restrict UDISKS_IGNORE to the ufshcd-qcom platform device'
+if grep -v '^#' "$rule" | grep -q 'ufshc"'; then
+	bad 'rule matches the ABL bootdevice name, which does not exist in Linux sysfs'
+fi
 grep -qx 'ENV{ID_PART_ENTRY_TYPE}=="0fc63daf-8483-4772-8e79-3d69d8477de4", GOTO="piano_internal_storage_end"' "$rule" ||
 	bad 'rule does not exempt the Linux filesystem type GUID'
 grep -qx 'ENV{DEVTYPE}!="partition", GOTO="piano_internal_storage_end"' "$rule" ||
