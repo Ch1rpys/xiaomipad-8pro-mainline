@@ -5,6 +5,9 @@
 Layout follows upstream scripts/package/builddeb (DTBs in /usr/lib/linux-image-<release>);
 maintainer scripts and the linux-update-<release> trigger follow the Ubuntu 26.04 linux-image
 package (see NOTICE), so distro hooks such as dracut run from /etc/kernel/postinst.d.
+Only a unique release <version>-piano<ABI> (arch/arm64/configs/piano-release.config) recorded
+in kernel/abi.json with this commit and .config is packaged, so package names and module trees
+never repeat across builds; the version is <version>-<ABI>.<upload>, as Ubuntu's <abi>.<upload>.
 Nothing is compiled, installed, flashed or written to the kernel build output.
 """
 import argparse
@@ -165,6 +168,33 @@ def git(source, *words):
     return subprocess.check_output(['git', '-C', str(source), *words], text=True).strip()
 
 
+def recorded_upload(ledger_path, release, commit, config_sha256):
+    """Return the upload number of release; refuse a release reused for another build."""
+    ledger = json.loads(ledger_path.read_text())
+    if ledger.get('schema') != 1 or not isinstance(ledger.get('releases'), list):
+        raise ValueError(f'Unexpected ABI ledger format: {ledger_path}')
+    names = [entry['kernel_release'] for entry in ledger['releases']]
+    if len(names) != len(set(names)):
+        raise ValueError(f'Duplicate release in {ledger_path}')
+    entry = next((e for e in ledger['releases'] if e['kernel_release'] == release), None)
+    wanted = {'kernel_release': release, 'kernel_commit': commit, 'config_sha256': config_sha256}
+    if entry is None:
+        raise SystemExit(f'{release} is not recorded in {ledger_path}; after review add and commit\n'
+                         f'  {json.dumps(wanted)}')
+    if entry['kernel_commit'] != commit or entry['config_sha256'] != config_sha256:
+        raise SystemExit(f'{release} already belongs to {entry["kernel_commit"]} (config '
+                         f'{entry["config_sha256"]}); raise the ABI in arch/arm64/configs/piano-release.config')
+    upload = entry.get('upload', 1)
+    if not isinstance(upload, int) or upload < 1:
+        raise ValueError(f'Invalid upload number for {release}')
+    return upload
+
+
+# The kernel driver code is unchanged when only these trees differ, so a packaging DTB
+# audited for an earlier build of the same drivers still describes what they expect.
+DT_ONLY_PATHS = ('arch/arm64/boot/dts/', 'Documentation/devicetree/bindings/', 'arch/arm64/configs/')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--kernel-source', type=Path, required=True, help='Kernel Git checkout containing the built commit')
@@ -172,10 +202,17 @@ def main():
     parser.add_argument('--output', type=Path, required=True, help='New directory for the deb and manifest')
     parser.add_argument('--maintainer', required=True, help='Local package builder identity, Name <email>')
     parser.add_argument('--boot-dtb', type=Path, help='Audited piano ABL packaging DTB for this build')
+    parser.add_argument('--boot-dtb-build', type=Path,
+                        help='build-result.json of an earlier kernel build the --boot-dtb audit belongs to; '
+                             'allowed only when the kernel sources differ in DT/config files alone')
     parser.add_argument('--dtb-source-name', default='arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-desktop.dtb')
+    parser.add_argument('--abi-ledger', type=Path, default=Path(__file__).resolve().parents[1] / 'kernel/abi.json',
+                        help='Record of each packaged release and the build it belongs to')
     args = parser.parse_args()
     if '\n' in args.maintainer or '\r' in args.maintainer:
         parser.error('Maintainer must be one control-file field')
+    if args.boot_dtb_build and not args.boot_dtb:
+        parser.error('--boot-dtb-build qualifies --boot-dtb')
     source, kout = args.kernel_source.resolve(), args.kernel_out.resolve()
     out = args.output.resolve()
     os.umask(0o022)
@@ -196,6 +233,11 @@ def main():
         release = (kout / 'include/config/kernel.release').read_text().strip()
         if not re.fullmatch(r'[0-9][A-Za-z0-9.+-]*', release) or not release.startswith(tag[1:]):
             parser.error(f'Unexpected kernel release {release!r} for {tag}')
+        abi = re.fullmatch(re.escape(tag[1:]) + r'-piano([1-9][0-9]*)', release)
+        if not abi or build.get('kernel_release', release) != release:
+            parser.error(f'{release!r} is not an installable piano release: merge '
+                         'arch/arm64/configs/piano-release.config last and build with tools/build-kernel.sh')
+        upload = recorded_upload(args.abi_ledger, release, commit, build['files']['.config'])
         image = kout / 'arch/arm64/boot/Image'
         if f'Linux version {release} '.encode() not in image.read_bytes():
             parser.error('Image banner does not carry include/config/kernel.release')
@@ -207,8 +249,7 @@ def main():
         dtbs = sorted(n for n in build['files'] if n.endswith('.dtb'))
         if not dtbs:
             parser.error('build-result.json records no DTB')
-        count = git(source, 'rev-list', '--count', f'{tag}..{commit}')
-        version = f'{tag[1:]}+piano{count}.g{commit[:12]}'
+        version = f'{tag[1:]}-{abi[1]}.{upload}'
         epoch = git(source, 'show', '-s', '--format=%ct', commit)
         name = f'linux-image-{release}'
         archive = out / f'{name}_{version}_arm64.deb'
@@ -218,12 +259,26 @@ def main():
             files = {f'boot/vmlinuz-{release}': (image, 0o600),
                      f'boot/System.map-{release}': (kout / 'System.map', 0o600),
                      f'boot/config-{release}': (kout / '.config', 0o644)}
+            boot_dtb = None
             if args.boot_dtb:
                 audit = json.loads((args.boot_dtb.parent / 'manifest.json').read_text())
-                if (audit['inputs_sha256']['mainline_dtb'] != build['files'].get(args.dtb_source_name)
+                dtb_build, binding = build, 'this kernel build'
+                if args.boot_dtb_build:
+                    dtb_build = json.loads(args.boot_dtb_build.read_text())
+                    old = dtb_build['kernel_commit']
+                    if subprocess.run(['git', '-C', str(source), 'merge-base', '--is-ancestor', old, commit]).returncode:
+                        raise ValueError('The packaging DTB build is not an ancestor of this commit')
+                    changed = git(source, 'diff', '--name-only', old, commit).splitlines()
+                    if any(not path.startswith(DT_ONLY_PATHS) for path in changed):
+                        raise ValueError('Kernel code changed since the packaging DTB build')
+                    binding = {'kernel_commit': old, 'build_result_sha256': sha(args.boot_dtb_build),
+                               'changed_paths': changed}
+                if (audit['inputs_sha256']['mainline_dtb'] != dtb_build['files'].get(args.dtb_source_name)
                         or audit['outputs_sha256'][args.boot_dtb.name] != sha(args.boot_dtb)):
-                    raise ValueError('Packaging DTB is not bound to this kernel build')
+                    raise ValueError('Packaging DTB is not bound to the named kernel build')
                 files[f'usr/lib/linux-image-{release}/piano-boot.dtb'] = (args.boot_dtb, 0o644)
+                boot_dtb = {'sha256': sha(args.boot_dtb), 'mainline_dtb_sha256': audit['inputs_sha256']['mainline_dtb'],
+                            'bound_to': binding}
             packaged_modules = {relative:path for relative,path in module_files.items()
                                 if relative not in DEPMOD_INDEXES}
             if module_files:
@@ -272,6 +327,7 @@ def main():
             fields = Deb822({
                 'Package': name, 'Version': version, 'Architecture': 'arm64',
                 'Installed-Size': str(installed_kib), 'Maintainer': args.maintainer,
+                'Provides': 'linux-image',
                 'Depends': 'kmod, linux-base (>= 4.5ubuntu1~16.04.1)',
                 'Recommends': 'dracut | linux-initramfs-tool',
                 'Section': 'kernel', 'Priority': 'optional',
@@ -306,6 +362,8 @@ def main():
                              'index_policy': 'Generated by target kmod in the native postinst',
                              'omitted_depmod_indexes': sorted(set(module_files) & DEPMOD_INDEXES)} if module_files else
                             'none built; built-in lists only' if modular else 'CONFIG_MODULES off'),
+                'abi': int(abi[1]), 'upload': upload, 'abi_ledger_sha256': sha(args.abi_ledger),
+                'boot_dtb': boot_dtb,
                 'dtbs': dtbs, 'contents_sha256': contents, 'installed_size_kib': installed_kib,
                 'deb': archive.name, 'deb_bytes': archive.stat().st_size, 'deb_sha256': sha(archive),
                 'builder_sha256': sha(Path(__file__)), 'source_date_epoch': int(epoch),

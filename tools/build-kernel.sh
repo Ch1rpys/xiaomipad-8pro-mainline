@@ -71,7 +71,9 @@ cc="${cross}gcc"
 if command -v ccache >/dev/null; then
 	cc="ccache $cc"
 fi
-args=(-C "$src" O="$out" "CC=$cc")
+# An empty LOCALVERSION stops Kbuild appending "+" for an untagged tree, so the
+# release is exactly the version plus CONFIG_LOCALVERSION (piano-release.config).
+args=(-C "$src" O="$out" "CC=$cc" LOCALVERSION=)
 recipe=$(cat "$src/arch/arm64/configs/defconfig" "${fragments[@]}" | sha256sum | cut -d' ' -f1)
 toolchain=$("${cross}gcc" --version | head -1)
 identity=$(printf '%s\n' "$src" "$base" "$toolchain" "$cross" "$KCFLAGS" "$KAFLAGS" | sha256sum | cut -d' ' -f1)
@@ -141,11 +143,12 @@ files = ['arch/arm64/boot/Image', 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano.
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-thp-diag.dtb',
          'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-ufs-ro-diag.dtb', '.config']
 result = {'status': 'OFFLINE_BUILD_ONLY', 'kernel_commit': head, 'compiler': compiler,
+          'kernel_release': (out / 'include/config/kernel.release').read_text().strip(),
           'config_fragments': [str(pathlib.Path(f).relative_to(src)) for f in sys.argv[6:]],
           'note': 'RAM-only piano skeleton. Building does not establish hardware support.',
           'files': {f: hashlib.sha256((out / f).read_bytes()).hexdigest() for f in files}}
 if sys.argv[5] == '1':
-    release = (out / 'include/config/kernel.release').read_text().strip()
+    release = result['kernel_release']
     root = out / 'modules-root/lib/modules' / release
     # Kbuild's build/source links point to the build host, not runtime inputs.
     for name in ('build', 'source'):

@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "purpose": "Allocation record of installable piano kernel releases. tools/build-kernel-deb.py packages a release only when it is listed here with the exact kernel commit and .config of the build, so one release name never covers two different builds.",
+  "rule": "The release is <kernel version>-piano<ABI>; ABI is CONFIG_LOCALVERSION in arch/arm64/configs/piano-release.config. Take the next integer (never reuse or decrease, never reset on an upstream update) whenever a packaged kernel changes its commit or resulting .config, including DTS-only and toolchain changes: with MODVERSIONS off a module ABI break cannot be detected, so every packaged build is treated as a new ABI. Append the entry after the build; bump upload only to repackage the same build with different package content.",
+  "releases": [
+    {
+      "kernel_release": "7.2.6-piano1",
+      "kernel_commit": "65bf28a0fc2229b3baa3c09731a9e311583524d6",
+      "config_sha256": "d15df47683d6e8590efb0d23516bc760be77204d30d3c2ca922129b02395a9f2",
+      "upload": 1
+    }
+  ]
+}

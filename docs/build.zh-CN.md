@@ -271,11 +271,31 @@ build-kernel-deb.py 把 build-kernel.sh 的既有 OUT 打成 Debian 二进制包
 
 ```sh
 python3 tools/build-kernel-deb.py --kernel-source /path/to/linux \
-  --kernel-out out/kernel-dev --maintainer 'Your Name <your-email>' --output out/kernel-deb
+  --kernel-out out/kernel-release --maintainer 'Your Name <your-email>' --output out/kernel-deb
 ```
 
-包名沿用上游 builddeb 与 Ubuntu 的 `linux-image-<kernelrelease>`，版本为
-`<tag>+piano<自 tag 的提交数>.g<commit12>`，SOURCE_DATE_EPOCH 取内核提交时间；同输入重建字节一致。
+`--boot-dtb` 放入经审计的 ABL 打包 DTB（`piano-boot.dtb`），其 manifest 的主线输入须等于本构建的桌面 DTB；
+`--boot-dtb-build <旧 build-result.json>` 允许沿用较早构建的已审计 DTB，但仅当两次内核提交之间只改了
+`arch/arm64/boot/dts/`、`Documentation/devicetree/bindings/` 和 `arch/arm64/configs/`（驱动代码相同），
+包 manifest 的 `boot_dtb.bound_to` 记录该构建与改动路径。
+
+包名沿用上游 builddeb 与 Ubuntu 的 `linux-image-<kernelrelease>`，SOURCE_DATE_EPOCH 取内核提交时间；同输入重建字节一致。
+
+**唯一 release。** 可安装内核的 release 为 `<内核版本>-piano<ABI>`（如 `7.2.6-piano1`）：
+`arch/arm64/configs/piano-release.config` 最后合并，设 `CONFIG_LOCALVERSION="-piano<ABI>"` 并关闭
+LOCALVERSION_AUTO；build-kernel.sh 以空 `LOCALVERSION=` 调用 Kbuild，不再追加未打 tag 时的 `+`，
+build-result.json 顶层记录 `kernel_release`。因此每个打包构建有自己的 `/lib/modules/<release>`、
+`/boot/*-<release>` 和包名，多个内核可并存（Ubuntu 做法），`linux-version sort` 按 ABI 数值排序。
+ABI 是整数：被打包内核的提交或最终 .config 一变（含只改 DTS、换工具链）就取下一个整数，
+不复用、不回退、上游版本更新也不归零；MODVERSIONS 关闭时无法检测模块 ABI 破坏，所以每个打包构建都当新 ABI。
+`kernel/abi.json` 记录每个已分配 release 对应的内核提交与 .config sha256；build-kernel-deb.py 只打包
+其中记录且提交/配置完全一致的 release，未记录时打印应追加的条目，已被另一构建占用时要求升 ABI。
+`kernel/source.json` 的 `commit` 是当前钉住的内核提交，其 piano-release.config 决定 release。
+包版本为 `<内核版本>-<ABI>.<upload>`（与 Ubuntu `7.0.0-14.14` 的 `<abi>.<upload>` 对应），
+upload 只在以不同包内容重新打包同一构建时增加；包 `Provides: linux-image`，各 ABI 之间不冲突。
+不带 piano-release.config 的构建保留诊断后缀（如 `7.2.6-piano-diag`），打包器拒绝。
+旧版 `7.2.6-piano+` 在 `linux-version sort` 中排在所有 `7.2.6-piano<N>` 之后（更高），与新 release 并存期间
+`update-initramfs -u` 仍选中它；安装新 ABI 并从其启动后应移除旧包，启动钩子的相应修改见 Ubuntu 专项。
 内容：/boot 的 vmlinuz（未压缩 Image，与 build-result 同 hash）、System.map、config，
 /usr/lib/linux-image-<release>/qcom/ 下 build-result 记录的全部 DTB，
 以及 /usr/lib/modules/<release>/ 下的内建清单和可选匹配模块。
