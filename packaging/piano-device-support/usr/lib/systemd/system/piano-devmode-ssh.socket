@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: MIT
+# SSH listener of the developer mode on the USB NCM device address only
+# (device_ip of initramfs/network.json).  FreeBind lets it listen before
+# systemd-networkd has configured that address.  Started and stopped with
+# piano-devmode.service; it has no [Install] section of its own.  It cannot
+# bind while the system ssh.socket or ssh.service listens on every address.
+[Unit]
+Description=Piano developer mode SSH socket (USB network only)
+BindsTo=piano-devmode.service
+
+[Socket]
+ListenStream=192.168.88.2:22
+FreeBind=yes
+Accept=yes

@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: MIT
+# OpenSSH configuration of the piano developer mode, read by `sshd -i` in
+# piano-devmode-ssh@.service.  piano-devmode-ssh.socket decides where it
+# listens; ListenAddress and Port have no effect in this mode.
+# Host keys are the system's /etc/ssh/ssh_host_*_key; `piano-devmode check`
+# creates missing ones (ssh-keygen -A) on every start.
+# sshd keeps the first value it reads for a keyword: the lines below take
+# precedence over the administrator's drop-ins included at the end, which can
+# still tighten the rest, e.g. "PasswordAuthentication no" once a key is in
+# ~/.ssh/authorized_keys.  Password logins otherwise follow the sshd default
+# through PAM, i.e. local accounts with a password.
+PermitRootLogin no
+KbdInteractiveAuthentication no
+UsePAM yes
+PrintMotd no
+AcceptEnv LANG LC_* COLORTERM NO_COLOR
+Subsystem sftp internal-sftp
+Include /etc/ssh/sshd_config.d/*.conf

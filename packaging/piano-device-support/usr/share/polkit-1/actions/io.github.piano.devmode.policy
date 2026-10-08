@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- SPDX-License-Identifier: MIT -->
+<!--
+  pkexec selects this action for program /usr/sbin/piano-devmode with any
+  argument, for a later desktop switch (pkexec /usr/sbin/piano-devmode on|off).
+  Turning on a network login always asks for administrator authentication,
+  without keeping it. Same structure as io.github.piano.switch.policy.
+-->
+<policyconfig>
+  <vendor>xiaomipad-8pro-mainline</vendor>
+  <action id="io.github.piano.devmode">
+    <description>Change the developer mode</description>
+    <description xml:lang="zh_CN">更改开发者模式</description>
+    <message>Authentication is required to turn the developer mode (SSH login over the USB cable) on or off</message>
+    <message xml:lang="zh_CN">需要认证才能开启或关闭开发者模式（通过 USB 线 SSH 登录）</message>
+    <icon_name>utilities-terminal</icon_name>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/sbin/piano-devmode</annotate>
+  </action>
+</policyconfig>

@@ -1,0 +1,32 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Reboot the tablet into its Fastboot bootloader, e.g. over a developer-mode
+# SSH session: sudo piano-reboot-bootloader
+# The kernel passes the reboot argument "bootloader" to nvmem-reboot-mode,
+# which stores mode-bootloader in the PMIC SDAM reboot-reason cell that ABL
+# reads (pmk8550.dtsi).  Without that driver bound the tablet would restart
+# into slot A again, so the reboot is refused instead.  The two modules are
+# the ones the debug channel's expiry timer loads before the same reboot.
+set -eu
+if [ "$#" -ne 0 ]; then
+	echo 'usage: piano-reboot-bootloader' >&2
+	exit 2
+fi
+if [ "$(id -u)" -ne 0 ]; then
+	echo 'piano-reboot-bootloader: run as root, e.g. sudo piano-reboot-bootloader' >&2
+	exit 1
+fi
+modprobe nvmem_qcom-spmi-sdam
+modprobe nvmem-reboot-mode
+bound=
+for d in /sys/bus/platform/drivers/nvmem-reboot-mode/*; do
+	if [ -L "$d" ] && [ "${d##*/}" != module ]; then
+		bound=${d##*/}
+	fi
+done
+if [ -z "$bound" ]; then
+	echo 'piano-reboot-bootloader: nvmem-reboot-mode has no bound device; the reboot would not reach Fastboot, not rebooting' >&2
+	exit 1
+fi
+echo "piano-reboot-bootloader: reboot reason via $bound; rebooting to Fastboot"
+exec systemctl reboot --reboot-argument=bootloader

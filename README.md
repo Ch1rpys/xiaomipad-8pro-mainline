@@ -40,7 +40,7 @@ the project scope
 | Hibernation | Unsupported | The layout has no swap partition. |
 | Real-time clock | Not yet | The PMIC RTC cannot be written; the time is wrong after each boot until set manually. |
 | Internal storage | Working | UFS; ext4 root (60 GiB) and `/home` (about 201 GiB). |
-| USB device mode | Partial | USB 2.0 NCM gadget in debug images only; release images expose no USB function. |
+| USB device mode | Partial | USB 2.0 NCM gadget in debug images. Release images expose no USB function unless the administrator turns on [developer mode](device/devmode/README.md) (SSH over USB, off by default, not yet run on the device). |
 | USB host, Type-C roles | Not yet | Type-C role switching (UCSI) is not enabled. |
 | External display | Not yet | DisplayPort Alt Mode requires the native display driver; the DP and DIO4485 SBU-switch nodes are disabled. |
 | Video decoding | Not yet | Iris (VPU35) is built as modules but not enabled. |

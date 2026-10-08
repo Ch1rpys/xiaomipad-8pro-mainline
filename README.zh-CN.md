@@ -36,7 +36,7 @@ GNOME 桌面，与 Android 共存。两个系统都从当前活动的 A 槽启�
 | 休眠到磁盘 | 不支持 | 分区布局中没有 swap 分区。 |
 | 实时时钟 | 尚未支持 | PMIC RTC 不可写，每次启动后时间错误，需手动设置。 |
 | 内部存储 | 可用 | UFS；ext4 根分区（60 GiB）与 `/home`（约 201 GiB）。 |
-| USB 设备模式 | 部分可用 | USB 2.0 NCM gadget 只用于调试镜像；正式镜像不提供任何 USB 功能。 |
+| USB 设备模式 | 部分可用 | USB 2.0 NCM gadget 用于调试镜像。正式镜像默认不提供任何 USB 功能，管理员开启[开发者模式](device/devmode/README.md)（经 USB 的 SSH，默认关闭，尚未在设备上运行）后才提供。 |
 | USB 主机、Type-C 角色 | 尚未支持 | 未启用 Type-C 角色切换（UCSI）。 |
 | 外接显示 | 尚未支持 | DisplayPort Alt Mode 依赖原生显示驱动；DP 与 DIO4485 SBU 开关节点处于禁用状态。 |
 | 视频解码 | 尚未支持 | Iris（VPU35）已编译为模块，未启用。 |

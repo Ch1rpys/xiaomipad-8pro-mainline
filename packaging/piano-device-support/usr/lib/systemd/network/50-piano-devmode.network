@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: MIT
+# Developer mode USB NCM link, same contract as initramfs/network.json and the
+# debug channel: device 192.168.88.2/24, a single DHCP lease 192.168.88.10 for
+# the host, no route, DNS or other servers offered.  Only links with this MAC
+# match, so it does nothing until piano-devmode.service creates the gadget;
+# debug boots keep their own udhcpd.  KeepConfiguration=yes leaves foreign
+# routes and policy rules of other links alone.  NetworkManager ignores the
+# link (NM_UNMANAGED in 71-piano.rules).
+[Match]
+MACAddress=02:00:00:88:00:02
+KernelCommandLine=!piano.debug=1
+
+[Network]
+Address=192.168.88.2/24
+DHCPServer=yes
+ConfigureWithoutCarrier=yes
+LinkLocalAddressing=no
+IPv6AcceptRA=no
+KeepConfiguration=yes
+
+[DHCPServer]
+PoolOffset=10
+PoolSize=1
+PersistLeases=runtime
+EmitRouter=no
+EmitDNS=no
+EmitNTP=no
+EmitSIP=no
+EmitTimezone=no

@@ -34,13 +34,14 @@ def main():
         shutil.copyfile(src, target)
         target.chmod(mode if mode is not None else 0o644)
 
-    def package(name, root, depends, description, postinst=None):
+    def package(name, root, depends, description, postinst=None, recommends=None):
         control = root / 'DEBIAN'
         control.mkdir()
         (control / 'control').write_text(
             f'Package: {name}\nVersion: {a.version}\nArchitecture: arm64\n'
             'Maintainer: Piano local build <piano@localhost>\n'
-            f'Depends: {depends}\nDescription: {description}\n')
+            f'Depends: {depends}\n' + (f'Recommends: {recommends}\n' if recommends else '') +
+            f'Description: {description}\n')
         if postinst:
             (control / 'postinst').write_text(postinst)
             (control / 'postinst').chmod(0o755)
@@ -75,7 +76,8 @@ def main():
             'Piano platform, touchscreen and persistent boot integration',
             '#!/bin/sh\nset -e\nif [ "$1" = configure ]; then\n'
             ' deb-systemd-helper enable piano-thp.service piano-slot-success.service piano-debug.service '
-            'piano-debug-timeout.service >/dev/null\nfi\n')
+            'piano-debug-timeout.service >/dev/null\nfi\n',
+            recommends='openssh-server')  # developer mode only; piano-devmode refuses without sshd
     if a.support_only:
         (a.output / 'manifest.json').write_text(json.dumps(receipts, indent=2) + '\n')
         return
