@@ -1,0 +1,8 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+set -eu
+# A removed piano kernel (including the legacy 7.2.6-piano+) must not stay in
+# the boot image set or the rollback set.
+case "${1:-}" in *-piano*) ;; *) exit 0;; esac
+[ -e /etc/piano/layout.json ] || exit 0
+exec /usr/sbin/piano-boot-update --removed "$1"

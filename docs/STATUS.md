@@ -13,7 +13,7 @@ All hardware statuses refer to this configuration only.
 | Device | Xiaomi Pad 8 Pro (`piano`), model 25091RP04C (China), SoC SM8750P, 16 GB RAM, 512 GB UFS; bootloader unlocked |
 | Stock build | OS3.0.303.0.WPYCNXM |
 | Kernel | `7.2.6-piano+`, kernel repository commit `b136d29d2`; fragments `piano-diagnostic.config`, `piano-desktop-diag.config`, `piano-persistent.config`; DTB `sm8750-xiaomi-piano-desktop.dtb`; 1071 modules. [`kernel/source.json`](../kernel/source.json) now pins `65bf28a0f`, whose package `linux-image-7.2.6-piano1` (unique release, see [`kernel/abi.json`](../kernel/abi.json)) is built but not installed |
-| Integration | this repository at `48964a9`; `piano-device-support` 0.1+20261008.1 |
+| Integration | this repository at `48964a9`; `piano-device-support` 0.1+20261008.1. Later builds up to 0.1+20261008.5 (developer mode; boot hooks for unique kernel releases; udev-only touch service) are not part of this configuration |
 | Userspace | Ubuntu 26.04 Desktop ARM64; Mesa 26.2.0 with `mesa/a830-speedbin.patch` |
 
 Verification basis: the installed system was checked with a debug image set
@@ -49,8 +49,8 @@ visually and with DPU frame counters. The release image set boots from slot A.
 7. **Kernel updates are slow.** The kernel package trigger takes about
    12.5 minutes on the device (dracut about 8 minutes, the kdump-tools initrd
    about 4 minutes). `piano-boot-update` then rebuilds the Ubuntu image set
-   in `/var/lib/piano/switch/ubuntu/`; it does not write partitions, and the
-   new set takes effect only after an explicit switch.
+   in `/var/lib/piano/switch/ubuntu/` and, on a persistent boot whose slot A
+   holds an Ubuntu set, rewrites slot A in place (since 833c793).
 8. **Generic kernels.** Kernel packages inherited from the Desktop image
    (`linux-image-7.0.0-14-generic`, `linux-generic-hwe-26.04`) remain
    installable and receive initrds, but cannot boot piano.

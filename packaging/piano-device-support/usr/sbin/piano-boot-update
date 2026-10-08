@@ -9,6 +9,11 @@ rewrites slot A in place when it holds an Ubuntu store set, so the booted
 kernel and initrd keep matching the installed modules; Android in slot A is
 left alone.  Anywhere else (an image-building chroot, QEMU, a RAM root) only
 the store changes and no disk is inspected.
+
+`piano-boot-update --removed RELEASE` runs after a piano kernel package is
+removed: if RELEASE owned the current set, the set is rebuilt for the newest
+remaining piano kernel (as flash-kernel reflashes on removal), and a rollback
+set that boots RELEASE is deleted, since its modules are gone.
 """
 import fcntl
 import json
@@ -20,6 +25,50 @@ import sys
 import tempfile
 
 
+BANNER = re.compile(rb'Linux version ([0-9][A-Za-z0-9.+-]*) \(')
+
+
+def set_release(directory):
+    """Kernel release a store set boots: its manifest, else the boot.img banner."""
+    manifest = directory / 'manifest.json'
+    if manifest.is_file():
+        release = json.loads(manifest.read_text()).get('kernel_release')
+        if release:
+            return release
+    boot = directory / 'boot.img'
+    match = BANNER.search(boot.read_bytes()) if boot.is_file() else None
+    return match[1].decode() if match else None
+
+
+def newest_piano_release(run):
+    listed = run(['linux-version', 'list'], capture_output=True, text=True, check=True).stdout.split()
+    piano = [r for r in listed if re.fullmatch(r'[0-9][A-Za-z0-9.]*-piano[0-9]+', r)]
+    if not piano:
+        return None
+    return run(['linux-version', 'sort'], input='\n'.join(piano) + '\n', capture_output=True,
+               text=True, check=True).stdout.split()[-1]
+
+
+def removed(release, root, run):
+    store = root / 'var/lib/piano/switch'
+    if not store.is_dir():
+        return 0
+    if (store / 'ubuntu').is_dir() and set_release(store / 'ubuntu') == release:
+        latest = newest_piano_release(run)
+        if latest and (root / f'boot/initrd.img-{latest}').exists():
+            print(f'{release} owned the boot image set; rebuilding it for {latest}')
+            main(['piano-boot-update', latest], root, run)
+        else:
+            print(f'WARNING: {release} owned the boot image set and no piano kernel with an initrd remains; '
+                  'slot A is unchanged', file=sys.stderr)
+    with (store / '.lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if (store / 'ubuntu.prev').is_dir() and set_release(store / 'ubuntu.prev') == release:
+            shutil.rmtree(store / 'ubuntu.prev')
+            print(f'Dropped the rollback set of removed kernel {release}')
+    return 0
+
+
 def on_persistent_piano(root):
     compatible = root / 'sys/firmware/devicetree/base/compatible'
     cmdline = root / 'proc/cmdline'
@@ -28,6 +77,10 @@ def on_persistent_piano(root):
 
 
 def main(argv, root=Path('/'), run=subprocess.run):
+    if argv[1:2] == ['--removed'] and len(argv) == 3:
+        if not re.fullmatch(r'[0-9][A-Za-z0-9.+-]*-piano[A-Za-z0-9.+-]*', argv[2]):
+            raise SystemExit('Not a piano kernel release')
+        return removed(argv[2], root, run)
     release = argv[1] if len(argv) > 1 else ''
     if not re.fullmatch(r'[0-9][A-Za-z0-9.+-]*-piano[A-Za-z0-9.+-]*', release):
         raise SystemExit('Not a piano kernel release')
@@ -42,7 +95,7 @@ def main(argv, root=Path('/'), run=subprocess.run):
             output = Path(tmp) / 'images'
             run([
                 'python3', str(tools / 'build-persistent-boot.py'),
-                '--kernel', str(root / f'boot/vmlinuz-{release}'),
+                '--kernel', str(root / f'boot/vmlinuz-{release}'), '--kernel-release', release,
                 '--dtb', str(root / f'usr/lib/linux-image-{release}/piano-boot.dtb'),
                 '--initrd', str(root / f'boot/initrd.img-{release}'),
                 '--profile', str(config / 'boot-profile.json'),

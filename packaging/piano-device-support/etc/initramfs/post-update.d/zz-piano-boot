@@ -1,7 +1,15 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-only
 set -eu
-case "${1:-}" in *-piano*) ;; *) exit 0;; esac
+# Only unique releases (<version>-piano<ABI>) own the boot image set. The legacy
+# 7.2.6-piano+ sorts above them in linux-version and must not take it back.
+case "${1:-}" in *-piano[0-9]*) ;; *) exit 0;; esac
 [ -e /etc/piano/layout.json ] || exit 0
 [ -e "/boot/initrd.img-$1" ] || exit 0
+# As flash-kernel does, only the newest installed piano kernel is written.
+latest=$(linux-version list | grep -E -- '-piano[0-9]+$' | linux-version sort | tail -n 1)
+if [ "$1" != "$latest" ]; then
+	echo "zz-piano-boot: $1 is older than $latest; boot image set unchanged" >&2
+	exit 0
+fi
 exec /usr/sbin/piano-boot-update "$1"

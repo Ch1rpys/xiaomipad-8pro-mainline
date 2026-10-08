@@ -116,6 +116,17 @@ the installed modules; Android in the slot stays. Every kernel or initrd
 update therefore writes a set to slot A that has not booted yet. Images
 built in a chroot, QEMU or a RAM root only update the store.
 
+Only unique releases `<version>-piano<ABI>` (see `kernel/abi.json`) take
+part, and, as flash-kernel does, only the newest installed one. An initramfs
+update for an older kernel, or for the legacy `7.2.6-piano+` that
+`linux-version` sorts above every `-piano<N>`, leaves the store and the slot
+alone. After a piano kernel package is removed, the `postrm.d` hook runs
+`piano-boot-update --removed <release>`: if that kernel owned `ubuntu/`, the
+set is rebuilt for the newest remaining piano kernel (and slot A rewritten as
+above), and a `ubuntu.prev/` that boots the removed kernel is deleted because
+its modules are gone. A set's release is the `kernel_release` of its
+`manifest.json`, or the Image banner in `boot.img` for older sets.
+
 ### Marking slot A successful
 
 ABL decrements an unsuccessful slot's retry count on every boot, and
