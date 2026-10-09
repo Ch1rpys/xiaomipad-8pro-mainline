@@ -93,6 +93,8 @@ def main(argv, root=Path('/'), run=subprocess.run):
         fcntl.flock(lock, fcntl.LOCK_EX)
         with tempfile.TemporaryDirectory(prefix='.build-', dir=store) as tmp:
             output = Path(tmp) / 'images'
+            # The WLAN address is optional: without it ath12k keeps the card's (all-zero on piano).
+            wlan = config / 'wlan-address'
             run([
                 'python3', str(tools / 'build-persistent-boot.py'),
                 '--kernel', str(root / f'boot/vmlinuz-{release}'), '--kernel-release', release,
@@ -104,7 +106,7 @@ def main(argv, root=Path('/'), run=subprocess.run):
                 '--mkbootimg', str(tools / 'mkbootimg.py'),
                 '--avbtool', str(tools / 'avbtool.py'),
                 '--key', str(config / 'boot-signing.pem'), '--output', str(output)
-            ], check=True)
+            ] + (['--wlan-address-file', str(wlan)] if wlan.is_file() else []), check=True)
             if (store / 'ubuntu.prev').exists():
                 shutil.rmtree(store / 'ubuntu.prev')
             if (store / 'ubuntu').exists():

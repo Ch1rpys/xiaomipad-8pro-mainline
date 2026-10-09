@@ -78,6 +78,16 @@ class Update(unittest.TestCase):
                                           '--only-if-ubuntu'])
         self.assertIn(str(self.root / f'boot/initrd.img-{RELEASE}'), self.calls[0])
 
+    def test_wlan_address_is_passed_only_when_configured(self):
+        self.update(fp.UBUNTU_CMDLINE)
+        self.assertNotIn('--wlan-address-file', self.calls[0])
+        (self.root / 'etc/piano/wlan-address').write_text('02:00:00:00:00:01\n')
+        self.calls.clear()
+        self.update(fp.UBUNTU_CMDLINE)
+        builder = self.calls[0]
+        self.assertEqual(builder[builder.index('--wlan-address-file') + 1],
+                         str(self.root / 'etc/piano/wlan-address'))
+
     def test_other_environments_only_update_the_store(self):
         for cmdline, compatible in ((fp.ABL_APPEND, b'xiaomi,piano\0'),          # RAM root
                                     (fp.UBUNTU_CMDLINE, b'linux,dummy-virt\0'),  # QEMU

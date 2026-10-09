@@ -61,6 +61,8 @@ def main():
     p.add_argument('--root-partuuid', type=uuid.UUID, required=True)
     p.add_argument('--kernel-release', help='Expected release; the Image banner must carry it')
     p.add_argument('--bt-address-file', type=Path)
+    p.add_argument('--wlan-address-file', type=Path,
+                   help='Private aa:bb:cc:dd:ee:ff of this unit, set as the WCN7860 local-mac-address')
     p.add_argument('--debug', action='store_true')
     p.add_argument('--debug-timeout', type=int, default=0)
     p.add_argument('--module-blacklist', help='Explicit comma-separated module control for a debug boot')
@@ -104,6 +106,20 @@ def main():
         # hci_dev_get_bd_addr_from_property() consumes a little-endian bdaddr_t.
         subprocess.run(['fdtput', '-t', 'bx', str(dtb), node, 'local-bd-address',
                         *[f'{b:02x}' for b in reversed(raw)]], check=True)
+    if a.wlan_address_file:
+        address = a.wlan_address_file.read_text().strip()
+        if not re.fullmatch(r'(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}', address):
+            p.error('Invalid local WLAN address')
+        raw = bytes.fromhex(address.replace(':', ''))
+        if raw == bytes(6) or raw[0] & 1:
+            p.error('WLAN address is not a usable unicast address')
+        node = '/soc@0/pcie@1c00000/pcie@0/wifi@0'
+        compatible = subprocess.check_output(['fdtget', '-t', 's', str(dtb), node, 'compatible'], text=True).strip()
+        if compatible != 'pci17cb,110e':
+            p.error('Expected the piano WCN7860 WLAN node')
+        # ath12k reads it with device_get_mac_address() when the card reports none; byte order as written.
+        subprocess.run(['fdtput', '-t', 'bx', str(dtb), node, 'local-mac-address',
+                        *[f'{b:02x}' for b in raw]], check=True)
     console = DEBUG_BOOT_TRACE if a.debug_boot_trace else 'console=ttyMSM0,115200n8'
     cmdline = (f'root=PARTUUID={a.root_partuuid} rootfstype=ext4 rw rootwait '
                f'{console} log_buf_len=2M panic=15 '
@@ -163,7 +179,8 @@ def main():
                 'cmdline': cmdline, 'root_partuuid': str(a.root_partuuid),
                 'debug': a.debug, 'debug_timeout': a.debug_timeout,
                 'inputs': {n: sha(getattr(a, n)) for n in ('kernel', 'dtb', 'initrd', 'profile', 'mkbootimg', 'avbtool')},
-                'private_bt_address_injected': bool(a.bt_address_file), 'effective_dtb_sha256': sha(dtb),
+                'private_bt_address_injected': bool(a.bt_address_file),
+                'private_wlan_address_injected': bool(a.wlan_address_file), 'effective_dtb_sha256': sha(dtb),
                 'outputs': outputs, 'ram_image': {'file': ram.name, 'sha256': sha(ram)},
                 'scope': 'Image construction only; cold boot and recovery must be verified on piano'}
     if a.debug_boot_trace:
