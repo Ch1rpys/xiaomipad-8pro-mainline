@@ -17,10 +17,10 @@ out=${OUT_DIR:-"$ws/out/kernel-dev"}
 jobs=${JOBS:-$(nproc)}
 cross=${CROSS_COMPILE:-aarch64-linux-gnu-}
 fragment="$src/$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["config"])' "$repo/kernel/source.json")"
-# Optional variant fragment merged after the pinned one, e.g.
-# CONFIG_FRAGMENT_EXTRA=arch/arm64/configs/piano-ufs-ro-diag.config (or
-# piano-gpu-diag.config, piano-bt-diag.config, piano-kbd-diag.config). It must be
-# tracked files in the kernel source, separated by spaces, and need their own OUT_DIR.
+# Optional fragments merged after the pinned one, e.g. the remaining
+# release_config_fragments of kernel/source.json. They must be tracked files in
+# the kernel source, separated by spaces, and need their own OUT_DIR. The RAM
+# diagnostic variants and their fragments live on the kernel piano/diag branch.
 extra=${CONFIG_FRAGMENT_EXTRA:-}
 modules=${BUILD_MODULES:-0}
 
@@ -107,16 +107,7 @@ if [[ $modules == 1 ]]; then
 	module_target=(modules)
 fi
 make "${args[@]}" -j"$jobs" Image qcom/sm8750-xiaomi-piano.dtb \
-	qcom/sm8750-xiaomi-piano-adsp-diag.dtb \
-	qcom/sm8750-xiaomi-piano-bt-diag.dtb qcom/sm8750-xiaomi-piano-gpu-diag.dtb \
-	qcom/sm8750-xiaomi-piano-iris-diag.dtb \
 	qcom/sm8750-xiaomi-piano-desktop.dtb \
-	qcom/sm8750-xiaomi-piano-desktop-diag.dtb \
-	qcom/sm8750-xiaomi-piano-input-diag.dtb \
-	qcom/sm8750-xiaomi-piano-kbd-diag.dtb \
-	qcom/sm8750-xiaomi-piano-mic-diag.dtb qcom/sm8750-xiaomi-piano-usb-role-diag.dtb \
-	qcom/sm8750-xiaomi-piano-power-diag.dtb \
-	qcom/sm8750-xiaomi-piano-thp-diag.dtb qcom/sm8750-xiaomi-piano-ufs-ro-diag.dtb \
 	"${module_target[@]}" 2>&1 | tee "$out/build.log"
 if [[ $modules == 1 ]]; then
 	make "${args[@]}" INSTALL_MOD_PATH="$out/modules-root" INSTALL_MOD_STRIP=1 \
@@ -129,23 +120,11 @@ python3 - "$out" "$head" "$toolchain" "$src" "$modules" "${fragments[@]}" <<'PY'
 import hashlib, json, pathlib, subprocess, sys
 out, head, compiler, src = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3], pathlib.Path(sys.argv[4])
 files = ['arch/arm64/boot/Image', 'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano.dtb',
-         'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-adsp-diag.dtb',
-         'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-bt-diag.dtb',
-         'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-gpu-diag.dtb',
-         'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-iris-diag.dtb',
-         'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-desktop.dtb',
-         'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-desktop-diag.dtb',
-         'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-input-diag.dtb',
-         'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-kbd-diag.dtb',
-         'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-mic-diag.dtb',
-         'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-usb-role-diag.dtb',
-         'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-power-diag.dtb',
-         'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-thp-diag.dtb',
-         'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-ufs-ro-diag.dtb', '.config']
+         'arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano-desktop.dtb', '.config']
 result = {'status': 'OFFLINE_BUILD_ONLY', 'kernel_commit': head, 'compiler': compiler,
           'kernel_release': (out / 'include/config/kernel.release').read_text().strip(),
           'config_fragments': [str(pathlib.Path(f).relative_to(src)) for f in sys.argv[6:]],
-          'note': 'RAM-only piano skeleton. Building does not establish hardware support.',
+          'note': 'Building does not establish hardware support.',
           'files': {f: hashlib.sha256((out / f).read_bytes()).hexdigest() for f in files}}
 if sys.argv[5] == '1':
     release = result['kernel_release']

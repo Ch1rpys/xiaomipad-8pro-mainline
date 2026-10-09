@@ -3,6 +3,8 @@
 """Package the piano RAM-only diagnostic using the tested stock v2 container.
 
 Adapted from erhai tools/build-mainline-boot.py; see NOTICE. No flash commands.
+The *-diag DTBs named below are built only from the kernel piano/diag branch
+(7.2.6-piano3 and later keep just sm8750-xiaomi-piano.dtb and the desktop DTB).
 """
 import argparse
 import gzip

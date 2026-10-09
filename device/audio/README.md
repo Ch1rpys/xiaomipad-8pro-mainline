@@ -43,8 +43,8 @@ roundtrip equality is not claimed. No integrity check was disabled.
 
 The conventional loader path would be
 `qcom/sm8750/Piano-Capture-Diag-tplg.bin` for a card with that model name.
-The kernel now has an isolated `sm8750-xiaomi-piano-mic-diag.dtb` with that card
-name. The paired 60-second NCM probe can now be packaged with its exact firmware and module inputs. Do not install this graph as a replacement
+The installed desktop DTB, `sm8750-xiaomi-piano-desktop.dtb`, carries that card
+name (the isolated `sm8750-xiaomi-piano-mic-diag.dtb` is on the kernel piano/diag branch). The paired 60-second NCM probe can now be packaged with its exact firmware and module inputs. Do not install this graph as a replacement
 for an unrelated sound card. The output is topology data, independent
 of CPU architecture, distribution and desktop; native packaging remains separate.
 
