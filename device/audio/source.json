@@ -32,7 +32,7 @@
         "used": "conf.d/<driver>/<long name> entry, card file includes, VA DMIC enable/disable sequence and gain 100"
       }
     ],
-    "changed": "Card long name Piano-Capture-Diag (our DT model); MultiMedia3 only, no speaker route or amplifier controls; two channels VA DEC0 <- DMIC0 and DEC1 <- DMIC2 from piano's stock ODM va-mic-dmic path instead of a single DMIC0 (debian-piano) or DMIC2 (SunUEFI); gain 100 instead of SunUEFI's 98",
+    "changed": "Card long name Xiaomi-Pad-8-Pro (our DT model; Piano-Capture-Diag before the speaker branch); speaker device on MultiMedia1 with fixed, capped amplifier gains (see card.json); two channels VA DEC0 <- DMIC0 and DEC1 <- DMIC2 from piano's stock ODM va-mic-dmic path instead of a single DMIC0 (debian-piano) or DMIC2 (SunUEFI); gain 100 instead of SunUEFI's 98",
     "board_evidence": {
       "stock_build": "OS3.0.303.0.WPYCNXM",
       "odm/etc/audio/sku_sun/mixer_paths_overlay_static.xml": "d008af62ced3797e013a978d14e003ad4633fc374d9b813e238285c22a5b80fc",

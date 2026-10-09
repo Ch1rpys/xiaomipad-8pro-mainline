@@ -212,6 +212,18 @@ device/audio/Piano-Capture-Diag.m4:
   is consumed from its pinned checkout, not copied here.
   License: LICENSES/audioreach-BSD-3-Clause.txt. No proprietary firmware.
 
+device/audio/Xiaomi-Pad-8-Pro.m4 and device/audio/piano/:
+  Derived from linux-msm/audioreach-topology, commit
+  2af1f1ebb8d4fd03b5f53891467ddde2e208a8a0 (SM8550-HDK.m4, module_i2s.m4,
+  subgraph-device-i2s-playback.m4), Copyright Linaro Ltd, 2023, BSD-3-Clause,
+  and from blu-sharky/debian-piano, commit
+  a75f8c5d5fa099d65c171ac839c2e3bb6c63ec45, topology/Xiaomi-Pad-8-Pro.m4 and
+  topology/piano/{module_tdm,subgraph-device-tdm-playback}.m4, SPDX
+  BSD-3-Clause, Copyright (c) 2026 bluseliu50 and piano mainline contributors.
+  Changes: upstream token names, no DSP volume module, capture part as
+  Piano-Capture-Diag.m4. License: LICENSES/audioreach-BSD-3-Clause.txt. No
+  proprietary firmware; the amplifier preset is not part of the topology.
+
 device/audio/ucm2/:
   Adapted from blu-sharky/debian-piano, commit
   a75f8c5d5fa099d65c171ac839c2e3bb6c63ec45,
@@ -222,10 +234,11 @@ device/audio/ucm2/:
   ucm2/Qualcomm/sm8750/MTP/ and ucm2/codecs/qcom-lpass/va-macro/DMIC0*Seq.conf,
   Copyright (c) 2019 Advanced Linux Sound Architecture (ALSA) project,
   BSD-3-Clause (LICENSES/alsa-ucm-conf-BSD-3-Clause.txt).
-  Changes: card long name Piano-Capture-Diag; capture only, without the
-  speaker route and amplifier controls; two channels with VA DEC0 <- DMIC0 and
-  DEC1 <- DMIC2 taken from piano's stock mixer instead of the source files'
-  single DMIC; no stock gain, calibration or other device's values.
+  Changes: card long name Xiaomi-Pad-8-Pro; the speaker device sets fixed,
+  capped amplifier gains and four channels; two capture channels with VA DEC0
+  <- DMIC0 and DEC1 <- DMIC2 taken from piano's stock mixer instead of the
+  source files' single DMIC; no stock gain, calibration or other device's
+  values.
 
 tools/kernel_modules.py and tools/stage-kernel-modules.py:
   GPL-2.0-only. Receipt validation is extracted from tools/build-kernel-deb.py;

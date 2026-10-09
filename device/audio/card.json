@@ -1,0 +1,53 @@
+{
+  "kind": "card-topology",
+  "card_model": "Xiaomi-Pad-8-Pro",
+  "topology": {
+    "path": "qcom/sm8750/Xiaomi-Pad-8-Pro-tplg.bin",
+    "bytes": 10172,
+    "sha256": "ab5b40c518df99c0deae3b6241f862e810a1d0a337ee3f3de1cf131f857d521e",
+    "source": "Xiaomi-Pad-8-Pro.m4",
+    "source_sha256": "252a3bd0ab68f2ed701912f0e7d2d5ae3ce0028960ba6d91eefe2886d4610f25",
+    "includes": {
+      "piano/module_tdm.m4": "c2b8d0048bc7d1cf1411804123a89dcaaa26778af42af670b8d639006452c69c",
+      "piano/subgraph-device-tdm-playback.m4": "78b64aac45fa84e78b104d5792cb796e5fd170ac85e8521ecc26fb8bceeaef78"
+    },
+    "built_with": "m4 -I device/audio -I <audioreach-topology 2af1f1ebb8d4> ; alsatplg 1.2.9 / libatopology 1.2.11",
+    "graphs": [
+      "MultiMedia1 (hw:N,0) playback, 1-4 ch S16_LE 48 kHz -> SECONDARY_TDM_RX_0: LOG -> MFC -> TDM sink 0x0700100E, LPAIF interface 1, 4 x 32-bit slots, mask 0xf, internal long sync, data delay 1",
+      "MultiMedia3 (hw:N,2) capture <- VA_CODEC_DMA_TX_0, 2 ch S16_LE 48 kHz (as Piano-Capture-Diag.m4)"
+    ],
+    "pairs_with": "sm8750-xiaomi-piano-desktop.dtb from kernel branch piano/speakers-20261010 (card model Xiaomi-Pad-8-Pro, speaker-dai-link on SECONDARY_TDM_RX_0); kernels whose desktop DTB names the card Piano-Capture-Diag use diagnostic.json's topology"
+  },
+  "unattended_limits": {
+    "amp_volume_max": 160,
+    "kernel_amp_volume_cap": 215,
+    "tone_max_dbfs": -20,
+    "tone_max_seconds": 3,
+    "watchdog_seconds": 5,
+    "tools": [
+      "tools/speaker-playback-check.py",
+      "tools/speaker-playback-device.sh"
+    ]
+  },
+  "scope": "Compiled and decoded offline; never loaded on piano. Not a playback result.",
+  "derived_from": [
+    {
+      "url": "https://github.com/linux-msm/audioreach-topology",
+      "commit": "2af1f1ebb8d4fd03b5f53891467ddde2e208a8a0",
+      "license": "BSD-3-Clause",
+      "used": "SM8550-HDK.m4 stream/device structure, module_i2s.m4 and subgraph-device-i2s-playback.m4 structure, tokens.m4 (consumed from the pinned checkout)"
+    },
+    {
+      "url": "https://github.com/blu-sharky/debian-piano",
+      "commit": "a75f8c5d5fa099d65c171ac839c2e3bb6c63ec45",
+      "license": "BSD-3-Clause (file SPDX; repository LICENSE MIT)",
+      "files": {
+        "topology/piano/module_tdm.m4": "b765e757d4c8ab54cd2830b00754bfe6e119e420c68837f14b1c9a45230c5034",
+        "topology/piano/subgraph-device-tdm-playback.m4": "ff0d2323a7c287965a01c40df88ed5a6011d6512e7f7faa4ddf6c48a4e3e6643",
+        "topology/Xiaomi-Pad-8-Pro.m4": "b7299d8c2b067b3382d6b0c4eff2968b49f9502da0070e36ce7a6bae0184b028"
+      },
+      "used": "TDM sink module macro and device subgraph, the secondary TDM device subgraph parameters",
+      "changed": "upstream token names instead of a private token table; playback stream without the DSP volume module (upstream reaches +18 dB); two-channel VA capture as Piano-Capture-Diag.m4"
+    }
+  ]
+}
