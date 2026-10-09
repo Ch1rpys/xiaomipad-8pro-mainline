@@ -9,6 +9,7 @@
 近期更新：
 
 - **双系统**：测试机已在 Android 旁安装 Ubuntu。从 Ubuntu 切换到 Android、A 槽启动成功标记均已真机验证。
+- **Wi-Fi 5 GHz**：测试机使用内核 7.2.6-piano4 时，NetworkManager 的扫描除 2.4 GHz 外也能找到 5 GHz 网络；连接网络尚未验证。
 - **内核 7.2.6-piano3**：Wi-Fi 从已安装系统加载固件、使用本机 MAC 地址并可扫描；加入只读的充电器输入状态与若干启动日志修正。
 - **内核 7.2.6-piano2**：显示时钟控制器改为内建，修复了启动后黑屏、GPU 与触控超时的问题。
 - **开发者模式**：可选的 USB 线 SSH 维护通道，默认关闭，已真机验证。
@@ -47,12 +48,12 @@
 
 ## 硬件支持
 
-以下为测试机使用内核 7.2.6-piano3、截至 2026-10-09 的状态；不代表其他版本或配件均已验证。
+以下为测试机使用内核 7.2.6-piano4、截至 2026-10-10 的状态；不代表其他版本或配件均已验证。
 测试配置、已知问题与路线图见 [docs/STATUS.md](docs/STATUS.md)（英文）。
 
 ✅ 可用 · 🟡 部分支持 · ❌ 不支持 · 🧪 未验证
 
-✅ 只用于真机验证过的结果。“测试构建”指诊断启动中取得、尚未进入 7.2.6-piano3 的结果。
+✅ 只用于真机验证过的结果。“测试构建”指诊断启动中取得、尚未进入 7.2.6-piano4 的结果。
 
 ### 平台、显示与输入
 
@@ -74,7 +75,7 @@
 
 | 功能 | 器件 / 实现 | 状态 | 范围与限制 |
 |---|---|---|---|
-| Wi-Fi | 高通 WCN7860 / PCIe / ath12k | 🟡 部分支持 | 已验证固件加载、MAC 地址与扫描；连接网络尚未验证，目前扫描未见 5 GHz 网络 |
+| Wi-Fi | 高通 WCN7860 / PCIe / ath12k | 🟡 部分支持 | 已验证固件加载、MAC 地址与 2.4/5 GHz 扫描；连接网络尚未验证 |
 | 蓝牙 | 高通 WCN7860 / UART / `hci_qca` | 🟡 部分支持 | 固件、上电与设备扫描；配对、音频及与 Wi-Fi 共存未验证 |
 | USB 设备模式 | Synopsys DWC3 / USB 2.0 NCM | ✅ 可用 | 开发者模式下经 USB 的 SSH，默认关闭；正式镜像不提供其他 USB 功能 |
 | USB 主机 / Type-C 角色 | UCSI | ❌ 不支持 | 未启用 Type-C 角色切换 |
@@ -129,7 +130,7 @@ fastboot -s <serial> reboot
 | xiaomipad-8pro-mainline | 设备用户态、Ubuntu 集成、构建/打包/切换工具、固件、文档 |
 | [linux-sm8750-piano](https://github.com/yzddmr6/linux-sm8750-piano) | Linux 内核：在上游 v7.2.6 stable 历史之上维护驱动、设备树与配置，分支 `piano/dev` |
 
-[kernel/source.json](kernel/source.json) 锁定内核提交与配置片段；[kernel/abi.json](kernel/abi.json) 为每次打包构建分配唯一 release（当前为 `7.2.6-piano3`）。
+[kernel/source.json](kernel/source.json) 锁定内核提交与配置片段；[kernel/abi.json](kernel/abi.json) 为每次打包构建分配唯一 release（当前为 `7.2.6-piano4`）。
 本机输入（标定、蓝牙地址、启动配置、签名密钥、备份）归各设备所有者所有，从不提交。
 调试镜像组（`tools/build-persistent-boot.py --debug`）另带一个供 `fastboot boot` 使用的检查镜像，经 USB 提供无认证的 root shell，仅用于诊断。
 

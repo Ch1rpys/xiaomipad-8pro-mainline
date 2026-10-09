@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-10-09. The component support matrix is in the
+Last updated: 2026-10-10. The component support matrix is in the
 [README](../README.md#support-matrix). This page records the test
 configuration, known issues, roadmap and upstreaming state.
 
@@ -12,8 +12,8 @@ All hardware statuses refer to this configuration only.
 |---|---|
 | Device | Xiaomi Pad 8 Pro (`piano`), model 25091RP04C (China), SoC SM8750P, 16 GB RAM, 512 GB UFS; bootloader unlocked |
 | Stock build | OS3.0.303.0.WPYCNXM |
-| Kernel | `7.2.6-piano3` (ABI 3), kernel repository commit `e81699cfa` as pinned in [`kernel/source.json`](../kernel/source.json) and recorded in [`kernel/abi.json`](../kernel/abi.json); fragments `piano-diagnostic.config`, `piano-desktop-diag.config`, `piano-persistent.config`, `piano-release.config`; DTB `sm8750-xiaomi-piano-desktop.dtb`; 1071 modules. `7.2.6-piano2` stays installed and owns the rollback image set |
-| Integration | this repository at `c9895bd`; `piano-device-support` 0.1+20261009.1, `piano-local-firmware` 0.2+os3.0.303.0 (built from `firmware/`) |
+| Kernel | `7.2.6-piano4` (ABI 4), kernel repository commit `9e5e3fe3f` as pinned in [`kernel/source.json`](../kernel/source.json) and recorded in [`kernel/abi.json`](../kernel/abi.json); fragments `piano-diagnostic.config`, `piano-desktop-diag.config`, `piano-persistent.config`, `piano-release.config`; DTB `sm8750-xiaomi-piano-desktop.dtb`; 1071 modules. `7.2.6-piano3` owns the rollback image set; the piano3 and piano2 packages stay installed |
+| Integration | this repository at `85260a8`; `piano-device-support` 0.1+20261009.2, `piano-local-firmware` 0.2+os3.0.303.0 (built from `firmware/`) |
 | Userspace | Ubuntu 26.04 Desktop ARM64; Mesa 26.2.0 with `mesa/a830-speedbin.patch` |
 
 Verification basis: the installed system was checked with a debug image set
@@ -48,7 +48,7 @@ visually and with DPU frame counters. The release image set boots from slot A.
    states refused) and a GSettings override that sets the GNOME idle actions
    to `nothing`. A same-named file in `/etc/systemd/sleep.conf.d/` re-enables
    sleep for testing; resume has never been exercised on this kernel.
-7. **Kernel updates.** Installing `linux-image-7.2.6-piano3` took 22 s on the
+7. **Kernel updates.** Installing `linux-image-7.2.6-piano4` took 20 s on the
    device (dracut, the kdump-tools initrd and the boot image set). The 10 to
    12.5 minutes measured before came from sessions running the older
    `7.2.6-piano+` kernel, with dispcc as a module and so probably in the slow
@@ -74,16 +74,18 @@ visually and with DPU frame counters. The release image set boots from slot A.
     `/usr/share/doc/<package>/copyright` files yet. Keep them local.
 13. **Wi-Fi.** The WCN7860 probes from the installed firmware, takes this
     unit's MAC address from the boot DTB (`/etc/piano/wlan-address`, see
-    [device/boot](../device/boot/README.md)) and scans, but association, DHCP
-    and throughput are untested; scans have found no 5 GHz network so far, and
-    the board file is the API 1 `board.bin` (no `board-2.bin` yet).
+    [device/boot](../device/boot/README.md)), or a random locally administered
+    one when no address is provided, and NetworkManager's scans find 2.4 and
+    5 GHz networks (7.2.6-piano4, with a not yet merged upstream fix of
+    ath12k's frequency range). Association, DHCP and throughput are untested,
+    and the board file is the API 1 `board.bin` (no `board-2.bin` yet).
 
 ## Roadmap
 
 In priority order:
 
-1. Wi-Fi: association and data on a user network, the missing 5 GHz scan
-   results and a `board-2.bin` for each board SKU.
+1. Wi-Fi: association and data on a user network, and a `board-2.bin`
+   for each board SKU.
 2. Charging: charge control over the vendor charger protocol (MCA), which
    differs from the upstream `battmgr` interface; reading it is done.
 3. Publish the installer (partitioning, filesystem creation, boot-profile
@@ -116,7 +118,7 @@ Upstream candidates in the kernel repository, by commit subject:
 | Pin control | pinctrl: qcom: sm8750: describe the TLMM I2C pull-up bit |
 | Backlight | backlight: ktz8866: report register errors and support distinct instances |
 | New drivers | Input: add NT36532E cascade THP transport and firmware tests; HID: nanosic: add initial piano I2C and HID transport. Both lack power management |
-| WCN7860 | dt-bindings: regulator: qcom,qca6390-pmu: document the WCN7860 PMU; dt-bindings: net: bluetooth: add the Qualcomm WCN7860 binding; wifi: ath12k: declare WCN7860 firmware files; dt-bindings: net: wireless: qcom,ath12k: allow a MAC address property; wifi: ath12k: retrieve MAC address from system firmware if needed. These depend on the imported WCN7860 series |
+| WCN7860 | wifi: ath12k: use a random MAC address if none is available; dt-bindings: regulator: qcom,qca6390-pmu: document the WCN7860 PMU; dt-bindings: net: bluetooth: add the Qualcomm WCN7860 binding; wifi: ath12k: declare WCN7860 firmware files; dt-bindings: net: wireless: qcom,ath12k: allow a MAC address property; wifi: ath12k: retrieve MAC address from system firmware if needed. These depend on the imported WCN7860 series |
 | Charger | power: supply: qcom_battmgr: release the GLINK client after its users; soc: qcom: pmic_glink: add a client for the Xiaomi MCA charger firmware; power: supply: add a read-only driver for the Xiaomi MCA charger firmware (with KUnit tests); dt-bindings: soc: qcom: pmic-glink: document the Xiaomi Pad 8 Pro |
 | Board | the `arm64: dts: qcom: piano:` series (board DTS) |
 
@@ -130,6 +132,7 @@ follows its authors: Adreno 830 driver, bindings, DT nodes and cooling
 SMMU nodes (ROCKNIX), WCN7860 ath12k, PCI power control, power sequencing and
 Bluetooth (Teguh Sobirin), ath12k QDSS configuration download (Gianni
 Spadoni), the PCIe `#iommu-cells` fix of `qcom_pcie_config_sid_1_9_0()`
-(Manivannan Sadhasivam, FROMLIST), APR/GPR, q6v5 handover and UFS fixes
+(Manivannan Sadhasivam, FROMLIST), the ath12k frequency range fix for
+single-pdev devices (Shenghan Gao, FROMLIST), APR/GPR, q6v5 handover and UFS fixes
 (Junhao Xie, via BigfootACA/linux), Novatek NT36532 panel driver (Junjie Cao),
 and DSC slice-per-packet support (Alexander Koskovich, Jonathan Marek).
