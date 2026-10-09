@@ -9,9 +9,10 @@ Run Ubuntu 26.04 LTS with GNOME on the Xiaomi Pad 8 Pro (`piano`, SM8750P) along
 Recent updates:
 
 - **Dual boot**: Ubuntu is installed next to Android on the test unit. Switching from Ubuntu to Android and marking slot A as successfully booted are verified on the device.
+- **Kernel 7.2.6-piano3**: Wi-Fi now loads its firmware from the installed system, uses this unit's MAC address and scans; read-only charger input reporting and several boot-log fixes are included.
 - **Kernel 7.2.6-piano2**: the display clock controller is built in, which fixes boots that ended in a black screen or in GPU and touch timeouts.
 - **Developer mode**: optional SSH over the USB cable for maintenance, off by default and verified on the device.
-- **In progress**: Wi-Fi (firmware load and scan verified in a test build) and read-only charger reporting.
+- **In progress**: Wi-Fi association with a network, and charge control.
 
 ## 📮 Follow & Discuss
 
@@ -48,12 +49,12 @@ Do not mix files from different builds: the kernel image and its modules must co
 
 ## Hardware Support
 
-Status on the test unit with kernel 7.2.6-piano2, as of 2026-10-09; other variants and accessories are not implied tested.
+Status on the test unit with kernel 7.2.6-piano3, as of 2026-10-09; other variants and accessories are not implied tested.
 Test configuration, known issues and roadmap: [docs/STATUS.md](docs/STATUS.md).
 
 ✅ Working · 🟡 Partial · ❌ Unsupported · 🧪 Unverified
 
-✅ marks results verified on the device. *Test build* marks results from diagnostic boots that are not yet in 7.2.6-piano2.
+✅ marks results verified on the device. *Test build* marks results from diagnostic boots that are not yet in 7.2.6-piano3.
 
 ### Platform, Display and Input
 
@@ -75,7 +76,7 @@ Test configuration, known issues and roadmap: [docs/STATUS.md](docs/STATUS.md).
 
 | Feature | Component / Implementation | Status | Scope and Limitations |
 |---|---|---|---|
-| Wi-Fi | Qualcomm WCN7860 / PCIe / ath12k | 🟡 Partial | Firmware load and scan verified in a test build; association not yet verified |
+| Wi-Fi | Qualcomm WCN7860 / PCIe / ath12k | 🟡 Partial | Firmware load, MAC address and scan verified; association not yet verified, no 5 GHz network seen in scans so far |
 | Bluetooth | Qualcomm WCN7860 / UART / `hci_qca` | 🟡 Partial | Firmware, power-on and device discovery; pairing, audio and Wi-Fi coexistence unverified |
 | USB device mode | Synopsys DWC3 / USB 2.0 NCM | ✅ Working | SSH over USB in developer mode, off by default; no other USB function in release images |
 | USB host / Type-C roles | UCSI | ❌ Unsupported | Type-C role switching not enabled |
@@ -97,7 +98,7 @@ Test configuration, known issues and roadmap: [docs/STATUS.md](docs/STATUS.md).
 |---|---|---|---|
 | Power / volume keys | Qualcomm PMIC | 🟡 Partial | Power key reaches logind; no screen-off or wake; volume keys unverified |
 | Battery gauges / thermal | 2 × TI BQ27Z561 / thermal zones | ✅ Working | Capacity, voltage and current; thermal zones readable; throttling unverified |
-| Charging | Xiaomi MCA charger via ADSP | 🟡 Partial | Read-only USB input reporting in a test build; no charge control; the battery discharges under Linux, also on USB |
+| Charging | Xiaomi MCA charger via ADSP | 🟡 Partial | Read-only USB input reporting; no charge control; the battery discharges under Linux, also on USB |
 | Suspend | Linux power management | ❌ Unsupported | Disabled by policy until suspend and resume are validated |
 | Hibernation | — | ❌ Unsupported | The layout has no swap partition |
 | Real-time clock | PMK8550 RTC | ❌ Unsupported | Not writable; the clock is wrong after each boot until set or synced |
@@ -130,7 +131,7 @@ A host write resets slot A's retry counter, and `piano-slot-success` marks the s
 | xiaomipad-8pro-mainline | Device userspace, Ubuntu integration, build, packaging and switching tools, firmware, documentation |
 | [linux-sm8750-piano](https://github.com/yzddmr6/linux-sm8750-piano) | Linux kernel: drivers, device trees and configuration on the upstream v7.2.6 stable history, branch `piano/dev` |
 
-[kernel/source.json](kernel/source.json) pins the kernel commit and configuration fragments; [kernel/abi.json](kernel/abi.json) gives every packaged build a unique release (`7.2.6-piano2` is current).
+[kernel/source.json](kernel/source.json) pins the kernel commit and configuration fragments; [kernel/abi.json](kernel/abi.json) gives every packaged build a unique release (`7.2.6-piano3` is current).
 Device-specific inputs (calibration, Bluetooth address, boot profile, signing key, backups) belong to each owner and are never committed.
 Debug image sets (`tools/build-persistent-boot.py --debug`) add a `fastboot boot` check image with an unauthenticated root shell over USB, for diagnostics only.
 
