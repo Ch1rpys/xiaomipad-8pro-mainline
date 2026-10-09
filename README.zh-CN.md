@@ -204,18 +204,33 @@ driver core、Adreno 电源投票、simpledrm、DIO4485 Type-C、PMIC GLINK Alt 
 ## 致谢与许可
 
 本项目复用并改编了以下工作：
-- 一加平板 2 Pro（`erhai`，SM8750P）主线集成项目：启动镜像、initramfs、RAM 根与桌面层工具（GPL-2.0-only；
-  尚无公开地址）；
-- 小米平板 6 Pro（`liuqin`）主线项目：AOSP 与 BusyBox 获取脚本、Desktop 层准备、iio-sensor-proxy 补丁及
-  `hid-nanosic` 的 HID 传输（MIT）；
-- ROCKNIX 与 Teguh Sobirin：WCN7860 Wi-Fi、蓝牙与上电时序提交，SM8750 GPU 时钟节点，以及 Mesa A830 chip ID
-  参考；
-- 高通（Jie Zhang、Akhil P Oommen、Gaurav Kohli）：Adreno 830 支持；Junjie Cao：NT36532 面板驱动；
-  Alexander Koskovich 与 Jonathan Marek：DSC 支持；
-- Novatek 触控来源：小米 `vendor_xiaomi_proprietary_touch-driver`（GPL-2.0，Novatek）用于内核 THP 传输，
-  ianchb 的 `xiaomi-sheng-thp`（Apache-2.0）用于 `piano-thp` 的手指处理；map220v：WN8030 键盘固件编码；
-- AOSP `mkbootimg`（Apache-2.0）与 `avbtool`（MIT）；Mesa（MIT）；linux-msm `hexagonrpc` 与 `qrtr`；
-  libssc；iio-sensor-proxy；AudioReach topology；TinyALSA；systemd；BusyBox；Ubuntu。
+- 一加平板 2 Pro（`erhai`）主线集成项目（GPL-2.0-only；尚无公开地址）；
+- 小米平板 6 Pro（`liuqin`）主线项目：[集成仓](https://github.com/yzddmr6/xiaomipad-6pro-mainline)（MIT）与[内核](https://github.com/yzddmr6/linux-sm8450-liuqin)（GPL-2.0）；
+- [BigfootACA/linux](https://github.com/BigfootACA/linux/tree/full-v7.1.3)（GPL-2.0）；
+- [ROCKNIX](https://github.com/ROCKNIX/distribution/tree/92a6fca6afda5ab7e1874af8985095beee19b6a8) 与 Teguh Sobirin 的 [SM8750 内核补丁](https://github.com/ROCKNIX/distribution/tree/92a6fca6afda5ab7e1874af8985095beee19b6a8/projects/ROCKNIX/devices/SM8750/patches/linux)（GPL-2.0；DTS BSD-3-Clause）；
+- 高通（Jie Zhang、Akhil P Oommen、Gaurav Kohli）：[Adreno 830 系列](https://patchew.org/linux/20260809-pakala-gpu-v1-0-207ad1fac1c7%40oss.qualcomm.com/)（GPL-2.0）；
+- Junjie Cao：[NT36532 面板驱动](https://patch.msgid.link/20260804074233.85629-1-junjie.cao@linux.dev)（GPL-2.0-only）；
+- Alexander Koskovich 与 Jonathan Marek：[DSC 单包多 slice 补丁](https://patch.msgid.link/20260318-dsi-dsc-slice-per-pkt-v2-1-0a1b316f8250@pm.me)（GPL-2.0）；
+- 小米 [vendor_xiaomi_proprietary_touch-driver](https://github.com/MiCode/vendor_xiaomi_proprietary_touch-driver/tree/piano-w-oss)（GPL-2.0）；
+- ianchb 的 [xiaomi-sheng-thp](https://github.com/ianchb/xiaomi-sheng-thp)（Apache-2.0）；
+- map220v 的 [hid-nanosic-wn8030](https://github.com/ianchb/sm8550-mainline/blob/42f3b40c702abbc37c3a04c95af008cd283aeaf3/drivers/hid/hid-nanosic-wn8030.c)（GPL-2.0-only）；
+- AOSP [mkbootimg](https://android.googlesource.com/platform/system/tools/mkbootimg)（Apache-2.0）与
+  [avbtool](https://android.googlesource.com/platform/external/avb/)（MIT）；
+- [Mesa](https://gitlab.freedesktop.org/mesa/mesa)（MIT）；
+- linux-msm [hexagonrpc](https://github.com/linux-msm/hexagonrpc)（GPL-3.0、LGPL-3.0）与
+  [qrtr](https://github.com/linux-msm/qrtr)（BSD-3-Clause）；
+- [libssc](https://codeberg.org/DylanVanAssche/libssc)（GPL-3.0）；
+- [iio-sensor-proxy](https://gitlab.freedesktop.org/hadess/iio-sensor-proxy)（GPL-3.0）；
+- [AudioReach topology](https://github.com/linux-msm/audioreach-topology)（BSD-3-Clause）；
+- [TinyALSA](https://github.com/tinyalsa/tinyalsa)（BSD-3-Clause）；
+- [systemd](https://github.com/systemd/systemd)（LGPL-2.1-or-later、GPL-2.0-or-later）；
+- BusyBox（GPL-2.0）；
+- [Ubuntu](https://ubuntu.com/download/desktop)。
+
+相关项目（已调研，未复用）：
+- [Project-SunUEFI](https://github.com/slwyts/Project-SunUEFI)（按文件许可）；
+- [blu-sharky/linux-piano](https://github.com/blu-sharky/linux-piano)（GPL-2.0）；
+- [blu-sharky/debian-piano](https://github.com/blu-sharky/debian-piano)（MIT）。
 
 各文件的来源、提交与改动记录在 [NOTICE](NOTICE)。除文件 SPDX 头另有声明外，原创集成代码采用
 [MIT](LICENSE)；若干改编自 GPL-2.0-only 来源的工具保持 GPL-2.0-only。内核为 GPL-2.0。第三方组件保留各自

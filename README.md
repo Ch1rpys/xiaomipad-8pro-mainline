@@ -234,19 +234,34 @@ established yet.
 ## Credits and licence
 
 This project reuses and adapts work from:
-- the OnePlus Pad 2 Pro (`erhai`, SM8750P) mainline integration project: boot image, initramfs, RAM
-  root and desktop layer tools (GPL-2.0-only; no public URL yet);
-- the Xiaomi Pad 6 Pro (`liuqin`) mainline project: AOSP and BusyBox fetch scripts, Desktop layer
-  preparation, iio-sensor-proxy patches and the HID transport of `hid-nanosic` (MIT);
-- ROCKNIX and Teguh Sobirin: WCN7860 Wi-Fi, Bluetooth and power-sequencing commits, SM8750 GPU clock
-  nodes and the Mesa A830 chip-ID reference;
-- Qualcomm (Jie Zhang, Akhil P Oommen, Gaurav Kohli): Adreno 830 support; Junjie Cao: NT36532 panel
-  driver; Alexander Koskovich and Jonathan Marek: DSC support;
-- Novatek touch sources: Xiaomi's `vendor_xiaomi_proprietary_touch-driver` (GPL-2.0, Novatek) for
-  the kernel THP transport, and ianchb's `xiaomi-sheng-thp` (Apache-2.0) for finger processing in
-  `piano-thp`; map220v: WN8030 keyboard firmware encoding;
-- AOSP `mkbootimg` (Apache-2.0) and `avbtool` (MIT); Mesa (MIT); linux-msm `hexagonrpc` and `qrtr`;
-  libssc; iio-sensor-proxy; AudioReach topology; TinyALSA; systemd; BusyBox; Ubuntu.
+- the OnePlus Pad 2 Pro (`erhai`) mainline integration project (GPL-2.0-only; no public URL yet);
+- the Xiaomi Pad 6 Pro (`liuqin`) mainline project: [integration](https://github.com/yzddmr6/xiaomipad-6pro-mainline) (MIT) and
+  [kernel](https://github.com/yzddmr6/linux-sm8450-liuqin) (GPL-2.0);
+- [BigfootACA/linux](https://github.com/BigfootACA/linux/tree/full-v7.1.3) (GPL-2.0);
+- [ROCKNIX](https://github.com/ROCKNIX/distribution/tree/92a6fca6afda5ab7e1874af8985095beee19b6a8) and Teguh Sobirin's [SM8750 kernel patches](https://github.com/ROCKNIX/distribution/tree/92a6fca6afda5ab7e1874af8985095beee19b6a8/projects/ROCKNIX/devices/SM8750/patches/linux) (GPL-2.0; DTS BSD-3-Clause);
+- Qualcomm (Jie Zhang, Akhil P Oommen, Gaurav Kohli): [Adreno 830 series](https://patchew.org/linux/20260809-pakala-gpu-v1-0-207ad1fac1c7%40oss.qualcomm.com/) (GPL-2.0);
+- Junjie Cao: [NT36532 panel driver](https://patch.msgid.link/20260804074233.85629-1-junjie.cao@linux.dev) (GPL-2.0-only);
+- Alexander Koskovich and Jonathan Marek: [DSC slices-per-packet patches](https://patch.msgid.link/20260318-dsi-dsc-slice-per-pkt-v2-1-0a1b316f8250@pm.me) (GPL-2.0);
+- Xiaomi's [vendor_xiaomi_proprietary_touch-driver](https://github.com/MiCode/vendor_xiaomi_proprietary_touch-driver/tree/piano-w-oss) (GPL-2.0);
+- ianchb's [xiaomi-sheng-thp](https://github.com/ianchb/xiaomi-sheng-thp) (Apache-2.0);
+- map220v's [hid-nanosic-wn8030](https://github.com/ianchb/sm8550-mainline/blob/42f3b40c702abbc37c3a04c95af008cd283aeaf3/drivers/hid/hid-nanosic-wn8030.c) (GPL-2.0-only);
+- AOSP [mkbootimg](https://android.googlesource.com/platform/system/tools/mkbootimg) (Apache-2.0) and
+  [avbtool](https://android.googlesource.com/platform/external/avb/) (MIT);
+- [Mesa](https://gitlab.freedesktop.org/mesa/mesa) (MIT);
+- linux-msm [hexagonrpc](https://github.com/linux-msm/hexagonrpc) (GPL-3.0, LGPL-3.0) and
+  [qrtr](https://github.com/linux-msm/qrtr) (BSD-3-Clause);
+- [libssc](https://codeberg.org/DylanVanAssche/libssc) (GPL-3.0);
+- [iio-sensor-proxy](https://gitlab.freedesktop.org/hadess/iio-sensor-proxy) (GPL-3.0);
+- [AudioReach topology](https://github.com/linux-msm/audioreach-topology) (BSD-3-Clause);
+- [TinyALSA](https://github.com/tinyalsa/tinyalsa) (BSD-3-Clause);
+- [systemd](https://github.com/systemd/systemd) (LGPL-2.1-or-later, GPL-2.0-or-later);
+- BusyBox (GPL-2.0);
+- [Ubuntu](https://ubuntu.com/download/desktop).
+
+Related projects, studied but not reused:
+- [Project-SunUEFI](https://github.com/slwyts/Project-SunUEFI) (per-file licences);
+- [blu-sharky/linux-piano](https://github.com/blu-sharky/linux-piano) (GPL-2.0);
+- [blu-sharky/debian-piano](https://github.com/blu-sharky/debian-piano) (MIT).
 
 Per-file sources, commits and changes are recorded in [NOTICE](NOTICE). Original integration code is
 licensed under [MIT](LICENSE) unless a file's SPDX header states otherwise; several tools adapted
