@@ -24,7 +24,8 @@ import firmware_payload
 from firmware_payload import sha
 
 PACKAGE = 'piano-local-firmware'
-VERSION = '0.2+os3.0.303.0'
+# 0.3: the capture topology is the VA graph of device/audio (fc92bb08, kernel 7.2.6-piano5 and later).
+VERSION = '0.3+os3.0.303.0'
 SOURCE_DATE_EPOCH = 0
 
 

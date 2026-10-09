@@ -96,6 +96,9 @@ def main():
 
     desktop = stages / 'piano-ubuntu-desktop'
     shutil.copytree(repo / 'packaging/piano-ubuntu-desktop', desktop)
+    # ALSA UCM for the internal-microphone card (device/audio/ucm2, MIT/BSD-3-Clause, see NOTICE);
+    # its conf.d entry is a relative symlink, kept as one.
+    shutil.copytree(repo / 'device/audio/ucm2', desktop / 'usr/share/alsa/ucm2', symlinks=True)
     env = desktop / 'etc/environment.d/50-piano-mesa.conf'
     env.parent.mkdir(parents=True)
     prefix = json.loads((repo / 'mesa/source.json').read_text())['prefix']
@@ -110,7 +113,7 @@ def main():
         f.parent.mkdir(parents=True, exist_ok=True)
         f.write_text(monitors)
     package('piano-ubuntu-desktop', desktop, 'piano-mesa, gdm3, gnome-shell (>= 50)',
-            'Piano Ubuntu desktop graphics defaults and GNOME Shell 50 on-screen keyboard guard')
+            'Piano Ubuntu desktop graphics defaults, GNOME Shell 50 on-screen keyboard guard and microphone UCM')
     (a.output / 'manifest.json').write_text(json.dumps(receipts, indent=2) + '\n')
     print('Local packages created; no packages installed or device accessed')
 
