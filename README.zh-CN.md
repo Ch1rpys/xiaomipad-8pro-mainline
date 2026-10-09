@@ -76,7 +76,7 @@ GNOME 桌面，与 Android 共存。两个系统都从当前活动的 A 槽启�
   钩子 `piano-boot-update` 在内核或 initrd 更新后于 `/var/lib/piano/switch/ubuntu/` 重建 Ubuntu 镜像组
   （上一组移到 `ubuntu.prev/`），A 槽为 Ubuntu 组时原位重写该槽；Android 镜像组保存在
   `/var/lib/piano/switch/android/`。存储布局见 [device/boot/README.md](device/boot/README.md)。
-- **软件包：** `linux-image-7.2.6-piano+`；`piano-device-support`（启动钩子、槽切换与启动成功标记、
+- **软件包：** `linux-image-7.2.6-piano2`（每次打包唯一 release，ABI 见 `kernel/abi.json`）；`piano-device-support`（启动钩子、槽切换与启动成功标记、
   触控服务、平台辅助程序、挂起策略）；`piano-local-firmware`（设备固件，仅限本地使用）；`piano-mesa` 与 `piano-ubuntu-desktop`
   （Mesa 环境、显示缩放）。
 

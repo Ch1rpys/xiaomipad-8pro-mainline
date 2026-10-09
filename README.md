@@ -87,7 +87,7 @@ the project scope
   Ubuntu set in `/var/lib/piano/switch/ubuntu/` (the previous one in `ubuntu.prev/`) after kernel or
   initrd updates and rewrites slot A in place when it holds an Ubuntu set; the Android set is kept in
   `/var/lib/piano/switch/android/`. Store layout: [device/boot/README.md](device/boot/README.md).
-- **Packages:** `linux-image-7.2.6-piano+`; `piano-device-support` (boot hooks, slot switching and
+- **Packages:** `linux-image-7.2.6-piano2` (one unique release per packaged build, see `kernel/abi.json`); `piano-device-support` (boot hooks, slot switching and
   success marking, touch service, platform helper, suspend policy); `piano-local-firmware` (device
   firmware, local use only); `piano-mesa` and `piano-ubuntu-desktop` (Mesa environment, display
   scale).
