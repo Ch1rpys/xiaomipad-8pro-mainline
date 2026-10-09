@@ -41,8 +41,11 @@ visually and with DPU frame counters. The release image set boots from slot A.
    observed with touch active; the cause is not identified.
 5. **Touch.** Long press does not work: a stationary finger is released after
    about one frame. After the first touch the controller stays in 120 Hz
-   active scanning. On the lock screen the GNOME on-screen keyboard fails and
-   touch input is lost; enter passwords with the magnetic keyboard.
+   active scanning. On the lock screen GNOME Shell 50 raised a JavaScript
+   error on every touch release while the on-screen keyboard was active
+   (`keyboard.js:1159`); `piano-ubuntu-desktop` now ships the
+   `piano-osk-guard@io.github.piano` extension against it, not yet tested on
+   the tablet. Until it is, enter passwords with the magnetic keyboard.
 6. **Suspend disabled.** `piano-device-support` installs
    `/usr/lib/systemd/sleep.conf.d/50-piano-first-release.conf` (all sleep
    states refused) and a GSettings override that sets the GNOME idle actions

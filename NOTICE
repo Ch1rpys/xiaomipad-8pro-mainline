@@ -236,6 +236,17 @@ ubuntu/systemd/worker-cap.patch:
   License text: LICENSES/systemd-GPL-2.0-or-later.txt, from the authenticated
   systemd source's LICENSE.GPL2.
 
+packaging/piano-ubuntu-desktop/usr/share/gnome-shell/extensions/piano-osk-guard@io.github.piano/:
+  New GNOME Shell 50 extension, GPL-2.0-or-later like the GNOME Shell code it
+  wraps (js/ui/keyboard.js KeyboardManager.maybeHandleEvent() of gnome-shell
+  50.1, Ubuntu 50.1-0ubuntu1.3). It copies no GNOME Shell code; the original
+  method is called unchanged when the event has an actor. GNOME Shell 51
+  removed the method in commit 5e5b0f49d35ae2c1626eb2ee386befb608a8d5e4.
+  tools/test-gnome-osk-guard.py (GPL-2.0-or-later) reads that method from a
+  caller-supplied, verified source tree at run time and does not store it.
+  License text: the GNU GPL version 2 in LICENSES/GPL-2.0-only.txt; "or later"
+  follows the SPDX headers.
+
 TinyALSA RAM mixer diagnostic
 - Upstream: https://github.com/tinyalsa/tinyalsa.git
 - Commit: 961babfe962e71d952ae734074cc89576b28a9e7

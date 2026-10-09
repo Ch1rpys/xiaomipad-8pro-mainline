@@ -95,6 +95,7 @@ def main():
             'Isolated Mesa 26.2 with piano A830 input lock')
 
     desktop = stages / 'piano-ubuntu-desktop'
+    shutil.copytree(repo / 'packaging/piano-ubuntu-desktop', desktop)
     env = desktop / 'etc/environment.d/50-piano-mesa.conf'
     env.parent.mkdir(parents=True)
     prefix = json.loads((repo / 'mesa/source.json').read_text())['prefix']
@@ -108,7 +109,8 @@ def main():
         f = desktop / rel
         f.parent.mkdir(parents=True, exist_ok=True)
         f.write_text(monitors)
-    package('piano-ubuntu-desktop', desktop, 'piano-mesa, gdm3', 'Piano Ubuntu desktop graphics defaults')
+    package('piano-ubuntu-desktop', desktop, 'piano-mesa, gdm3, gnome-shell (>= 50)',
+            'Piano Ubuntu desktop graphics defaults and GNOME Shell 50 on-screen keyboard guard')
     (a.output / 'manifest.json').write_text(json.dumps(receipts, indent=2) + '\n')
     print('Local packages created; no packages installed or device accessed')
 
