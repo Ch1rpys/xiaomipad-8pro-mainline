@@ -64,13 +64,16 @@ def main():
     p.add_argument('--debug', action='store_true')
     p.add_argument('--debug-timeout', type=int, default=0)
     p.add_argument('--module-blacklist', help='Explicit comma-separated module control for a debug boot')
+    p.add_argument('--modprobe-blacklist',
+                   help='Debug boot only: kmod modprobe.blacklist= (stops alias autoload; an explicit insmod still loads)')
     p.add_argument('--debug-boot-trace', action='store_true',
                    help='Debug boot only: replace the serial console by DEBUG_BOOT_TRACE')
     a = p.parse_args()
     if a.debug_timeout and (not a.debug or not 60 <= a.debug_timeout <= 900):
         p.error('A 60–900 second timeout is only available for explicit debug boots')
-    if a.module_blacklist and (not a.debug or not re.fullmatch(r'[a-z0-9_]+(?:,[a-z0-9_]+)*', a.module_blacklist)):
-        p.error('Module controls require an explicit debug boot and valid module names')
+    for control in (a.module_blacklist, a.modprobe_blacklist):
+        if control and (not a.debug or not re.fullmatch(r'[a-z0-9_]+(?:,[a-z0-9_]+)*', control)):
+            p.error('Module controls require an explicit debug boot and valid module names')
     if a.debug_boot_trace and not a.debug:
         p.error('The boot trace console is only available for explicit debug boots')
     release = kernel_release(a.kernel)
@@ -117,6 +120,8 @@ def main():
         cmdline += f' piano.debug_timeout={a.debug_timeout}'
     if a.module_blacklist:
         cmdline += ' module_blacklist=' + a.module_blacklist
+    if a.modprobe_blacklist:
+        cmdline += ' modprobe.blacklist=' + a.modprobe_blacklist
     empty = out / 'empty.cpio.gz'
     empty.write_bytes(empty_ramdisk())
     mk = ['python3', str(a.mkbootimg)]
@@ -163,6 +168,8 @@ def main():
                 'scope': 'Image construction only; cold boot and recovery must be verified on piano'}
     if a.debug_boot_trace:
         manifest['debug_boot_trace'] = DEBUG_BOOT_TRACE
+    if a.modprobe_blacklist:
+        manifest['modprobe_blacklist'] = a.modprobe_blacklist
     (out / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     (out / 'SHA256SUMS').write_text(''.join(f'{r["sha256"]}  {r["file"]}\n' for r in outputs.values()))
     print(json.dumps({'output': str(out), 'images': list(outputs)}))
