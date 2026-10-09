@@ -16,6 +16,14 @@ import subprocess
 import uuid
 import zlib
 
+# Debug-only observation of a boot that stops before userspace. console-ramoops
+# (pstore) is always a console; dropping the 115200 serial console keeps the
+# extra output from adding seconds of synchronous UART time, so the pstore copy
+# of the log carries every level, each initcall and every clk disable/unprepare
+# with its completion. CONFIG_NULL_TTY is off, so ttynull only names "no tty".
+DEBUG_BOOT_TRACE = ('console=ttynull ignore_loglevel initcall_debug tp_printk trace_event='
+                    'clk:clk_disable,clk:clk_disable_complete,clk:clk_unprepare,clk:clk_unprepare_complete')
+
 
 def sha(path):
     with Path(path).open('rb') as f:
@@ -56,11 +64,15 @@ def main():
     p.add_argument('--debug', action='store_true')
     p.add_argument('--debug-timeout', type=int, default=0)
     p.add_argument('--module-blacklist', help='Explicit comma-separated module control for a debug boot')
+    p.add_argument('--debug-boot-trace', action='store_true',
+                   help='Debug boot only: replace the serial console by DEBUG_BOOT_TRACE')
     a = p.parse_args()
     if a.debug_timeout and (not a.debug or not 60 <= a.debug_timeout <= 900):
         p.error('A 60–900 second timeout is only available for explicit debug boots')
     if a.module_blacklist and (not a.debug or not re.fullmatch(r'[a-z0-9_]+(?:,[a-z0-9_]+)*', a.module_blacklist)):
         p.error('Module controls require an explicit debug boot and valid module names')
+    if a.debug_boot_trace and not a.debug:
+        p.error('The boot trace console is only available for explicit debug boots')
     release = kernel_release(a.kernel)
     if not release:
         p.error('Kernel has no Linux version banner; expected an uncompressed arm64 Image')
@@ -89,8 +101,9 @@ def main():
         # hci_dev_get_bd_addr_from_property() consumes a little-endian bdaddr_t.
         subprocess.run(['fdtput', '-t', 'bx', str(dtb), node, 'local-bd-address',
                         *[f'{b:02x}' for b in reversed(raw)]], check=True)
+    console = DEBUG_BOOT_TRACE if a.debug_boot_trace else 'console=ttyMSM0,115200n8'
     cmdline = (f'root=PARTUUID={a.root_partuuid} rootfstype=ext4 rw rootwait '
-               'console=ttyMSM0,115200n8 log_buf_len=2M panic=15 '
+               f'{console} log_buf_len=2M panic=15 '
                'msm.separate_gpu_kms=1 piano.boot=persistent systemd.gpt_auto=0 bootconfig')
     # V4 may expose the firmware serial only in bootconfig. Keep the explicit
     # development gadget bound to the locally verified installation profile.
@@ -148,6 +161,8 @@ def main():
                 'private_bt_address_injected': bool(a.bt_address_file), 'effective_dtb_sha256': sha(dtb),
                 'outputs': outputs, 'ram_image': {'file': ram.name, 'sha256': sha(ram)},
                 'scope': 'Image construction only; cold boot and recovery must be verified on piano'}
+    if a.debug_boot_trace:
+        manifest['debug_boot_trace'] = DEBUG_BOOT_TRACE
     (out / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     (out / 'SHA256SUMS').write_text(''.join(f'{r["sha256"]}  {r["file"]}\n' for r in outputs.values()))
     print(json.dumps({'output': str(out), 'images': list(outputs)}))
