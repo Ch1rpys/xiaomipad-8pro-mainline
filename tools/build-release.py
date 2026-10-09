@@ -160,6 +160,8 @@ def main():
     os.link(build / 'root.sparse.img', out / 'rootfs/root.sparse.img')
     for name in ('manifest.json', 'verification.json'):
         shutil.copy2(build / name, out / 'rootfs' / name)
+    qemu_note = ('No QEMU boot was run for this build.' if not a.boot_check else
+                 'QEMU boot (no piano hardware): see `rootfs/qemu-boot-check.json`.')
     if a.boot_check:
         check = json.loads(a.boot_check.read_text())
         if check.get('rootfs_sha256') != rootfs['outputs']['root.ext4']['sha256']:
@@ -212,7 +214,7 @@ def main():
         kernel_commit=kernel_commit, iso_sha256=ISO_SHA256, apt_snapshot=rootfs['apt_snapshot'],
         stock_build=stock, boot_cmdline=manifest['cmdline'],
         boot_key_public_sha256=rootfs['boot_key_public_sha256'],
-        artefact_rows='\n'.join(rows), package_rows='\n'.join(packages))
+        artefact_rows='\n'.join(rows), package_rows='\n'.join(packages), qemu_note=qemu_note)
     (out / 'RELEASE-NOTES.md').write_text(notes)
     hashes['RELEASE-NOTES.md'] = sha(out / 'RELEASE-NOTES.md')
     release_manifest = {
@@ -221,6 +223,7 @@ def main():
         'rootfs_manifest_sha256': sha(build / 'manifest.json'), 'boot_set_checks': checks,
         'dtb_property_count': len(properties), 'identity_scan': identity,
         'data_partition': 'not shipped; create it at install time (docs/RELEASE.md)',
+        'qemu_boot_check': 'included' if a.boot_check else 'not run for this build',
         'files_sha256': hashes,
         'scope': 'Local release directory; not published, not booted on a tablet as a whole',
     }

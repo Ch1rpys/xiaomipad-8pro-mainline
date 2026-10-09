@@ -39,13 +39,15 @@ Status on the test unit (one 512 GB unit, model 25091RP04C) with `$kernel_releas
 - ✅ Working: CPU frequency scaling, boot from slot A (marked successful after each boot), UFS storage,
   GNOME on Wayland at 200 % scaling, Adreno 830 rendering with the bundled Mesa 26.2.0, battery gauges
   and thermal zones, SSH over USB in developer mode.
-- 🟡 Partial: display (firmware framebuffer, 3200×2136 at 120 Hz, fixed brightness, no screen-off),
-  touchscreen (single finger, needs your calibration), magnetic keyboard (keys), Wi-Fi (firmware and scan,
-  needs your MAC address), Bluetooth (discovery, needs your address), switching from Ubuntu to Android,
-  charger input reporting (read-only), power key.
+- 🟡 Partial: display (firmware framebuffer, 3200×2136 at 120 Hz, brightness only through sysfs, no screen-off),
+  touchscreen (single finger, needs your calibration), magnetic keyboard (keys), Wi-Fi (firmware load and
+  2.4 GHz and 5 GHz scanning verified; association not yet verified), Bluetooth (discovery, needs your
+  address), switching from Ubuntu to Android,
+  battery and charger reporting (read-only; no charge control), power key.
 - ❌ Unsupported: charging (the battery discharges under Linux, also on USB), speakers, cameras, sensors,
   video decoding, USB host and external display, suspend, writing the real-time clock (the clock is wrong
-  after every boot), fingerprint, stylus. 🧪 Unverified: microphone.
+  after every boot), fingerprint, stylus.
+- 🧪 Unverified: internal microphone (capture path and UCM profile installed; not verified acoustically).
 
 ## Per-unit data you must add
 
@@ -55,7 +57,7 @@ address, touch calibration, boot profile, partition map or signing key of yours.
 | File in `/etc/piano/` (root, mode 0600) | Without it |
 |---|---|
 | `thp-calibration.json` | the touchscreen does not start (use the keyboard) |
-| `wlan-address` | Wi-Fi cannot be brought up: this unit's WCN7860 reports an all-zero MAC address; ath12k reads the address from the boot DTB, which `piano-boot-update` writes from this file. A kernel-side fallback to a random address is planned |
+| `wlan-address` | Wi-Fi uses a random MAC address on every boot: this unit's WCN7860 reports an all-zero address, and ath12k falls back to a random one unless the boot DTB carries the address, which `piano-boot-update` writes from this file |
 | `bluetooth-address` | the Bluetooth controller stays unconfigured |
 | `boot-profile.json`, `boot-signing.pem` | `piano-boot-update` cannot rebuild the boot set, so the addresses above are not applied and kernel updates leave the set unchanged |
 | `boot-partitions.json` | `piano-boot-switch` (switching from Ubuntu, the app-grid button) refuses |
@@ -74,10 +76,11 @@ your own boot profile before writing slot A.
   enable it with `sudo piano-devmode on` before relying on remote access.
 - With no picture or no response, hold Power + Volume Down for Fastboot and switch with `piano-switch.py`.
 - The Android-side KernelSU module (`piano-switch-ksu`) is not yet verified on the device.
-- Not verified on the device as a whole: this image was assembled offline from the packages and
-  procedure that run on the test unit. It was checked offline and booted in QEMU (no piano hardware),
-  where the initrd mounted the root and `/home` by partition name; Ubuntu's first-boot snap seeding
-  did not finish within the 20-minute emulation budget, so `multi-user.target` was not observed.
+- Not flashed to a tablet as a whole: this image was assembled offline from the packages and
+  procedure that run on the test unit, and checked offline. On the test unit, 7.2.6-piano4 booted as a RAM boot
+  with the partition-name root and the serial-free command line of an address-free set; `$kernel_release`
+  is installed and validated there with the unit's own set.
+  $qemu_note
 
 The firmware package carries unmodified stock files of `$stock_build`; there is no redistribution
 licence for them, and they are removed on request of the rights holder. Integration code is MIT,

@@ -57,7 +57,7 @@ page size and load addresses).
 | Input | Scope | Where it goes | Without it |
 |---|---|---|---|
 | `bluetooth-address` | this unit | `/etc/piano/` | the Bluetooth controller stays unconfigured |
-| `wlan-address` | this unit (`wlan/wlan_mac.bin` on `persist`) | `/etc/piano/` | Wi-Fi cannot be brought up: the WCN7860 reports an all-zero MAC address and ath12k reads the address from the boot DTB; a kernel fallback to a random address is planned |
+| `wlan-address` | this unit (`wlan/wlan_mac.bin` on `persist`) | `/etc/piano/` | a random Wi-Fi MAC address on every boot: the WCN7860 reports an all-zero address and ath12k (7.2.6-piano4 and later) falls back to a random one unless the boot DTB carries the address |
 | `thp-calibration.json` | this unit's panel | `/etc/piano/` | no touch input |
 | `boot-profile.json` | this unit (`serial`) and its stock build (the rest) | `/etc/piano/` | `piano-boot-update` keeps the prebuilt set; `piano-boot-switch` refuses |
 | `boot-signing.pem` | the owner | `/etc/piano/` | `piano-boot-update` keeps the prebuilt set |
@@ -150,17 +150,18 @@ Manual in v0.1. Follow [AGENT-GUIDE.md](AGENT-GUIDE.md) §4 with these changes:
    The new set carries your addresses, serial and key; the release set becomes `ubuntu.prev`.
    Reboot, then `sudo piano-boot-switch verify`.
 
-Until step 7, Wi-Fi, Bluetooth, touch and switching from Ubuntu are unavailable, and kernel package
-updates leave the boot set unchanged. Use the magnetic keyboard for Initial Setup.
+Until step 7, Bluetooth, touch and switching from Ubuntu are unavailable, Wi-Fi uses a random MAC
+address, and kernel package updates leave the boot set unchanged. Use the magnetic keyboard for Initial Setup.
 
 ## Verification status
 
-- The offline checks and the QEMU boot cover the image and the boot set as files; QEMU virt has
-  no piano hardware. In the v0.1.0-preview run (TCG, `apparmor=0`, 20 minutes) the image's dracut
-  initrd found and checked `linux_rootfs` by name, `/home` mounted from `linux_data`, the only failed
-  unit was `piano-slot-success` (expected: QEMU is not piano), and `multi-user.target` was still
-  waiting for Ubuntu's first-boot `snapd.seeded.service` when the budget ended.
-- The release image as a whole has not been flashed to a tablet. Its parts run on the test unit:
-  the packages, the dracut initrd path and the installed root built by the same procedure. The
-  PARTLABEL root and the serial-free command line are new in the release set and not yet verified on
-  the device.
+- v0.1.0-preview is built from 7.2.6-piano5. Its offline checks (`rootfs/verification.json`) and the
+  identity scan cover the image and the boot set as files.
+- On the test unit, 7.2.6-piano4 booted as a RAM boot with the partition-name root and the
+  serial-free command line of an address-free set, and the random Wi-Fi MAC fallback worked; Wi-Fi
+  scanning found 2.4 GHz and 5 GHz networks.
+- QEMU: no boot was run for the piano5 build. An earlier build of the same pipeline with
+  7.2.6-piano3 (TCG, `apparmor=0`, 20 minutes) found and checked `linux_rootfs` by name and mounted
+  `/home` from `linux_data`; the only failed unit was `piano-slot-success` (expected: QEMU is not
+  piano), and `multi-user.target` was still waiting for Ubuntu's first-boot `snapd.seeded.service`.
+- The release image as a whole has not been flashed to a tablet.
