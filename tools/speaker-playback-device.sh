@@ -26,7 +26,7 @@ UNATTENDED_AMP_MAX=160
 KERNEL_AMP_CAP=215
 WATCHDOG_S=5
 AMPS="Top Left:35 Top Right:37 Bottom Left:34 Bottom Right:36"
-REGS="00 03 04 06 10 11 16 17"
+REGS="00 03 04 06 10 11 16 17 19 1a 1c"
 
 say() { printf '%s\n' "$*"; }
 uptime_s() { cut -d' ' -f1 /proc/uptime; }
