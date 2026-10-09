@@ -1,0 +1,72 @@
+{
+  "fixture": "fast boot: ABI-2 validation boot B (7.2.6-piano2, CONFIG_SM_DISPCC_8750=y), 2026-10-09 11:45-11:49 +08",
+  "boot": "fastboot boot of a debug RAM image (900 s timer): kernel 7.2.6-piano2 0d40c97b..., boot DTB b73b3e1e..., device dracut initrd 714f3992..., RAM image 26504363...",
+  "result_then": "all 17 criteria passed on the device; slot A was then written with piano-boot-switch",
+  "transport": "persistent debug console (192.168.88.2:2323) and the host /dev/kmsg capture over the NCM link",
+  "files": [
+    {
+      "file": "initrd-0006s.txt",
+      "captured_as": "abi2-install-initrdclk-114550-36.txt",
+      "captured_sha256": "754a2cd922384973f959973d9a2d5352beb5a559ced9d3406389ab19a15f4424"
+    },
+    {
+      "file": "root-0028s-hfaxi.txt",
+      "captured_as": "abi2-install-hfaxi-root-114612-38.txt",
+      "captured_sha256": "59c58fd8213650ab6986ddabd01a126ee7567c398e3bedc11a1c91ae019f1f83"
+    },
+    {
+      "file": "root-0041s-classify.txt",
+      "captured_as": "abi2-install-classify-114625-39.txt",
+      "captured_sha256": "9e0c0c4ac515ae3c124d836ff390a474fd7e4b8d2f0314ec3c661b6165f0c2fb"
+    },
+    {
+      "file": "root-0041s-readings.txt",
+      "captured_as": "abi2-install-r40-114626-40.txt",
+      "captured_sha256": "40a7be7ae247ccb4714c09a8d9e9334cb1fc1ebd1b915b180f1f171f5c8a1e9c"
+    },
+    {
+      "file": "root-0098s-scanout.txt",
+      "captured_as": "abi2-install-scanout-114722-41.txt",
+      "captured_sha256": "da131a56fe8f3d52bcd0cc7f30e386bf219089157946950dd5bb4f184278273b"
+    },
+    {
+      "file": "root-0099s-readings.txt",
+      "captured_as": "abi2-install-r100-114724-42.txt",
+      "captured_sha256": "da0b4566402971af19cdf3bd5b08fdbf0158591684c541f784b6bc9d9700af32"
+    },
+    {
+      "file": "root-0198s-classify.txt",
+      "captured_as": "abi2-install-r200-114902-43.txt",
+      "captured_sha256": "441401f1f9b37cbb77489bd9d4fb1139acc498efe3e8f876957669e82a4c3314"
+    },
+    {
+      "file": "root-0198s-ident.txt",
+      "captured_as": "abi2-install-ident200-114902-44.txt",
+      "captured_sha256": "dadc15fe73c85731dd08f17953ebe983bcf7695acd446c781f5303864f5bb565"
+    },
+    {
+      "file": "kmsg.txt",
+      "captured_as": "abi2-install-B-live-kmsg.txt",
+      "captured_sha256": "8df8b641066ae16a0b1c013bf7ab109e6a57268d2786fbd261db5f55932b4cbb"
+    },
+    {
+      "file": "getvar-before.txt",
+      "captured_as": "abi2-install-getvar-B-pre.txt",
+      "captured_sha256": "ffb066b56596c6f19682301ed7e0452e2bffd3df13254fc3fc906f207263fb42"
+    },
+    {
+      "file": "getvar-after.txt",
+      "captured_as": "abi2-install-getvar-B-post-write.txt",
+      "captured_sha256": "7f4fed10550dd5058250e0e375441ee249798b90ecd2eb7e40569f9b3ddbdcc3"
+    }
+  ],
+  "scrubbed": [
+    "kernel command line",
+    "console cmdline section",
+    "device serial",
+    "MAC addresses",
+    "host interface names",
+    "UUIDs (boot_id, PARTUUID, filesystem)",
+    "account name"
+  ]
+}

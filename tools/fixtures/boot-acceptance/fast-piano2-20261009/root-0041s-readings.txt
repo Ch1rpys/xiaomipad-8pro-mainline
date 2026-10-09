@@ -1,0 +1,246 @@
+
+Ubuntu 26.04 LTS
+
+PIANO_PERSISTENT_CONSOLE phase=root
+
+
+BusyBox v1.36.1 (Ubuntu 1:1.36.1-6ubuntu3.1) built-in shell (ash)
+Enter 'help' for a list of built-in commands.
+
+# 
+# [6nif [ -x /usr/libexec/piano/busybox ]; then /usr/libexec/piano/busybox stty -ec
+ho; else /bin/busybox stty -echo; fi
+# == uptime
+41.19 305.49
+00000000-0000-0000-0000-000000000000
+# == where
+root
+# == loadavg
+0.25 0.08 0.02 1/534 3780
+nproc 8
+# == cpufreq
+# > > > policy0 cpus=0 1 2 3 4 5 cur=2400000 min=384000 max=3532800 gov=schedutil drv=scmi
+policy6 cpus=6 7 cur=1017600 min=1017600 max=4089600 gov=schedutil drv=scmi
+# # == lsmod qcom_stats
+qcom_stats 12288 0 - Live 0xffffc53b86200000
+# == ddr_stats A t=41.20
+DDR LPM Stat Name:0xd4  count:0 Duration (ticks):0
+DDR LPM Stat Name:0xd3  count:0 Duration (ticks):0
+DDR LPM Stat Name:0x11  count:0 Duration (ticks):0
+DDR LPM Stat Name:0xd0  count:1 Duration (ticks):4868632227
+DDR Freq 200Mhz:        CP IDX:1        count:1 Duration (ticks):32779264
+DDR Freq 547Mhz:        CP IDX:2        count:1 Duration (ticks):0
+DDR Freq 1353Mhz:       CP IDX:3        count:1 Duration (ticks):538028544
+DDR Freq 1555Mhz:       CP IDX:4        count:1 Duration (ticks):8224768
+DDR Freq 1708Mhz:       CP IDX:5        count:1 Duration (ticks):9181184
+DDR Freq 2092Mhz:       CP IDX:6        count:1 Duration (ticks):43332096
+DDR Freq 2736Mhz:       CP IDX:7        count:1 Duration (ticks):13216256
+DDR Freq 3187Mhz:       CP IDX:8        count:1 Duration (ticks):4040937472
+DDR Freq 3686Mhz:       CP IDX:9        count:1 Duration (ticks):8786432
+DDR Freq 4224Mhz:       CP IDX:10       count:1 Duration (ticks):4151296
+DDR Freq 4761Mhz:       CP IDX:11       count:1 Duration (ticks):169994752
+# # == ddr_stats B t=43.21
+DDR LPM Stat Name:0xd4  count:0 Duration (ticks):0
+DDR LPM Stat Name:0xd3  count:0 Duration (ticks):0
+DDR LPM Stat Name:0x11  count:0 Duration (ticks):0
+DDR LPM Stat Name:0xd0  count:1 Duration (ticks):4907121879
+DDR Freq 200Mhz:        CP IDX:1        count:1 Duration (ticks):32779264
+DDR Freq 547Mhz:        CP IDX:2        count:1 Duration (ticks):0
+DDR Freq 1353Mhz:       CP IDX:3        count:1 Duration (ticks):576518144
+DDR Freq 1555Mhz:       CP IDX:4        count:1 Duration (ticks):8224768
+DDR Freq 1708Mhz:       CP IDX:5        count:1 Duration (ticks):9181184
+DDR Freq 2092Mhz:       CP IDX:6        count:1 Duration (ticks):43332096
+DDR Freq 2736Mhz:       CP IDX:7        count:1 Duration (ticks):13216256
+DDR Freq 3187Mhz:       CP IDX:8        count:1 Duration (ticks):4040937472
+DDR Freq 3686Mhz:       CP IDX:9        count:1 Duration (ticks):8786432
+DDR Freq 4224Mhz:       CP IDX:10       count:1 Duration (ticks):4151296
+DDR Freq 4761Mhz:       CP IDX:11       count:1 Duration (ticks):169994752
+# == thermal zones
+thermal_zone0 aoss0-thermal 35900
+thermal_zone1 cpu-0-0-0-thermal 36300
+thermal_zone10 cpu-0-4-1-thermal 36300
+thermal_zone11 cpu-0-5-0-thermal 36600
+thermal_zone12 cpu-0-5-1-thermal 36600
+thermal_zone13 cpuss-0-0-thermal 37400
+thermal_zone14 cpuss-0-1-thermal 36600
+thermal_zone15 aoss1-thermal 34900
+thermal_zone16 cpu-1-0-0-thermal 35200
+thermal_zone17 cpu-1-0-1-thermal 35200
+thermal_zone18 cpu-1-1-0-thermal 35600
+thermal_zone19 cpu-1-1-1-thermal 35600
+thermal_zone2 cpu-0-0-1-thermal 37400
+thermal_zone20 cpuss-1-0-thermal 36000
+thermal_zone21 cpuss-1-1-thermal 35600
+thermal_zone22 aoss2-thermal 35900
+thermal_zone23 gpuss0-thermal 35900
+thermal_zone24 gpuss1-thermal 36300
+thermal_zone25 gpuss2-thermal 35100
+thermal_zone26 gpuss3-thermal 35100
+thermal_zone27 gpuss4-thermal 36300
+thermal_zone28 gpuss5-thermal 35900
+thermal_zone29 gpuss6-thermal 36300
+thermal_zone3 cpu-0-1-0-thermal 37800
+thermal_zone30 gpuss7-thermal 35500
+thermal_zone31 modem0-thermal 35900
+thermal_zone32 modem1-thermal 35900
+thermal_zone33 modem2-thermal 35500
+thermal_zone34 modem3-thermal 35900
+thermal_zone35 camera0-thermal 35900
+thermal_zone36 camera1-thermal 35900
+thermal_zone37 video-thermal 35900
+thermal_zone38 aoss3-thermal 35900
+thermal_zone39 nsphvx0-thermal 35900
+thermal_zone4 cpu-0-1-1-thermal 38600
+thermal_zone40 nsphvx1-thermal 36300
+thermal_zone41 nsphvx2-thermal 35900
+thermal_zone42 nsphmx0-thermal 36300
+thermal_zone43 nsphmx1-thermal 36300
+thermal_zone44 nsphmx2-thermal 36600
+thermal_zone45 nsphmx3-thermal 36300
+thermal_zone46 ddr-thermal 37000
+thermal_zone47 bq27z561-0 32400
+thermal_zone48 bq27z561-1 33400
+thermal_zone49 pmih0108-thermal 37000
+thermal_zone5 cpu-0-2-0-thermal 37400
+thermal_zone50 pm8550ve-d-thermal 37000
+thermal_zone51 pm8550ve-f-thermal 37000
+thermal_zone52 pm8550ve-g-thermal 37000
+thermal_zone53 pm8550vs-j-thermal 37000
+thermal_zone6 cpu-0-2-1-thermal 37800
+thermal_zone7 cpu-0-3-0-thermal 37800
+thermal_zone8 cpu-0-3-1-thermal 38200
+thermal_zone9 cpu-0-4-0-thermal 38200
+# == cooling
+cooling_device0 devfreq-3d00000.gpu 0/13
+cooling_device1 cpufreq-cpu0 0/15
+cooling_device2 cpufreq-cpu6 0/15
+# # == icc summary rows
+echo "== icc synced"; for p in /sys/devices/platform/soc@0/*interconnect*; do echo "$(basename $p) $(cat $p/state_synced)"; done
+echo "== genpd"; grep -E "^(cx|mx|mxc|mmcx|ebi|gfx|gmxc|mdss)" /sys/kernel/debug/pm_genpd/pm_genpd_summary
+echo "== rpmhpd synced"; cat /sys/devices/platform/soc@0/16500000.rsc/16500000.rsc:power-controller/state_synced
+echo "== sync_state"; dmesg | grep -iE "sync_state" | tail -8
+echo "== clk memory path (full rows)"; grep -E "^ *(gcc_ddrss|ddr|llcc|memnoc|gemnoc|gcc_gpu_memnoc|gcc_disp_hf_axi|disp_cc_mdss_mdp_clk |disp_cc_mdss_ahb1)" /sys/kernel/debug/clk/llcc_mc@interconnect-1                          3914696      4257792
+  1d84000.ufs                            7            0       596378
+  3d00000.gpu                            7            0            0
+ebi@interconnect-1                              3914696      4257792
+  1d84000.ufs                            7            0       596378
+  3d00000.gpu                            7            0            0
+  1d84000.ufs                            3            0         1000
+  1d84000.ufs                            3            0         1000
+  1d84000.ufs                            3            0         1000
+qhs_gpuss_cfg@1600000.interconnect                    0            0
+qhs_ufs_mem_cfg@1600000.interconnect                  0         1000
+  1d84000.ufs                            3            0         1000
+  1d84000.ufs                            7            0       596378
+  1d84000.ufs                            7            0       596378
+qns_pcie_mem_noc@16c0000.interconnect                 0            0
+xm_ufs_mem@16e0000.interconnect                       0       596378
+  1d84000.ufs                            7            0       596378
+  1d84000.ufs                            7            0       596378
+qnm_mdp@1780000.interconnect                    3280896      4257792
+qns_mem_noc_hf@1780000.interconnect             3280896      4257792
+qns_mem_noc_sf@1780000.interconnect                   0            0
+alm_gpu_tcu@24100000.interconnect                     0            0
+  1d84000.ufs                            3            0         1000
+qnm_gpu@24100000.interconnect                         0            0
+  3d00000.gpu                            7            0            0
+  1d84000.ufs                            7            0       596378
+  1d84000.ufs                            3            0         1000
+qns_llcc@24100000.interconnect                  3914696      4257792
+  1d84000.ufs                            7            0       596378
+  3d00000.gpu                            7            0            0
+# == icc synced
+1500000.interconnect 1
+1600000.interconnect 1
+1680000.interconnect 1
+16c0000.interconnect 1
+16e0000.interconnect 1
+1700000.interconnect 1
+1780000.interconnect 1
+24100000.interconnect 1
+320c0000.interconnect 1
+7400000.interconnect 1
+7420000.interconnect 1
+7e40000.interconnect 1
+# == genpd
+mdss_int2_gdsc                  on                              0
+mdss_gdsc                       on                              0
+gmxc                            off-0                           0
+mxc_ao                          off-0                           0
+mxc                             off-0                           0
+mx_ao                           off-0                           0
+mx                              on                              64
+mmcx_ao                         off-0                           0
+mmcx                            on                              320
+gfx                             off-0                           0
+ebi                             off-0                           0
+cx_ao                           off-0                           0
+cx                              on                              320
+# == rpmhpd synced
+1
+# == sync_state
+[   27.110601] gcc-sm8750 100000.clock-controller: sync_state() pending due to 1d88000.crypto
+[   27.110610] gxclkctl-kaanapali 3d64000.clock-controller: sync_state() pending due to 3d37000.gmu
+[   27.110614] gcc-sm8750 100000.clock-controller: sync_state() pending due to 3d37000.gmu
+[   27.110617] sm8750-gpucc 3d90000.clock-controller: sync_state() pending due to 3d37000.gmu
+# == clk memory path (full rows)
+ gcc_disp_hf_axi_clk                 1       1        0        0           0          0     50000      Y   framebuffer                     no_connection_id         
+ gcc_ddrss_pcie_sf_qtb_clk           0       0        0        0           0          0     50000      N   deviceless                      no_connection_id         
+ gcc_ddrss_gpu_axi_clk               0       0        0        0           0          0     50000      Y   gmu@3d37000                     no_connection_id         
+                disp_cc_mdss_mdp_clk 1       1        0        575000000   0          0     50000      Y                  framebuffer                     no_connection_id         
+             disp_cc_mdss_ahb1_clk   0       0        0        19200000    0          0     50000      N               deviceless                      no_connection_id         
+# == bench python sum(range(20M)) (CPU-bound)
+# py 0.24
+# == bench python 256 MiB buffer copy x8 (DDR-bound)
+# > > > > > > > > > memcpy_s 0.386 iters 8 MBps 5305
+# == gpu/thp/display dmesg (wide)
+[    0.164104] adreno 3d00000.gpu: supply vddcx not found, using dummy regulator
+[    0.201081] [drm] Initialized simpledrm 1.0.0 for chosen:framebuffer on minor 1
+[    0.214488] Console: switching to colour frame buffer device 400x133
+[    0.221995] simple-framebuffer chosen:framebuffer: [drm] fb0: simpledrmdrmfb frame buffer device
+[    5.463766] remoteproc remoteproc0: adsp is available
+[    5.463869] remoteproc remoteproc0: powering up adsp
+[    5.463871] remoteproc remoteproc0: Booting fw image qcom/sm8750/piano/adsp.mdt, size 8364
+[    5.979880] remoteproc remoteproc0: remote processor adsp is now up
+[    6.069265] PDR: Indication received from msm/adsp/audio_pd, state: 0x1fffffff, trans-id: 1
+[    6.069281] qcom,apr 6800000.remoteproc:glink-edge.adsp_apps.-1.-1: Adding APR/GPR dev: gprsvc:service:2:1
+[    6.069310] qcom,apr 6800000.remoteproc:glink-edge.adsp_apps.-1.-1: Adding APR/GPR dev: gprsvc:service:2:2
+[    6.135850] qcom_q6v5_pas 6800000.remoteproc: Handover signaled, but it already happened
+[   11.794929] qcom,fastrpc 6800000.remoteproc:glink-edge.fastrpcglink-apps-dsp.-1.-1: assigned reserved memory node adsp-rpc-remote-heap
+[   11.806305] platform 6800000.remoteproc:glink-edge:fastrpc:compute-cb@3: Adding to iommu group 9
+[   11.813654] platform 6800000.remoteproc:glink-edge:fastrpc:compute-cb@4: Adding to iommu group 10
+[   11.818268] platform 6800000.remoteproc:glink-edge:fastrpc:compute-cb@5: Adding to iommu group 11
+[   11.821111] platform 6800000.remoteproc:glink-edge:fastrpc:compute-cb@6: Adding to iommu group 12
+[   11.821920] platform 6800000.remoteproc:glink-edge:fastrpc:compute-cb@7: Adding to iommu group 13
+[   11.823619] platform 6800000.remoteproc:glink-edge:fastrpc:compute-cb@8: Adding to iommu group 14
+[   13.531799] input: Piano THP Touchscreen as /devices/virtual/input/input5
+[   13.861873] nt36532e-thp spi0.0: THP first frame after 176 ms; stylus disabled, idle-baseline update and op mode 2 accepted
+[   13.861879] nt36532e-thp spi0.0: THP stream ready, payload 5192 bytes
+[   16.257475] adreno 3d00000.gpu: [drm:adreno_request_fw] loaded qcom/gen80000_sqe.fw from new location
+[   16.257777] adreno 3d00000.gpu: [drm:adreno_request_fw] loaded qcom/gen80000_gmu.bin from new location
+[   16.257997] adreno 3d00000.gpu: [drm:adreno_request_fw] loaded qcom/gen80000_aqe.fw from new location
+[   16.261025] [drm] Loaded GMU firmware v5.1.25
+[   16.869261] platform 6800000.remoteproc:glink-edge:gpr:service@1:dais: Adding to iommu group 15
+[   27.110610] gxclkctl-kaanapali 3d64000.clock-controller: sync_state() pending due to 3d37000.gmu
+[   27.110614] gcc-sm8750 100000.clock-controller: sync_state() pending due to 3d37000.gmu
+[   27.110617] sm8750-gpucc 3d90000.clock-controller: sync_state() pending due to 3d37000.gmu
+# == gpu runtime
+suspended
+# == gdm
+active
+# == battery
+93
+94
+# == thp
+[   13.531799] input: Piano THP Touchscreen as /devices/virtual/input/input5
+[   13.861873] nt36532e-thp spi0.0: THP first frame after 176 ms; stylus disabled, idle-baseline update and op mode 2 accepted
+[   13.861879] nt36532e-thp spi0.0: THP stream ready, payload 5192 bytes
+# == hci0
+hci0
+[   15.023453] Bluetooth: hci0: QCA Downloading qca/gngbtnv20.bin
+[   15.474752] Bluetooth: hci0: QCA FW build version: BTFW.GANGES.2.0.0-00355-PATCHZ-2_DEF NVM_LABEL:BTFW.GANGES.2.0.0-00355-PATCHZ-2_DEF
+[   15.474761] Bluetooth: hci0: QCA setup on UART is completed
+[   15.474763] Bluetooth: hci0: HFP non-HCI data transport is supported
+# # 
+PIANO_INSTALL_END_9e6c961cc355450cb86167b649c1c234
+# 

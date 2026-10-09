@@ -1,0 +1,1667 @@
+1791517541.338 HOST capture start
+1791517550.347 HOST ncm interface enx000000000000
+1791517550.353 HOST connected via enx000000000000
+1791517550.383 
+1791517550.383 
+1791517550.383 exec cat /dev/kmsg
+1791517550.383 PIANO_PERSISTENT_CONSOLE phase=initrd
+1791517550.383 
+1791517550.383 
+1791517550.383 BusyBox v1.36.1 (Ubuntu 1:1.36.1-6ubuntu3.1) built-in shell (ash)
+1791517550.383 Enter 'help' for a list of built-in commands.
+1791517550.383 
+1791517550.383 # 
+1791517550.383 # exec cat /dev/kmsg
+1791517550.383 6,0,0,-;Booting Linux on physical CPU 0x0000000000 [0x514f0014]
+1791517550.383 5,1,0,-;Linux version 7.2.6-piano2 (piano@builder) (aarch64-linux-gnu-gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, GNU ld (GNU Binutils for Ubuntu) 2.42) #1 SMP PREEMPT 2026-10-09T11:13:05+08:00
+1791517550.383 6,2,0,-;KASLR enabled
+1791517550.383 5,3,0,-;random: crng init done
+1791517550.383 6,4,0,-;Machine model: Qualcomm Technologies, Inc. Piano based on SM8750
+1791517550.383 6,5,0,-;efi: UEFI not found.
+1791517550.383 6,6,0,-;Reserved memory: created CMA memory pool at 0x00000000f2c00000, size 12 MiB
+1791517550.383 6,7,0,-;OF: reserved mem: initialized node adsp-rpc-remote-heap, compatible id shared-dma-pool
+1791517550.383 6,8,0,-;OF: reserved mem: 0x00000000f2c00000..0x00000000f37fffff (12288 KiB) map reusable adsp-rpc-remote-heap
+1791517550.383 6,9,0,-;OF: reserved mem: 0x0000000080000000..0x00000000811fffff (18432 KiB) nomap non-reusable gunyah-hyp@80000000
+1791517550.383 6,10,0,-;OF: reserved mem: 0x0000000081200000..0x00000000813fffff (2048 KiB) nomap non-reusable cpucp@81200000
+1791517550.383 6,11,0,-;OF: reserved mem: 0x0000000081a00000..0x0000000081a3ffff (256 KiB) nomap non-reusable xbl-dtlog@81a00000
+1791517550.383 6,12,0,-;OF: reserved mem: 0x0000000081c00000..0x0000000081c5ffff (384 KiB) nomap non-reusable aop-image@81c00000
+1791517550.383 6,13,0,-;OF: reserved mem: 0x0000000081c60000..0x0000000081c7ffff (128 KiB) nomap non-reusable aop-cmd-db@81c60000
+1791517550.383 6,14,0,-;OF: reserved mem: 0x0000000081c80000..0x0000000081cf3fff (464 KiB) nomap non-reusable aop-tme-uefi-merged@81c80000
+1791517550.383 6,15,0,-;OF: reserved mem: 0x0000000081d00000..0x0000000081efffff (2048 KiB) nomap non-reusable smem@81d00000
+1791517550.383 6,16,0,-;OF: reserved mem: 0x0000000081f00000..0x0000000081ffffff (1024 KiB) nomap non-reusable pdp-ns-shared@81f00000
+1791517550.383 6,17,0,-;OF: reserved mem: 0x0000000082000000..0x000000008237ffff (3584 KiB) nomap non-reusable cpucp-scandump@82000000
+1791517550.383 6,18,0,-;OF: reserved mem: 0x0000000082380000..0x000000008239ffff (128 KiB) nomap non-reusable adsp-mhi@82380000
+1791517550.383 6,19,0,-;OF: reserved mem: 0x00000000823a0000..0x00000000823dffff (256 KiB) nomap non-reusable soccp-sdi@823a0000
+1791517550.383 6,20,0,-;OF: reserved mem: 0x00000000823e0000..0x000000008245ffff (512 KiB) nomap non-reusable pmic-minii-dump@823e0000
+1791517550.383 6,21,0,-;OF: reserved mem: 0x00000000824a0000..0x000000008259ffff (1024 KiB) nomap non-reusable pvmfw@824a0000
+1791517550.383 6,22,0,-;OF: reserved mem: 0x0000000082600000..0x00000000826fffff (1024 KiB) nomap non-reusable global-sync@82600000
+1791517550.383 6,23,0,-;OF: reserved mem: 0x0000000082700000..0x00000000827fffff (1024 KiB) nomap non-reusable tz-stat@82700000
+1791517550.383 6,24,0,-;OF: reserved mem: 0x0000000082800000..0x00000000847fffff (32768 KiB) nomap non-reusable qdss@82800000
+1791517550.383 6,25,0,-;OF: reserved mem: 0x0000000084a00000..0x00000000892fffff (74752 KiB) nomap non-reusable dsm-partition-1@84a00000
+1791517550.383 6,26,0,-;OF: reserved mem: 0x0000000089300000..0x0000000089d7ffff (10752 KiB) nomap non-reusable dsm-partition-2@89300000
+1791517550.383 6,27,0,-;OF: reserved mem: 0x000000009b000000..0x000000009b07ffff (512 KiB) nomap non-reusable q6-mpss-dtb@9b000000
+1791517550.383 6,28,0,-;OF: reserved mem: 0x000000009b080000..0x000000009b08ffff (64 KiB) nomap non-reusable ipa-fw@9b080000
+1791517550.383 6,29,0,-;OF: reserved mem: 0x000000009b090000..0x000000009b099fff (40 KiB) nomap non-reusable ipa-gsi@9b090000
+1791517550.383 6,30,0,-;OF: reserved mem: 0x000000009b09a000..0x000000009b09bfff (8 KiB) nomap non-reusable gpu-micro-code@9b09a000
+1791517550.383 6,31,0,-;OF: reserved mem: 0x000000009b0a0000..0x000000009b27ffff (1920 KiB) nomap non-reusable spss@9b0a0000
+1791517550.383 6,32,0,-;OF: reserved mem: 0x000000009b280000..0x000000009b2bffff (256 KiB) nomap non-reusable spu-tz-shared@9b280000
+1791517550.383 6,33,0,-;OF: reserved mem: 0x000000009b2c0000..0x000000009b2fffff (256 KiB) nomap non-reusable spu-modem-shared@9b2c0000
+1791517550.383 6,34,0,-;OF: reserved mem: 0x000000009b300000..0x000000009bafffff (8192 KiB) nomap non-reusable camera@9b300000
+1791517550.383 6,35,0,-;OF: reserved mem: 0x000000009bb00000..0x000000009c2fffff (8192 KiB) nomap non-reusable camera-2@9bb00000
+1791517550.383 6,36,0,-;OF: reserved mem: 0x000000009c300000..0x000000009cafffff (8192 KiB) nomap non-reusable video@9c300000
+1791517550.383 6,37,0,-;OF: reserved mem: 0x000000009cb00000..0x000000009d1fffff (7168 KiB) nomap non-reusable cvp@9cb00000
+1791517550.383 6,38,0,-;OF: reserved mem: 0x000000009d200000..0x000000009eafffff (25600 KiB) nomap non-reusable cdsp@9d200000
+1791517550.383 6,39,0,-;OF: reserved mem: 0x000000009eb00000..0x000000009eb7ffff (512 KiB) nomap non-reusable q6-cdsp-dtb@9eb00000
+1791517550.383 6,40,0,-;OF: reserved mem: 0x000000009ec00000..0x000000009ed7ffff (1536 KiB) nomap non-reusable soccp@9ec00000
+1791517550.383 6,41,0,-;OF: reserved mem: 0x000000009ed80000..0x000000009edfffff (512 KiB) nomap non-reusable q6-adsp-dtb@9ed80000
+1791517550.383 6,42,0,-;OF: reserved mem: 0x00000000b8000000..0x00000000b81fffff (2048 KiB) nomap non-reusable xbl-ramdump@b8000000
+1791517550.383 6,43,0,-;OF: reserved mem: 0x00000000d4e23000..0x00000000d50fffff (2932 KiB) nomap non-reusable hwfence-shbuf@d4e23000
+1791517550.383 6,44,0,-;OF: reserved mem: 0x00000000d8000000..0x00000000d85fffff (6144 KiB) nomap non-reusable tz-merged@d8000000
+1791517550.383 6,45,0,-;OF: reserved mem: 0x00000000f3800000..0x00000000f87fffff (81920 KiB) nomap non-reusable trust-ui-vm@f3800000
+1791517550.383 6,46,0,-;OF: reserved mem: 0x00000000ff800000..0x00000000ffffffff (8192 KiB) nomap non-reusable llcc-lpi@ff800000
+1791517550.383 6,47,0,-;OF: reserved mem: 0x0000000081cf4000..0x0000000081cf47ff (2 KiB) nomap non-reusable display-dump@81cf4000
+1791517550.383 6,48,0,-;OF: reserved mem: 0x000000009b09c000..0x000000009b09ffff (16 KiB) nomap non-reusable reserved@9b09c000
+1791517550.383 6,49,0,-;OF: reserved mem: 0x000000009eb80000..0x000000009ebfffff (512 KiB) nomap non-reusable reserved@9eb80000
+1791517550.383 6,50,0,-;OF: reserved mem: 0x00000000a3500000..0x00000000a38fffff (4096 KiB) map non-reusable ramoops@a3500000
+1791517550.383 6,51,0,-;OF: reserved mem: 0x00000000b8200000..0x00000000bd97ffff (89600 KiB) nomap non-reusable adspslpi@b8200000
+1791517550.383 6,52,0,-;OF: reserved mem: 0x00000000f8800000..0x00000000fbffffff (57344 KiB) nomap non-reusable oem-vm@f8800000
+1791517550.383 6,53,0,-;OF: reserved mem: 0x00000000fc000000..0x00000000fc3fffff (4096 KiB) nomap non-reusable vm-shared@fc000000
+1791517550.383 6,54,0,-;OF: reserved mem: 0x00000000fc800000..0x00000000ff2fffff (44032 KiB) nomap non-reusable splash_region@fc800000
+1791517550.383 6,55,0,-;NUMA: Faking a node at [mem 0x0000000081960000-0x0000000bffffffff]
+1791517550.383 6,56,0,-;NODE_DATA(0) allocated [mem 0xbfdf005c0-0xbfdf02c7f]
+1791517550.383 6,57,0,-;cma: Reserved 32 MiB at 0x00000000f0c00000
+1791517550.383 6,58,0,-;psci: probing for conduit method from DT.
+1791517550.383 6,59,0,-;psci: PSCIv1.1 detected in firmware.
+1791517550.383 6,60,0,-;psci: Using standard PSCI v0.2 function IDs
+1791517550.383 6,61,0,-;psci: MIGRATE_INFO_TYPE not supported.
+1791517550.383 6,62,0,-;psci: SMC Calling Convention v1.3
+1791517550.383 6,63,0,-;psci: OSI mode supported.
+1791517550.383 6,64,0,-;Zone ranges:
+1791517550.383 6,65,0,-;  DMA      [mem 0x0000000081960000-0x00000000ffffffff]
+1791517550.383 6,66,0,-;  DMA32    empty
+1791517550.383 6,67,0,-;  Normal   [mem 0x0000000100000000-0x0000000bffffffff]
+1791517550.383 6,68,0,-;Movable zone start for each node
+1791517550.383 6,69,0,-;Early memory node ranges
+1791517550.383 6,70,0,-;  node   0: [mem 0x0000000081960000-0x00000000819fffff]
+1791517550.383 6,71,0,-;  node   0: [mem 0x0000000081a40000-0x0000000081bfffff]
+1791517550.383 6,72,0,-;  node   0: [mem 0x0000000081cf5000-0x0000000081cfffff]
+1791517550.383 6,73,0,-;  node   0: [mem 0x0000000082460000-0x000000008249ffff]
+1791517550.383 6,74,0,-;  node   0: [mem 0x0000000084800000-0x00000000849fffff]
+1791517550.383 6,75,0,-;  node   0: [mem 0x0000000089d80000-0x000000009affffff]
+1791517550.383 6,76,0,-;  node   0: [mem 0x000000009ee00000-0x00000000b7ffffff]
+1791517550.383 6,77,0,-;  node   0: [mem 0x00000000bd980000-0x00000000d4e22fff]
+1791517550.383 6,78,0,-;  node   0: [mem 0x00000000d5100000-0x00000000d7ffffff]
+1791517550.383 6,79,0,-;  node   0: [mem 0x00000000e3720000-0x00000000f37fffff]
+1791517550.383 6,80,0,-;  node   0: [mem 0x00000000fc400000-0x00000000fc7fffff]
+1791517550.383 6,81,0,-;  node   0: [mem 0x00000000ff300000-0x00000000ff7fffff]
+1791517550.383 6,82,0,-;  node   0: [mem 0x0000000880000000-0x00000008af6fcfff]
+1791517550.383 6,83,0,-;  node   0: [mem 0x00000008b0000000-0x00000008b54fffff]
+1791517550.383 6,84,0,-;  node   0: [mem 0x00000008b5700000-0x00000008b74fffff]
+1791517550.383 6,85,0,-;  node   0: [mem 0x00000008c0000000-0x0000000bffffffff]
+1791517550.383 6,86,0,-;Initmem setup node 0 [mem 0x0000000081960000-0x0000000bffffffff]
+1791517550.383 6,87,0,-;On node 0, zone DMA: 6496 pages in unavailable ranges
+1791517550.383 6,88,0,-;On node 0, zone DMA: 64 pages in unavailable ranges
+1791517550.383 6,89,0,-;On node 0, zone DMA: 245 pages in unavailable ranges
+1791517550.383 6,90,0,-;On node 0, zone DMA: 1888 pages in unavailable ranges
+1791517550.383 6,91,0,-;On node 0, zone DMA: 9056 pages in unavailable ranges
+1791517550.383 6,92,0,-;On node 0, zone DMA: 21376 pages in unavailable ranges
+1791517550.383 6,93,0,-;On node 0, zone DMA: 15872 pages in unavailable ranges
+1791517550.383 6,94,0,-;On node 0, zone DMA: 22912 pages in unavailable ranges
+1791517550.383 6,95,0,-;On node 0, zone DMA: 733 pages in unavailable ranges
+1791517550.383 6,96,0,-;On node 0, zone DMA: 14112 pages in unavailable ranges
+1791517550.383 6,97,0,-;On node 0, zone DMA: 35840 pages in unavailable ranges
+1791517550.383 6,98,0,-;On node 0, zone DMA: 11008 pages in unavailable ranges
+1791517550.383 6,99,0,-;On node 0, zone Normal: 2048 pages in unavailable ranges
+1791517550.383 6,100,0,-;On node 0, zone Normal: 2307 pages in unavailable ranges
+1791517550.383 6,101,0,-;On node 0, zone Normal: 512 pages in unavailable ranges
+1791517550.383 6,102,0,-;On node 0, zone Normal: 2816 pages in unavailable ranges
+1791517550.383 3,103,0,-;'bootconfig' found on command line, but no bootconfig found
+1791517550.383 6,104,0,-;percpu: Embedded 33 pages/cpu s94360 r8192 d32616 u135168
+1791517550.383 7,105,0,-;pcpu-alloc: s94360 r8192 d32616 u135168 alloc=33*4096
+1791517550.383 7,106,0,-;pcpu-alloc: [0] 0 [0] 1 [0] 2 [0] 3 [0] 4 [0] 5 [0] 6 [0] 7 
+1791517550.383 6,107,0,-;Detected PIPT I-cache on CPU0
+1791517550.383 6,108,0,-;CPU features: detected: Address authentication (architected QARMA5 algorithm)
+1791517550.383 6,109,0,-;CPU features: detected: GICv3 CPU interface
+1791517550.383 6,110,0,-;CPU features: detected: Spectre-v4
+1791517550.383 6,111,0,-;CPU features: detected: Spectre-BHB
+1791517550.383 6,112,0,-;CPU features: detected: Broken CNTVOFF_EL2
+1791517550.383 6,113,0,-;alternatives: applying boot alternatives
+1791517550.383 5,114,0,-;Kernel command line: [removed from fixture]
+1791517550.383 5,115,0,-;Kernel command line: [removed from fixture]
+1791517550.383 6,116,0,-;printk: log buffer data + meta data: 2097152 + 7340032 = 9437184 bytes
+1791517550.383 6,117,0,-;printk: early log buf free: 119584(91%)
+1791517550.383 6,118,0,-;Dentry cache hash table entries: 2097152 (order: 12, 16777216 bytes, linear)
+1791517550.383 6,119,0,-;Inode-cache hash table entries: 1048576 (order: 11, 8388608 bytes, linear)
+1791517550.383 6,120,0,-;software IO TLB: area num 8.
+1791517550.383 6,121,0,-;software IO TLB: mapped [mem 0x00000000ecc00000-0x00000000f0c00000] (64MB)
+1791517550.383 6,122,0,-;Fallback order for Node 0: 0 
+1791517550.383 6,123,0,-;Built 1 zonelists, mobility grouping on.  Total pages: 3981483
+1791517550.383 6,124,0,-;Policy zone: Normal
+1791517550.383 6,125,0,-;mem auto-init: stack:all(zero), heap alloc:off, heap free:off
+1791517550.383 6,126,0,-;SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=8, Nodes=1
+1791517550.383 6,127,0,-;rcu: Preemptible hierarchical RCU implementation.
+1791517550.383 6,128,0,-;rcu: \x09RCU event tracing is enabled.
+1791517550.383 6,129,0,-;rcu: \x09RCU restricting CPUs from NR_CPUS=512 to nr_cpu_ids=8.
+1791517550.383 6,130,0,-;\x09Trampoline variant of Tasks RCU enabled.
+1791517550.383 6,131,0,-;\x09Tracing variant of Tasks RCU enabled.
+1791517550.383 6,132,0,-;rcu: RCU calculated value of scheduler-enlistment delay is 25 jiffies.
+1791517550.383 6,133,0,-;rcu: Adjusting geometry for rcu_fanout_leaf=16, nr_cpu_ids=8
+1791517550.383 6,134,0,-;RCU Tasks: Setting shift to 3 and lim to 1 rcu_task_cb_adjust=1 rcu_task_cpu_ids=8.
+1791517550.383 6,135,0,-;NR_IRQS: 64, nr_irqs: 64, preallocated irqs: 0
+1791517550.383 6,136,0,-;GICv3: 988 SPIs implemented
+1791517550.383 6,137,0,-;GICv3: 1024 Extended SPIs implemented
+1791517550.383 6,138,0,-;Root IRQ handler: gic_handle_irq
+1791517550.383 6,139,0,-;GICv3: GICv3 features: 16 PPIs, DirectLPI
+1791517550.383 6,140,0,-;GICv3: GICD_CTLR.DS=1, SCR_EL3.FIQ=0
+1791517550.383 6,141,0,-;GICv3: Enabling SGIs without active state
+1791517550.383 6,142,0,-;GICv3: CPU0: found redistributor 0 region 0:0x0000000016080000
+1791517550.383 6,143,0,-;ITS [mem 0x16040000-0x1607ffff]
+1791517550.383 4,144,0,-;ITS@0x0000000016040000: Devices Table too large, reduce ids 32->19
+1791517550.383 4,145,0,-;ITS@0x0000000016040000: Devices too large, reduce ITS pages 1024->256
+1791517550.383 6,146,0,-;ITS@0x0000000016040000: allocated 131072 Devices @880500000 (indirect, esz 8, psz 4K, shr 1)
+1791517550.383 6,147,0,-;ITS@0x0000000016040000: allocated 4096 Interrupt Collections @880446000 (flat, esz 1, psz 4K, shr 1)
+1791517550.383 6,148,0,-;GICv3: using LPI property table @0x0000000880460000
+1791517550.383 6,149,0,-;GICv3: CPU0: using allocated LPI pending table @0x0000000880470000
+1791517550.383 6,150,0,-;rcu: srcu_init: Setting srcu_struct sizes based on contention.
+1791517550.383 6,151,0,-;clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 7645041785100000 ns
+1791517550.383 6,152,0,-;arch_timer: cp15 timer running at 19.20MHz (virt).
+1791517550.383 6,153,0,-;clocksource: arch_sys_counter: mask: 0xffffffffffffff max_cycles: 0x46d987e47, max_idle_ns: 440795202767 ns
+1791517550.383 6,154,0,-;sched_clock: 56 bits at 19MHz, resolution 52ns, wraps every 4398046511078ns
+1791517550.383 6,155,24,-;arm-pv: using stolen time PV
+1791517550.383 6,156,113,-;Console: colour dummy device 80x25
+1791517550.383 6,157,137,-;Calibrating delay loop (skipped), value calculated using timer frequency.. 38.40 BogoMIPS (lpj=76800)
+1791517550.383 6,158,139,-;pid_max: default: 32768 minimum: 301
+1791517550.383 6,159,271,-;AppArmor: AppArmor initialized
+1791517550.383 6,160,468,-;LSM support for eBPF active
+1791517550.383 6,161,510,-;Mount-cache hash table entries: 32768 (order: 6, 262144 bytes, linear)
+1791517550.383 6,162,519,-;Mountpoint-cache hash table entries: 32768 (order: 6, 262144 bytes, linear)
+1791517550.383 6,163,600,-;VFS: Finished mounting rootfs on nullfs
+1791517550.383 6,164,1058,-;rcu: Hierarchical SRCU implementation.
+1791517550.383 6,165,1059,-;rcu: \x09Max phase no-delay instances is 1000.
+1791517550.383 6,166,1097,-;Timer migration: 1 hierarchy levels; 8 children per group; 1 crossnode level
+1791517550.383 6,167,1568,-;abl-root-identity: restored model "Qualcomm Technologies, Inc. Piano based on SM8750" -> "Xiaomi Pad 8 Pro", compatible "qcom,sun-mtp" -> "xiaomi,piano"
+1791517550.383 6,168,1571,-;EFI services will not be available.
+1791517550.383 6,169,1634,-;smp: Bringing up secondary CPUs ...
+1791517550.383 6,170,1838,-;Detected PIPT I-cache on CPU1
+1791517550.383 6,171,1869,-;GICv3: CPU1: found redistributor 100 region 0:0x00000000160c0000
+1791517550.383 6,172,1939,-;GICv3: CPU1: using allocated LPI pending table @0x0000000880480000
+1791517550.383 6,173,2065,-;CPU1: Booted secondary processor 0x0000000100 [0x514f0014]
+1791517550.383 6,174,2663,-;Detected PIPT I-cache on CPU2
+1791517550.383 6,175,2692,-;GICv3: CPU2: found redistributor 200 region 0:0x0000000016100000
+1791517550.383 6,176,2759,-;GICv3: CPU2: using allocated LPI pending table @0x0000000880490000
+1791517550.383 6,177,2885,-;CPU2: Booted secondary processor 0x0000000200 [0x514f0014]
+1791517550.383 6,178,3475,-;Detected PIPT I-cache on CPU3
+1791517550.383 6,179,3506,-;GICv3: CPU3: found redistributor 300 region 0:0x0000000016140000
+1791517550.383 6,180,3572,-;GICv3: CPU3: using allocated LPI pending table @0x00000008804a0000
+1791517550.383 6,181,3698,-;CPU3: Booted secondary processor 0x0000000300 [0x514f0014]
+1791517550.383 6,182,4281,-;Detected PIPT I-cache on CPU4
+1791517550.383 6,183,4313,-;GICv3: CPU4: found redistributor 400 region 0:0x0000000016180000
+1791517550.383 6,184,4379,-;GICv3: CPU4: using allocated LPI pending table @0x00000008804b0000
+1791517550.383 6,185,4503,-;CPU4: Booted secondary processor 0x0000000400 [0x514f0014]
+1791517550.383 6,186,5094,-;Detected PIPT I-cache on CPU5
+1791517550.383 6,187,5128,-;GICv3: CPU5: found redistributor 500 region 0:0x00000000161c0000
+1791517550.383 6,188,5193,-;GICv3: CPU5: using allocated LPI pending table @0x00000008804c0000
+1791517550.383 6,189,5318,-;CPU5: Booted secondary processor 0x0000000500 [0x514f0014]
+1791517550.383 6,190,7336,-;Detected PIPT I-cache on CPU6
+1791517550.383 6,191,7417,-;GICv3: CPU6: found redistributor 10000 region 0:0x0000000016200000
+1791517550.383 6,192,7525,-;GICv3: CPU6: using allocated LPI pending table @0x00000008804d0000
+1791517550.383 6,193,7761,-;CPU6: Booted secondary processor 0x0000010000 [0x513f0014]
+1791517550.383 6,194,8477,-;Detected PIPT I-cache on CPU7
+1791517550.383 6,195,8538,-;GICv3: CPU7: found redistributor 10100 region 0:0x0000000016240000
+1791517550.383 6,196,8631,-;GICv3: CPU7: using allocated LPI pending table @0x00000008804e0000
+1791517550.383 6,197,8855,-;CPU7: Booted secondary processor 0x0000010100 [0x513f0014]
+1791517550.383 6,198,8934,-;smp: Brought up 1 node, 8 CPUs
+1791517550.383 6,199,8935,-;SMP: Total of 8 processors activated.
+1791517550.383 6,200,8936,-;CPU: All CPU(s) started at EL1
+1791517550.383 6,201,8937,-;CPU features: detected: Branch Target Identification
+1791517550.383 6,202,8938,-;CPU features: detected: ARMv8.4 Translation Table Level
+1791517550.383 6,203,8939,-;CPU features: detected: Instruction cache invalidation not required for I/D coherence
+1791517550.383 6,204,8940,-;CPU features: detected: Data cache clean to the PoU not required for I/D coherence
+1791517550.383 6,205,8940,-;CPU features: detected: Common not Private translations
+1791517550.383 6,206,8941,-;CPU features: detected: CRC32 instructions
+1791517550.383 6,207,8942,-;CPU features: detected: Data independent timing control (DIT)
+1791517550.383 6,208,8942,-;CPU features: detected: E0PD
+1791517550.383 6,209,8943,-;CPU features: detected: Enhanced Counter Virtualization
+1791517550.383 6,210,8944,-;CPU features: detected: Enhanced Counter Virtualization (CNTPOFF)
+1791517550.383 6,211,8944,-;CPU features: detected: Enhanced Privileged Access Never
+1791517550.383 6,212,8945,-;CPU features: detected: Enhanced Virtualization Traps
+1791517550.383 6,213,8945,-;CPU features: detected: Fine Grained Traps
+1791517550.383 6,214,8946,-;CPU features: detected: Generic authentication (architected QARMA5 algorithm)
+1791517550.383 6,215,8947,-;CPU features: detected: RCpc load-acquire (LDAPR)
+1791517550.383 6,216,8948,-;CPU features: detected: LSE atomic instructions
+1791517550.383 6,217,8949,-;CPU features: detected: Privileged Access Never
+1791517550.383 6,218,8949,-;CPU features: detected: PMUv3
+1791517550.383 6,219,8950,-;CPU features: detected: RAS Extension Support
+1791517550.383 6,220,8950,-;CPU features: detected: RASv1p1 Extension Support
+1791517550.383 6,221,8951,-;CPU features: detected: Random Number Generator
+1791517550.383 6,222,8952,-;CPU features: detected: Speculation barrier (SB)
+1791517550.383 6,223,8952,-;CPU features: detected: Stage-2 Force Write-Back
+1791517550.383 6,224,8953,-;CPU features: detected: TLB range maintenance instructions
+1791517550.383 6,225,8953,-;CPU features: detected: XNX
+1791517550.383 6,226,8955,-;CPU features: detected: Speculative Store Bypassing Safe (SSBS)
+1791517550.383 6,227,9003,-;alternatives: applying system-wide alternatives
+1791517550.383 6,228,11412,-;CPU features: detected: Activity Monitors Unit (AMU) on CPU0-7
+1791517550.383 6,229,11415,-;CPU features: detected: Hardware dirty bit management on CPU0-7
+1791517550.383 6,230,11781,-;Memory: 15378028K/15925932K available (18368K kernel code, 4896K rwdata, 10940K rodata, 8256K init, 643K bss, 489840K reserved, 45056K cma-reserved)
+1791517550.383 6,231,11888,-;devtmpfs: initialized
+1791517550.383 6,232,25596,-;posixtimers hash table entries: 4096 (order: 4, 65536 bytes, linear)
+1791517550.383 6,233,25611,-;futex hash table entries: 2048 (131072 bytes on 1 NUMA nodes, total 128 KiB, linear).
+1791517550.383 6,234,25705,-;2G module region forced by RANDOMIZE_MODULE_REGION_FULL
+1791517550.383 6,235,25706,-;0 pages in range for non-PLT usage
+1791517550.383 6,236,25706,-;513456 pages in range for PLT usage
+1791517550.384 6,237,26006,-;DMI: not present or invalid.
+1791517550.384 6,238,26964,-;NET: Registered PF_NETLINK/PF_ROUTE protocol family
+1791517550.384 6,239,27407,-;DMA: preallocated 2048 KiB GFP_KERNEL pool for atomic allocations
+1791517550.384 6,240,27620,-;DMA: preallocated 2048 KiB GFP_KERNEL|GFP_DMA pool for atomic allocations
+1791517550.384 6,241,27626,-;audit: initializing netlink subsys (disabled)
+1791517550.384 5,242,27654,-;audit: type=2000 audit(0.024:1): state=initialized audit_enabled=0 res=1
+1791517550.384 6,243,28182,-;thermal_sys: Registered thermal governor 'step_wise'
+1791517550.384 6,244,28183,-;thermal_sys: Registered thermal governor 'power_allocator'
+1791517550.384 6,245,28200,-;cpuidle: using governor menu
+1791517550.384 6,246,28330,-;hw-breakpoint: found 6 breakpoint and 4 watchpoint registers.
+1791517550.384 6,247,28391,-;ASID allocator initialised with 65536 entries
+1791517550.384 6,248,28771,-;Serial: AMBA PL011 UART driver
+1791517550.384 6,249,29047,-;ramoops: found existing invalid buffer, size 94490, start 94522
+1791517550.384 6,250,29060,-;printk: legacy console [ramoops-1] enabled
+1791517550.384 6,251,29165,-;pstore: Registered ramoops as persistent store backend
+1791517550.384 6,252,29166,-;ramoops: using 0x400000@0xa3500000, ecc: 0
+1791517550.384 6,253,30139,-;CPUidle PSCI: Initialized CPU PM domain topology using OSI mode
+1791517550.384 6,254,35935,-;/soc@0/stm@10002000: Fixed dependency cycle(s) with /soc@0/funnel@10041000
+1791517550.384 6,255,35960,-;/soc@0/tpda@10004000: Fixed dependency cycle(s) with /soc@0/funnel@10041000
+1791517550.384 6,256,35964,-;/soc@0/tpda@10004000: Fixed dependency cycle(s) with /soc@0/tpdm@1000f000
+1791517550.384 6,257,35990,-;/soc@0/tpdm@1000f000: Fixed dependency cycle(s) with /soc@0/tpda@10004000
+1791517550.384 6,258,35999,-;/soc@0/funnel@10041000: Fixed dependency cycle(s) with /soc@0/funnel@10b04000
+1791517550.384 6,259,36003,-;/soc@0/funnel@10041000: Fixed dependency cycle(s) with /soc@0/stm@10002000
+1791517550.384 6,260,36007,-;/soc@0/funnel@10041000: Fixed dependency cycle(s) with /soc@0/tpda@10004000
+1791517550.384 6,261,36024,-;/soc@0/funnel@10041000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,262,36051,-;/soc@0/tpdm@10800000: Fixed dependency cycle(s) with /soc@0/tpda@10803000
+1791517550.384 6,263,36075,-;/soc@0/tpda@10803000: Fixed dependency cycle(s) with /soc@0/funnel@10804000
+1791517550.384 6,264,36079,-;/soc@0/tpda@10803000: Fixed dependency cycle(s) with /soc@0/tpdm@10800000
+1791517550.384 6,265,36104,-;/soc@0/funnel@10804000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,266,36108,-;/soc@0/funnel@10804000: Fixed dependency cycle(s) with /soc@0/tpda@10803000
+1791517550.384 6,267,36135,-;/soc@0/tpdm@1082c000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,268,36160,-;/soc@0/tpdm@10841000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,269,36185,-;/soc@0/tpdm@1084e000: Fixed dependency cycle(s) with /soc@0/tpda@10851000
+1791517550.384 6,270,36210,-;/soc@0/tpdm@1084f000: Fixed dependency cycle(s) with /soc@0/tpda@10851000
+1791517550.384 6,271,36235,-;/soc@0/tpdm@10850000: Fixed dependency cycle(s) with /soc@0/tpda@10851000
+1791517550.384 6,272,36258,-;/soc@0/tpda@10851000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,273,36261,-;/soc@0/tpda@10851000: Fixed dependency cycle(s) with /soc@0/tpdm@10850000
+1791517550.384 6,274,36265,-;/soc@0/tpda@10851000: Fixed dependency cycle(s) with /soc@0/tpdm@1084f000
+1791517550.384 6,275,36269,-;/soc@0/tpda@10851000: Fixed dependency cycle(s) with /soc@0/tpdm@1084e000
+1791517550.384 6,276,36301,-;/soc@0/tpdm@10980000: Fixed dependency cycle(s) with /soc@0/tpda@10986000
+1791517550.384 6,277,36325,-;/soc@0/tpda@10986000: Fixed dependency cycle(s) with /soc@0/funnel@10987000
+1791517550.384 6,278,36329,-;/soc@0/tpda@10986000: Fixed dependency cycle(s) with /soc@0/tpdm@10980000
+1791517550.384 6,279,36354,-;/soc@0/funnel@10987000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,280,36359,-;/soc@0/funnel@10987000: Fixed dependency cycle(s) with /soc@0/tpda@10986000
+1791517550.384 6,281,36385,-;/soc@0/tpdm@109a3000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,282,36410,-;/soc@0/tpdm@109a4000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,283,36435,-;/soc@0/tpdm@109a5000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,284,36460,-;/soc@0/tpdm@109a6000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,285,36485,-;/soc@0/tpdm@109a7000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,286,36510,-;/soc@0/tpdm@109a8000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,287,36535,-;/soc@0/tpdm@109a9000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,288,36560,-;/soc@0/tpdm@109aa000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,289,36572,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/funnel@10041000
+1791517550.384 6,290,36576,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109aa000
+1791517550.384 6,291,36579,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a9000
+1791517550.384 6,292,36583,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a8000
+1791517550.384 6,293,36587,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a3000
+1791517550.384 6,294,36591,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a4000
+1791517550.384 6,295,36594,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a7000
+1791517550.384 6,296,36598,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a6000
+1791517550.384 6,297,36602,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a5000
+1791517550.384 6,298,36606,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109d0000
+1791517550.384 6,299,36609,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@10841000
+1791517550.384 6,300,36613,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@1082c000
+1791517550.384 6,301,36618,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/funnel@10987000
+1791517550.384 6,302,36623,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/funnel@10804000
+1791517550.384 6,303,36629,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpda@10851000
+1791517550.384 6,304,36661,-;/soc@0/tpdm@109d0000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,305,36666,-;/soc@0/funnel@10b04000: Fixed dependency cycle(s) with /soc@0/tmc@10b05000
+1791517550.384 6,306,36685,-;/soc@0/funnel@10b04000: Fixed dependency cycle(s) with /soc@0/funnel@10041000
+1791517550.384 6,307,36692,-;/soc@0/funnel@10b04000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517550.384 6,308,36718,-;/soc@0/tmc@10b05000: Fixed dependency cycle(s) with /soc@0/funnel@10b04000
+1791517550.384 6,309,36740,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/funnel@10b04000
+1791517550.384 6,310,36744,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b0d000
+1791517550.384 6,311,36747,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b0c000
+1791517550.384 6,312,36751,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b0b000
+1791517550.384 6,313,36755,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b0a000
+1791517550.384 6,314,36759,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b09000
+1791517550.384 6,315,36786,-;/soc@0/tpdm@10b09000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517550.384 6,316,36811,-;/soc@0/tpdm@10b0a000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517550.384 6,317,36836,-;/soc@0/tpdm@10b0b000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517550.384 6,318,36861,-;/soc@0/tpdm@10b0c000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517550.384 6,319,36886,-;/soc@0/tpdm@10b0d000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517550.384 6,320,36893,-;/soc@0/interrupt-controller@16000000: Fixed dependency cycle(s) with /soc@0/interrupt-controller@16000000
+1791517550.384 6,321,36902,-;/soc@0/phy@1d80000: Fixed dependency cycle(s) with /soc@0/ufs@1d84000
+1791517550.384 6,322,36911,-;/soc@0/ufs@1d84000: Fixed dependency cycle(s) with /soc@0/phy@1d80000
+1791517550.384 6,323,40901,-;/soc@0/stm@10002000: Fixed dependency cycle(s) with /soc@0/funnel@10041000
+1791517550.384 6,324,40944,-;/soc@0/tpda@10004000: Fixed dependency cycle(s) with /soc@0/funnel@10041000
+1791517550.384 6,325,40948,-;/soc@0/tpda@10004000: Fixed dependency cycle(s) with /soc@0/tpdm@1000f000
+1791517550.384 6,326,40976,-;/soc@0/tpda@10004000: Fixed dependency cycle(s) with /soc@0/tpdm@1000f000
+1791517550.384 6,327,40999,-;/soc@0/tpdm@1000f000: Fixed dependency cycle(s) with /soc@0/tpda@10004000
+1791517550.384 6,328,41049,-;/soc@0/tpda@10004000: Fixed dependency cycle(s) with /soc@0/funnel@10041000
+1791517550.384 6,329,41072,-;/soc@0/stm@10002000: Fixed dependency cycle(s) with /soc@0/funnel@10041000
+1791517550.384 6,330,41086,-;/soc@0/funnel@10041000: Fixed dependency cycle(s) with /soc@0/funnel@10b04000
+1791517550.384 6,331,41090,-;/soc@0/funnel@10041000: Fixed dependency cycle(s) with /soc@0/stm@10002000
+1791517550.384 6,332,41101,-;/soc@0/funnel@10041000: Fixed dependency cycle(s) with /soc@0/tpda@10004000
+1791517550.384 6,333,41121,-;/soc@0/funnel@10041000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,334,41162,-;/soc@0/tpdm@10800000: Fixed dependency cycle(s) with /soc@0/tpda@10803000
+1791517550.384 6,335,41204,-;/soc@0/tpdm@10800000: Fixed dependency cycle(s) with /soc@0/tpda@10803000
+1791517550.384 6,336,41227,-;/soc@0/tpda@10803000: Fixed dependency cycle(s) with /soc@0/funnel@10804000
+1791517550.384 6,337,41231,-;/soc@0/tpda@10803000: Fixed dependency cycle(s) with /soc@0/tpdm@10800000
+1791517550.384 6,338,41278,-;/soc@0/tpda@10803000: Fixed dependency cycle(s) with /soc@0/funnel@10804000
+1791517550.384 6,339,41301,-;/soc@0/funnel@10804000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,340,41305,-;/soc@0/funnel@10804000: Fixed dependency cycle(s) with /soc@0/tpda@10803000
+1791517550.384 6,341,41373,-;/soc@0/tpdm@1082c000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,342,41414,-;/soc@0/tpdm@10841000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,343,41454,-;/soc@0/tpdm@1084e000: Fixed dependency cycle(s) with /soc@0/tpda@10851000
+1791517550.384 6,344,41494,-;/soc@0/tpdm@1084f000: Fixed dependency cycle(s) with /soc@0/tpda@10851000
+1791517550.384 6,345,41534,-;/soc@0/tpdm@10850000: Fixed dependency cycle(s) with /soc@0/tpda@10851000
+1791517550.384 6,346,41574,-;/soc@0/tpdm@10850000: Fixed dependency cycle(s) with /soc@0/tpda@10851000
+1791517550.384 6,347,41597,-;/soc@0/tpdm@1084f000: Fixed dependency cycle(s) with /soc@0/tpda@10851000
+1791517550.384 6,348,41620,-;/soc@0/tpdm@1084e000: Fixed dependency cycle(s) with /soc@0/tpda@10851000
+1791517550.384 6,349,41644,-;/soc@0/tpda@10851000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,350,41647,-;/soc@0/tpda@10851000: Fixed dependency cycle(s) with /soc@0/tpdm@10850000
+1791517550.384 6,351,41658,-;/soc@0/tpda@10851000: Fixed dependency cycle(s) with /soc@0/tpdm@1084f000
+1791517550.384 6,352,41668,-;/soc@0/tpda@10851000: Fixed dependency cycle(s) with /soc@0/tpdm@1084e000
+1791517550.384 6,353,41716,-;/soc@0/tpdm@10980000: Fixed dependency cycle(s) with /soc@0/tpda@10986000
+1791517550.384 6,354,41757,-;/soc@0/tpdm@10980000: Fixed dependency cycle(s) with /soc@0/tpda@10986000
+1791517550.384 6,355,41779,-;/soc@0/tpda@10986000: Fixed dependency cycle(s) with /soc@0/funnel@10987000
+1791517550.384 6,356,41783,-;/soc@0/tpda@10986000: Fixed dependency cycle(s) with /soc@0/tpdm@10980000
+1791517550.384 6,357,41832,-;/soc@0/tpda@10986000: Fixed dependency cycle(s) with /soc@0/funnel@10987000
+1791517550.384 6,358,41854,-;/soc@0/funnel@10987000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,359,41858,-;/soc@0/funnel@10987000: Fixed dependency cycle(s) with /soc@0/tpda@10986000
+1791517550.384 6,360,41928,-;/soc@0/tpdm@109a3000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,361,41968,-;/soc@0/tpdm@109a4000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,362,42007,-;/soc@0/tpdm@109a5000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,363,42047,-;/soc@0/tpdm@109a6000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,364,42087,-;/soc@0/tpdm@109a7000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,365,42126,-;/soc@0/tpdm@109a8000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,366,42167,-;/soc@0/tpdm@109a9000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,367,42206,-;/soc@0/tpdm@109aa000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,368,42252,-;/soc@0/tpdm@109aa000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,369,42275,-;/soc@0/tpdm@109a9000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,370,42297,-;/soc@0/tpdm@109a8000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,371,42320,-;/soc@0/tpdm@109a7000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,372,42344,-;/soc@0/tpdm@109a6000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,373,42366,-;/soc@0/tpdm@109a5000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,374,42389,-;/soc@0/tpdm@109a4000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,375,42410,-;/soc@0/tpdm@109a3000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,376,42431,-;/soc@0/funnel@10987000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,377,42454,-;/soc@0/tpda@10851000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,378,42476,-;/soc@0/tpdm@10841000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,379,42498,-;/soc@0/tpdm@1082c000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,380,42520,-;/soc@0/funnel@10804000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,381,42539,-;/soc@0/funnel@10041000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,382,42555,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/funnel@10041000
+1791517550.384 6,383,42567,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109aa000
+1791517550.384 6,384,42578,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a9000
+1791517550.384 6,385,42590,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a8000
+1791517550.384 6,386,42600,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a3000
+1791517550.384 6,387,42612,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a4000
+1791517550.384 6,388,42623,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a7000
+1791517550.384 6,389,42633,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a6000
+1791517550.384 6,390,42644,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a5000
+1791517550.384 6,391,42654,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109d0000
+1791517550.384 6,392,42658,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@10841000
+1791517550.384 6,393,42669,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@1082c000
+1791517550.384 6,394,42681,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/funnel@10987000
+1791517550.384 6,395,42693,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/funnel@10804000
+1791517550.384 6,396,42708,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpda@10851000
+1791517550.384 6,397,42750,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109d0000
+1791517550.384 6,398,42773,-;/soc@0/tpdm@109d0000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517550.384 6,399,42815,-;/soc@0/funnel@10041000: Fixed dependency cycle(s) with /soc@0/funnel@10b04000
+1791517550.384 6,400,42826,-;/soc@0/funnel@10b04000: Fixed dependency cycle(s) with /soc@0/tmc@10b05000
+1791517550.384 6,401,42839,-;/soc@0/funnel@10b04000: Fixed dependency cycle(s) with /soc@0/funnel@10041000
+1791517550.384 6,402,42851,-;/soc@0/funnel@10b04000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517550.384 6,403,42880,-;/soc@0/funnel@10b04000: Fixed dependency cycle(s) with /soc@0/tmc@10b05000
+1791517550.384 6,404,42903,-;/soc@0/tmc@10b05000: Fixed dependency cycle(s) with /soc@0/funnel@10b04000
+1791517550.384 6,405,42944,-;/soc@0/funnel@10b04000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517550.384 6,406,42966,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/funnel@10b04000
+1791517550.384 6,407,42977,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b0d000
+1791517550.384 6,408,42980,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b0c000
+1791517550.384 6,409,42984,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b0b000
+1791517550.384 6,410,42987,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b0a000
+1791517550.384 6,411,42991,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b09000
+1791517550.384 6,412,43020,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b09000
+1791517550.384 6,413,43043,-;/soc@0/tpdm@10b09000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517550.384 6,414,43079,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b0a000
+1791517550.384 6,415,43103,-;/soc@0/tpdm@10b0a000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517550.384 6,416,43139,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b0b000
+1791517550.384 6,417,43161,-;/soc@0/tpdm@10b0b000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517550.384 6,418,43197,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b0c000
+1791517550.384 6,419,43220,-;/soc@0/tpdm@10b0c000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517550.384 6,420,43257,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b0d000
+1791517550.384 6,421,43280,-;/soc@0/tpdm@10b0d000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517550.384 6,422,43523,-;/soc@0/phy@1d80000: Fixed dependency cycle(s) with /soc@0/ufs@1d84000
+1791517550.384 6,423,43606,-;/soc@0/phy@1d80000: Fixed dependency cycle(s) with /soc@0/ufs@1d84000
+1791517550.384 6,424,43629,-;/soc@0/ufs@1d84000: Fixed dependency cycle(s) with /soc@0/phy@1d80000
+1791517550.384 6,425,48441,-;/soc@0/tpda@10986000: Fixed dependency cycle(s) with /tpdm-cdsp-llm
+1791517550.384 6,426,48477,-;/tpdm-cdsp-llm: Fixed dependency cycle(s) with /soc@0/tpda@10986000
+1791517550.384 6,427,48568,-;/soc@0/tpda@10986000: Fixed dependency cycle(s) with /tpdm-cdsp-llm2
+1791517550.384 6,428,48592,-;/tpdm-cdsp-llm2: Fixed dependency cycle(s) with /soc@0/tpda@10986000
+1791517550.384 6,429,48688,-;/soc@0/tpda@10803000: Fixed dependency cycle(s) with /tpdm-modem1
+1791517550.384 6,430,48711,-;/tpdm-modem1: Fixed dependency cycle(s) with /soc@0/tpda@10803000
+1791517550.384 6,431,49816,-;HugeTLB: registered 1.00 GiB page size, pre-allocated 0 pages
+1791517550.384 6,432,49817,-;HugeTLB: 0 KiB vmemmap can be freed for a 1.00 GiB page
+1791517550.384 6,433,49819,-;HugeTLB: registered 32.0 MiB page size, pre-allocated 0 pages
+1791517550.384 6,434,49820,-;HugeTLB: 0 KiB vmemmap can be freed for a 32.0 MiB page
+1791517550.384 6,435,49821,-;HugeTLB: registered 2.00 MiB page size, pre-allocated 0 pages
+1791517550.384 6,436,49822,-;HugeTLB: 0 KiB vmemmap can be freed for a 2.00 MiB page
+1791517550.384 6,437,49824,-;HugeTLB: registered 64.0 KiB page size, pre-allocated 0 pages
+1791517550.384 6,438,49825,-;HugeTLB: 0 KiB vmemmap can be freed for a 64.0 KiB page
+1791517550.384 6,439,50305,-;ACPI: Interpreter disabled.
+1791517550.384 6,440,52324,-;iommu: Default domain type: Translated
+1791517550.384 6,441,52326,-;iommu: DMA domain TLB invalidation policy: strict mode
+1791517550.384 5,442,56664,-;SCSI subsystem initialized
+1791517550.384 7,443,56701,-;libata version 3.00 loaded.
+1791517550.384 6,444,56772,-;usbcore: registered new interface driver usbfs
+1791517550.384 6,445,56779,-;usbcore: registered new interface driver hub
+1791517550.384 6,446,56786,-;usbcore: registered new device driver usb
+1791517550.384 6,447,56886,-;pps_core: LinuxPPS API ver. 1 registered
+1791517550.384 6,448,56887,-;pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <giometti@linux.it>
+1791517550.384 6,449,56890,-;PTP clock support registered
+1791517550.384 6,450,56905,-;EDAC MC: Ver: 3.0.0
+1791517550.384 6,451,56952,-;scmi_core: SCMI protocol bus registered
+1791517550.384 6,452,57130,-;FPGA manager framework
+1791517550.384 6,453,57309,-;Bluetooth: Core ver 2.22
+1791517550.384 6,454,57314,-;NET: Registered PF_BLUETOOTH protocol family
+1791517550.384 6,455,57316,-;Bluetooth: HCI device and connection manager initialized
+1791517550.384 6,456,57318,-;Bluetooth: HCI socket layer initialized
+1791517550.384 6,457,57319,-;Bluetooth: L2CAP socket layer initialized
+1791517550.384 6,458,57322,-;Bluetooth: SCO socket layer initialized
+1791517550.384 6,459,57382,-;vgaarb: loaded
+1791517550.384 6,460,57559,-;clocksource: Switched to clocksource arch_sys_counter
+1791517550.384 5,461,57661,-;VFS: Disk quotas dquot_6.6.0
+1791517550.384 6,462,57669,-;VFS: Dquot-cache hash table entries: 512 (4096 bytes)
+1791517550.384 6,463,57804,-;AppArmor: AppArmor Filesystem Enabled
+1791517550.384 6,464,57815,-;pnp: PnP ACPI: disabled
+1791517550.384 6,465,59088,-;NET: Registered PF_INET protocol family
+1791517550.384 6,466,59170,-;IP idents hash table entries: 262144 (order: 9, 2097152 bytes, linear)
+1791517550.384 6,467,61918,-;tcp_listen_portaddr_hash hash table entries: 8192 (order: 5, 131072 bytes, linear)
+1791517550.384 6,468,62002,-;Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+1791517550.384 6,469,62005,-;TCP established hash table entries: 131072 (order: 8, 1048576 bytes, linear)
+1791517550.384 6,470,62657,-;TCP bind hash table entries: 65536 (order: 9, 2097152 bytes, linear)
+1791517550.384 6,471,63923,-;TCP: Hash tables configured (established 131072 bind 65536)
+1791517550.384 6,472,63944,-;UDP hash table entries: 8192 (order: 7, 524288 bytes, linear)
+1791517550.384 6,473,64296,-;NET: Registered PF_UNIX/PF_LOCAL protocol family
+1791517550.384 6,474,64389,-;RPC: Registered named UNIX socket transport module.
+1791517550.384 6,475,64391,-;RPC: Registered udp transport module.
+1791517550.384 6,476,64392,-;RPC: Registered tcp transport module.
+1791517550.384 6,477,64392,-;RPC: Registered tcp-with-tls transport module.
+1791517550.384 6,478,64394,-;RPC: Registered tcp NFSv4.1 backchannel transport module.
+1791517550.384 6,479,64396,-;PCI: CLS 0 bytes, default 64
+1791517550.384 6,480,64437,-;Unpacking initramfs...
+1791517550.384 5,481,73910,-;Initialise system trusted keyrings
+1791517550.384 6,482,73950,-;workingset: timestamp_bits=42 (anon: 37) max_order=22 bucket_order=0 (anon: 0)
+1791517550.384 6,483,74063,-;squashfs: version 4.0 (2009/01/31) Phillip Lougher
+1791517550.384 5,484,74128,-;NFS: Registering the id_resolver key type
+1791517550.384 5,485,74134,-;Key type id_resolver registered
+1791517550.384 5,486,74138,-;Key type id_legacy registered
+1791517550.384 6,487,74146,-;nfs4filelayout_init: NFSv4 File Layout Driver Registering...
+1791517550.384 6,488,74148,-;nfs4flexfilelayout_init: NFSv4 Flexfile Layout Driver Registering...
+1791517550.384 6,489,74178,-;fuse: init (API version 7.45)
+1791517550.384 5,490,74276,-;Key type asymmetric registered
+1791517550.384 5,491,74280,-;Asymmetric key parser 'x509' registered
+1791517550.384 6,492,74295,-;Block layer SCSI generic (bsg) driver version 0.4 loaded (major 242)
+1791517550.384 6,493,74297,-;io scheduler mq-deadline registered
+1791517550.384 6,494,74298,-;io scheduler kyber registered
+1791517550.384 6,495,74307,-;io scheduler bfq registered
+1791517550.384 6,496,76789,-;ledtrig-cpu: registered to indicate activity on CPUs
+1791517550.384 6,497,82240,-;vreg_l5b_3p1: Setting 3104000-3144000uV
+1791517550.384 6,498,82243,-;vreg_s4d_0p88: Setting 876000-1036000uV
+1791517550.384 6,499,82253,-;vreg_s3g_1p86: Setting 1864000-2000000uV
+1791517550.385 6,500,82267,-;vreg_l1j_0p91: Setting 912000-920000uV
+1791517550.385 6,501,82322,-;vreg_l1d_1p2: Setting 1200000-1200000uV
+1791517550.385 6,502,82332,-;vreg_s5f_0p88: Setting 876000-1000000uV
+1791517550.385 6,503,82369,-;vreg_l3g_1p2: Setting 1200000-1256000uV
+1791517550.385 6,504,82410,-;vreg_l2d_0p88: Setting 880000-912000uV
+1791517550.385 6,505,82411,-;vreg_l11b_1p8: Setting 1800000-1800000uV
+1791517550.385 6,506,82576,-;vreg_l14b_3p3: Setting 3296000-3296000uV
+1791517550.385 6,507,82583,-;vreg_s7i_1p31: Setting 1312000-1340000uV
+1791517550.385 6,508,82616,-;vreg_l2f_1p2: Setting 1200000-1200000uV
+1791517550.385 6,509,82766,-;vreg_l15b_1p8: Setting 1800000-1800000uV
+1791517550.385 6,510,82831,-;vreg_l3f_1p8: Setting 1800000-1800000uV
+1791517550.385 6,511,82873,-;vreg_l17b_2p5: Setting 2504000-2504000uV
+1791517550.385 6,512,83494,-;Serial: 8250/16550 driver, 4 ports, IRQ sharing enabled
+1791517550.385 6,513,84198,-;msm_serial: driver initialized
+1791517550.385 6,514,87214,-;loop: module loaded
+1791517550.385 6,515,90830,-;megasas: 07.734.00.00-rc1
+1791517550.385 6,516,91291,-;spmi_pmic_arb c400000.spmi: PMIC arbiter version v7 (0x70020000)
+1791517550.385 6,517,104055,-;tun: Universal TUN/TAP device driver, 1.6
+1791517550.385 6,518,104142,-;VFIO - User Level meta-driver version: 0.3
+1791517550.385 6,519,104949,-;usbcore: registered new interface driver usb-storage
+1791517550.385 6,520,114374,-;i2c_dev: i2c /dev entries driver
+1791517550.385 6,521,115112,-;input: pmic_pwrkey as /devices/platform/soc@0/c400000.spmi/spmi-0/0-00/c400000.spmi:pmic@0:pon@1300/c400000.spmi:pmic@0:pon@1300:pwrkey/input/input0
+1791517550.385 6,522,126043,-;Bluetooth: HCI UART driver ver 2.3
+1791517550.385 6,523,126045,-;Bluetooth: HCI UART protocol H4 registered
+1791517550.385 6,524,126049,-;Bluetooth: HCI UART protocol LL registered
+1791517550.385 6,525,126076,-;Bluetooth: HCI UART protocol Broadcom registered
+1791517550.385 6,526,126080,-;Bluetooth: HCI UART protocol QCA registered
+1791517550.385 6,527,126084,-;Bluetooth: HCI UART protocol Marvell registered
+1791517550.385 6,528,127041,-;SMCCC: SOC_ID: ARCH_SOC_ID not implemented, skipping ....
+1791517550.385 6,529,127129,-;clocksource: arch_mmio_counter: mask: 0xffffffffffffff max_cycles: 0x46d987e47, max_idle_ns: 440795202767 ns
+1791517550.385 6,530,127132,-;arch-timer-mmio 16800000.timer: mmio timer running at 19.20MHz (virt)
+1791517550.385 6,531,127241,-;usbcore: registered new interface driver usbhid
+1791517550.385 6,532,127242,-;usbhid: USB HID core driver
+1791517550.385 6,533,128485,-;hw perfevents: enabled with armv8_pmuv3 PMU driver, 13 (0,80000fff) counters available
+1791517550.385 6,534,130587,-;NET: Registered PF_INET6 protocol family
+1791517550.385 6,535,131029,-;Segment Routing with IPv6
+1791517550.385 6,536,131036,-;In-situ OAM (IOAM) with IPv6
+1791517550.385 6,537,131052,-;NET: Registered PF_PACKET protocol family
+1791517550.385 5,538,131074,-;Key type dns_resolver registered
+1791517550.385 6,539,135209,-;registered taskstats version 1
+1791517550.385 5,540,135273,-;Loading compiled-in X.509 certificates
+1791517550.385 6,541,137359,-;Demotion targets for Node 0: null
+1791517550.385 6,542,137379,-;AppArmor: AppArmor sha256 policy hashing enabled
+1791517550.385 6,543,145910,-;qcom_scm: convention: smc arm 64
+1791517550.385 6,544,149457,-;qcom_scm firmware:scm: qseecom: found qseecom with version 0x1402000
+1791517550.385 6,545,149463,-;qcom_scm firmware:scm: qseecom: untested machine, skipping
+1791517550.385 5,546,151977,-;arm-smmu 3da0000.iommu: probing hardware configuration...
+1791517550.385 5,547,151981,-;arm-smmu 3da0000.iommu: SMMUv2 with:
+1791517550.385 5,548,152012,-;arm-smmu 3da0000.iommu: \x09stage 1 translation
+1791517550.385 5,549,152015,-;arm-smmu 3da0000.iommu: \x09coherent table walk
+1791517550.385 5,550,152018,-;arm-smmu 3da0000.iommu: \x09stream matching with 24 register groups
+1791517550.385 5,551,152044,-;arm-smmu 3da0000.iommu: \x0921 context banks (0 stage-2 only)
+1791517550.385 5,552,152071,-;arm-smmu 3da0000.iommu: \x09Supported page sizes: 0x61311000
+1791517550.385 5,553,152074,-;arm-smmu 3da0000.iommu: \x09Stage-1: 48-bit VA -> 36-bit IPA
+1791517550.385 5,554,152135,-;arm-smmu 3da0000.iommu: \x09preserved 0 boot mappings
+1791517550.385 6,555,154311,-;platform 3d00000.gpu: Adding to iommu group 0
+1791517550.385 6,556,154405,-;platform 3d37000.gmu: Adding to iommu group 1
+1791517550.385 5,557,156369,-;arm-smmu 15000000.iommu: probing hardware configuration...
+1791517550.385 5,558,156372,-;arm-smmu 15000000.iommu: SMMUv2 with:
+1791517550.385 5,559,156384,-;arm-smmu 15000000.iommu: \x09stage 1 translation
+1791517550.385 5,560,156387,-;arm-smmu 15000000.iommu: \x09coherent table walk
+1791517550.385 5,561,156390,-;arm-smmu 15000000.iommu: \x09stream matching with 127 register groups
+1791517550.385 5,562,156401,-;arm-smmu 15000000.iommu: \x0983 context banks (0 stage-2 only)
+1791517550.385 5,563,157504,-;arm-smmu 15000000.iommu: \x09Supported page sizes: 0x61311000
+1791517550.385 5,564,157507,-;arm-smmu 15000000.iommu: \x09Stage-1: 36-bit VA -> 36-bit IPA
+1791517550.385 5,565,157535,-;arm-smmu 15000000.iommu: \x09preserved 0 boot mappings
+1791517550.385 6,566,160139,-;platform 800000.dma-controller: Adding to iommu group 2
+1791517550.385 6,567,160187,-;platform 8c0000.geniqup: Adding to iommu group 3
+1791517550.385 6,568,160235,-;platform a00000.dma-controller: Adding to iommu group 4
+1791517550.385 6,569,160281,-;platform ac0000.geniqup: Adding to iommu group 5
+1791517550.385 6,570,160351,-;platform 1dc4000.dma-controller: Adding to iommu group 6
+1791517550.385 6,571,160408,-;platform 1dfa000.crypto: Adding to iommu group 6
+1791517550.385 6,572,160514,-;platform a600000.usb: Adding to iommu group 7
+1791517550.385 6,573,160561,-;platform 1d84000.ufs: Adding to iommu group 8
+1791517550.385 4,574,164076,-;adreno 3d00000.gpu: supply vdd not found, using dummy regulator
+1791517550.385 4,575,164104,-;adreno 3d00000.gpu: supply vddcx not found, using dummy regulator
+1791517550.385 6,576,200341,-;[drm] Initialized msm 1.13.0 for 3d00000.gpu on minor 0
+1791517550.385 6,577,201081,-;[drm] Initialized simpledrm 1.0.0 for chosen:framebuffer on minor 1
+1791517550.385 6,578,214488,-;Console: switching to colour frame buffer device 400x133
+1791517550.385 6,579,221995,-;simple-framebuffer chosen:framebuffer: [drm] fb0: simpledrmdrmfb frame buffer device
+1791517550.385 6,580,224353,-;geni_i2c 88c000.i2c: Bus frequency not specified, default to 100kHz.
+1791517550.385 6,581,229649,-;898000.serial: ttyHS1 at MMIO 0x898000 (irq = 186, base_baud = 0) is a MSM
+1791517550.385 6,582,229689,-;serial serial0: tty port ttyHS1 registered
+1791517550.385 6,583,230534,-;Bluetooth: hci0: setting up wcn7860
+1791517550.385 6,584,231528,-;geni_i2c a94000.i2c: Bus frequency not specified, default to 100kHz.
+1791517550.385 6,585,301971,-;Bluetooth: hci0: QCA Product ID   :0x00000021
+1791517550.385 6,586,301975,-;Bluetooth: hci0: QCA SOC Version  :0x40210200
+1791517550.385 6,587,301976,-;Bluetooth: hci0: QCA ROM Version  :0x00000200
+1791517550.385 6,588,301978,-;Bluetooth: hci0: QCA Patch Version:0x00006d58
+1791517550.385 6,589,429807,-;Bluetooth: hci0: QCA controller version 0x02000200
+1791517550.385 6,590,429812,-;Bluetooth: hci0: QCA Downloading qca/gngbtfw20.mbn
+1791517550.385 3,591,429956,-;Bluetooth: hci0: Frame reassembly failed (-84)
+1791517550.385 6,592,444063,-;Freeing initrd memory: 48612K
+1791517550.385 6,593,1270115,-;Bluetooth: hci0: QCA Downloading qca/gngbtnv20.bin
+1791517550.385 6,594,1722676,-;Bluetooth: hci0: QCA FW build version: BTFW.GANGES.2.0.0-00355-PATCHZ-2_DEF NVM_LABEL:BTFW.GANGES.2.0.0-00355-PATCHZ-2_DEF
+1791517550.385 6,595,1723208,-;Bluetooth: hci0: QCA setup on UART is completed
+1791517550.385 6,596,1723225,-;Bluetooth: hci0: HFP non-HCI data transport is supported
+1791517550.385 6,597,2120155,-;a9c000.serial: ttyMSM0 at MMIO 0xa9c000 (irq = 192, base_baud = 0) is a MSM
+1791517550.385 6,598,2120349,-;printk: legacy console [ttyMSM0] enabled
+1791517550.385 6,599,2423145,-;input: Xiaomi Keyboard as /devices/platform/soc@0/ac0000.geniqup/a98000.i2c/i2c-2/2-004c/0018:15D9:00A3.0001/input/input1
+1791517550.385 6,600,2519286,-;hid-generic 0018:15D9:00A3.0001: input: I2C HID v0.00 Keyboard [Xiaomi Keyboard] on 2-004c/input0
+1791517550.385 6,601,2519388,-;ufshcd-qcom 1d84000.ufs: freq-table-hz property not specified
+1791517550.385 6,602,2519391,-;ufshcd-qcom 1d84000.ufs: ufshcd_populate_vreg: Unable to find vdd-hba-supply regulator, assuming enabled
+1791517550.385 6,603,2519465,-;ufshcd-qcom 1d84000.ufs: ufshcd_populate_vreg: Unable to find vccq2-supply regulator, assuming enabled
+1791517550.385 6,604,2519480,-;input: Xiaomi Consumer as /devices/platform/soc@0/ac0000.geniqup/a98000.i2c/i2c-2/2-004c/0018:15D9:00A4.0002/input/input2
+1791517550.385 6,605,2519503,-;hid-generic 0018:15D9:00A4.0002: input: I2C HID v0.00 Device [Xiaomi Consumer] on 2-004c/input1
+1791517550.385 6,606,2519579,-;input: Xiaomi Mouse as /devices/platform/soc@0/ac0000.geniqup/a98000.i2c/i2c-2/2-004c/0018:15D9:00A2.0003/input/input3
+1791517550.385 6,607,2519606,-;hid-generic 0018:15D9:00A2.0003: input: I2C HID v0.00 Mouse [Xiaomi Mouse] on 2-004c/input2
+1791517550.385 6,608,2519845,-;input: Xiaomi Touch as /devices/platform/soc@0/ac0000.geniqup/a98000.i2c/i2c-2/2-004c/0018:15D9:00A1.0004/input/input4
+1791517550.385 6,609,2519869,-;hid-multitouch 0018:15D9:00A1.0004: input: I2C HID v0.00 Device [Xiaomi Touch] on 2-004c/input3
+1791517550.385 3,610,2524526,-;ufshcd-qcom 1d84000.ufs: MCQ resource not found in device tree
+1791517550.385 3,611,2531612,-;ufshcd-qcom 1d84000.ufs: MCQ mode is disabled, err=-19
+1791517550.385 6,612,2537970,-;scsi host0: ufshcd
+1791517550.385 3,613,2567013,-;ufshcd-qcom 1d84000.ufs: ufshcd_dev_cmd_completion: unexpected response in Query RSP: fa
+1791517550.385 3,614,2576396,-;ufshcd-qcom 1d84000.ufs: ufshcd_query_attr: opcode 0x04 for idn 13 failed, index 0, err = -22
+1791517550.385 3,615,2586966,-;ufshcd-qcom 1d84000.ufs: ufshcd_dev_cmd_completion: unexpected response in Query RSP: fa
+1791517550.385 3,616,2596347,-;ufshcd-qcom 1d84000.ufs: ufshcd_query_attr: opcode 0x04 for idn 13 failed, index 0, err = -22
+1791517550.385 3,617,2606917,-;ufshcd-qcom 1d84000.ufs: ufshcd_dev_cmd_completion: unexpected response in Query RSP: fa
+1791517550.385 3,618,2616299,-;ufshcd-qcom 1d84000.ufs: ufshcd_query_attr: opcode 0x04 for idn 13 failed, index 0, err = -22
+1791517550.385 3,619,2626122,-;ufshcd-qcom 1d84000.ufs: ufshcd_query_attr_retry: query attribute, idn 13, failed with error -22 after 3 retries
+1791517550.385 5,620,2650269,-;scsi 0:0:0:49488: Well-known LUN    KIOXIA   THGJFLT2G46BATPB 0200 PQ: 0 ANSI: 6
+1791517550.385 6,621,2651071,-;clk: Disabling unused clocks
+1791517550.385 6,622,2659309,-;PM: genpd: Disabling unused power domains
+1791517550.385 5,623,2659519,-;scsi 0:0:0:49476: Well-known LUN    KIOXIA   THGJFLT2G46BATPB 0200 PQ: 0 ANSI: 6
+1791517550.385 5,624,2668627,-;scsi 0:0:0:49456: Well-known LUN    KIOXIA   THGJFLT2G46BATPB 0200 PQ: 0 ANSI: 6
+1791517550.385 5,625,2677735,-;scsi 0:0:0:0: Direct-Access     KIOXIA   THGJFLT2G46BATPB 0200 PQ: 0 ANSI: 6
+1791517550.385 5,626,2686773,-;scsi 0:0:0:1: Direct-Access     KIOXIA   THGJFLT2G46BATPB 0200 PQ: 0 ANSI: 6
+1791517550.385 5,627,2686816,-;sd 0:0:0:0: [sda] 124552192 4096-byte logical blocks: (510 GB/475 GiB)
+1791517550.385 5,628,2695798,-;scsi 0:0:0:2: Direct-Access     KIOXIA   THGJFLT2G46BATPB 0200 PQ: 0 ANSI: 6
+1791517550.385 5,629,2695881,-;sd 0:0:0:1: [sdb] 3072 4096-byte logical blocks: (12.6 MB/12.0 MiB)
+1791517550.385 5,630,2695923,-;sd 0:0:0:1: [sdb] Write Protect is off
+1791517550.385 7,631,2695924,-;sd 0:0:0:1: [sdb] Mode Sense: 00 32 00 10
+1791517550.385 5,632,2696003,-;sd 0:0:0:1: [sdb] Write cache: disabled, read cache: enabled, supports DPO and FUA
+1791517550.385 6,633,2696026,-;sd 0:0:0:1: [sdb] Preferred minimum I/O size 4096 bytes
+1791517550.385 6,634,2696027,-;sd 0:0:0:1: [sdb] Optimal transfer size 524288 bytes
+1791517550.385 5,635,2702961,-;sd 0:0:0:0: [sda] Write Protect is off
+1791517550.385 5,636,2711908,-;scsi 0:0:0:3: Direct-Access     KIOXIA   THGJFLT2G46BATPB 0200 PQ: 0 ANSI: 6
+1791517550.385 5,637,2711969,-;sd 0:0:0:2: [sdc] 3072 4096-byte logical blocks: (12.6 MB/12.0 MiB)
+1791517550.385 5,638,2712014,-;sd 0:0:0:2: [sdc] Write Protect is off
+1791517550.385 7,639,2712016,-;sd 0:0:0:2: [sdc] Mode Sense: 00 32 00 10
+1791517550.385 5,640,2712093,-;sd 0:0:0:2: [sdc] Write cache: disabled, read cache: enabled, supports DPO and FUA
+1791517550.385 6,641,2712134,-;sd 0:0:0:2: [sdc] Preferred minimum I/O size 4096 bytes
+1791517550.385 6,642,2712135,-;sd 0:0:0:2: [sdc] Optimal transfer size 524288 bytes
+1791517550.385 7,643,2718703,-;sd 0:0:0:0: [sda] Mode Sense: 00 32 00 10
+1791517550.385 5,644,2719674,-;scsi 0:0:0:4: Direct-Access     KIOXIA   THGJFLT2G46BATPB 0200 PQ: 0 ANSI: 6
+1791517550.385 5,645,2719745,-;sd 0:0:0:3: [sdd] 2048 4096-byte logical blocks: (8.39 MB/8.00 MiB)
+1791517550.385 5,646,2719787,-;sd 0:0:0:3: [sdd] Write Protect is off
+1791517550.385 7,647,2719789,-;sd 0:0:0:3: [sdd] Mode Sense: 00 32 00 10
+1791517550.385 5,648,2719868,-;sd 0:0:0:3: [sdd] Write cache: enabled, read cache: enabled, supports DPO and FUA
+1791517550.385 6,649,2719891,-;sd 0:0:0:3: [sdd] Preferred minimum I/O size 4096 bytes
+1791517550.385 6,650,2719892,-;sd 0:0:0:3: [sdd] Optimal transfer size 524288 bytes
+1791517550.385 5,651,2723683,-;sd 0:0:0:0: [sda] Write cache: enabled, read cache: enabled, supports DPO and FUA
+1791517550.385 5,652,2733404,-;scsi 0:0:0:5: Direct-Access     KIOXIA   THGJFLT2G46BATPB 0200 PQ: 0 ANSI: 6
+1791517550.385 5,653,2733412,-;sd 0:0:0:4: [sde] 378880 4096-byte logical blocks: (1.55 GB/1.45 GiB)
+1791517550.385 5,654,2733438,-;sd 0:0:0:4: [sde] Write Protect is off
+1791517550.385 7,655,2733439,-;sd 0:0:0:4: [sde] Mode Sense: 00 32 00 10
+1791517550.385 5,656,2733481,-;sd 0:0:0:4: [sde] Write cache: enabled, read cache: enabled, supports DPO and FUA
+1791517550.385 6,657,2733502,-;sd 0:0:0:4: [sde] Preferred minimum I/O size 4096 bytes
+1791517550.385 6,658,2733504,-;sd 0:0:0:4: [sde] Optimal transfer size 524288 bytes
+1791517550.385 6,659,2737436,-;sd 0:0:0:0: [sda] Preferred minimum I/O size 4096 bytes
+1791517550.385 6,660,2738440,-; sdb: sdb1 sdb2 sdb3 sdb4 sdb5
+1791517550.385 5,661,2738784,-;sd 0:0:0:1: [sdb] Attached SCSI disk
+1791517550.385 5,662,2747189,-;sd 0:0:0:5: [sdf] 16384 4096-byte logical blocks: (67.1 MB/64.0 MiB)
+1791517550.385 6,663,2753237,-;sd 0:0:0:0: [sda] Optimal transfer size 524288 bytes
+1791517550.385 6,664,2754335,-; sdd: sdd1 sdd2 sdd3
+1791517550.385 6,665,2754544,-; sdc: sdc1 sdc2 sdc3 sdc4 sdc5
+1791517550.385 5,666,2754663,-;sd 0:0:0:2: [sdc] Attached SCSI disk
+1791517550.385 5,667,2758192,-;sd 0:0:0:5: [sdf] Write Protect is off
+1791517550.385 5,668,2767085,-;sd 0:0:0:3: [sdd] Attached SCSI disk
+1791517550.385 6,669,2770973,-; sde: sde1 sde2 sde3 sde4 sde5 sde6 sde7 sde8 sde9 sde10 sde11 sde12 sde13 sde14 sde15 sde16 sde17 sde18 sde19 sde20 sde21 sde22 sde23 sde24 sde25 sde26 sde27 sde28 sde29 sde30 sde31 sde32 sde33 sde34 sde35 sde36 sde37 sde38 sde39 sde40 sde41 sde42 sde43 sde44 sde45 sde46 sde47 sde48 sde49 sde50 sde51 sde52 sde53 sde54 sde55 sde56 sde57 sde58 sde59 sde60 sde61 sde62 sde63 sde64 sde65 sde66 sde67 sde68 sde69 sde70 sde71 sde72 sde73 sde74 sde75 sde76 sde77 sde78 sde79
+1791517550.385 5,670,2772510,-;sd 0:0:0:4: [sde] Attached SCSI disk
+1791517550.385 7,671,2775316,-;sd 0:0:0:5: [sdf] Mode Sense: 00 32 00 10
+1791517550.385 5,672,2775362,-;sd 0:0:0:5: [sdf] Write cache: enabled, read cache: enabled, supports DPO and FUA
+1791517550.385 6,673,2875303,-;sd 0:0:0:5: [sdf] Preferred minimum I/O size 4096 bytes
+1791517550.385 6,674,2875306,-;sd 0:0:0:5: [sdf] Optimal transfer size 524288 bytes
+1791517550.385 6,675,2882942,-; sda: sda1 sda2 sda3 sda4 sda5 sda6 sda7 sda8 sda9 sda10 sda11 sda12 sda13 sda14 sda15 sda16 sda17 sda18 sda19 sda20 sda21 sda22 sda23 sda24 sda25 sda26 sda27 sda28 sda29 sda30 sda31 sda32 sda33 sda34 sda35 sda36
+1791517550.385 5,676,2883795,-;sd 0:0:0:0: [sda] Attached SCSI disk
+1791517550.385 6,677,2910966,-; sdf: sdf1 sdf2 sdf3 sdf4 sdf5 sdf6 sdf7
+1791517550.385 5,678,2911544,-;sd 0:0:0:5: [sdf] Attached SCSI disk
+1791517550.385 6,679,2916935,-;Freeing unused kernel memory: 8256K
+1791517550.385 6,680,2916993,-;Run /init as init process
+1791517550.385 7,681,2916994,-;  with arguments:
+1791517550.385 7,682,2916995,-;    /init
+1791517550.385 7,683,2916997,-;  with environment:
+1791517550.385 7,684,2916998,-;    HOME=/
+1791517550.385 7,685,2916999,-;    TERM=linux
+1791517550.385 30,686,3092049,-;systemd[1]: System time advanced to built-in epoch: Wed 2026-04-15 18:32:53 UTC
+1791517550.385 30,687,3435512,-;systemd[1]: Successfully made /usr/ read-only.
+1791517550.385 30,688,3777639,-;systemd[1]: systemd 259.5-0ubuntu3 running in system mode (+PAM +AUDIT +SELINUX +APPARMOR +IMA +IPE +SMACK +SECCOMP +GCRYPT -GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN +KMOD +LIBCRYPTSETUP +LIBCRYPTSETUP_PLUGINS +LIBFDISK +PCRE2 +PWQUALITY +P11KIT +QRENCODE +TPM2 +BZIP2 +LZ4 +XZ +ZLIB +ZSTD +BPF_FRAMEWORK +BTF -XKBCOMMON -UTMP +SYSVINIT +LIBARCHIVE)
+1791517550.385 30,689,3777661,-;systemd[1]: Detected architecture arm64.
+1791517550.385 30,690,3777664,-;systemd[1]: Running in initrd.
+1791517550.385 30,691,3793663,-;systemd[1]: Initializing machine ID from random generator.
+1791517550.385 30,692,3793747,-;systemd[1]: No hostname configured, using default hostname.
+1791517550.385 30,693,3793791,-;systemd[1]: Hostname set to <localhost>.
+1791517550.385 27,694,3881284,-;systemd[1]: bpf-restrict-fs: Failed to load BPF object: No such process
+1791517550.385 30,695,3945085,-;systemd[1]: Queued start job for default target initrd.target.
+1791517550.385 30,696,4008269,-;systemd[1]: Expecting device dev-disk-by\x5cx2dpartuuid-00000000-0000-0000-0000-000000000000.device - /dev/disk/by-partuuid/00000000-0000-0000-0000-000000000000...
+1791517550.385 30,697,4021652,-;systemd[1]: Reached target initrd-usr-fs.target - Initrd /usr File System.
+1791517550.385 30,698,4037661,-;systemd[1]: Reached target slices.target - Slice Units.
+1791517550.385 30,699,4045644,-;systemd[1]: Reached target swap.target - Swaps.
+1791517550.385 30,700,4053642,-;systemd[1]: Reached target timers.target - Timer Units.
+1791517550.385 30,701,4061704,-;systemd[1]: Listening on systemd-journald-dev-log.socket - Journal Socket (/dev/log).
+1791517550.385 30,702,4077697,-;systemd[1]: Listening on systemd-journald.socket - Journal Sockets.
+1791517550.385 30,703,4093696,-;systemd[1]: Listening on systemd-udevd-control.socket - udev Control Socket.
+1791517550.385 30,704,4109669,-;systemd[1]: Listening on systemd-udevd-kernel.socket - udev Kernel Socket.
+1791517550.385 30,705,4125634,-;systemd[1]: Reached target sockets.target - Socket Units.
+1791517550.385 30,706,4133709,-;systemd[1]: dracut-cmdline-ask.service - dracut ask for additional cmdline parameters skipped, no trigger condition checks were met.
+1791517550.385 30,707,4136921,-;systemd[1]: Starting dracut-cmdline.service - dracut cmdline hook...
+1791517550.385 30,708,4169849,-;systemd[1]: Starting kmod-static-nodes.service - Create List of Static Device Nodes...
+1791517550.385 30,709,4187409,-;systemd[1]: Started piano-debug-timeout.service - Bounded piano installation boot.
+1791517550.385 30,710,4207010,-;systemd[1]: Starting systemd-journald.service - Journal Service...
+1791517550.385 30,711,4223663,-;systemd[1]: Starting systemd-modules-load.service - Load Kernel Modules...
+1791517550.385 30,712,4237600,-;systemd[1]: systemd-pcrphase-initrd.service - TPM PCR Barrier (initrd) skipped, unmet condition check ConditionSecurity=measured-uki
+1791517550.385 46,713,4240516,-;systemd-journald[441]: Collecting audit messages is disabled.
+1791517550.385 30,714,4241918,-;systemd[1]: Finished dracut-cmdline.service - dracut cmdline hook.
+1791517550.385 30,715,4259108,-;systemd[1]: Finished kmod-static-nodes.service - Create List of Static Device Nodes.
+1791517550.385 30,716,4273757,-;systemd[1]: Started systemd-journald.service - Journal Service.
+1791517550.386 6,717,4346129,-;device-mapper: ioctl: 4.50.0-ioctl (2025-04-28) initialised: dm-devel@lists.linux.dev
+1791517550.386 6,718,4633269,-;configfs-gadget.piano-diag gadget.0: HOST MAC 00:00:00:00:00:00
+1791517550.386 6,719,4633272,-;configfs-gadget.piano-diag gadget.0: MAC 00:00:00:00:00:00
+1791517550.386 14,720,4664980,-;PIANO_USB: mode=ncm serial=piano-SERIAL udc=a600000.usb
+1791517550.386 6,721,5418962,-;arm-scmi arm-scmi.0.auto: Using scmi_mailbox_transport
+1791517550.386 6,722,5418968,-;arm-scmi arm-scmi.0.auto: SCMI max-rx-timeout: 30ms / max-msg-size: 104bytes / max-msg: 20
+1791517550.386 6,723,5428433,-;arm-scmi arm-scmi.0.auto: SCMI Notifications - Core Enabled.
+1791517550.386 6,724,5428623,-;arm-scmi arm-scmi.0.auto: SCMI Protocol v2.0 'Qualcomm:' Firmware version 0x20000
+1791517550.386 6,725,5428657,-;arm-scmi arm-scmi.0.auto: Enabling SCMI Quirk [quirk_perf_level_get_fc_force]
+1791517550.386 6,726,5428671,-;arm-scmi arm-scmi.0.auto: Enabling SCMI Quirk [quirk_clock_rates_triplet_out_of_spec]
+1791517550.386 6,727,5437293,-;cpu cpu0: EM: created perf domain
+1791517550.386 6,728,5448431,-;cpu cpu6: EM: created perf domain
+1791517550.386 6,729,5461138,-;scmi-perf-domain scmi_dev.4: Initialized 2 performance domains
+1791517550.386 6,730,5462979,-;rtc-pm8xxx c400000.spmi:pmic@0:rtc@6100: registered as rtc0
+1791517550.386 6,731,5463012,-;rtc-pm8xxx c400000.spmi:pmic@0:rtc@6100: setting system clock to 1970-01-18T14:45:49 UTC (1521949)
+1791517550.386 6,732,5463614,-;NET: Registered PF_QIPCRTR protocol family
+1791517550.386 6,733,5463766,-;remoteproc remoteproc0: adsp is available
+1791517550.386 6,734,5463869,-;remoteproc remoteproc0: powering up adsp
+1791517550.386 6,735,5463871,-;remoteproc remoteproc0: Booting fw image qcom/sm8750/piano/adsp.mdt, size 8364
+1791517550.386 46,736,5464046,-;systemd-journald[441]: Time jumped backwards, rotating.
+1791517550.803 6,737,5979880,-;remoteproc remoteproc0: remote processor adsp is now up
+1791517550.891 6,738,6069265,-;PDR: Indication received from msm/adsp/audio_pd, state: 0x1fffffff, trans-id: 1
+1791517550.891 6,739,6069281,-;qcom,apr 6800000.remoteproc:glink-edge.adsp_apps.-1.-1: Adding APR/GPR dev: gprsvc:service:2:1
+1791517550.891 6,740,6069310,-;qcom,apr 6800000.remoteproc:glink-edge.adsp_apps.-1.-1: Adding APR/GPR dev: gprsvc:service:2:2
+1791517550.967 3,741,6135850,-;qcom_q6v5_pas 6800000.remoteproc: Handover signaled, but it already happened
+1791517551.163 6,742,6341247,-;EXT4-fs (sda35): mounted filesystem 00000000-0000-0000-0000-000000000000 r/w with ordered data mode. Quota mode: none.
+1791517551.663 HOST console closed
+1791517551.667 HOST connect failed ConnectionRefusedError(111, 'Connection refused')
+1791517552.671 HOST connect failed ConnectionRefusedError(111, 'Connection refused')
+1791517553.676 HOST connect failed ConnectionRefusedError(111, 'Connection refused')
+1791517554.680 HOST connect failed ConnectionRefusedError(111, 'Connection refused')
+1791517555.685 HOST connect failed ConnectionRefusedError(111, 'Connection refused')
+1791517556.689 HOST connected via enx000000000000
+1791517556.725 
+1791517556.725 Ubuntu 26.04 LTS
+1791517556.725 
+1791517556.725 exec cat /dev/kmsg
+1791517556.725 PIANO_PERSISTENT_CONSOLE phase=root
+1791517556.725 
+1791517556.725 
+1791517556.725 BusyBox v1.36.1 (Ubuntu 1:1.36.1-6ubuntu3.1) built-in shell (ash)
+1791517556.725 Enter 'help' for a list of built-in commands.
+1791517556.725 
+1791517556.725 # 
+1791517556.725 # exec cat /dev/kmsg
+1791517556.725 6,0,0,-;Booting Linux on physical CPU 0x0000000000 [0x514f0014]
+1791517556.725 5,1,0,-;Linux version 7.2.6-piano2 (piano@builder) (aarch64-linux-gnu-gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, GNU ld (GNU Binutils for Ubuntu) 2.42) #1 SMP PREEMPT 2026-10-09T11:13:05+08:00
+1791517556.725 6,2,0,-;KASLR enabled
+1791517556.725 5,3,0,-;random: crng init done
+1791517556.725 6,4,0,-;Machine model: Qualcomm Technologies, Inc. Piano based on SM8750
+1791517556.725 6,5,0,-;efi: UEFI not found.
+1791517556.725 6,6,0,-;Reserved memory: created CMA memory pool at 0x00000000f2c00000, size 12 MiB
+1791517556.725 6,7,0,-;OF: reserved mem: initialized node adsp-rpc-remote-heap, compatible id shared-dma-pool
+1791517556.725 6,8,0,-;OF: reserved mem: 0x00000000f2c00000..0x00000000f37fffff (12288 KiB) map reusable adsp-rpc-remote-heap
+1791517556.725 6,9,0,-;OF: reserved mem: 0x0000000080000000..0x00000000811fffff (18432 KiB) nomap non-reusable gunyah-hyp@80000000
+1791517556.725 6,10,0,-;OF: reserved mem: 0x0000000081200000..0x00000000813fffff (2048 KiB) nomap non-reusable cpucp@81200000
+1791517556.725 6,11,0,-;OF: reserved mem: 0x0000000081a00000..0x0000000081a3ffff (256 KiB) nomap non-reusable xbl-dtlog@81a00000
+1791517556.725 6,12,0,-;OF: reserved mem: 0x0000000081c00000..0x0000000081c5ffff (384 KiB) nomap non-reusable aop-image@81c00000
+1791517556.725 6,13,0,-;OF: reserved mem: 0x0000000081c60000..0x0000000081c7ffff (128 KiB) nomap non-reusable aop-cmd-db@81c60000
+1791517556.725 6,14,0,-;OF: reserved mem: 0x0000000081c80000..0x0000000081cf3fff (464 KiB) nomap non-reusable aop-tme-uefi-merged@81c80000
+1791517556.725 6,15,0,-;OF: reserved mem: 0x0000000081d00000..0x0000000081efffff (2048 KiB) nomap non-reusable smem@81d00000
+1791517556.725 6,16,0,-;OF: reserved mem: 0x0000000081f00000..0x0000000081ffffff (1024 KiB) nomap non-reusable pdp-ns-shared@81f00000
+1791517556.725 6,17,0,-;OF: reserved mem: 0x0000000082000000..0x000000008237ffff (3584 KiB) nomap non-reusable cpucp-scandump@82000000
+1791517556.725 6,18,0,-;OF: reserved mem: 0x0000000082380000..0x000000008239ffff (128 KiB) nomap non-reusable adsp-mhi@82380000
+1791517556.725 6,19,0,-;OF: reserved mem: 0x00000000823a0000..0x00000000823dffff (256 KiB) nomap non-reusable soccp-sdi@823a0000
+1791517556.725 6,20,0,-;OF: reserved mem: 0x00000000823e0000..0x000000008245ffff (512 KiB) nomap non-reusable pmic-minii-dump@823e0000
+1791517556.725 6,21,0,-;OF: reserved mem: 0x00000000824a0000..0x000000008259ffff (1024 KiB) nomap non-reusable pvmfw@824a0000
+1791517556.725 6,22,0,-;OF: reserved mem: 0x0000000082600000..0x00000000826fffff (1024 KiB) nomap non-reusable global-sync@82600000
+1791517556.725 6,23,0,-;OF: reserved mem: 0x0000000082700000..0x00000000827fffff (1024 KiB) nomap non-reusable tz-stat@82700000
+1791517556.725 6,24,0,-;OF: reserved mem: 0x0000000082800000..0x00000000847fffff (32768 KiB) nomap non-reusable qdss@82800000
+1791517556.725 6,25,0,-;OF: reserved mem: 0x0000000084a00000..0x00000000892fffff (74752 KiB) nomap non-reusable dsm-partition-1@84a00000
+1791517556.725 6,26,0,-;OF: reserved mem: 0x0000000089300000..0x0000000089d7ffff (10752 KiB) nomap non-reusable dsm-partition-2@89300000
+1791517556.725 6,27,0,-;OF: reserved mem: 0x000000009b000000..0x000000009b07ffff (512 KiB) nomap non-reusable q6-mpss-dtb@9b000000
+1791517556.725 6,28,0,-;OF: reserved mem: 0x000000009b080000..0x000000009b08ffff (64 KiB) nomap non-reusable ipa-fw@9b080000
+1791517556.725 6,29,0,-;OF: reserved mem: 0x000000009b090000..0x000000009b099fff (40 KiB) nomap non-reusable ipa-gsi@9b090000
+1791517556.725 6,30,0,-;OF: reserved mem: 0x000000009b09a000..0x000000009b09bfff (8 KiB) nomap non-reusable gpu-micro-code@9b09a000
+1791517556.725 6,31,0,-;OF: reserved mem: 0x000000009b0a0000..0x000000009b27ffff (1920 KiB) nomap non-reusable spss@9b0a0000
+1791517556.725 6,32,0,-;OF: reserved mem: 0x000000009b280000..0x000000009b2bffff (256 KiB) nomap non-reusable spu-tz-shared@9b280000
+1791517556.725 6,33,0,-;OF: reserved mem: 0x000000009b2c0000..0x000000009b2fffff (256 KiB) nomap non-reusable spu-modem-shared@9b2c0000
+1791517556.725 6,34,0,-;OF: reserved mem: 0x000000009b300000..0x000000009bafffff (8192 KiB) nomap non-reusable camera@9b300000
+1791517556.725 6,35,0,-;OF: reserved mem: 0x000000009bb00000..0x000000009c2fffff (8192 KiB) nomap non-reusable camera-2@9bb00000
+1791517556.725 6,36,0,-;OF: reserved mem: 0x000000009c300000..0x000000009cafffff (8192 KiB) nomap non-reusable video@9c300000
+1791517556.725 6,37,0,-;OF: reserved mem: 0x000000009cb00000..0x000000009d1fffff (7168 KiB) nomap non-reusable cvp@9cb00000
+1791517556.725 6,38,0,-;OF: reserved mem: 0x000000009d200000..0x000000009eafffff (25600 KiB) nomap non-reusable cdsp@9d200000
+1791517556.725 6,39,0,-;OF: reserved mem: 0x000000009eb00000..0x000000009eb7ffff (512 KiB) nomap non-reusable q6-cdsp-dtb@9eb00000
+1791517556.725 6,40,0,-;OF: reserved mem: 0x000000009ec00000..0x000000009ed7ffff (1536 KiB) nomap non-reusable soccp@9ec00000
+1791517556.725 6,41,0,-;OF: reserved mem: 0x000000009ed80000..0x000000009edfffff (512 KiB) nomap non-reusable q6-adsp-dtb@9ed80000
+1791517556.725 6,42,0,-;OF: reserved mem: 0x00000000b8000000..0x00000000b81fffff (2048 KiB) nomap non-reusable xbl-ramdump@b8000000
+1791517556.725 6,43,0,-;OF: reserved mem: 0x00000000d4e23000..0x00000000d50fffff (2932 KiB) nomap non-reusable hwfence-shbuf@d4e23000
+1791517556.725 6,44,0,-;OF: reserved mem: 0x00000000d8000000..0x00000000d85fffff (6144 KiB) nomap non-reusable tz-merged@d8000000
+1791517556.725 6,45,0,-;OF: reserved mem: 0x00000000f3800000..0x00000000f87fffff (81920 KiB) nomap non-reusable trust-ui-vm@f3800000
+1791517556.725 6,46,0,-;OF: reserved mem: 0x00000000ff800000..0x00000000ffffffff (8192 KiB) nomap non-reusable llcc-lpi@ff800000
+1791517556.725 6,47,0,-;OF: reserved mem: 0x0000000081cf4000..0x0000000081cf47ff (2 KiB) nomap non-reusable display-dump@81cf4000
+1791517556.725 6,48,0,-;OF: reserved mem: 0x000000009b09c000..0x000000009b09ffff (16 KiB) nomap non-reusable reserved@9b09c000
+1791517556.725 6,49,0,-;OF: reserved mem: 0x000000009eb80000..0x000000009ebfffff (512 KiB) nomap non-reusable reserved@9eb80000
+1791517556.725 6,50,0,-;OF: reserved mem: 0x00000000a3500000..0x00000000a38fffff (4096 KiB) map non-reusable ramoops@a3500000
+1791517556.725 6,51,0,-;OF: reserved mem: 0x00000000b8200000..0x00000000bd97ffff (89600 KiB) nomap non-reusable adspslpi@b8200000
+1791517556.725 6,52,0,-;OF: reserved mem: 0x00000000f8800000..0x00000000fbffffff (57344 KiB) nomap non-reusable oem-vm@f8800000
+1791517556.725 6,53,0,-;OF: reserved mem: 0x00000000fc000000..0x00000000fc3fffff (4096 KiB) nomap non-reusable vm-shared@fc000000
+1791517556.725 6,54,0,-;OF: reserved mem: 0x00000000fc800000..0x00000000ff2fffff (44032 KiB) nomap non-reusable splash_region@fc800000
+1791517556.725 6,55,0,-;NUMA: Faking a node at [mem 0x0000000081960000-0x0000000bffffffff]
+1791517556.725 6,56,0,-;NODE_DATA(0) allocated [mem 0xbfdf005c0-0xbfdf02c7f]
+1791517556.725 6,57,0,-;cma: Reserved 32 MiB at 0x00000000f0c00000
+1791517556.725 6,58,0,-;psci: probing for conduit method from DT.
+1791517556.725 6,59,0,-;psci: PSCIv1.1 detected in firmware.
+1791517556.725 6,60,0,-;psci: Using standard PSCI v0.2 function IDs
+1791517556.725 6,61,0,-;psci: MIGRATE_INFO_TYPE not supported.
+1791517556.725 6,62,0,-;psci: SMC Calling Convention v1.3
+1791517556.725 6,63,0,-;psci: OSI mode supported.
+1791517556.725 6,64,0,-;Zone ranges:
+1791517556.725 6,65,0,-;  DMA      [mem 0x0000000081960000-0x00000000ffffffff]
+1791517556.725 6,66,0,-;  DMA32    empty
+1791517556.725 6,67,0,-;  Normal   [mem 0x0000000100000000-0x0000000bffffffff]
+1791517556.725 6,68,0,-;Movable zone start for each node
+1791517556.725 6,69,0,-;Early memory node ranges
+1791517556.725 6,70,0,-;  node   0: [mem 0x0000000081960000-0x00000000819fffff]
+1791517556.725 6,71,0,-;  node   0: [mem 0x0000000081a40000-0x0000000081bfffff]
+1791517556.725 6,72,0,-;  node   0: [mem 0x0000000081cf5000-0x0000000081cfffff]
+1791517556.725 6,73,0,-;  node   0: [mem 0x0000000082460000-0x000000008249ffff]
+1791517556.725 6,74,0,-;  node   0: [mem 0x0000000084800000-0x00000000849fffff]
+1791517556.725 6,75,0,-;  node   0: [mem 0x0000000089d80000-0x000000009affffff]
+1791517556.725 6,76,0,-;  node   0: [mem 0x000000009ee00000-0x00000000b7ffffff]
+1791517556.725 6,77,0,-;  node   0: [mem 0x00000000bd980000-0x00000000d4e22fff]
+1791517556.725 6,78,0,-;  node   0: [mem 0x00000000d5100000-0x00000000d7ffffff]
+1791517556.725 6,79,0,-;  node   0: [mem 0x00000000e3720000-0x00000000f37fffff]
+1791517556.725 6,80,0,-;  node   0: [mem 0x00000000fc400000-0x00000000fc7fffff]
+1791517556.725 6,81,0,-;  node   0: [mem 0x00000000ff300000-0x00000000ff7fffff]
+1791517556.725 6,82,0,-;  node   0: [mem 0x0000000880000000-0x00000008af6fcfff]
+1791517556.725 6,83,0,-;  node   0: [mem 0x00000008b0000000-0x00000008b54fffff]
+1791517556.725 6,84,0,-;  node   0: [mem 0x00000008b5700000-0x00000008b74fffff]
+1791517556.725 6,85,0,-;  node   0: [mem 0x00000008c0000000-0x0000000bffffffff]
+1791517556.725 6,86,0,-;Initmem setup node 0 [mem 0x0000000081960000-0x0000000bffffffff]
+1791517556.725 6,87,0,-;On node 0, zone DMA: 6496 pages in unavailable ranges
+1791517556.725 6,88,0,-;On node 0, zone DMA: 64 pages in unavailable ranges
+1791517556.725 6,89,0,-;On node 0, zone DMA: 245 pages in unavailable ranges
+1791517556.725 6,90,0,-;On node 0, zone DMA: 1888 pages in unavailable ranges
+1791517556.725 6,91,0,-;On node 0, zone DMA: 9056 pages in unavailable ranges
+1791517556.725 6,92,0,-;On node 0, zone DMA: 21376 pages in unavailable ranges
+1791517556.725 6,93,0,-;On node 0, zone DMA: 15872 pages in unavailable ranges
+1791517556.725 6,94,0,-;On node 0, zone DMA: 22912 pages in unavailable ranges
+1791517556.725 6,95,0,-;On node 0, zone DMA: 733 pages in unavailable ranges
+1791517556.725 6,96,0,-;On node 0, zone DMA: 14112 pages in unavailable ranges
+1791517556.725 6,97,0,-;On node 0, zone DMA: 35840 pages in unavailable ranges
+1791517556.725 6,98,0,-;On node 0, zone DMA: 11008 pages in unavailable ranges
+1791517556.725 6,99,0,-;On node 0, zone Normal: 2048 pages in unavailable ranges
+1791517556.725 6,100,0,-;On node 0, zone Normal: 2307 pages in unavailable ranges
+1791517556.725 6,101,0,-;On node 0, zone Normal: 512 pages in unavailable ranges
+1791517556.725 6,102,0,-;On node 0, zone Normal: 2816 pages in unavailable ranges
+1791517556.725 3,103,0,-;'bootconfig' found on command line, but no bootconfig found
+1791517556.725 6,104,0,-;percpu: Embedded 33 pages/cpu s94360 r8192 d32616 u135168
+1791517556.725 7,105,0,-;pcpu-alloc: s94360 r8192 d32616 u135168 alloc=33*4096
+1791517556.725 7,106,0,-;pcpu-alloc: [0] 0 [0] 1 [0] 2 [0] 3 [0] 4 [0] 5 [0] 6 [0] 7 
+1791517556.725 6,107,0,-;Detected PIPT I-cache on CPU0
+1791517556.725 6,108,0,-;CPU features: detected: Address authentication (architected QARMA5 algorithm)
+1791517556.725 6,109,0,-;CPU features: detected: GICv3 CPU interface
+1791517556.725 6,110,0,-;CPU features: detected: Spectre-v4
+1791517556.725 6,111,0,-;CPU features: detected: Spectre-BHB
+1791517556.725 6,112,0,-;CPU features: detected: Broken CNTVOFF_EL2
+1791517556.725 6,113,0,-;alternatives: applying boot alternatives
+1791517556.725 5,114,0,-;Kernel command line: [removed from fixture]
+1791517556.725 5,115,0,-;Kernel command line: [removed from fixture]
+1791517556.725 6,116,0,-;printk: log buffer data + meta data: 2097152 + 7340032 = 9437184 bytes
+1791517556.725 6,117,0,-;printk: early log buf free: 119584(91%)
+1791517556.725 6,118,0,-;Dentry cache hash table entries: 2097152 (order: 12, 16777216 bytes, linear)
+1791517556.725 6,119,0,-;Inode-cache hash table entries: 1048576 (order: 11, 8388608 bytes, linear)
+1791517556.725 6,120,0,-;software IO TLB: area num 8.
+1791517556.725 6,121,0,-;software IO TLB: mapped [mem 0x00000000ecc00000-0x00000000f0c00000] (64MB)
+1791517556.725 6,122,0,-;Fallback order for Node 0: 0 
+1791517556.725 6,123,0,-;Built 1 zonelists, mobility grouping on.  Total pages: 3981483
+1791517556.725 6,124,0,-;Policy zone: Normal
+1791517556.725 6,125,0,-;mem auto-init: stack:all(zero), heap alloc:off, heap free:off
+1791517556.725 6,126,0,-;SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=8, Nodes=1
+1791517556.725 6,127,0,-;rcu: Preemptible hierarchical RCU implementation.
+1791517556.725 6,128,0,-;rcu: \x09RCU event tracing is enabled.
+1791517556.725 6,129,0,-;rcu: \x09RCU restricting CPUs from NR_CPUS=512 to nr_cpu_ids=8.
+1791517556.725 6,130,0,-;\x09Trampoline variant of Tasks RCU enabled.
+1791517556.725 6,131,0,-;\x09Tracing variant of Tasks RCU enabled.
+1791517556.725 6,132,0,-;rcu: RCU calculated value of scheduler-enlistment delay is 25 jiffies.
+1791517556.725 6,133,0,-;rcu: Adjusting geometry for rcu_fanout_leaf=16, nr_cpu_ids=8
+1791517556.725 6,134,0,-;RCU Tasks: Setting shift to 3 and lim to 1 rcu_task_cb_adjust=1 rcu_task_cpu_ids=8.
+1791517556.725 6,135,0,-;NR_IRQS: 64, nr_irqs: 64, preallocated irqs: 0
+1791517556.725 6,136,0,-;GICv3: 988 SPIs implemented
+1791517556.725 6,137,0,-;GICv3: 1024 Extended SPIs implemented
+1791517556.725 6,138,0,-;Root IRQ handler: gic_handle_irq
+1791517556.725 6,139,0,-;GICv3: GICv3 features: 16 PPIs, DirectLPI
+1791517556.725 6,140,0,-;GICv3: GICD_CTLR.DS=1, SCR_EL3.FIQ=0
+1791517556.725 6,141,0,-;GICv3: Enabling SGIs without active state
+1791517556.725 6,142,0,-;GICv3: CPU0: found redistributor 0 region 0:0x0000000016080000
+1791517556.725 6,143,0,-;ITS [mem 0x16040000-0x1607ffff]
+1791517556.725 4,144,0,-;ITS@0x0000000016040000: Devices Table too large, reduce ids 32->19
+1791517556.725 4,145,0,-;ITS@0x0000000016040000: Devices too large, reduce ITS pages 1024->256
+1791517556.725 6,146,0,-;ITS@0x0000000016040000: allocated 131072 Devices @880500000 (indirect, esz 8, psz 4K, shr 1)
+1791517556.725 6,147,0,-;ITS@0x0000000016040000: allocated 4096 Interrupt Collections @880446000 (flat, esz 1, psz 4K, shr 1)
+1791517556.725 6,148,0,-;GICv3: using LPI property table @0x0000000880460000
+1791517556.725 6,149,0,-;GICv3: CPU0: using allocated LPI pending table @0x0000000880470000
+1791517556.725 6,150,0,-;rcu: srcu_init: Setting srcu_struct sizes based on contention.
+1791517556.725 6,151,0,-;clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 7645041785100000 ns
+1791517556.725 6,152,0,-;arch_timer: cp15 timer running at 19.20MHz (virt).
+1791517556.726 6,153,0,-;clocksource: arch_sys_counter: mask: 0xffffffffffffff max_cycles: 0x46d987e47, max_idle_ns: 440795202767 ns
+1791517556.726 6,154,0,-;sched_clock: 56 bits at 19MHz, resolution 52ns, wraps every 4398046511078ns
+1791517556.726 6,155,24,-;arm-pv: using stolen time PV
+1791517556.726 6,156,113,-;Console: colour dummy device 80x25
+1791517556.726 6,157,137,-;Calibrating delay loop (skipped), value calculated using timer frequency.. 38.40 BogoMIPS (lpj=76800)
+1791517556.726 6,158,139,-;pid_max: default: 32768 minimum: 301
+1791517556.726 6,159,271,-;AppArmor: AppArmor initialized
+1791517556.726 6,160,468,-;LSM support for eBPF active
+1791517556.726 6,161,510,-;Mount-cache hash table entries: 32768 (order: 6, 262144 bytes, linear)
+1791517556.726 6,162,519,-;Mountpoint-cache hash table entries: 32768 (order: 6, 262144 bytes, linear)
+1791517556.726 6,163,600,-;VFS: Finished mounting rootfs on nullfs
+1791517556.726 6,164,1058,-;rcu: Hierarchical SRCU implementation.
+1791517556.726 6,165,1059,-;rcu: \x09Max phase no-delay instances is 1000.
+1791517556.726 6,166,1097,-;Timer migration: 1 hierarchy levels; 8 children per group; 1 crossnode level
+1791517556.726 6,167,1568,-;abl-root-identity: restored model "Qualcomm Technologies, Inc. Piano based on SM8750" -> "Xiaomi Pad 8 Pro", compatible "qcom,sun-mtp" -> "xiaomi,piano"
+1791517556.726 6,168,1571,-;EFI services will not be available.
+1791517556.726 6,169,1634,-;smp: Bringing up secondary CPUs ...
+1791517556.726 6,170,1838,-;Detected PIPT I-cache on CPU1
+1791517556.726 6,171,1869,-;GICv3: CPU1: found redistributor 100 region 0:0x00000000160c0000
+1791517556.726 6,172,1939,-;GICv3: CPU1: using allocated LPI pending table @0x0000000880480000
+1791517556.726 6,173,2065,-;CPU1: Booted secondary processor 0x0000000100 [0x514f0014]
+1791517556.726 6,174,2663,-;Detected PIPT I-cache on CPU2
+1791517556.726 6,175,2692,-;GICv3: CPU2: found redistributor 200 region 0:0x0000000016100000
+1791517556.726 6,176,2759,-;GICv3: CPU2: using allocated LPI pending table @0x0000000880490000
+1791517556.726 6,177,2885,-;CPU2: Booted secondary processor 0x0000000200 [0x514f0014]
+1791517556.726 6,178,3475,-;Detected PIPT I-cache on CPU3
+1791517556.726 6,179,3506,-;GICv3: CPU3: found redistributor 300 region 0:0x0000000016140000
+1791517556.726 6,180,3572,-;GICv3: CPU3: using allocated LPI pending table @0x00000008804a0000
+1791517556.726 6,181,3698,-;CPU3: Booted secondary processor 0x0000000300 [0x514f0014]
+1791517556.726 6,182,4281,-;Detected PIPT I-cache on CPU4
+1791517556.726 6,183,4313,-;GICv3: CPU4: found redistributor 400 region 0:0x0000000016180000
+1791517556.726 6,184,4379,-;GICv3: CPU4: using allocated LPI pending table @0x00000008804b0000
+1791517556.726 6,185,4503,-;CPU4: Booted secondary processor 0x0000000400 [0x514f0014]
+1791517556.726 6,186,5094,-;Detected PIPT I-cache on CPU5
+1791517556.726 6,187,5128,-;GICv3: CPU5: found redistributor 500 region 0:0x00000000161c0000
+1791517556.726 6,188,5193,-;GICv3: CPU5: using allocated LPI pending table @0x00000008804c0000
+1791517556.726 6,189,5318,-;CPU5: Booted secondary processor 0x0000000500 [0x514f0014]
+1791517556.726 6,190,7336,-;Detected PIPT I-cache on CPU6
+1791517556.726 6,191,7417,-;GICv3: CPU6: found redistributor 10000 region 0:0x0000000016200000
+1791517556.726 6,192,7525,-;GICv3: CPU6: using allocated LPI pending table @0x00000008804d0000
+1791517556.726 6,193,7761,-;CPU6: Booted secondary processor 0x0000010000 [0x513f0014]
+1791517556.726 6,194,8477,-;Detected PIPT I-cache on CPU7
+1791517556.726 6,195,8538,-;GICv3: CPU7: found redistributor 10100 region 0:0x0000000016240000
+1791517556.726 6,196,8631,-;GICv3: CPU7: using allocated LPI pending table @0x00000008804e0000
+1791517556.726 6,197,8855,-;CPU7: Booted secondary processor 0x0000010100 [0x513f0014]
+1791517556.726 6,198,8934,-;smp: Brought up 1 node, 8 CPUs
+1791517556.726 6,199,8935,-;SMP: Total of 8 processors activated.
+1791517556.726 6,200,8936,-;CPU: All CPU(s) started at EL1
+1791517556.726 6,201,8937,-;CPU features: detected: Branch Target Identification
+1791517556.726 6,202,8938,-;CPU features: detected: ARMv8.4 Translation Table Level
+1791517556.726 6,203,8939,-;CPU features: detected: Instruction cache invalidation not required for I/D coherence
+1791517556.726 6,204,8940,-;CPU features: detected: Data cache clean to the PoU not required for I/D coherence
+1791517556.726 6,205,8940,-;CPU features: detected: Common not Private translations
+1791517556.726 6,206,8941,-;CPU features: detected: CRC32 instructions
+1791517556.726 6,207,8942,-;CPU features: detected: Data independent timing control (DIT)
+1791517556.726 6,208,8942,-;CPU features: detected: E0PD
+1791517556.726 6,209,8943,-;CPU features: detected: Enhanced Counter Virtualization
+1791517556.726 6,210,8944,-;CPU features: detected: Enhanced Counter Virtualization (CNTPOFF)
+1791517556.726 6,211,8944,-;CPU features: detected: Enhanced Privileged Access Never
+1791517556.726 6,212,8945,-;CPU features: detected: Enhanced Virtualization Traps
+1791517556.726 6,213,8945,-;CPU features: detected: Fine Grained Traps
+1791517556.726 6,214,8946,-;CPU features: detected: Generic authentication (architected QARMA5 algorithm)
+1791517556.726 6,215,8947,-;CPU features: detected: RCpc load-acquire (LDAPR)
+1791517556.726 6,216,8948,-;CPU features: detected: LSE atomic instructions
+1791517556.726 6,217,8949,-;CPU features: detected: Privileged Access Never
+1791517556.726 6,218,8949,-;CPU features: detected: PMUv3
+1791517556.726 6,219,8950,-;CPU features: detected: RAS Extension Support
+1791517556.726 6,220,8950,-;CPU features: detected: RASv1p1 Extension Support
+1791517556.726 6,221,8951,-;CPU features: detected: Random Number Generator
+1791517556.726 6,222,8952,-;CPU features: detected: Speculation barrier (SB)
+1791517556.726 6,223,8952,-;CPU features: detected: Stage-2 Force Write-Back
+1791517556.726 6,224,8953,-;CPU features: detected: TLB range maintenance instructions
+1791517556.726 6,225,8953,-;CPU features: detected: XNX
+1791517556.726 6,226,8955,-;CPU features: detected: Speculative Store Bypassing Safe (SSBS)
+1791517556.726 6,227,9003,-;alternatives: applying system-wide alternatives
+1791517556.726 6,228,11412,-;CPU features: detected: Activity Monitors Unit (AMU) on CPU0-7
+1791517556.726 6,229,11415,-;CPU features: detected: Hardware dirty bit management on CPU0-7
+1791517556.726 6,230,11781,-;Memory: 15378028K/15925932K available (18368K kernel code, 4896K rwdata, 10940K rodata, 8256K init, 643K bss, 489840K reserved, 45056K cma-reserved)
+1791517556.726 6,231,11888,-;devtmpfs: initialized
+1791517556.726 6,232,25596,-;posixtimers hash table entries: 4096 (order: 4, 65536 bytes, linear)
+1791517556.726 6,233,25611,-;futex hash table entries: 2048 (131072 bytes on 1 NUMA nodes, total 128 KiB, linear).
+1791517556.726 6,234,25705,-;2G module region forced by RANDOMIZE_MODULE_REGION_FULL
+1791517556.726 6,235,25706,-;0 pages in range for non-PLT usage
+1791517556.726 6,236,25706,-;513456 pages in range for PLT usage
+1791517556.726 6,237,26006,-;DMI: not present or invalid.
+1791517556.726 6,238,26964,-;NET: Registered PF_NETLINK/PF_ROUTE protocol family
+1791517556.726 6,239,27407,-;DMA: preallocated 2048 KiB GFP_KERNEL pool for atomic allocations
+1791517556.726 6,240,27620,-;DMA: preallocated 2048 KiB GFP_KERNEL|GFP_DMA pool for atomic allocations
+1791517556.726 6,241,27626,-;audit: initializing netlink subsys (disabled)
+1791517556.726 5,242,27654,-;audit: type=2000 audit(0.024:1): state=initialized audit_enabled=0 res=1
+1791517556.726 6,243,28182,-;thermal_sys: Registered thermal governor 'step_wise'
+1791517556.726 6,244,28183,-;thermal_sys: Registered thermal governor 'power_allocator'
+1791517556.726 6,245,28200,-;cpuidle: using governor menu
+1791517556.726 6,246,28330,-;hw-breakpoint: found 6 breakpoint and 4 watchpoint registers.
+1791517556.726 6,247,28391,-;ASID allocator initialised with 65536 entries
+1791517556.726 6,248,28771,-;Serial: AMBA PL011 UART driver
+1791517556.726 6,249,29047,-;ramoops: found existing invalid buffer, size 94490, start 94522
+1791517556.726 6,250,29060,-;printk: legacy console [ramoops-1] enabled
+1791517556.726 6,251,29165,-;pstore: Registered ramoops as persistent store backend
+1791517556.726 6,252,29166,-;ramoops: using 0x400000@0xa3500000, ecc: 0
+1791517556.726 6,253,30139,-;CPUidle PSCI: Initialized CPU PM domain topology using OSI mode
+1791517556.726 6,254,35935,-;/soc@0/stm@10002000: Fixed dependency cycle(s) with /soc@0/funnel@10041000
+1791517556.726 6,255,35960,-;/soc@0/tpda@10004000: Fixed dependency cycle(s) with /soc@0/funnel@10041000
+1791517556.726 6,256,35964,-;/soc@0/tpda@10004000: Fixed dependency cycle(s) with /soc@0/tpdm@1000f000
+1791517556.726 6,257,35990,-;/soc@0/tpdm@1000f000: Fixed dependency cycle(s) with /soc@0/tpda@10004000
+1791517556.726 6,258,35999,-;/soc@0/funnel@10041000: Fixed dependency cycle(s) with /soc@0/funnel@10b04000
+1791517556.726 6,259,36003,-;/soc@0/funnel@10041000: Fixed dependency cycle(s) with /soc@0/stm@10002000
+1791517556.726 6,260,36007,-;/soc@0/funnel@10041000: Fixed dependency cycle(s) with /soc@0/tpda@10004000
+1791517556.726 6,261,36024,-;/soc@0/funnel@10041000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,262,36051,-;/soc@0/tpdm@10800000: Fixed dependency cycle(s) with /soc@0/tpda@10803000
+1791517556.726 6,263,36075,-;/soc@0/tpda@10803000: Fixed dependency cycle(s) with /soc@0/funnel@10804000
+1791517556.726 6,264,36079,-;/soc@0/tpda@10803000: Fixed dependency cycle(s) with /soc@0/tpdm@10800000
+1791517556.726 6,265,36104,-;/soc@0/funnel@10804000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,266,36108,-;/soc@0/funnel@10804000: Fixed dependency cycle(s) with /soc@0/tpda@10803000
+1791517556.726 6,267,36135,-;/soc@0/tpdm@1082c000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,268,36160,-;/soc@0/tpdm@10841000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,269,36185,-;/soc@0/tpdm@1084e000: Fixed dependency cycle(s) with /soc@0/tpda@10851000
+1791517556.726 6,270,36210,-;/soc@0/tpdm@1084f000: Fixed dependency cycle(s) with /soc@0/tpda@10851000
+1791517556.726 6,271,36235,-;/soc@0/tpdm@10850000: Fixed dependency cycle(s) with /soc@0/tpda@10851000
+1791517556.726 6,272,36258,-;/soc@0/tpda@10851000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,273,36261,-;/soc@0/tpda@10851000: Fixed dependency cycle(s) with /soc@0/tpdm@10850000
+1791517556.726 6,274,36265,-;/soc@0/tpda@10851000: Fixed dependency cycle(s) with /soc@0/tpdm@1084f000
+1791517556.726 6,275,36269,-;/soc@0/tpda@10851000: Fixed dependency cycle(s) with /soc@0/tpdm@1084e000
+1791517556.726 6,276,36301,-;/soc@0/tpdm@10980000: Fixed dependency cycle(s) with /soc@0/tpda@10986000
+1791517556.726 6,277,36325,-;/soc@0/tpda@10986000: Fixed dependency cycle(s) with /soc@0/funnel@10987000
+1791517556.726 6,278,36329,-;/soc@0/tpda@10986000: Fixed dependency cycle(s) with /soc@0/tpdm@10980000
+1791517556.726 6,279,36354,-;/soc@0/funnel@10987000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,280,36359,-;/soc@0/funnel@10987000: Fixed dependency cycle(s) with /soc@0/tpda@10986000
+1791517556.726 6,281,36385,-;/soc@0/tpdm@109a3000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,282,36410,-;/soc@0/tpdm@109a4000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,283,36435,-;/soc@0/tpdm@109a5000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,284,36460,-;/soc@0/tpdm@109a6000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,285,36485,-;/soc@0/tpdm@109a7000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,286,36510,-;/soc@0/tpdm@109a8000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,287,36535,-;/soc@0/tpdm@109a9000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,288,36560,-;/soc@0/tpdm@109aa000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,289,36572,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/funnel@10041000
+1791517556.726 6,290,36576,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109aa000
+1791517556.726 6,291,36579,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a9000
+1791517556.726 6,292,36583,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a8000
+1791517556.726 6,293,36587,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a3000
+1791517556.726 6,294,36591,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a4000
+1791517556.726 6,295,36594,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a7000
+1791517556.726 6,296,36598,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a6000
+1791517556.726 6,297,36602,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a5000
+1791517556.726 6,298,36606,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109d0000
+1791517556.726 6,299,36609,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@10841000
+1791517556.726 6,300,36613,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@1082c000
+1791517556.726 6,301,36618,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/funnel@10987000
+1791517556.726 6,302,36623,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/funnel@10804000
+1791517556.726 6,303,36629,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpda@10851000
+1791517556.726 6,304,36661,-;/soc@0/tpdm@109d0000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,305,36666,-;/soc@0/funnel@10b04000: Fixed dependency cycle(s) with /soc@0/tmc@10b05000
+1791517556.726 6,306,36685,-;/soc@0/funnel@10b04000: Fixed dependency cycle(s) with /soc@0/funnel@10041000
+1791517556.726 6,307,36692,-;/soc@0/funnel@10b04000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517556.726 6,308,36718,-;/soc@0/tmc@10b05000: Fixed dependency cycle(s) with /soc@0/funnel@10b04000
+1791517556.726 6,309,36740,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/funnel@10b04000
+1791517556.726 6,310,36744,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b0d000
+1791517556.726 6,311,36747,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b0c000
+1791517556.726 6,312,36751,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b0b000
+1791517556.726 6,313,36755,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b0a000
+1791517556.726 6,314,36759,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b09000
+1791517556.726 6,315,36786,-;/soc@0/tpdm@10b09000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517556.726 6,316,36811,-;/soc@0/tpdm@10b0a000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517556.726 6,317,36836,-;/soc@0/tpdm@10b0b000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517556.726 6,318,36861,-;/soc@0/tpdm@10b0c000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517556.726 6,319,36886,-;/soc@0/tpdm@10b0d000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517556.726 6,320,36893,-;/soc@0/interrupt-controller@16000000: Fixed dependency cycle(s) with /soc@0/interrupt-controller@16000000
+1791517556.726 6,321,36902,-;/soc@0/phy@1d80000: Fixed dependency cycle(s) with /soc@0/ufs@1d84000
+1791517556.726 6,322,36911,-;/soc@0/ufs@1d84000: Fixed dependency cycle(s) with /soc@0/phy@1d80000
+1791517556.726 6,323,40901,-;/soc@0/stm@10002000: Fixed dependency cycle(s) with /soc@0/funnel@10041000
+1791517556.726 6,324,40944,-;/soc@0/tpda@10004000: Fixed dependency cycle(s) with /soc@0/funnel@10041000
+1791517556.726 6,325,40948,-;/soc@0/tpda@10004000: Fixed dependency cycle(s) with /soc@0/tpdm@1000f000
+1791517556.726 6,326,40976,-;/soc@0/tpda@10004000: Fixed dependency cycle(s) with /soc@0/tpdm@1000f000
+1791517556.726 6,327,40999,-;/soc@0/tpdm@1000f000: Fixed dependency cycle(s) with /soc@0/tpda@10004000
+1791517556.726 6,328,41049,-;/soc@0/tpda@10004000: Fixed dependency cycle(s) with /soc@0/funnel@10041000
+1791517556.726 6,329,41072,-;/soc@0/stm@10002000: Fixed dependency cycle(s) with /soc@0/funnel@10041000
+1791517556.726 6,330,41086,-;/soc@0/funnel@10041000: Fixed dependency cycle(s) with /soc@0/funnel@10b04000
+1791517556.726 6,331,41090,-;/soc@0/funnel@10041000: Fixed dependency cycle(s) with /soc@0/stm@10002000
+1791517556.726 6,332,41101,-;/soc@0/funnel@10041000: Fixed dependency cycle(s) with /soc@0/tpda@10004000
+1791517556.726 6,333,41121,-;/soc@0/funnel@10041000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,334,41162,-;/soc@0/tpdm@10800000: Fixed dependency cycle(s) with /soc@0/tpda@10803000
+1791517556.726 6,335,41204,-;/soc@0/tpdm@10800000: Fixed dependency cycle(s) with /soc@0/tpda@10803000
+1791517556.726 6,336,41227,-;/soc@0/tpda@10803000: Fixed dependency cycle(s) with /soc@0/funnel@10804000
+1791517556.726 6,337,41231,-;/soc@0/tpda@10803000: Fixed dependency cycle(s) with /soc@0/tpdm@10800000
+1791517556.726 6,338,41278,-;/soc@0/tpda@10803000: Fixed dependency cycle(s) with /soc@0/funnel@10804000
+1791517556.726 6,339,41301,-;/soc@0/funnel@10804000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,340,41305,-;/soc@0/funnel@10804000: Fixed dependency cycle(s) with /soc@0/tpda@10803000
+1791517556.726 6,341,41373,-;/soc@0/tpdm@1082c000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,342,41414,-;/soc@0/tpdm@10841000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,343,41454,-;/soc@0/tpdm@1084e000: Fixed dependency cycle(s) with /soc@0/tpda@10851000
+1791517556.726 6,344,41494,-;/soc@0/tpdm@1084f000: Fixed dependency cycle(s) with /soc@0/tpda@10851000
+1791517556.726 6,345,41534,-;/soc@0/tpdm@10850000: Fixed dependency cycle(s) with /soc@0/tpda@10851000
+1791517556.726 6,346,41574,-;/soc@0/tpdm@10850000: Fixed dependency cycle(s) with /soc@0/tpda@10851000
+1791517556.726 6,347,41597,-;/soc@0/tpdm@1084f000: Fixed dependency cycle(s) with /soc@0/tpda@10851000
+1791517556.726 6,348,41620,-;/soc@0/tpdm@1084e000: Fixed dependency cycle(s) with /soc@0/tpda@10851000
+1791517556.726 6,349,41644,-;/soc@0/tpda@10851000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,350,41647,-;/soc@0/tpda@10851000: Fixed dependency cycle(s) with /soc@0/tpdm@10850000
+1791517556.726 6,351,41658,-;/soc@0/tpda@10851000: Fixed dependency cycle(s) with /soc@0/tpdm@1084f000
+1791517556.726 6,352,41668,-;/soc@0/tpda@10851000: Fixed dependency cycle(s) with /soc@0/tpdm@1084e000
+1791517556.726 6,353,41716,-;/soc@0/tpdm@10980000: Fixed dependency cycle(s) with /soc@0/tpda@10986000
+1791517556.726 6,354,41757,-;/soc@0/tpdm@10980000: Fixed dependency cycle(s) with /soc@0/tpda@10986000
+1791517556.726 6,355,41779,-;/soc@0/tpda@10986000: Fixed dependency cycle(s) with /soc@0/funnel@10987000
+1791517556.726 6,356,41783,-;/soc@0/tpda@10986000: Fixed dependency cycle(s) with /soc@0/tpdm@10980000
+1791517556.726 6,357,41832,-;/soc@0/tpda@10986000: Fixed dependency cycle(s) with /soc@0/funnel@10987000
+1791517556.726 6,358,41854,-;/soc@0/funnel@10987000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,359,41858,-;/soc@0/funnel@10987000: Fixed dependency cycle(s) with /soc@0/tpda@10986000
+1791517556.726 6,360,41928,-;/soc@0/tpdm@109a3000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,361,41968,-;/soc@0/tpdm@109a4000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,362,42007,-;/soc@0/tpdm@109a5000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,363,42047,-;/soc@0/tpdm@109a6000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,364,42087,-;/soc@0/tpdm@109a7000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,365,42126,-;/soc@0/tpdm@109a8000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,366,42167,-;/soc@0/tpdm@109a9000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,367,42206,-;/soc@0/tpdm@109aa000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,368,42252,-;/soc@0/tpdm@109aa000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,369,42275,-;/soc@0/tpdm@109a9000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,370,42297,-;/soc@0/tpdm@109a8000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,371,42320,-;/soc@0/tpdm@109a7000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,372,42344,-;/soc@0/tpdm@109a6000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,373,42366,-;/soc@0/tpdm@109a5000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,374,42389,-;/soc@0/tpdm@109a4000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,375,42410,-;/soc@0/tpdm@109a3000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,376,42431,-;/soc@0/funnel@10987000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,377,42454,-;/soc@0/tpda@10851000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,378,42476,-;/soc@0/tpdm@10841000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,379,42498,-;/soc@0/tpdm@1082c000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,380,42520,-;/soc@0/funnel@10804000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,381,42539,-;/soc@0/funnel@10041000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,382,42555,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/funnel@10041000
+1791517556.726 6,383,42567,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109aa000
+1791517556.726 6,384,42578,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a9000
+1791517556.726 6,385,42590,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a8000
+1791517556.726 6,386,42600,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a3000
+1791517556.726 6,387,42612,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a4000
+1791517556.726 6,388,42623,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a7000
+1791517556.726 6,389,42633,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a6000
+1791517556.726 6,390,42644,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109a5000
+1791517556.726 6,391,42654,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109d0000
+1791517556.726 6,392,42658,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@10841000
+1791517556.726 6,393,42669,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@1082c000
+1791517556.726 6,394,42681,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/funnel@10987000
+1791517556.726 6,395,42693,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/funnel@10804000
+1791517556.726 6,396,42708,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpda@10851000
+1791517556.726 6,397,42750,-;/soc@0/tn@109ab000: Fixed dependency cycle(s) with /soc@0/tpdm@109d0000
+1791517556.726 6,398,42773,-;/soc@0/tpdm@109d0000: Fixed dependency cycle(s) with /soc@0/tn@109ab000
+1791517556.726 6,399,42815,-;/soc@0/funnel@10041000: Fixed dependency cycle(s) with /soc@0/funnel@10b04000
+1791517556.726 6,400,42826,-;/soc@0/funnel@10b04000: Fixed dependency cycle(s) with /soc@0/tmc@10b05000
+1791517556.726 6,401,42839,-;/soc@0/funnel@10b04000: Fixed dependency cycle(s) with /soc@0/funnel@10041000
+1791517556.726 6,402,42851,-;/soc@0/funnel@10b04000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517556.726 6,403,42880,-;/soc@0/funnel@10b04000: Fixed dependency cycle(s) with /soc@0/tmc@10b05000
+1791517556.726 6,404,42903,-;/soc@0/tmc@10b05000: Fixed dependency cycle(s) with /soc@0/funnel@10b04000
+1791517556.726 6,405,42944,-;/soc@0/funnel@10b04000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517556.726 6,406,42966,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/funnel@10b04000
+1791517556.726 6,407,42977,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b0d000
+1791517556.726 6,408,42980,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b0c000
+1791517556.726 6,409,42984,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b0b000
+1791517556.726 6,410,42987,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b0a000
+1791517556.727 6,411,42991,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b09000
+1791517556.727 6,412,43020,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b09000
+1791517556.727 6,413,43043,-;/soc@0/tpdm@10b09000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517556.727 6,414,43079,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b0a000
+1791517556.727 6,415,43103,-;/soc@0/tpdm@10b0a000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517556.727 6,416,43139,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b0b000
+1791517556.727 6,417,43161,-;/soc@0/tpdm@10b0b000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517556.727 6,418,43197,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b0c000
+1791517556.727 6,419,43220,-;/soc@0/tpdm@10b0c000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517556.727 6,420,43257,-;/soc@0/tpda@10b08000: Fixed dependency cycle(s) with /soc@0/tpdm@10b0d000
+1791517556.727 6,421,43280,-;/soc@0/tpdm@10b0d000: Fixed dependency cycle(s) with /soc@0/tpda@10b08000
+1791517556.727 6,422,43523,-;/soc@0/phy@1d80000: Fixed dependency cycle(s) with /soc@0/ufs@1d84000
+1791517556.727 6,423,43606,-;/soc@0/phy@1d80000: Fixed dependency cycle(s) with /soc@0/ufs@1d84000
+1791517556.727 6,424,43629,-;/soc@0/ufs@1d84000: Fixed dependency cycle(s) with /soc@0/phy@1d80000
+1791517556.727 6,425,48441,-;/soc@0/tpda@10986000: Fixed dependency cycle(s) with /tpdm-cdsp-llm
+1791517556.727 6,426,48477,-;/tpdm-cdsp-llm: Fixed dependency cycle(s) with /soc@0/tpda@10986000
+1791517556.727 6,427,48568,-;/soc@0/tpda@10986000: Fixed dependency cycle(s) with /tpdm-cdsp-llm2
+1791517556.727 6,428,48592,-;/tpdm-cdsp-llm2: Fixed dependency cycle(s) with /soc@0/tpda@10986000
+1791517556.727 6,429,48688,-;/soc@0/tpda@10803000: Fixed dependency cycle(s) with /tpdm-modem1
+1791517556.727 6,430,48711,-;/tpdm-modem1: Fixed dependency cycle(s) with /soc@0/tpda@10803000
+1791517556.727 6,431,49816,-;HugeTLB: registered 1.00 GiB page size, pre-allocated 0 pages
+1791517556.727 6,432,49817,-;HugeTLB: 0 KiB vmemmap can be freed for a 1.00 GiB page
+1791517556.727 6,433,49819,-;HugeTLB: registered 32.0 MiB page size, pre-allocated 0 pages
+1791517556.727 6,434,49820,-;HugeTLB: 0 KiB vmemmap can be freed for a 32.0 MiB page
+1791517556.727 6,435,49821,-;HugeTLB: registered 2.00 MiB page size, pre-allocated 0 pages
+1791517556.727 6,436,49822,-;HugeTLB: 0 KiB vmemmap can be freed for a 2.00 MiB page
+1791517556.727 6,437,49824,-;HugeTLB: registered 64.0 KiB page size, pre-allocated 0 pages
+1791517556.727 6,438,49825,-;HugeTLB: 0 KiB vmemmap can be freed for a 64.0 KiB page
+1791517556.727 6,439,50305,-;ACPI: Interpreter disabled.
+1791517556.727 6,440,52324,-;iommu: Default domain type: Translated
+1791517556.727 6,441,52326,-;iommu: DMA domain TLB invalidation policy: strict mode
+1791517556.727 5,442,56664,-;SCSI subsystem initialized
+1791517556.727 7,443,56701,-;libata version 3.00 loaded.
+1791517556.727 6,444,56772,-;usbcore: registered new interface driver usbfs
+1791517556.727 6,445,56779,-;usbcore: registered new interface driver hub
+1791517556.727 6,446,56786,-;usbcore: registered new device driver usb
+1791517556.727 6,447,56886,-;pps_core: LinuxPPS API ver. 1 registered
+1791517556.727 6,448,56887,-;pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <giometti@linux.it>
+1791517556.727 6,449,56890,-;PTP clock support registered
+1791517556.727 6,450,56905,-;EDAC MC: Ver: 3.0.0
+1791517556.727 6,451,56952,-;scmi_core: SCMI protocol bus registered
+1791517556.727 6,452,57130,-;FPGA manager framework
+1791517556.727 6,453,57309,-;Bluetooth: Core ver 2.22
+1791517556.727 6,454,57314,-;NET: Registered PF_BLUETOOTH protocol family
+1791517556.727 6,455,57316,-;Bluetooth: HCI device and connection manager initialized
+1791517556.727 6,456,57318,-;Bluetooth: HCI socket layer initialized
+1791517556.727 6,457,57319,-;Bluetooth: L2CAP socket layer initialized
+1791517556.727 6,458,57322,-;Bluetooth: SCO socket layer initialized
+1791517556.727 6,459,57382,-;vgaarb: loaded
+1791517556.727 6,460,57559,-;clocksource: Switched to clocksource arch_sys_counter
+1791517556.727 5,461,57661,-;VFS: Disk quotas dquot_6.6.0
+1791517556.727 6,462,57669,-;VFS: Dquot-cache hash table entries: 512 (4096 bytes)
+1791517556.727 6,463,57804,-;AppArmor: AppArmor Filesystem Enabled
+1791517556.727 6,464,57815,-;pnp: PnP ACPI: disabled
+1791517556.727 6,465,59088,-;NET: Registered PF_INET protocol family
+1791517556.727 6,466,59170,-;IP idents hash table entries: 262144 (order: 9, 2097152 bytes, linear)
+1791517556.727 6,467,61918,-;tcp_listen_portaddr_hash hash table entries: 8192 (order: 5, 131072 bytes, linear)
+1791517556.727 6,468,62002,-;Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+1791517556.727 6,469,62005,-;TCP established hash table entries: 131072 (order: 8, 1048576 bytes, linear)
+1791517556.727 6,470,62657,-;TCP bind hash table entries: 65536 (order: 9, 2097152 bytes, linear)
+1791517556.727 6,471,63923,-;TCP: Hash tables configured (established 131072 bind 65536)
+1791517556.727 6,472,63944,-;UDP hash table entries: 8192 (order: 7, 524288 bytes, linear)
+1791517556.727 6,473,64296,-;NET: Registered PF_UNIX/PF_LOCAL protocol family
+1791517556.727 6,474,64389,-;RPC: Registered named UNIX socket transport module.
+1791517556.727 6,475,64391,-;RPC: Registered udp transport module.
+1791517556.727 6,476,64392,-;RPC: Registered tcp transport module.
+1791517556.727 6,477,64392,-;RPC: Registered tcp-with-tls transport module.
+1791517556.727 6,478,64394,-;RPC: Registered tcp NFSv4.1 backchannel transport module.
+1791517556.727 6,479,64396,-;PCI: CLS 0 bytes, default 64
+1791517556.727 6,480,64437,-;Unpacking initramfs...
+1791517556.727 5,481,73910,-;Initialise system trusted keyrings
+1791517556.727 6,482,73950,-;workingset: timestamp_bits=42 (anon: 37) max_order=22 bucket_order=0 (anon: 0)
+1791517556.727 6,483,74063,-;squashfs: version 4.0 (2009/01/31) Phillip Lougher
+1791517556.727 5,484,74128,-;NFS: Registering the id_resolver key type
+1791517556.727 5,485,74134,-;Key type id_resolver registered
+1791517556.727 5,486,74138,-;Key type id_legacy registered
+1791517556.727 6,487,74146,-;nfs4filelayout_init: NFSv4 File Layout Driver Registering...
+1791517556.727 6,488,74148,-;nfs4flexfilelayout_init: NFSv4 Flexfile Layout Driver Registering...
+1791517556.727 6,489,74178,-;fuse: init (API version 7.45)
+1791517556.727 5,490,74276,-;Key type asymmetric registered
+1791517556.727 5,491,74280,-;Asymmetric key parser 'x509' registered
+1791517556.727 6,492,74295,-;Block layer SCSI generic (bsg) driver version 0.4 loaded (major 242)
+1791517556.727 6,493,74297,-;io scheduler mq-deadline registered
+1791517556.727 6,494,74298,-;io scheduler kyber registered
+1791517556.727 6,495,74307,-;io scheduler bfq registered
+1791517556.727 6,496,76789,-;ledtrig-cpu: registered to indicate activity on CPUs
+1791517556.727 6,497,82240,-;vreg_l5b_3p1: Setting 3104000-3144000uV
+1791517556.727 6,498,82243,-;vreg_s4d_0p88: Setting 876000-1036000uV
+1791517556.727 6,499,82253,-;vreg_s3g_1p86: Setting 1864000-2000000uV
+1791517556.727 6,500,82267,-;vreg_l1j_0p91: Setting 912000-920000uV
+1791517556.727 6,501,82322,-;vreg_l1d_1p2: Setting 1200000-1200000uV
+1791517556.727 6,502,82332,-;vreg_s5f_0p88: Setting 876000-1000000uV
+1791517556.727 6,503,82369,-;vreg_l3g_1p2: Setting 1200000-1256000uV
+1791517556.727 6,504,82410,-;vreg_l2d_0p88: Setting 880000-912000uV
+1791517556.727 6,505,82411,-;vreg_l11b_1p8: Setting 1800000-1800000uV
+1791517556.727 6,506,82576,-;vreg_l14b_3p3: Setting 3296000-3296000uV
+1791517556.727 6,507,82583,-;vreg_s7i_1p31: Setting 1312000-1340000uV
+1791517556.727 6,508,82616,-;vreg_l2f_1p2: Setting 1200000-1200000uV
+1791517556.727 6,509,82766,-;vreg_l15b_1p8: Setting 1800000-1800000uV
+1791517556.727 6,510,82831,-;vreg_l3f_1p8: Setting 1800000-1800000uV
+1791517556.727 6,511,82873,-;vreg_l17b_2p5: Setting 2504000-2504000uV
+1791517556.727 6,512,83494,-;Serial: 8250/16550 driver, 4 ports, IRQ sharing enabled
+1791517556.727 6,513,84198,-;msm_serial: driver initialized
+1791517556.727 6,514,87214,-;loop: module loaded
+1791517556.727 6,515,90830,-;megasas: 07.734.00.00-rc1
+1791517556.727 6,516,91291,-;spmi_pmic_arb c400000.spmi: PMIC arbiter version v7 (0x70020000)
+1791517556.727 6,517,104055,-;tun: Universal TUN/TAP device driver, 1.6
+1791517556.727 6,518,104142,-;VFIO - User Level meta-driver version: 0.3
+1791517556.727 6,519,104949,-;usbcore: registered new interface driver usb-storage
+1791517556.727 6,520,114374,-;i2c_dev: i2c /dev entries driver
+1791517556.727 6,521,115112,-;input: pmic_pwrkey as /devices/platform/soc@0/c400000.spmi/spmi-0/0-00/c400000.spmi:pmic@0:pon@1300/c400000.spmi:pmic@0:pon@1300:pwrkey/input/input0
+1791517556.727 6,522,126043,-;Bluetooth: HCI UART driver ver 2.3
+1791517556.727 6,523,126045,-;Bluetooth: HCI UART protocol H4 registered
+1791517556.727 6,524,126049,-;Bluetooth: HCI UART protocol LL registered
+1791517556.727 6,525,126076,-;Bluetooth: HCI UART protocol Broadcom registered
+1791517556.727 6,526,126080,-;Bluetooth: HCI UART protocol QCA registered
+1791517556.727 6,527,126084,-;Bluetooth: HCI UART protocol Marvell registered
+1791517556.727 6,528,127041,-;SMCCC: SOC_ID: ARCH_SOC_ID not implemented, skipping ....
+1791517556.727 6,529,127129,-;clocksource: arch_mmio_counter: mask: 0xffffffffffffff max_cycles: 0x46d987e47, max_idle_ns: 440795202767 ns
+1791517556.727 6,530,127132,-;arch-timer-mmio 16800000.timer: mmio timer running at 19.20MHz (virt)
+1791517556.727 6,531,127241,-;usbcore: registered new interface driver usbhid
+1791517556.727 6,532,127242,-;usbhid: USB HID core driver
+1791517556.727 6,533,128485,-;hw perfevents: enabled with armv8_pmuv3 PMU driver, 13 (0,80000fff) counters available
+1791517556.727 6,534,130587,-;NET: Registered PF_INET6 protocol family
+1791517556.727 6,535,131029,-;Segment Routing with IPv6
+1791517556.727 6,536,131036,-;In-situ OAM (IOAM) with IPv6
+1791517556.727 6,537,131052,-;NET: Registered PF_PACKET protocol family
+1791517556.727 5,538,131074,-;Key type dns_resolver registered
+1791517556.727 6,539,135209,-;registered taskstats version 1
+1791517556.727 5,540,135273,-;Loading compiled-in X.509 certificates
+1791517556.727 6,541,137359,-;Demotion targets for Node 0: null
+1791517556.727 6,542,137379,-;AppArmor: AppArmor sha256 policy hashing enabled
+1791517556.727 6,543,145910,-;qcom_scm: convention: smc arm 64
+1791517556.727 6,544,149457,-;qcom_scm firmware:scm: qseecom: found qseecom with version 0x1402000
+1791517556.727 6,545,149463,-;qcom_scm firmware:scm: qseecom: untested machine, skipping
+1791517556.727 5,546,151977,-;arm-smmu 3da0000.iommu: probing hardware configuration...
+1791517556.727 5,547,151981,-;arm-smmu 3da0000.iommu: SMMUv2 with:
+1791517556.727 5,548,152012,-;arm-smmu 3da0000.iommu: \x09stage 1 translation
+1791517556.727 5,549,152015,-;arm-smmu 3da0000.iommu: \x09coherent table walk
+1791517556.727 5,550,152018,-;arm-smmu 3da0000.iommu: \x09stream matching with 24 register groups
+1791517556.727 5,551,152044,-;arm-smmu 3da0000.iommu: \x0921 context banks (0 stage-2 only)
+1791517556.727 5,552,152071,-;arm-smmu 3da0000.iommu: \x09Supported page sizes: 0x61311000
+1791517556.727 5,553,152074,-;arm-smmu 3da0000.iommu: \x09Stage-1: 48-bit VA -> 36-bit IPA
+1791517556.727 5,554,152135,-;arm-smmu 3da0000.iommu: \x09preserved 0 boot mappings
+1791517556.727 6,555,154311,-;platform 3d00000.gpu: Adding to iommu group 0
+1791517556.727 6,556,154405,-;platform 3d37000.gmu: Adding to iommu group 1
+1791517556.727 5,557,156369,-;arm-smmu 15000000.iommu: probing hardware configuration...
+1791517556.727 5,558,156372,-;arm-smmu 15000000.iommu: SMMUv2 with:
+1791517556.727 5,559,156384,-;arm-smmu 15000000.iommu: \x09stage 1 translation
+1791517556.727 5,560,156387,-;arm-smmu 15000000.iommu: \x09coherent table walk
+1791517556.727 5,561,156390,-;arm-smmu 15000000.iommu: \x09stream matching with 127 register groups
+1791517556.727 5,562,156401,-;arm-smmu 15000000.iommu: \x0983 context banks (0 stage-2 only)
+1791517556.727 5,563,157504,-;arm-smmu 15000000.iommu: \x09Supported page sizes: 0x61311000
+1791517556.727 5,564,157507,-;arm-smmu 15000000.iommu: \x09Stage-1: 36-bit VA -> 36-bit IPA
+1791517556.727 5,565,157535,-;arm-smmu 15000000.iommu: \x09preserved 0 boot mappings
+1791517556.727 6,566,160139,-;platform 800000.dma-controller: Adding to iommu group 2
+1791517556.727 6,567,160187,-;platform 8c0000.geniqup: Adding to iommu group 3
+1791517556.727 6,568,160235,-;platform a00000.dma-controller: Adding to iommu group 4
+1791517556.727 6,569,160281,-;platform ac0000.geniqup: Adding to iommu group 5
+1791517556.727 6,570,160351,-;platform 1dc4000.dma-controller: Adding to iommu group 6
+1791517556.727 6,571,160408,-;platform 1dfa000.crypto: Adding to iommu group 6
+1791517556.727 6,572,160514,-;platform a600000.usb: Adding to iommu group 7
+1791517556.727 6,573,160561,-;platform 1d84000.ufs: Adding to iommu group 8
+1791517556.727 4,574,164076,-;adreno 3d00000.gpu: supply vdd not found, using dummy regulator
+1791517556.727 4,575,164104,-;adreno 3d00000.gpu: supply vddcx not found, using dummy regulator
+1791517556.727 6,576,200341,-;[drm] Initialized msm 1.13.0 for 3d00000.gpu on minor 0
+1791517556.727 6,577,201081,-;[drm] Initialized simpledrm 1.0.0 for chosen:framebuffer on minor 1
+1791517556.727 6,578,214488,-;Console: switching to colour frame buffer device 400x133
+1791517556.727 6,579,221995,-;simple-framebuffer chosen:framebuffer: [drm] fb0: simpledrmdrmfb frame buffer device
+1791517556.727 6,580,224353,-;geni_i2c 88c000.i2c: Bus frequency not specified, default to 100kHz.
+1791517556.727 6,581,229649,-;898000.serial: ttyHS1 at MMIO 0x898000 (irq = 186, base_baud = 0) is a MSM
+1791517556.727 6,582,229689,-;serial serial0: tty port ttyHS1 registered
+1791517556.727 6,583,230534,-;Bluetooth: hci0: setting up wcn7860
+1791517556.727 6,584,231528,-;geni_i2c a94000.i2c: Bus frequency not specified, default to 100kHz.
+1791517556.727 6,585,301971,-;Bluetooth: hci0: QCA Product ID   :0x00000021
+1791517556.727 6,586,301975,-;Bluetooth: hci0: QCA SOC Version  :0x40210200
+1791517556.727 6,587,301976,-;Bluetooth: hci0: QCA ROM Version  :0x00000200
+1791517556.727 6,588,301978,-;Bluetooth: hci0: QCA Patch Version:0x00006d58
+1791517556.727 6,589,429807,-;Bluetooth: hci0: QCA controller version 0x02000200
+1791517556.727 6,590,429812,-;Bluetooth: hci0: QCA Downloading qca/gngbtfw20.mbn
+1791517556.727 3,591,429956,-;Bluetooth: hci0: Frame reassembly failed (-84)
+1791517556.727 6,592,444063,-;Freeing initrd memory: 48612K
+1791517556.727 6,593,1270115,-;Bluetooth: hci0: QCA Downloading qca/gngbtnv20.bin
+1791517556.727 6,594,1722676,-;Bluetooth: hci0: QCA FW build version: BTFW.GANGES.2.0.0-00355-PATCHZ-2_DEF NVM_LABEL:BTFW.GANGES.2.0.0-00355-PATCHZ-2_DEF
+1791517556.727 6,595,1723208,-;Bluetooth: hci0: QCA setup on UART is completed
+1791517556.727 6,596,1723225,-;Bluetooth: hci0: HFP non-HCI data transport is supported
+1791517556.727 6,597,2120155,-;a9c000.serial: ttyMSM0 at MMIO 0xa9c000 (irq = 192, base_baud = 0) is a MSM
+1791517556.727 6,598,2120349,-;printk: legacy console [ttyMSM0] enabled
+1791517556.727 6,599,2423145,-;input: Xiaomi Keyboard as /devices/platform/soc@0/ac0000.geniqup/a98000.i2c/i2c-2/2-004c/0018:15D9:00A3.0001/input/input1
+1791517556.727 6,600,2519286,-;hid-generic 0018:15D9:00A3.0001: input: I2C HID v0.00 Keyboard [Xiaomi Keyboard] on 2-004c/input0
+1791517556.727 6,601,2519388,-;ufshcd-qcom 1d84000.ufs: freq-table-hz property not specified
+1791517556.727 6,602,2519391,-;ufshcd-qcom 1d84000.ufs: ufshcd_populate_vreg: Unable to find vdd-hba-supply regulator, assuming enabled
+1791517556.727 6,603,2519465,-;ufshcd-qcom 1d84000.ufs: ufshcd_populate_vreg: Unable to find vccq2-supply regulator, assuming enabled
+1791517556.727 6,604,2519480,-;input: Xiaomi Consumer as /devices/platform/soc@0/ac0000.geniqup/a98000.i2c/i2c-2/2-004c/0018:15D9:00A4.0002/input/input2
+1791517556.727 6,605,2519503,-;hid-generic 0018:15D9:00A4.0002: input: I2C HID v0.00 Device [Xiaomi Consumer] on 2-004c/input1
+1791517556.727 6,606,2519579,-;input: Xiaomi Mouse as /devices/platform/soc@0/ac0000.geniqup/a98000.i2c/i2c-2/2-004c/0018:15D9:00A2.0003/input/input3
+1791517556.727 6,607,2519606,-;hid-generic 0018:15D9:00A2.0003: input: I2C HID v0.00 Mouse [Xiaomi Mouse] on 2-004c/input2
+1791517556.727 6,608,2519845,-;input: Xiaomi Touch as /devices/platform/soc@0/ac0000.geniqup/a98000.i2c/i2c-2/2-004c/0018:15D9:00A1.0004/input/input4
+1791517556.727 6,609,2519869,-;hid-multitouch 0018:15D9:00A1.0004: input: I2C HID v0.00 Device [Xiaomi Touch] on 2-004c/input3
+1791517556.727 3,610,2524526,-;ufshcd-qcom 1d84000.ufs: MCQ resource not found in device tree
+1791517556.727 3,611,2531612,-;ufshcd-qcom 1d84000.ufs: MCQ mode is disabled, err=-19
+1791517556.727 6,612,2537970,-;scsi host0: ufshcd
+1791517556.727 3,613,2567013,-;ufshcd-qcom 1d84000.ufs: ufshcd_dev_cmd_completion: unexpected response in Query RSP: fa
+1791517556.727 3,614,2576396,-;ufshcd-qcom 1d84000.ufs: ufshcd_query_attr: opcode 0x04 for idn 13 failed, index 0, err = -22
+1791517556.727 3,615,2586966,-;ufshcd-qcom 1d84000.ufs: ufshcd_dev_cmd_completion: unexpected response in Query RSP: fa
+1791517556.727 3,616,2596347,-;ufshcd-qcom 1d84000.ufs: ufshcd_query_attr: opcode 0x04 for idn 13 failed, index 0, err = -22
+1791517556.727 3,617,2606917,-;ufshcd-qcom 1d84000.ufs: ufshcd_dev_cmd_completion: unexpected response in Query RSP: fa
+1791517556.727 3,618,2616299,-;ufshcd-qcom 1d84000.ufs: ufshcd_query_attr: opcode 0x04 for idn 13 failed, index 0, err = -22
+1791517556.727 3,619,2626122,-;ufshcd-qcom 1d84000.ufs: ufshcd_query_attr_retry: query attribute, idn 13, failed with error -22 after 3 retries
+1791517556.727 5,620,2650269,-;scsi 0:0:0:49488: Well-known LUN    KIOXIA   THGJFLT2G46BATPB 0200 PQ: 0 ANSI: 6
+1791517556.727 6,621,2651071,-;clk: Disabling unused clocks
+1791517556.727 6,622,2659309,-;PM: genpd: Disabling unused power domains
+1791517556.727 5,623,2659519,-;scsi 0:0:0:49476: Well-known LUN    KIOXIA   THGJFLT2G46BATPB 0200 PQ: 0 ANSI: 6
+1791517556.727 5,624,2668627,-;scsi 0:0:0:49456: Well-known LUN    KIOXIA   THGJFLT2G46BATPB 0200 PQ: 0 ANSI: 6
+1791517556.727 5,625,2677735,-;scsi 0:0:0:0: Direct-Access     KIOXIA   THGJFLT2G46BATPB 0200 PQ: 0 ANSI: 6
+1791517556.727 5,626,2686773,-;scsi 0:0:0:1: Direct-Access     KIOXIA   THGJFLT2G46BATPB 0200 PQ: 0 ANSI: 6
+1791517556.727 5,627,2686816,-;sd 0:0:0:0: [sda] 124552192 4096-byte logical blocks: (510 GB/475 GiB)
+1791517556.727 5,628,2695798,-;scsi 0:0:0:2: Direct-Access     KIOXIA   THGJFLT2G46BATPB 0200 PQ: 0 ANSI: 6
+1791517556.727 5,629,2695881,-;sd 0:0:0:1: [sdb] 3072 4096-byte logical blocks: (12.6 MB/12.0 MiB)
+1791517556.727 5,630,2695923,-;sd 0:0:0:1: [sdb] Write Protect is off
+1791517556.727 7,631,2695924,-;sd 0:0:0:1: [sdb] Mode Sense: 00 32 00 10
+1791517556.727 5,632,2696003,-;sd 0:0:0:1: [sdb] Write cache: disabled, read cache: enabled, supports DPO and FUA
+1791517556.727 6,633,2696026,-;sd 0:0:0:1: [sdb] Preferred minimum I/O size 4096 bytes
+1791517556.728 6,634,2696027,-;sd 0:0:0:1: [sdb] Optimal transfer size 524288 bytes
+1791517556.728 5,635,2702961,-;sd 0:0:0:0: [sda] Write Protect is off
+1791517556.728 5,636,2711908,-;scsi 0:0:0:3: Direct-Access     KIOXIA   THGJFLT2G46BATPB 0200 PQ: 0 ANSI: 6
+1791517556.728 5,637,2711969,-;sd 0:0:0:2: [sdc] 3072 4096-byte logical blocks: (12.6 MB/12.0 MiB)
+1791517556.728 5,638,2712014,-;sd 0:0:0:2: [sdc] Write Protect is off
+1791517556.728 7,639,2712016,-;sd 0:0:0:2: [sdc] Mode Sense: 00 32 00 10
+1791517556.728 5,640,2712093,-;sd 0:0:0:2: [sdc] Write cache: disabled, read cache: enabled, supports DPO and FUA
+1791517556.728 6,641,2712134,-;sd 0:0:0:2: [sdc] Preferred minimum I/O size 4096 bytes
+1791517556.728 6,642,2712135,-;sd 0:0:0:2: [sdc] Optimal transfer size 524288 bytes
+1791517556.728 7,643,2718703,-;sd 0:0:0:0: [sda] Mode Sense: 00 32 00 10
+1791517556.728 5,644,2719674,-;scsi 0:0:0:4: Direct-Access     KIOXIA   THGJFLT2G46BATPB 0200 PQ: 0 ANSI: 6
+1791517556.728 5,645,2719745,-;sd 0:0:0:3: [sdd] 2048 4096-byte logical blocks: (8.39 MB/8.00 MiB)
+1791517556.728 5,646,2719787,-;sd 0:0:0:3: [sdd] Write Protect is off
+1791517556.728 7,647,2719789,-;sd 0:0:0:3: [sdd] Mode Sense: 00 32 00 10
+1791517556.728 5,648,2719868,-;sd 0:0:0:3: [sdd] Write cache: enabled, read cache: enabled, supports DPO and FUA
+1791517556.728 6,649,2719891,-;sd 0:0:0:3: [sdd] Preferred minimum I/O size 4096 bytes
+1791517556.728 6,650,2719892,-;sd 0:0:0:3: [sdd] Optimal transfer size 524288 bytes
+1791517556.728 5,651,2723683,-;sd 0:0:0:0: [sda] Write cache: enabled, read cache: enabled, supports DPO and FUA
+1791517556.728 5,652,2733404,-;scsi 0:0:0:5: Direct-Access     KIOXIA   THGJFLT2G46BATPB 0200 PQ: 0 ANSI: 6
+1791517556.728 5,653,2733412,-;sd 0:0:0:4: [sde] 378880 4096-byte logical blocks: (1.55 GB/1.45 GiB)
+1791517556.728 5,654,2733438,-;sd 0:0:0:4: [sde] Write Protect is off
+1791517556.728 7,655,2733439,-;sd 0:0:0:4: [sde] Mode Sense: 00 32 00 10
+1791517556.728 5,656,2733481,-;sd 0:0:0:4: [sde] Write cache: enabled, read cache: enabled, supports DPO and FUA
+1791517556.728 6,657,2733502,-;sd 0:0:0:4: [sde] Preferred minimum I/O size 4096 bytes
+1791517556.728 6,658,2733504,-;sd 0:0:0:4: [sde] Optimal transfer size 524288 bytes
+1791517556.728 6,659,2737436,-;sd 0:0:0:0: [sda] Preferred minimum I/O size 4096 bytes
+1791517556.728 6,660,2738440,-; sdb: sdb1 sdb2 sdb3 sdb4 sdb5
+1791517556.728 5,661,2738784,-;sd 0:0:0:1: [sdb] Attached SCSI disk
+1791517556.728 5,662,2747189,-;sd 0:0:0:5: [sdf] 16384 4096-byte logical blocks: (67.1 MB/64.0 MiB)
+1791517556.728 6,663,2753237,-;sd 0:0:0:0: [sda] Optimal transfer size 524288 bytes
+1791517556.728 6,664,2754335,-; sdd: sdd1 sdd2 sdd3
+1791517556.728 6,665,2754544,-; sdc: sdc1 sdc2 sdc3 sdc4 sdc5
+1791517556.728 5,666,2754663,-;sd 0:0:0:2: [sdc] Attached SCSI disk
+1791517556.728 5,667,2758192,-;sd 0:0:0:5: [sdf] Write Protect is off
+1791517556.728 5,668,2767085,-;sd 0:0:0:3: [sdd] Attached SCSI disk
+1791517556.728 6,669,2770973,-; sde: sde1 sde2 sde3 sde4 sde5 sde6 sde7 sde8 sde9 sde10 sde11 sde12 sde13 sde14 sde15 sde16 sde17 sde18 sde19 sde20 sde21 sde22 sde23 sde24 sde25 sde26 sde27 sde28 sde29 sde30 sde31 sde32 sde33 sde34 sde35 sde36 sde37 sde38 sde39 sde40 sde41 sde42 sde43 sde44 sde45 sde46 sde47 sde48 sde49 sde50 sde51 sde52 sde53 sde54 sde55 sde56 sde57 sde58 sde59 sde60 sde61 sde62 sde63 sde64 sde65 sde66 sde67 sde68 sde69 sde70 sde71 sde72 sde73 sde74 sde75 sde76 sde77 sde78 sde79
+1791517556.728 5,670,2772510,-;sd 0:0:0:4: [sde] Attached SCSI disk
+1791517556.728 7,671,2775316,-;sd 0:0:0:5: [sdf] Mode Sense: 00 32 00 10
+1791517556.728 5,672,2775362,-;sd 0:0:0:5: [sdf] Write cache: enabled, read cache: enabled, supports DPO and FUA
+1791517556.728 6,673,2875303,-;sd 0:0:0:5: [sdf] Preferred minimum I/O size 4096 bytes
+1791517556.728 6,674,2875306,-;sd 0:0:0:5: [sdf] Optimal transfer size 524288 bytes
+1791517556.728 6,675,2882942,-; sda: sda1 sda2 sda3 sda4 sda5 sda6 sda7 sda8 sda9 sda10 sda11 sda12 sda13 sda14 sda15 sda16 sda17 sda18 sda19 sda20 sda21 sda22 sda23 sda24 sda25 sda26 sda27 sda28 sda29 sda30 sda31 sda32 sda33 sda34 sda35 sda36
+1791517556.728 5,676,2883795,-;sd 0:0:0:0: [sda] Attached SCSI disk
+1791517556.728 6,677,2910966,-; sdf: sdf1 sdf2 sdf3 sdf4 sdf5 sdf6 sdf7
+1791517556.728 5,678,2911544,-;sd 0:0:0:5: [sdf] Attached SCSI disk
+1791517556.728 6,679,2916935,-;Freeing unused kernel memory: 8256K
+1791517556.728 6,680,2916993,-;Run /init as init process
+1791517556.728 7,681,2916994,-;  with arguments:
+1791517556.728 7,682,2916995,-;    /init
+1791517556.728 7,683,2916997,-;  with environment:
+1791517556.728 7,684,2916998,-;    HOME=/
+1791517556.728 7,685,2916999,-;    TERM=linux
+1791517556.728 30,686,3092049,-;systemd[1]: System time advanced to built-in epoch: Wed 2026-04-15 18:32:53 UTC
+1791517556.728 30,687,3435512,-;systemd[1]: Successfully made /usr/ read-only.
+1791517556.728 30,688,3777639,-;systemd[1]: systemd 259.5-0ubuntu3 running in system mode (+PAM +AUDIT +SELINUX +APPARMOR +IMA +IPE +SMACK +SECCOMP +GCRYPT -GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN +KMOD +LIBCRYPTSETUP +LIBCRYPTSETUP_PLUGINS +LIBFDISK +PCRE2 +PWQUALITY +P11KIT +QRENCODE +TPM2 +BZIP2 +LZ4 +XZ +ZLIB +ZSTD +BPF_FRAMEWORK +BTF -XKBCOMMON -UTMP +SYSVINIT +LIBARCHIVE)
+1791517556.728 30,689,3777661,-;systemd[1]: Detected architecture arm64.
+1791517556.728 30,690,3777664,-;systemd[1]: Running in initrd.
+1791517556.728 30,691,3793663,-;systemd[1]: Initializing machine ID from random generator.
+1791517556.728 30,692,3793747,-;systemd[1]: No hostname configured, using default hostname.
+1791517556.728 30,693,3793791,-;systemd[1]: Hostname set to <localhost>.
+1791517556.728 27,694,3881284,-;systemd[1]: bpf-restrict-fs: Failed to load BPF object: No such process
+1791517556.728 30,695,3945085,-;systemd[1]: Queued start job for default target initrd.target.
+1791517556.728 30,696,4008269,-;systemd[1]: Expecting device dev-disk-by\x5cx2dpartuuid-00000000-0000-0000-0000-000000000000.device - /dev/disk/by-partuuid/00000000-0000-0000-0000-000000000000...
+1791517556.728 30,697,4021652,-;systemd[1]: Reached target initrd-usr-fs.target - Initrd /usr File System.
+1791517556.728 30,698,4037661,-;systemd[1]: Reached target slices.target - Slice Units.
+1791517556.728 30,699,4045644,-;systemd[1]: Reached target swap.target - Swaps.
+1791517556.728 30,700,4053642,-;systemd[1]: Reached target timers.target - Timer Units.
+1791517556.728 30,701,4061704,-;systemd[1]: Listening on systemd-journald-dev-log.socket - Journal Socket (/dev/log).
+1791517556.728 30,702,4077697,-;systemd[1]: Listening on systemd-journald.socket - Journal Sockets.
+1791517556.728 30,703,4093696,-;systemd[1]: Listening on systemd-udevd-control.socket - udev Control Socket.
+1791517556.728 30,704,4109669,-;systemd[1]: Listening on systemd-udevd-kernel.socket - udev Kernel Socket.
+1791517556.728 30,705,4125634,-;systemd[1]: Reached target sockets.target - Socket Units.
+1791517556.728 30,706,4133709,-;systemd[1]: dracut-cmdline-ask.service - dracut ask for additional cmdline parameters skipped, no trigger condition checks were met.
+1791517556.728 30,707,4136921,-;systemd[1]: Starting dracut-cmdline.service - dracut cmdline hook...
+1791517556.728 30,708,4169849,-;systemd[1]: Starting kmod-static-nodes.service - Create List of Static Device Nodes...
+1791517556.728 30,709,4187409,-;systemd[1]: Started piano-debug-timeout.service - Bounded piano installation boot.
+1791517556.728 30,710,4207010,-;systemd[1]: Starting systemd-journald.service - Journal Service...
+1791517556.728 30,711,4223663,-;systemd[1]: Starting systemd-modules-load.service - Load Kernel Modules...
+1791517556.728 30,712,4237600,-;systemd[1]: systemd-pcrphase-initrd.service - TPM PCR Barrier (initrd) skipped, unmet condition check ConditionSecurity=measured-uki
+1791517556.728 46,713,4240516,-;systemd-journald[441]: Collecting audit messages is disabled.
+1791517556.728 30,714,4241918,-;systemd[1]: Finished dracut-cmdline.service - dracut cmdline hook.
+1791517556.728 30,715,4259108,-;systemd[1]: Finished kmod-static-nodes.service - Create List of Static Device Nodes.
+1791517556.728 30,716,4273757,-;systemd[1]: Started systemd-journald.service - Journal Service.
+1791517556.728 6,717,4346129,-;device-mapper: ioctl: 4.50.0-ioctl (2025-04-28) initialised: dm-devel@lists.linux.dev
+1791517556.728 6,718,4633269,-;configfs-gadget.piano-diag gadget.0: HOST MAC 00:00:00:00:00:00
+1791517556.728 6,719,4633272,-;configfs-gadget.piano-diag gadget.0: MAC 00:00:00:00:00:00
+1791517556.728 14,720,4664980,-;PIANO_USB: mode=ncm serial=piano-SERIAL udc=a600000.usb
+1791517556.728 6,721,5418962,-;arm-scmi arm-scmi.0.auto: Using scmi_mailbox_transport
+1791517556.728 6,722,5418968,-;arm-scmi arm-scmi.0.auto: SCMI max-rx-timeout: 30ms / max-msg-size: 104bytes / max-msg: 20
+1791517556.728 6,723,5428433,-;arm-scmi arm-scmi.0.auto: SCMI Notifications - Core Enabled.
+1791517556.728 6,724,5428623,-;arm-scmi arm-scmi.0.auto: SCMI Protocol v2.0 'Qualcomm:' Firmware version 0x20000
+1791517556.728 6,725,5428657,-;arm-scmi arm-scmi.0.auto: Enabling SCMI Quirk [quirk_perf_level_get_fc_force]
+1791517556.728 6,726,5428671,-;arm-scmi arm-scmi.0.auto: Enabling SCMI Quirk [quirk_clock_rates_triplet_out_of_spec]
+1791517556.728 6,727,5437293,-;cpu cpu0: EM: created perf domain
+1791517556.728 6,728,5448431,-;cpu cpu6: EM: created perf domain
+1791517556.728 6,729,5461138,-;scmi-perf-domain scmi_dev.4: Initialized 2 performance domains
+1791517556.728 6,730,5462979,-;rtc-pm8xxx c400000.spmi:pmic@0:rtc@6100: registered as rtc0
+1791517556.728 6,731,5463012,-;rtc-pm8xxx c400000.spmi:pmic@0:rtc@6100: setting system clock to 1970-01-18T14:45:49 UTC (1521949)
+1791517556.728 6,732,5463614,-;NET: Registered PF_QIPCRTR protocol family
+1791517556.728 6,733,5463766,-;remoteproc remoteproc0: adsp is available
+1791517556.728 6,734,5463869,-;remoteproc remoteproc0: powering up adsp
+1791517556.728 6,735,5463871,-;remoteproc remoteproc0: Booting fw image qcom/sm8750/piano/adsp.mdt, size 8364
+1791517556.728 46,736,5464046,-;systemd-journald[441]: Time jumped backwards, rotating.
+1791517556.728 6,737,5979880,-;remoteproc remoteproc0: remote processor adsp is now up
+1791517556.728 6,738,6069265,-;PDR: Indication received from msm/adsp/audio_pd, state: 0x1fffffff, trans-id: 1
+1791517556.728 6,739,6069281,-;qcom,apr 6800000.remoteproc:glink-edge.adsp_apps.-1.-1: Adding APR/GPR dev: gprsvc:service:2:1
+1791517556.728 6,740,6069310,-;qcom,apr 6800000.remoteproc:glink-edge.adsp_apps.-1.-1: Adding APR/GPR dev: gprsvc:service:2:2
+1791517556.728 3,741,6135850,-;qcom_q6v5_pas 6800000.remoteproc: Handover signaled, but it already happened
+1791517556.728 6,742,6341247,-;EXT4-fs (sda35): mounted filesystem 00000000-0000-0000-0000-000000000000 r/w with ordered data mode. Quota mode: none.
+1791517556.728 46,743,7520014,-;systemd-journald[441]: Received SIGTERM from PID 1 (systemd).
+1791517556.728 30,744,7646803,-;systemd[1]: System time advanced to timestamp on /var/lib/systemd/timesync/clock: Wed 2026-10-07 15:58:11 +08
+1791517556.728 30,745,8341837,-;systemd[1]: systemd 259.5-0ubuntu3 running in system mode (+PAM +AUDIT +SELINUX +APPARMOR +IMA +IPE +SMACK +SECCOMP +GCRYPT -GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN +KMOD +LIBCRYPTSETUP +LIBCRYPTSETUP_PLUGINS +LIBFDISK +PCRE2 +PWQUALITY +P11KIT +QRENCODE +TPM2 +BZIP2 +LZ4 +XZ +ZLIB +ZSTD +BPF_FRAMEWORK +BTF -XKBCOMMON -UTMP +SYSVINIT +LIBARCHIVE)
+1791517556.728 30,746,8341898,-;systemd[1]: Detected architecture arm64.
+1791517556.728 30,747,8362558,-;systemd[1]: Hostname set to <piano>.
+1791517556.728 27,748,8495953,-;systemd[1]: bpf-restrict-fs: Failed to load BPF object: No such process
+1791517556.728 30,749,9681765,-;systemd[1]: initrd-switch-root.service: Deactivated successfully.
+1791517556.728 30,750,9683597,-;systemd[1]: Stopped initrd-switch-root.service - Switch Root.
+1791517556.728 30,751,9702199,-;systemd[1]: systemd-journald.service: Scheduled restart job, restart counter is at 1.
+1791517556.728 30,752,9704386,-;systemd[1]: Created slice system-cups.slice - CUPS Slice.
+1791517556.728 30,753,9721042,-;systemd[1]: Created slice system-serial\x5cx2dgetty.slice - Slice /system/serial-getty.
+1791517556.728 30,754,9736777,-;systemd[1]: Created slice system-systemd\x5cx2dfsck.slice - Slice /system/systemd-fsck.
+1791517556.728 30,755,9752275,-;systemd[1]: Created slice user.slice - User and Session Slice.
+1791517556.728 30,756,9766069,-;systemd[1]: Started systemd-ask-password-wall.path - Forward Password Requests to Wall Directory Watch.
+1791517556.728 30,757,9782130,-;systemd[1]: proc-sys-fs-binfmt_misc.automount - Arbitrary Executable File Formats File System Automount Point skipped, unmet condition check ConditionPathExists=/proc/sys/fs/binfmt_misc
+1791517556.728 30,758,9782184,-;systemd[1]: Expecting device dev-disk-by\x5cx2duuid-00000000-0000-0000-0000-000000000000.device - /dev/disk/by-uuid/00000000-0000-0000-0000-000000000000...
+1791517556.728 30,759,9797834,-;systemd[1]: Expecting device dev-ttyMSM0.device - /dev/ttyMSM0...
+1791517556.728 30,760,9805913,-;systemd[1]: Reached target imports.target - Image Downloads.
+1791517556.728 30,761,9813896,-;systemd[1]: Stopped target initrd-switch-root.target - Switch Root.
+1791517556.728 30,762,9829887,-;systemd[1]: Stopped target initrd-fs.target - Initrd File Systems.
+1791517556.728 30,763,9845843,-;systemd[1]: Stopped target initrd-root-fs.target - Initrd Root File System.
+1791517556.728 30,764,9861774,-;systemd[1]: Reached target integritysetup.target - Local Integrity Protected Volumes.
+1791517556.728 30,765,9878029,-;systemd[1]: Reached target remote-fs.target - Remote File Systems.
+1791517556.728 30,766,9893845,-;systemd[1]: Reached target slices.target - Slice Units.
+1791517556.728 30,767,9901856,-;systemd[1]: Reached target snapd.mounts-pre.target - Mounting snaps.
+1791517556.728 30,768,9917872,-;systemd[1]: Reached target swap.target - Swaps.
+1791517556.728 30,769,9925851,-;systemd[1]: Reached target time-set.target - System Time Set.
+1791517556.728 30,770,9933945,-;systemd[1]: Reached target veritysetup.target - Local Verity Protected Volumes.
+1791517556.728 30,771,9950247,-;systemd[1]: Listening on syslog.socket - Syslog Socket.
+1791517556.728 30,772,9964814,-;systemd[1]: Listening on systemd-ask-password.socket - Query the User Interactively for a Password.
+1791517556.728 30,773,9980945,-;systemd[1]: Listening on systemd-creds.socket - Credential Encryption/Decryption.
+1791517556.728 30,774,9998247,-;systemd[1]: Listening on systemd-factory-reset.socket - Factory Reset Management.
+1791517556.728 30,775,10018836,-;systemd[1]: Listening on systemd-mute-console.socket - Console Output Muting Service Socket.
+1791517556.728 30,776,10033865,-;systemd[1]: systemd-oomd.socket - Userspace Out-Of-Memory (OOM) Killer Socket skipped, unmet condition check ConditionPathExists=/proc/pressure/memory
+1791517556.728 30,777,10033931,-;systemd[1]: systemd-pcrextend.socket - TPM PCR Measurements skipped, unmet condition check ConditionSecurity=measured-uki
+1791517556.728 30,778,10033982,-;systemd[1]: systemd-pcrlock.socket - Make TPM PCR Policy skipped, unmet condition check ConditionSecurity=measured-uki
+1791517556.728 30,779,10034228,-;systemd[1]: Listening on systemd-resolved-monitor.socket - Resolve Monitor Varlink Socket.
+1791517556.728 30,780,10050003,-;systemd[1]: Listening on systemd-resolved-varlink.socket - Resolve Service Varlink Socket.
+1791517556.728 30,781,10066036,-;systemd[1]: Listening on systemd-udevd-control.socket - udev Control Socket.
+1791517556.728 30,782,10082028,-;systemd[1]: Listening on systemd-udevd-varlink.socket - udev Varlink Socket.
+1791517556.728 30,783,10101579,-;systemd[1]: Mounting dev-hugepages.mount - Huge Pages File System...
+1791517556.728 30,784,10122151,-;systemd[1]: Mounting dev-mqueue.mount - POSIX Message Queue File System...
+1791517556.728 30,785,10140051,-;systemd[1]: Mounting sys-kernel-tracing.mount - Kernel Trace File System...
+1791517556.728 30,786,10154124,-;systemd[1]: tmp.mount: x-systemd.graceful-option=usrquota specified, but option is not available, suppressing.
+1791517556.728 30,787,10156443,-;systemd[1]: Mounting tmp.mount - Temporary Directory /tmp...
+1791517556.728 30,788,10180526,-;systemd[1]: Starting systemd-journald.service - Journal Service...
+1791517556.728 30,789,10197209,-;systemd[1]: Starting keyboard-setup.service - Set the console keyboard layout...
+1791517556.728 30,790,10212592,-;systemd[1]: Starting kmod-static-nodes.service - Create List of Static Device Nodes...
+1791517556.728 46,791,10213265,-;systemd-journald[1283]: Collecting audit messages is disabled.
+1791517556.728 30,792,10225844,-;systemd[1]: modprobe@configfs.service - Load Kernel Module configfs skipped, unmet condition check ConditionKernelModuleLoaded=!configfs
+1791517556.728 30,793,10225907,-;systemd[1]: modprobe@drm.service - Load Kernel Module drm skipped, unmet condition check ConditionKernelModuleLoaded=!drm
+1791517556.728 30,794,10225953,-;systemd[1]: modprobe@efi_pstore.service - Load Kernel Module efi_pstore skipped, unmet condition check ConditionKernelModuleLoaded=!efi_pstore
+1791517556.728 30,795,10225994,-;systemd[1]: modprobe@fuse.service - Load Kernel Module fuse skipped, unmet condition check ConditionKernelModuleLoaded=!fuse
+1791517556.728 30,796,10228398,-;systemd[1]: Mounting sys-fs-fuse-connections.mount - FUSE Control File System...
+1791517556.728 30,797,10244588,-;systemd[1]: Started piano-debug-timeout.service - Bounded piano installation boot.
+1791517556.728 30,798,10257991,-;systemd[1]: plymouth-switch-root.service: Deactivated successfully.
+1791517556.728 30,799,10258049,-;systemd[1]: Stopped plymouth-switch-root.service - Plymouth switch root service.
+1791517556.728 30,800,10281168,-;systemd[1]: systemd-hibernate-clear.service - Clear Stale Hibernate Storage Info skipped, unmet condition check ConditionPathExists=/sys/firmware/efi/efivars/HibernateLocation-00000000-0000-0000-0000-000000000000
+1791517556.728 30,801,10284795,-;systemd[1]: Starting systemd-modules-load.service - Load Kernel Modules...
+1791517556.728 30,802,10297830,-;systemd[1]: systemd-pcrmachine.service - TPM PCR Machine ID Measurement skipped, unmet condition check ConditionSecurity=measured-uki
+1791517556.728 30,803,10297889,-;systemd[1]: systemd-pcrproduct.service - TPM NvPCR Product ID Measurement skipped, unmet condition check ConditionSecurity=measured-uki
+1791517556.728 30,804,10300205,-;systemd[1]: Starting systemd-remount-fs.service - Remount Root and Kernel File Systems...
+1791517556.728 30,805,10309733,-;systemd[1]: systemd-tpm2-setup-early.service - Early TPM SRK Setup skipped, unmet condition check ConditionSecurity=measured-uki
+1791517556.728 30,806,10311756,-;systemd[1]: Starting systemd-udev-load-credentials.service - Load udev Rules from Credentials...
+1791517556.728 30,807,10328082,-;systemd[1]: Starting systemd-udev-trigger.service - Coldplug All udev Devices...
+1791517556.728 6,808,10330001,-;EXT4-fs (sda35): re-mounted 00000000-0000-0000-0000-000000000000.
+1791517556.728 30,809,10358717,-;systemd[1]: Started systemd-journald.service - Journal Service.
+1791517556.728 46,810,10569492,-;systemd-journald[1283]: Received client request to flush runtime journal.
+1791517556.728 44,811,10571611,-;systemd-journald[1283]: File /var/log/journal/ffa68fa133c544979969219f48c14158/system.journal corrupted or uncleanly shut down, renaming and replacing.
+1791517556.728 46,812,10582997,-;systemd-journald[1283]: /var/log/journal/ffa68fa133c544979969219f48c14158/system.journal: Realtime clock jumped backwards relative to last journal entry, rotating.
+1791517556.728 46,813,10583002,-;systemd-journald[1283]: Rotating system journal.
+1791517556.728 6,814,10804908,-;loop0: detected capacity change from 0 to 8
+1791517556.728 6,815,10816814,-;loop1: detected capacity change from 0 to 126776
+1791517556.728 6,816,10836785,-;loop2: detected capacity change from 0 to 40024
+1791517556.728 6,817,10857448,-;loop3: detected capacity change from 0 to 543376
+1791517556.728 6,818,10873178,-;loop4: detected capacity change from 0 to 1132440
+1791517556.728 6,819,10895085,-;loop5: detected capacity change from 0 to 187776
+1791517556.728 6,820,10917308,-;loop6: detected capacity change from 0 to 357512
+1791517556.728 6,821,10937067,-;loop7: detected capacity change from 0 to 35808
+1791517556.728 6,822,10949257,-;loop8: detected capacity change from 0 to 30504
+1791517556.728 6,823,10965968,-;loop9: detected capacity change from 0 to 87312
+1791517556.728 6,824,11768603,-; cs_system_cfg: CoreSight Configuration manager initialised
+1791517556.728 6,825,11782641,-;coresight cti_sys0: CTI initialized
+1791517556.728 6,826,11783482,-;coresight stm0: STM32 initialized
+1791517556.728 6,827,11783511,-;coresight cti_sys1: CTI initialized
+1791517556.728 6,828,11794929,-;qcom,fastrpc 6800000.remoteproc:glink-edge.fastrpcglink-apps-dsp.-1.-1: assigned reserved memory node adsp-rpc-remote-heap
+1791517556.728 6,829,11805573,-;qcomtee: QTEE version 5.2.0
+1791517556.728 6,830,11806305,-;platform 6800000.remoteproc:glink-edge:fastrpc:compute-cb@3: Adding to iommu group 9
+1791517556.728 6,831,11813654,-;platform 6800000.remoteproc:glink-edge:fastrpc:compute-cb@4: Adding to iommu group 10
+1791517556.728 6,832,11818268,-;platform 6800000.remoteproc:glink-edge:fastrpc:compute-cb@5: Adding to iommu group 11
+1791517556.728 6,833,11821111,-;platform 6800000.remoteproc:glink-edge:fastrpc:compute-cb@6: Adding to iommu group 12
+1791517556.728 6,834,11821920,-;platform 6800000.remoteproc:glink-edge:fastrpc:compute-cb@7: Adding to iommu group 13
+1791517556.728 6,835,11823619,-;platform 6800000.remoteproc:glink-edge:fastrpc:compute-cb@8: Adding to iommu group 14
+1791517556.945 6,836,12119673,-;EXT4-fs (sda36): mounted filesystem 00000000-0000-0000-0000-000000000000 r/w with ordered data mode. Quota mode: none.
+1791517557.048 5,837,12223158,-;audit: type=1400 audit(1791359895.583:2): apparmor="STATUS" operation="profile_load" profile="unconfined" name="balena-etcher" pid=1839 comm="apparmor_parser"
+1791517557.048 5,838,12223166,-;audit: type=1400 audit(1791359895.583:3): apparmor="STATUS" operation="profile_load" profile="unconfined" name=4D6F6E676F444220436F6D70617373 pid=1834 comm="apparmor_parser"
+1791517557.048 5,839,12223168,-;audit: type=1400 audit(1791359895.583:4): apparmor="STATUS" operation="profile_load" profile="unconfined" name="Discord" pid=1833 comm="apparmor_parser"
+1791517557.048 5,840,12223169,-;audit: type=1400 audit(1791359895.583:5): apparmor="STATUS" operation="profile_load" profile="unconfined" name="QtWebEngineProcess" pid=1835 comm="apparmor_parser"
+1791517557.048 5,841,12223511,-;audit: type=1400 audit(1791359895.583:6): apparmor="STATUS" operation="profile_load" profile="unconfined" name="1password" pid=1832 comm="apparmor_parser"
+1791517557.048 5,842,12224555,-;audit: type=1400 audit(1791359895.583:7): apparmor="STATUS" operation="profile_load" profile="unconfined" name="babeld" pid=1838 comm="apparmor_parser"
+1791517557.048 5,843,12224655,-;audit: type=1400 audit(1791359895.583:8): apparmor="STATUS" operation="profile_load" profile="unconfined" name="brave" pid=1842 comm="apparmor_parser"
+1791517557.048 5,844,12225039,-;audit: type=1400 audit(1791359895.583:9): apparmor="STATUS" operation="profile_load" profile="unconfined" name="bfdd" pid=1840 comm="apparmor_parser"
+1791517557.048 5,845,12225784,-;audit: type=1400 audit(1791359895.587:10): apparmor="STATUS" operation="profile_load" profile="unconfined" name="alsamixer" pid=1837 comm="apparmor_parser"
+1791517557.048 5,846,12225990,-;audit: type=1400 audit(1791359895.587:11): apparmor="STATUS" operation="profile_load" profile="unconfined" name="buildah" pid=1843 comm="apparmor_parser"
+1791517557.318 5,847,12496276,-;cfg80211: Loading compiled-in X.509 certificates for regulatory database
+1791517557.322 5,848,12499986,-;Loaded X.509 cert 'sforshee: 00b28ddf47aef9cea7'
+1791517557.322 5,849,12500117,-;Loaded X.509 cert 'wens: 61c038651aabdcf94bd0ac7ff06c7248db18c600'
+1791517558.356 6,850,13531799,-;input: Piano THP Touchscreen as /devices/virtual/input/input5
+1791517558.686 6,851,13861873,-;nt36532e-thp spi0.0: THP first frame after 176 ms; stylus disabled, idle-baseline update and op mode 2 accepted
+1791517558.687 6,852,13861879,-;nt36532e-thp spi0.0: THP stream ready, payload 5192 bytes
+1791517558.787 6,853,13962093,-;Bluetooth: BNEP (Ethernet Emulation) ver 1.3
+1791517558.787 6,854,13962101,-;Bluetooth: BNEP socket layer initialized
+1791517558.787 6,855,13963113,-;Bluetooth: MGMT ver 1.23
+1791517558.790 6,856,13967136,-;NET: Registered PF_ALG protocol family
+1791517558.794 6,857,13970343,-;Bluetooth: hci0: setting up wcn7860
+1791517558.866 6,858,14041773,-;Bluetooth: hci0: QCA Product ID   :0x00000021
+1791517558.866 6,859,14041778,-;Bluetooth: hci0: QCA SOC Version  :0x40210200
+1791517558.866 6,860,14041779,-;Bluetooth: hci0: QCA ROM Version  :0x00000200
+1791517558.866 6,861,14041779,-;Bluetooth: hci0: QCA Patch Version:0x00006d58
+1791517559.002 6,862,14178111,-;Bluetooth: hci0: QCA controller version 0x02000200
+1791517559.005 6,863,14178119,-;Bluetooth: hci0: QCA Downloading qca/gngbtfw20.mbn
+1791517559.005 3,864,14178324,-;Bluetooth: hci0: Frame reassembly failed (-84)
+1791517559.846 6,865,15023453,-;Bluetooth: hci0: QCA Downloading qca/gngbtnv20.bin
+1791517560.299 6,866,15474752,-;Bluetooth: hci0: QCA FW build version: BTFW.GANGES.2.0.0-00355-PATCHZ-2_DEF NVM_LABEL:BTFW.GANGES.2.0.0-00355-PATCHZ-2_DEF
+1791517560.299 6,867,15474761,-;Bluetooth: hci0: QCA setup on UART is completed
+1791517560.299 6,868,15474763,-;Bluetooth: hci0: HFP non-HCI data transport is supported
+1791517560.622 6,869,15798105,-;Bluetooth: RFCOMM socket layer initialized
+1791517560.622 6,870,15798116,-;Bluetooth: RFCOMM ver 1.11
+1791517561.078 6,871,16257475,-;adreno 3d00000.gpu: [drm:adreno_request_fw] loaded qcom/gen80000_sqe.fw from new location
+1791517561.082 6,872,16257777,-;adreno 3d00000.gpu: [drm:adreno_request_fw] loaded qcom/gen80000_gmu.bin from new location
+1791517561.082 6,873,16257997,-;adreno 3d00000.gpu: [drm:adreno_request_fw] loaded qcom/gen80000_aqe.fw from new location
+1791517561.084 6,874,16261025,-;[drm] Loaded GMU firmware v5.1.25
+1791517561.692 3,875,16861622,-;qcom-apm gprsvc:service:2:1: CMD timeout for [1001021] opcode
+1791517561.692 6,876,16869261,-;platform 6800000.remoteproc:glink-edge:gpr:service@1:dais: Adding to iommu group 15
+1791517561.706 4,877,16883328,-;snd-sc8280xp sound: ASoC: Parent card not yet available, widget card binding deferred
+1791517561.706 4,878,16883363,-;va_macro 7660000.codec: supply vdd-micb not found, using dummy regulator
+1791517561.710 6,879,16886667,-;input: Piano-Capture-Diag Headset Jack as /devices/platform/sound/sound/card0/input6
+1791517561.782 3,880,16946140,-; MultiMedia3 Capture: ASoC: no backend DAIs enabled for MultiMedia3 Capture, possibly missing ALSA mixer-based routing or UCM profile
+1791517561.910 7,881,17086233,-;rfkill: input handler disabled
+1791517571.935 4,882,27110570,-;amba 109ab000.tn: deferred probe pending: (reason unknown)
+1791517571.935 6,883,27110601,-;gcc-sm8750 100000.clock-controller: sync_state() pending due to 1d88000.crypto
+1791517571.935 6,884,27110610,-;gxclkctl-kaanapali 3d64000.clock-controller: sync_state() pending due to 3d37000.gmu
+1791517571.935 6,885,27110614,-;gcc-sm8750 100000.clock-controller: sync_state() pending due to 3d37000.gmu
+1791517571.935 6,886,27110617,-;sm8750-gpucc 3d90000.clock-controller: sync_state() pending due to 3d37000.gmu
+1791517748.007 5,887,203185874,-;sd 0:0:0:5: [sdf] Synchronizing SCSI cache
+1791517748.007 5,888,203186074,-;sd 0:0:0:4: [sde] Synchronizing SCSI cache
+1791517748.007 5,889,203186260,-;sd 0:0:0:3: [sdd] Synchronizing SCSI cache
+1791517748.007 5,890,203186453,-;sd 0:0:0:0: [sda] Synchronizing SCSI cache

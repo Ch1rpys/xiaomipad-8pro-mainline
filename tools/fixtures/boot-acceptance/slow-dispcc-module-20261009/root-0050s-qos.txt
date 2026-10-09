@@ -1,0 +1,48 @@
+
+Ubuntu 26.04 LTS
+
+PIANO_PERSISTENT_CONSOLE phase=root
+
+
+BusyBox v1.36.1 (Ubuntu 1:1.36.1-6ubuntu3.1) built-in shell (ash)
+Enter 'help' for a list of built-in commands.
+
+# 
+# [6nif [ -x /usr/libexec/piano/busybox ]; then /usr/libexec/piano/busybox stty -ec
+ho; else /bin/busybox stty -echo; fi
+# == qos probe
+# > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > # uptime 50.24
+gcc_disp_hf_axi_cbcr=0x08200001 clk_enable=1 clk_off=0
+mdss_gdsc gdscr=0xfa22f802 pwr_on=1 hw_control=1 sw_collapse=0 cfg=0x04070000 up_complete=1 down_complete=0
+mdss_int2_gdsc gdscr=0x0222f802 pwr_on=0 hw_control=1 sw_collapse=0 cfg=0x04088000 up_complete=0 down_complete=1
+danger_status=0x00000000 mdp=0 vig0=0 vig1=0 vig2=0 vig3=0 dma0=0 dma1=0 cursor0=0 cursor1=0 dma2=0 dma3=0
+safe_status=0x00000000 mdp=0 vig0=0 vig1=0 vig2=0 vig3=0 dma0=0 dma1=0 cursor0=0 cursor1=0 dma2=0 dma3=0
+danger distinct 1 safe distinct 1 over 20 samples / ~0.1 s
+sspp vig0 danger_lut=0x0000ffff safe_lut=0x0000ff00 creq_lut=0x00000000 qos_ctrl=0x00000001 creq_lut_0=0x44556666 creq_lut_1=0x00112233
+sspp vig1 danger_lut=0x0000ffff safe_lut=0x0000ff00 creq_lut=0x00000000 qos_ctrl=0x00000001 creq_lut_0=0x44556666 creq_lut_1=0x00112233
+lat anon_cached reads 100000 s 0.0161 ns_per_read 161
+lat mmio_intf1_frame_count reads 100000 s 0.4923 ns_per_read 4923
+lat dram_device_splash_tail_stride4160 reads 100000 s 0.0983 ns_per_read 983
+QOS_RC=0
+# == dd 32Mx2 to /dev/null (DRAM-bound, busybox)
+# QOSR t=51.27..59.90 dd: 2+0 records out
+# # == genpd mdss
+mdss_int2_gdsc                  on                              0
+    genpd:2:chosen:framebuffer      active                      0           SW
+mdss_gdsc                       on                              0
+    genpd:1:chosen:framebuffer      active                      0           SW
+# == genpd framebuffer devices
+17:    genpd:2:chosen:framebuffer      active                      0           SW
+19:    genpd:1:chosen:framebuffer      active                      0           SW
+59:    genpd:0:chosen:framebuffer      active                      320         SW
+# == clk int2 rows
+ gcc_disp_hf_axi_clk                 1       1        0        0           0          0     50000      Y   framebuffer                     no_connection_id         
+                disp_cc_mdss_mdp_lut1_clk 0       0        0        575000000   0          0     50000      N                  deviceless                      no_connection_id         
+                disp_cc_mdss_mdp1_clk 0       0        0        575000000   0          0     50000      N                  deviceless                      no_connection_id         
+                disp_cc_mdss_mdp_clk 1       1        0        575000000   0          0     50000      Y                  framebuffer                     no_connection_id         
+             disp_cc_mdss_vsync1_clk 0       0        0        19200000    0          0     50000      N               deviceless                      no_connection_id         
+             disp_cc_mdss_ahb1_clk   0       0        0        19200000    0          0     50000      Y               deviceless                      no_connection_id         
+             disp_cc_mdss_ahb_clk    1       1        0        19200000    0          0     50000      Y               framebuffer                     no_connection_id         
+# # 
+PIANO_INSTALL_END_374210d68d184c249d7e02574d87c10f
+# 

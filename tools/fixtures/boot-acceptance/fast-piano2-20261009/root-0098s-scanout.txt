@@ -1,0 +1,25 @@
+
+Ubuntu 26.04 LTS
+
+PIANO_PERSISTENT_CONSOLE phase=root
+
+
+BusyBox v1.36.1 (Ubuntu 1:1.36.1-6ubuntu3.1) built-in shell (ash)
+Enter 'help' for a list of built-in commands.
+
+# 
+# [6nif [ -x /usr/libexec/piano/busybox ]; then /usr/libexec/piano/busybox stty -ec
+ho; else /bin/busybox stty -echo; fi
+D,
+                   offset=addr)
+  # == scanout probe
+98.10 759.24
+# > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > # INTF1 timing_en=1 frame_count 36853->36913 (+60 in 0.5s) line_count 315->1101 status=0x1 intr_status 0xe00->0xe00 hsync_period=576 vtotal=2310 active_lines=2136
+INTF2 timing_en=1 frame_count 36913->36973 (+60 in 0.5s) line_count 1157->1812 status=0x1 intr_status 0xe00->0xe00 hsync_period=576 vtotal=2310 active_lines=2136
+TOP0 intr_en=0x00000000 intr_status 0x3c000300->0x3c000300 INTF1_underrun=1 INTF2_underrun=1
+splash regions [('splash_region@fc800000', '0xfc800000', '0x2b00000')]
+scanout samples 792 distinct 7 top_rgb [('222222', 773), ('3c3837', 13), ('e95420', 2), ('bf7d66', 1), ('262424', 1), ('53504f', 1), ('343434', 1)]
+fb0 row1000 distinct 1 010101
+# 
+PIANO_INSTALL_END_c7d484c8012443979d2878d423439afe
+# 

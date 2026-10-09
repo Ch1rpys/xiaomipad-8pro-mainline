@@ -1,0 +1,62 @@
+{
+  "fixture": "slow boot: dispcc built as a module (GCC_DISP_HF_AXI_CLK switched off by clk_disable_unused at 2.6 s), run hfaxi-cur1, 2026-10-09 10:33-10:37 +08",
+  "boot": "fastboot boot of the 2026-10-08 gpu-votes debug RAM image 754dd6ac... (kernel 7.2.6-piano+ ed328931..., CONFIG_SM_DISPCC_8750=m, initrd fb825d72..., DTB b73b3e1e...); with dispcc as a module, 19 of 25 boots from 10-07 20:35 to the morning of 10-09 were slow",
+  "result_then": "classified SLOW; GMU initialisation timed out at 128.96 s; no criterion set existed yet",
+  "transport": "persistent debug console (192.168.88.2:2323) and the host /dev/kmsg capture over the NCM link",
+  "files": [
+    {
+      "file": "initrd-0010s.txt",
+      "captured_as": "hfaxi-cur1-initrdqos-103404.txt",
+      "captured_sha256": "b55ac03ebc3380978b07d1300071ff4fc5abbe9ea1d5a8f264e96bae1d6c3ab4"
+    },
+    {
+      "file": "root-0041s-classify.txt",
+      "captured_as": "hfaxi-cur1-classify-103435.txt",
+      "captured_sha256": "d916f84b933efe89e306fc3df7235e39b55511f248ad08cfacaa806e110d03ad"
+    },
+    {
+      "file": "root-0050s-qos.txt",
+      "captured_as": "hfaxi-cur1-qos40-103443.txt",
+      "captured_sha256": "db917a2f39cfc748e58c5d4579984a2c361dd237623813d53eb8a41e88cac501"
+    },
+    {
+      "file": "root-0060s-readings.txt",
+      "captured_as": "hfaxi-cur1-r40-103454.txt",
+      "captured_sha256": "7d1992eb5381f24db078dc0073c02dc2b53ed8cb4fd43c4113101fb697baf246"
+    },
+    {
+      "file": "root-0109s-qos.txt",
+      "captured_as": "hfaxi-cur1-qos100-103543.txt",
+      "captured_sha256": "0a8fb55319308ce154afd3f9eb978045ee841a0d3b69b5117451d4ece842b6cc"
+    },
+    {
+      "file": "root-0117s-scanout.txt",
+      "captured_as": "hfaxi-cur1-scanout-103551.txt",
+      "captured_sha256": "07724051f3ea832aea772a33979e59bc54c39ff49f8a8a9662ca4fa194e28b3f"
+    },
+    {
+      "file": "root-0119s-readings.txt",
+      "captured_as": "hfaxi-cur1-r100-103553.txt",
+      "captured_sha256": "10a6397c006e2504697d039bf5f3b7acb8590b7f50d02fb98318678574c1caa4"
+    },
+    {
+      "file": "root-0163s-readings.txt",
+      "captured_as": "hfaxi-cur1-r160-103637.txt",
+      "captured_sha256": "2b91f319ed136953197a0064e4f4012692541cce0e1152cdde07dc67c96bb63b"
+    },
+    {
+      "file": "kmsg.txt",
+      "captured_as": "hfaxi-cur1-live-kmsg.txt",
+      "captured_sha256": "7d57e64ec0cd19a4344e8f871a3098ee511660078f23d4f85eef557c94b754ba"
+    }
+  ],
+  "scrubbed": [
+    "kernel command line",
+    "console cmdline section",
+    "device serial",
+    "MAC addresses",
+    "host interface names",
+    "UUIDs (boot_id, PARTUUID, filesystem)",
+    "account name"
+  ]
+}

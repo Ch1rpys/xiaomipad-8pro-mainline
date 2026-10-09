@@ -127,6 +127,67 @@ above), and a `ubuntu.prev/` that boots the removed kernel is deleted because
 its modules are gone. A set's release is the `kernel_release` of its
 `manifest.json`, or the Image banner in `boot.img` for older sets.
 
+### Accepting a boot or kernel update
+
+A boot can pass a one-time reading and still be degraded. With the display
+clock controller built as a module, `clk_disable_unused` switched
+`GCC_DISP_HF_AXI_CLK` off at about 2.6 s; in most boots non-display memory
+traffic then stayed throttled (a 256 MiB copy at 36–47 MB/s instead of over
+5 GB/s, GMU initialisation timing out), with the same software as a normal
+boot. `tools/piano_boot_acceptance.py` keeps the acceptance criteria and their
+budgets as data and evaluates them from saved captures:
+
+```sh
+python3 tools/piano_boot_acceptance.py criteria           # criteria, budgets, profiles
+python3 tools/piano_boot_acceptance.py evaluate --dir EVIDENCE --release 7.2.6-piano2 --json verdict.json
+python3 tools/piano_boot_acceptance.py live --user USER --sudo --profile cold --release 7.2.6-piano2 \
+  --save EVIDENCE [--scanout-probe piano-scanout-probe.py]
+python3 tools/piano_boot_acceptance.py script [--initrd]  # the device-side read scripts
+```
+
+- Budgets: simpledrm initialised in under 1 s; `gcc_disp_hf_axi_clk` held by
+  the framebuffer (clk_summary and CBCR) from the first initrd console and in
+  the root; switch-root ≤ 10 s; gdm active ≤ 20 s; first GMU firmware load
+  ≤ 20 s and no GMU timeout, OOB, hangcheck or GPU error line to at least
+  180 s; every 256 MiB RAM copy ≥ 2000 MB/s; both DPU interfaces at 120 Hz
+  with unchanged interrupt status and the GDM greeter in the scanout samples;
+  a touch first frame without SPI/GPI errors; `hci0` up; no failed units;
+  rpmhpd and every interconnect provider synced; the expected release running
+  the root with only its own modules; `CONFIG_SM_DISPCC_8750=y`; and a FAST
+  classification (not switch-root > 18 s, simpledrm to fb0 > 0.5 s or gdm
+  inactive at 40 s).
+- Each criterion is PASS, FAIL or UNAVAILABLE with the measured value; a
+  missing or unparsable input is UNAVAILABLE, never FAIL. The verdict over a
+  profile is PASS, FAIL or INCOMPLETE (exit 0, 1 or 3). `debug` is a debug RAM
+  validation boot of the installed root: the criteria above and the slot
+  attributes read in Fastboot before and after. `cold` is a release cold boot
+  read over developer-mode SSH: no initrd console or Fastboot reading, plus
+  the store manifest release and the slot occupant.
+- An evidence directory holds `initrd-*.txt` (first initrd console),
+  `root-*.txt` (root transcripts; name order is time order), `kmsg*.txt` (host
+  `/dev/kmsg` capture), `journal*.txt` (`journalctl -b -o short-monotonic`)
+  and `getvar-before.txt` / `getvar-after.txt`. Transcripts of the earlier
+  measurement scripts are read as well.
+- Kernel times come from `/dev/kmsg` or `dmesg`. Journal times of kernel
+  messages before switch-root are journald receive times (simpledrm at 0.20 s
+  was logged at 4.25 s) and are not used, so a read without root leaves
+  `simpledrm_init` and the classification UNAVAILABLE.
+- `live` checks the link with `piano-devmode-ssh.py --check`, runs the read
+  script once through it and saves the transcript and `verdict-*.json`. With
+  `--sudo` the password typed here is the first input line of `sudo -S`; a
+  wrong password ends the read. The scanout criterion needs root and the DPU
+  scanout probe, which is maintained outside this repository.
+- The scripts only read (`/proc`, sysfs, debugfs, the kernel log,
+  `piano-boot-switch status`, `GCC_DISP_HF_AXI_CBCR` through busybox
+  `devmem`) and copy a 256 MiB buffer in RAM; the initrd script mounts debugfs
+  if it is absent.
+- `tools/test-piano-boot-acceptance.py` replays two scrubbed captures in
+  `tools/fixtures/boot-acceptance/`: the 7.2.6-piano2 validation boot of
+  2026-10-09 (PASS) and a slow boot of the 2026-10-08 image with dispcc as a
+  module (FAIL on the classification, simpledrm, the initrd clock hold,
+  switch-root, gdm, GMU, GPU errors, the copy, scanout, touch errors and the
+  dispcc configuration).
+
 ### Marking slot A successful
 
 ABL decrements an unsuccessful slot's retry count on every boot, and

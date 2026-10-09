@@ -1,0 +1,22 @@
+
+
+PIANO_PERSISTENT_CONSOLE phase=initrd
+
+
+BusyBox v1.36.1 (Ubuntu 1:1.36.1-6ubuntu3.1) built-in shell (ash)
+Enter 'help' for a list of built-in commands.
+
+# 
+# [6nif [ -x /usr/libexec/piano/busybox ]; then /usr/libexec/piano/busybox stty -ec
+ho; else /bin/busybox stty -echo; fi
+# # == initrd hf-axi loop start uptime=6.11
+# # == clk_summary gcc_disp_hf_axi_clk (start)
+ gcc_disp_hf_axi_clk                 1       1        0        0           0          0     50000      Y   framebuffer                     no_connection_id         
+# == dmesg clk/genpd/dispcc/simpledrm (start)
+[    0.201081] [drm] Initialized simpledrm 1.0.0 for chosen:framebuffer on minor 1
+[    2.651071] clk: Disabling unused clocks
+[    2.659309] PM: genpd: Disabling unused power domains
+# > > > > > > > > # # > > > > > > > > REG t=6.12 hf_axi_cbcr=0x08200001 intf1_fc=0x000064D5 top0_status=0x3C000300
+DD t=6.12..6.13 simpledrm=1 dd: 2+0 records out
+REG t=6.62 hf_axi_cbcr=0x08200001 intf1_fc=0x00006511 top0_status=0x3C000300
+DD t=6.64..6.65 simpledrm=1 dd: 2+0 records out

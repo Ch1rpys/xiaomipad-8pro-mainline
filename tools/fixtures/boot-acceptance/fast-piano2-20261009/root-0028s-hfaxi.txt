@@ -1,0 +1,20 @@
+
+Ubuntu 26.04 LTS
+
+PIANO_PERSISTENT_CONSOLE phase=root
+
+
+BusyBox v1.36.1 (Ubuntu 1:1.36.1-6ubuntu3.1) built-in shell (ash)
+Enter 'help' for a list of built-in commands.
+
+# 
+# [6nif [ -x /usr/libexec/piano/busybox ]; then /usr/libexec/piano/busybox stty -ec
+ho; else /bin/busybox stty -echo; fi
+# == hf axi
+# > > > > > > > > > # uptime 28.21
+gcc_disp_hf_axi_cbcr=0x08200001 clk_enable=1 clk_off=0
+# # == clk_summary gcc_disp_hf_axi_clk (root)
+ gcc_disp_hf_axi_clk                 1       1        0        0           0          0     50000      Y   framebuffer                     no_connection_id         
+# # 
+PIANO_INSTALL_END_11b1b52dbc0d415a99da635dcdd25ef9
+# 
