@@ -10,6 +10,12 @@ kernel and initrd keep matching the installed modules; Android in slot A is
 left alone.  Anywhere else (an image-building chroot, QEMU, a RAM root) only
 the store changes and no disk is inspected.
 
+The set needs this unit's boot profile and signing key in /etc/piano.  A
+release root filesystem ships without them and with a prepared set; until the
+owner installs them, kernel hooks leave the store unchanged and succeed.  The
+root is /etc/piano/layout.json's root_partlabel (a release root) or
+root_partuuid; the Bluetooth and WLAN addresses are optional.
+
 `piano-boot-update --removed RELEASE` runs after a piano kernel package is
 removed: if RELEASE owned the current set, the set is rebuilt for the newest
 remaining piano kernel (as flash-kernel reflashes on removal), and a rollback
@@ -86,6 +92,15 @@ def main(argv, root=Path('/'), run=subprocess.run):
         raise SystemExit('Not a piano kernel release')
     config = root / 'etc/piano'
     layout = json.loads((config / 'layout.json').read_text())
+    if 'root_partlabel' in layout:
+        root_option = ['--root-partlabel', layout['root_partlabel']]
+    else:
+        root_option = ['--root-partuuid', layout['root_partuuid']]
+    missing = [n for n in ('boot-profile.json', 'boot-signing.pem') if not (config / n).is_file()]
+    if missing:
+        print(f'Boot image set not rebuilt for {release}: /etc/piano/{" and /etc/piano/".join(missing)} '
+              'of this unit not installed; the store is unchanged')
+        return 0
     store = root / 'var/lib/piano/switch'
     store.mkdir(parents=True, exist_ok=True)
     tools = root / 'usr/lib/piano/boot'
@@ -93,20 +108,22 @@ def main(argv, root=Path('/'), run=subprocess.run):
         fcntl.flock(lock, fcntl.LOCK_EX)
         with tempfile.TemporaryDirectory(prefix='.build-', dir=store) as tmp:
             output = Path(tmp) / 'images'
-            # The WLAN address is optional: without it ath12k keeps the card's (all-zero on piano).
+            # Both addresses are optional. Without the WLAN address ath12k keeps the card's
+            # (all-zero on piano); without the Bluetooth address hci_qca leaves the
+            # controller unconfigured.
             wlan = config / 'wlan-address'
+            bt = config / 'bluetooth-address'
             run([
                 'python3', str(tools / 'build-persistent-boot.py'),
                 '--kernel', str(root / f'boot/vmlinuz-{release}'), '--kernel-release', release,
                 '--dtb', str(root / f'usr/lib/linux-image-{release}/piano-boot.dtb'),
                 '--initrd', str(root / f'boot/initrd.img-{release}'),
-                '--profile', str(config / 'boot-profile.json'),
-                '--root-partuuid', layout['root_partuuid'],
-                '--bt-address-file', str(config / 'bluetooth-address'),
+                '--profile', str(config / 'boot-profile.json'), *root_option,
                 '--mkbootimg', str(tools / 'mkbootimg.py'),
                 '--avbtool', str(tools / 'avbtool.py'),
                 '--key', str(config / 'boot-signing.pem'), '--output', str(output)
-            ] + (['--wlan-address-file', str(wlan)] if wlan.is_file() else []), check=True)
+            ] + (['--bt-address-file', str(bt)] if bt.is_file() else [])
+              + (['--wlan-address-file', str(wlan)] if wlan.is_file() else []), check=True)
             if (store / 'ubuntu.prev').exists():
                 shutil.rmtree(store / 'ubuntu.prev')
             if (store / 'ubuntu').exists():

@@ -1,0 +1,82 @@
+# Ubuntu for Xiaomi Pad 8 Pro — $release_name
+
+Ubuntu 26.04 LTS with GNOME for the Xiaomi Pad 8 Pro (`piano`, SM8750P), installed next to Android.
+This is a preview: read [Read Before Installing]($repo_url/blob/$integration_commit/README.md#%EF%B8%8F-read-before-installing)
+first. Installation is manual: follow [docs/RELEASE.md]($repo_url/blob/$integration_commit/docs/RELEASE.md#installing-the-release)
+together with [docs/AGENT-GUIDE.md §4]($repo_url/blob/$integration_commit/docs/AGENT-GUIDE.md#4-fresh-install-manual-in-v01).
+All Android data is erased.
+
+## Identity
+
+| Item | Value |
+|---|---|
+| Kernel | `$kernel_release` (kernel commit `$kernel_commit`) |
+| Integration repository | commit `$integration_commit` |
+| Ubuntu base | 26.04 Desktop ARM64 ISO, SHA-256 `$iso_sha256`; Ubuntu packages added from snapshot `$apt_snapshot` |
+| Stock Android build | `$stock_build` on slot A (boot header fields, rollback indices, AVB properties and boot DTB) |
+| Boot command line | `$boot_cmdline` |
+| AVB signing key of the boot set | public key SHA-256 `$boot_key_public_sha256` (a release key; rebuilt sets use your own) |
+
+## Files
+
+| File | Size (bytes) | SHA-256 | Purpose |
+|---|---:|---|---|
+$artefact_rows
+
+`SHA256SUMS` lists every file; `release-manifest.json` records every input hash and package version.
+
+## Packages in the root image
+
+| Package | Version | Origin |
+|---|---|---|
+$package_rows
+
+## What works
+
+Status on the test unit (one 512 GB unit, model 25091RP04C) with `$kernel_release`; see the
+[support matrix]($repo_url/blob/$integration_commit/README.md#support-matrix) for the details and limits.
+
+- ✅ Working: CPU frequency scaling, boot from slot A (marked successful after each boot), UFS storage,
+  GNOME on Wayland at 200 % scaling, Adreno 830 rendering with the bundled Mesa 26.2.0, battery gauges
+  and thermal zones, SSH over USB in developer mode.
+- 🟡 Partial: display (firmware framebuffer, 3200×2136 at 120 Hz, fixed brightness, no screen-off),
+  touchscreen (single finger, needs your calibration), magnetic keyboard (keys), Wi-Fi (firmware and scan,
+  needs your MAC address), Bluetooth (discovery, needs your address), switching from Ubuntu to Android,
+  charger input reporting (read-only), power key.
+- ❌ Unsupported: charging (the battery discharges under Linux, also on USB), speakers, cameras, sensors,
+  video decoding, USB host and external display, suspend, writing the real-time clock (the clock is wrong
+  after every boot), fingerprint, stylus. 🧪 Unverified: microphone.
+
+## Per-unit data you must add
+
+The image and the boot set contain no data of any unit: no account, serial number, Bluetooth or Wi-Fi
+address, touch calibration, boot profile, partition map or signing key of yours. Until you add them:
+
+| File in `/etc/piano/` (root, mode 0600) | Without it |
+|---|---|
+| `thp-calibration.json` | the touchscreen does not start (use the keyboard) |
+| `wlan-address` | Wi-Fi cannot be brought up: this unit's WCN7860 reports an all-zero MAC address; ath12k reads the address from the boot DTB, which `piano-boot-update` writes from this file. A kernel-side fallback to a random address is planned |
+| `bluetooth-address` | the Bluetooth controller stays unconfigured |
+| `boot-profile.json`, `boot-signing.pem` | `piano-boot-update` cannot rebuild the boot set, so the addresses above are not applied and kernel updates leave the set unchanged |
+| `boot-partitions.json` | `piano-boot-switch` (switching from Ubuntu, the app-grid button) refuses |
+
+After adding them run `sudo piano-boot-update $kernel_release`; it rebuilds the set with your addresses and
+key and rewrites slot A. Your stock Android set goes into the store with
+`sudo piano-boot-switch import-android --from <directory>`.
+
+The prebuilt boot set fits stock `$stock_build` only. With another stock build, rebuild the set from
+your own boot profile before writing slot A.
+
+## Known issues
+
+- No charging under Linux: keep at least 40 % and charge in Android.
+- Release boots have no debug console. Developer mode (SSH over USB) is installed but off;
+  enable it with `sudo piano-devmode on` before relying on remote access.
+- With no picture or no response, hold Power + Volume Down for Fastboot and switch with `piano-switch.py`.
+- The Android-side KernelSU module (`piano-switch-ksu`) is not yet verified on the device.
+- Not verified on the device as a whole: this image was assembled offline from the packages and
+  procedure that run on the test unit; it was checked offline and booted in QEMU only.
+
+The firmware package carries unmodified stock files of `$stock_build`; there is no redistribution
+licence for them, and they are removed on request of the rights holder. Integration code is MIT,
+the kernel GPL-2.0.

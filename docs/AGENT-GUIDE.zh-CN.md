@@ -201,6 +201,9 @@ python3 tools/build-persistent-boot.py \
 
 - `--wlan-address-file <wlan-address>`（可选）把本机 Wi-Fi MAC 地址写入打包 DTB，与 `--bt-address-file`
   处理蓝牙的方式相同。
+- `--root-partlabel linux_rootfs`（代替 `--root-partuuid`）按 GPT 分区名选根，`--no-serial` 不写
+  `androidboot.serialno`，交由每次启动都会追加它的 ABL；两个地址文件都不给时即发布用的、不绑定单机的镜像组
+  （[RELEASE.md](RELEASE.md)）。
 - `<root>` 为目标根文件系统：initrd 是内核包在其中生成的发行版 dracut initrd（§4.4）。已安装的平板上由
   `piano-boot-update` 自行调用本工具（§5）。
 - 输出：`boot.img`、`init_boot.img`、`vendor_boot.img`（100,663,296、8,388,608 和 100,663,296 字节，
@@ -233,7 +236,7 @@ Mesa 构建 manifest；镜像组的 `manifest.json` 与 `SHA256SUMS`；initrd �
 
 ## 4. 全新安装（v0.1 手工步骤）
 
-分区与根文件系统安装器尚不可用。以下步骤用标准命令复现测试机（512 GB UFS）的安装。
+分区与根文件系统安装器尚不可用。以下步骤用标准命令复现测试机（512 GB UFS）的安装。使用发布目录时，发布的根文件系统镜像与启动镜像组代替 §4.4 和 §3.6 的镜像组，改动见 [RELEASE.md](RELEASE.md#installing-the-release)。
 
 ### 4.1 前提
 

@@ -31,6 +31,8 @@ class Update(unittest.TestCase):
         self.root = Path(self.tmp.name)
         (self.root / 'etc/piano').mkdir(parents=True)
         (self.root / 'etc/piano/layout.json').write_text(json.dumps({'root_partuuid': fp.ROOT_UUID}))
+        for name in ('boot-profile.json', 'boot-signing.pem', 'bluetooth-address'):
+            (self.root / 'etc/piano' / name).write_text(name + '\n')
         for name in ('ubuntu', 'ubuntu.prev'):
             d = self.root / 'var/lib/piano/switch' / name
             d.mkdir(parents=True)
@@ -87,6 +89,34 @@ class Update(unittest.TestCase):
         builder = self.calls[0]
         self.assertEqual(builder[builder.index('--wlan-address-file') + 1],
                          str(self.root / 'etc/piano/wlan-address'))
+
+    def test_bluetooth_address_is_passed_only_when_configured(self):
+        self.update(fp.UBUNTU_CMDLINE)
+        builder = self.calls[0]
+        self.assertEqual(builder[builder.index('--bt-address-file') + 1],
+                         str(self.root / 'etc/piano/bluetooth-address'))
+        (self.root / 'etc/piano/bluetooth-address').unlink()
+        self.calls.clear()
+        self.update(fp.UBUNTU_CMDLINE)
+        self.assertNotIn('--bt-address-file', self.calls[0])
+
+    def test_release_layout_selects_the_root_by_partition_name(self):
+        builder = lambda: self.calls[0]
+        self.update(fp.UBUNTU_CMDLINE)
+        self.assertEqual(builder()[builder().index('--root-partuuid') + 1], fp.ROOT_UUID)
+        (self.root / 'etc/piano/layout.json').write_text(json.dumps({'root_partlabel': 'linux_rootfs'}))
+        self.calls.clear()
+        self.update(fp.UBUNTU_CMDLINE)
+        self.assertEqual(builder()[builder().index('--root-partlabel') + 1], 'linux_rootfs')
+        self.assertNotIn('--root-partuuid', builder())
+
+    def test_release_root_without_owner_inputs_keeps_the_store(self):
+        for name in ('boot-profile.json', 'boot-signing.pem'):
+            (self.root / 'etc/piano' / name).unlink()
+            self.calls.clear()
+            self.assertEqual(self.update(fp.UBUNTU_CMDLINE), 0)
+            self.assertEqual(self.calls, [])
+            self.assertEqual((self.store('ubuntu'), self.store('ubuntu.prev')), ('ubuntu\n', 'ubuntu.prev\n'))
 
     def test_other_environments_only_update_the_store(self):
         for cmdline, compatible in ((fp.ABL_APPEND, b'xiaomi,piano\0'),          # RAM root

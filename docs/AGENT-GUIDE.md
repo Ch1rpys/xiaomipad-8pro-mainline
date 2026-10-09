@@ -222,6 +222,9 @@ python3 tools/build-persistent-boot.py \
 
 - `--wlan-address-file <wlan-address>` (optional) writes this unit's Wi-Fi MAC address into the
   packaging DTB, as `--bt-address-file` does for Bluetooth.
+- `--root-partlabel linux_rootfs` (instead of `--root-partuuid`) selects the root by GPT name and
+  `--no-serial` leaves `androidboot.serialno` to ABL, which appends it on every boot; with neither
+  address file this is the unit-independent set of a release ([RELEASE.md](RELEASE.md)).
 - `<root>` is the target root filesystem: the initrd is the distribution dracut initrd that the
   kernel package generated there (§4.4). On an installed tablet `piano-boot-update` runs this tool
   itself (§5).
@@ -259,7 +262,9 @@ initrds are not reproducible, so `vendor_boot.img` differs between builds with o
 ## 4. Fresh install (manual in v0.1)
 
 The partitioning and root filesystem installer is not yet available. These steps reproduce the
-installation of the test unit (512 GB UFS) with standard commands.
+installation of the test unit (512 GB UFS) with standard commands. With a release directory, the
+release root image and boot set replace §4.4 and the set of §3.6; the changes are listed in
+[RELEASE.md](RELEASE.md#installing-the-release).
 
 ### 4.1 Prerequisites
 

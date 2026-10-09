@@ -7,7 +7,11 @@ service, local firmware, and distro kernel/initrd hooks.
 
 `tools/build-persistent-boot.py` constructs v4 boot/init_boot/vendor_boot images
 from the installed distro initrd, the device's original header geometry and
-rollback indices, its root PARTUUID, local Bluetooth address and signing key.
+rollback indices, its root PARTUUID (or the GPT name `linux_rootfs`), the optional
+local Bluetooth and Wi-Fi addresses and a signing key.  A release root ships a set
+built with `--root-partlabel linux_rootfs --no-serial` and no addresses; until the
+owner installs `boot-profile.json` and `boot-signing.pem` in `/etc/piano`,
+`piano-boot-update` keeps that set (docs/RELEASE.md).
 It writes regular files only. Normal images have no development console or
 expiry timer; both require explicit debug options. A v2 image is also emitted
 for bounded testing against the persistent root before changing the boot slot.

@@ -52,7 +52,8 @@ USB 尚未真机验证；电源输入拓扑、REFGEN 和完整 Type-C 路径仍�
   本机 WCN7860 在 WMI ready 中报告全零地址，ath12k（内核 `8b20df71544b`）此时用 `device_get_mac_address()` 读取该属性。
   原厂值在 persist 分区 `wlan/wlan_mac.bin`（一行 `wlan0=<12 位十六进制>`），换成冒号格式即可。
 manifest 只记录 `private_bt_address_injected`/`private_wlan_address_injected`，不记录地址。设备上的 `piano-boot-update` 从
-`/etc/piano/bluetooth-address`（必需）与 `/etc/piano/wlan-address`（可选，存在才传）取这两个文件。
+`/etc/piano/bluetooth-address` 与 `/etc/piano/wlan-address` 取这两个文件，均为可选、存在才传；缺少本机 `boot-profile.json` 或 `boot-signing.pem` 时（发布根文件系统首次启动前的状态）它不重建镜像组、保留存储中的镜像组并正常退出。
+`--root-partlabel` 与 `--no-serial` 生成不绑定单机的发布镜像组，见 [RELEASE.md](RELEASE.md)。
 
 ## USB2 角色与单麦设备树准备
 

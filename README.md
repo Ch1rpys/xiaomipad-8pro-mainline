@@ -39,7 +39,7 @@ Calibration data and the Bluetooth address must come from your own tablet; never
 
 ## 🚀 Getting Started
 
-1. **Use a release**: not available yet; see [Latest Release](#latest-release-and-recent-updates).
+1. **Use a release**: not available yet; see [Latest Release](#latest-release-and-recent-updates). The planned contents and the pipeline that builds them are in [docs/RELEASE.md](docs/RELEASE.md).
 2. **Build from source**: inputs are pinned in [kernel/source.json](kernel/source.json) and [kernel/abi.json](kernel/abi.json) (kernel commit, configuration fragments, release), [mesa/source.json](mesa/source.json) (Mesa 26.2.0 and its A830 patch), [ubuntu/](ubuntu/26.04.sources) (official 26.04 Desktop ARM64 ISO, snapshot APT sources) and `device/*/source.json`. The tools in [tools/](tools/) build the kernel package, Mesa, the device packages, the ext4 root image and the signed boot image set without root privileges. Touch calibration, Bluetooth address, boot profile, stock DTB and DTBO and an AVB signing key come from your own tablet and are never committed. Details: [docs/build.zh-CN.md](docs/build.zh-CN.md) (Chinese).
 3. **Install**: follow the manual steps in [docs/AGENT-GUIDE.md](docs/AGENT-GUIDE.md) §4.
 

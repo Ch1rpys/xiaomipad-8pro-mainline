@@ -58,11 +58,17 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     for name in ('kernel', 'dtb', 'initrd', 'profile', 'mkbootimg', 'avbtool', 'key', 'output'):
         p.add_argument('--' + name, type=Path, required=True)
-    p.add_argument('--root-partuuid', type=uuid.UUID, required=True)
+    root = p.add_mutually_exclusive_group(required=True)
+    root.add_argument('--root-partuuid', type=uuid.UUID, help='The root partition of this unit')
+    root.add_argument('--root-partlabel',
+                      help='GPT name of the root partition (linux_rootfs): a set that boots on any unit')
     p.add_argument('--kernel-release', help='Expected release; the Image banner must carry it')
     p.add_argument('--bt-address-file', type=Path)
     p.add_argument('--wlan-address-file', type=Path,
                    help='Private aa:bb:cc:dd:ee:ff of this unit, set as the WCN7860 local-mac-address')
+    p.add_argument('--no-serial', action='store_true',
+                   help='Leave androidboot.serialno to ABL, which appends it to every command line; '
+                        'a set that is not bound to one unit')
     p.add_argument('--debug', action='store_true')
     p.add_argument('--debug-timeout', type=int, default=0)
     p.add_argument('--module-blacklist', help='Explicit comma-separated module control for a debug boot')
@@ -78,6 +84,9 @@ def main():
             p.error('Module controls require an explicit debug boot and valid module names')
     if a.debug_boot_trace and not a.debug:
         p.error('The boot trace console is only available for explicit debug boots')
+    if a.root_partlabel is not None and not re.fullmatch(r'[A-Za-z0-9_.-]{1,36}', a.root_partlabel):
+        p.error('A GPT partition name of 1-36 letters, digits, "_", "." or "-" is required')
+    root_spec = (f'PARTUUID={a.root_partuuid}' if a.root_partuuid is not None else f'PARTLABEL={a.root_partlabel}')
     release = kernel_release(a.kernel)
     if not release:
         p.error('Kernel has no Linux version banner; expected an uncompressed arm64 Image')
@@ -121,15 +130,18 @@ def main():
         subprocess.run(['fdtput', '-t', 'bx', str(dtb), node, 'local-mac-address',
                         *[f'{b:02x}' for b in raw]], check=True)
     console = DEBUG_BOOT_TRACE if a.debug_boot_trace else 'console=ttyMSM0,115200n8'
-    cmdline = (f'root=PARTUUID={a.root_partuuid} rootfstype=ext4 rw rootwait '
+    cmdline = (f'root={root_spec} rootfstype=ext4 rw rootwait '
                f'{console} log_buf_len=2M panic=15 '
                'msm.separate_gpu_kms=1 piano.boot=persistent systemd.gpt_auto=0 bootconfig')
     # V4 may expose the firmware serial only in bootconfig. Keep the explicit
     # development gadget bound to the locally verified installation profile.
-    serial = profile.get('serial')
-    if not isinstance(serial, str) or not re.fullmatch('[A-Za-z0-9]+', serial):
-        p.error('Profile requires the verified device serial')
-    cmdline += ' androidboot.serialno=' + serial
+    # ABL also appends androidboot.serialno to the kernel command line it
+    # passes (seen on piano); --no-serial relies on that copy alone.
+    if not a.no_serial:
+        serial = profile.get('serial')
+        if not isinstance(serial, str) or not re.fullmatch('[A-Za-z0-9]+', serial):
+            p.error('Profile requires the verified device serial')
+        cmdline += ' androidboot.serialno=' + serial
     if a.debug:
         cmdline += ' piano.debug=1'
     if a.debug_timeout:
@@ -176,7 +188,9 @@ def main():
                    ['--kernel', str(a.kernel), '--ramdisk', str(a.initrd), '--dtb', str(dtb),
                     '--cmdline', cmdline, '--output', str(ram)], check=True)
     manifest = {'kind': 'piano-persistent-v4', 'kernel_release': release,
-                'cmdline': cmdline, 'root_partuuid': str(a.root_partuuid),
+                'cmdline': cmdline, 'root': root_spec,
+                'root_partuuid': str(a.root_partuuid) if a.root_partuuid is not None else None,
+                'serial_in_cmdline': not a.no_serial,
                 'debug': a.debug, 'debug_timeout': a.debug_timeout,
                 'inputs': {n: sha(getattr(a, n)) for n in ('kernel', 'dtb', 'initrd', 'profile', 'mkbootimg', 'avbtool')},
                 'private_bt_address_injected': bool(a.bt_address_file),
