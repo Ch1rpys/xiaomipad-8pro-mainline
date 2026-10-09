@@ -20,6 +20,12 @@
       "kernel_commit": "e81699cfab00ab22ad701d795a0ce67feff5f30a",
       "config_sha256": "d074fcd2f067d67378b9000d7442b8351356f33872dff399dcdb8468f54afd2a",
       "upload": 1
+    },
+    {
+      "kernel_release": "7.2.6-piano4",
+      "kernel_commit": "9e5e3fe3f85213eefae6031a63a99b4d6fdda15d",
+      "config_sha256": "1cb756095d2db507d6f2975a06d692d5b13ef65f34dbe3e801a7b4a7f1b18934",
+      "upload": 1
     }
   ]
 }
