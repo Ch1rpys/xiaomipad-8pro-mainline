@@ -74,6 +74,11 @@ ramdisk 无板级固件、存储挂载或账户；ACM/NCM 是实验用 root cons
 RAM overlay 的 /usr/lib/firmware 并按清单校验，交接后才首次请求固件的驱动也能取到。
 固件字节只存在于私有目录和输出 initramfs，不进入本仓；原厂固件没有再分发依据。
 `BUSYBOX=... GEN_INIT_CPIO=... python3 tools/test-build-initramfs.py` 用合成夹具检查 cpio 内容、清单、身份变化和拒绝路径。
+RAM `/init` 与 dracut 模块 99piano 的 `/init` 都在最前面接好 fd 0–2：/dev/console 能打开就用它，否则用 /dev/null。
+内核打不开初始控制台时（例如只有 `console=ttynull`）以关闭的 fd 0–2 启动 PID 1：dracut `/init` 第一次写输出就在 `set -e` 下
+结束 PID 1（Wi-Fi B2），RAM `/init` 原来无条件的 `exec </dev/console` 也会直接结束 PID 1。
+`sh initramfs/tests/test-init-stdio.sh` 在主机上以关闭的 fd 0–2 运行两份脚本（设备路径换到临时目录；RAM `/init` 只运行第一个 mount 之前的部分），
+检查有、无控制台两种情况都能交接，并确认去掉这段保护后按 B2 的方式退出；`DRACUT_SH`、`RAM_SH` 可指定 qemu-aarch64-static 下的目标 shell。
 
 initramfs/network.json 是 NCM 的唯一网络配置，使用独立 USB 子网和仅一台主机的 DHCP 租约，无默认路由/DNS。
 默认 180 秒发出重启请求，piano.diag_timeout 可在 15-900 秒内调整。

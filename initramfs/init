@@ -1,6 +1,15 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-only
 export PATH=/bin
+# Without a console the kernel reports "unable to open an initial console" and
+# starts PID 1 with fds 0-2 closed, and exec </dev/console would end PID 1. Like
+# systemd's make_console_stdio(), use /dev/console when it opens and /dev/null
+# otherwise. The probe opens read-first so neither node is created.
+if (exec </dev/console >/dev/console) 2>/dev/null; then
+	exec </dev/console >/dev/console 2>&1
+else
+	exec </dev/null >/dev/null 2>&1
+fi
 
 mount -t proc proc /proc
 mount -t sysfs sysfs /sys
@@ -35,7 +44,6 @@ watchdog_pid=$!
 
 echo "<6>PIANO_RAM_INIT: $(uname -r) build=$(cat /etc/build-id) storage-unmounted" >/dev/kmsg
 echo "<6>PIANO_DIAG_ARMED: timeout=$timeout_seconds pid=$watchdog_pid" >/dev/kmsg
-exec </dev/console >/dev/console 2>&1
 echo 'PIANO_RAM_INIT: storage is not mounted; bounded diagnostic session'
 uname -a
 cat /etc/build-id
