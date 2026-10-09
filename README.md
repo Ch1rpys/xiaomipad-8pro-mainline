@@ -9,6 +9,7 @@ Run Ubuntu 26.04 LTS with GNOME on the Xiaomi Pad 8 Pro (`piano`, SM8750P) along
 Recent updates:
 
 - **Dual boot**: Ubuntu is installed next to Android on the test unit. Switching from Ubuntu to Android and marking slot A as successfully booted are verified on the device.
+- **Kernel 7.2.6-piano5**: upstream versions of the ADSP, PCIe and Adreno 830 changes, CPU thermal throttling at the stock temperatures, a tablet-mode switch from the keyboard dock, and both backlight controllers under one `ktz8866-backlight` device (brightness via sysfs; no GNOME slider yet). The internal microphones record through the VA path, but their acoustic signal is not yet confirmed.
 - **Wi-Fi 5 GHz**: with kernel 7.2.6-piano4 NetworkManager's scans on the test unit find 5 GHz networks as well as 2.4 GHz ones; connecting is not yet verified.
 - **Kernel 7.2.6-piano3**: Wi-Fi now loads its firmware from the installed system, uses this unit's MAC address and scans; read-only charger input reporting and several boot-log fixes are included.
 - **Kernel 7.2.6-piano2**: the display clock controller is built in, which fixes boots that ended in a black screen or in GPU and touch timeouts.
@@ -50,12 +51,12 @@ Do not mix files from different builds: the kernel image and its modules must co
 
 ## Hardware Support
 
-Status on the test unit with kernel 7.2.6-piano4, as of 2026-10-10; other variants and accessories are not implied tested.
+Status on the test unit with kernel 7.2.6-piano5, as of 2026-10-10; other variants and accessories are not implied tested.
 Test configuration, known issues and roadmap: [docs/STATUS.md](docs/STATUS.md).
 
 ✅ Working · 🟡 Partial · ❌ Unsupported · 🧪 Unverified
 
-✅ marks results verified on the device. *Test build* marks results from diagnostic boots that are not yet in 7.2.6-piano4.
+✅ marks results verified on the device. *Test build* marks results from diagnostic boots that are not yet in 7.2.6-piano5.
 
 ### Platform, Display and Input
 
@@ -88,7 +89,7 @@ Test configuration, known issues and roadmap: [docs/STATUS.md](docs/STATUS.md).
 | Feature | Component / Implementation | Status | Scope and Limitations |
 |---|---|---|---|
 | Speakers | 4 × FS19xx-family amplifiers | ❌ Unsupported | No mainline driver; no playback device |
-| Microphone | Internal DMIC / ADSP / AudioReach | 🧪 Unverified | Sound card and capture PCM register, but without a backend DAI or UCM profile; recording untested |
+| Microphone | Internal DMIC / ADSP / AudioReach | 🧪 Unverified | Records through the VA path with a UCM profile, but the signal is not yet shown to be acoustic |
 | Video decoding | Qualcomm Iris (VPU35) | ❌ Unsupported | Built as modules, not enabled |
 | Cameras | S5KJN1SQ03 rear, OV32D40 front | ❌ Unsupported | Mainline lacks SM8750 CAMSS support |
 | Rotation, light and Hall sensors | ADSP sensor hub (SSC) | ❌ Unsupported | Userspace stack prepared, not enabled |
@@ -132,7 +133,7 @@ A host write resets slot A's retry counter, and `piano-slot-success` marks the s
 | xiaomipad-8pro-mainline | Device userspace, Ubuntu integration, build, packaging and switching tools, firmware, documentation |
 | [linux-sm8750-piano](https://github.com/yzddmr6/linux-sm8750-piano) | Linux kernel: drivers, device trees and configuration on the upstream v7.2.6 stable history, branch `piano/dev` |
 
-[kernel/source.json](kernel/source.json) pins the kernel commit and configuration fragments; [kernel/abi.json](kernel/abi.json) gives every packaged build a unique release (`7.2.6-piano4` is current).
+[kernel/source.json](kernel/source.json) pins the kernel commit and configuration fragments; [kernel/abi.json](kernel/abi.json) gives every packaged build a unique release (`7.2.6-piano5` is current).
 Device-specific inputs (calibration, Bluetooth address, boot profile, signing key, backups) belong to each owner and are never committed.
 Debug image sets (`tools/build-persistent-boot.py --debug`) add a `fastboot boot` check image with an unauthenticated root shell over USB, for diagnostics only.
 

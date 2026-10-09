@@ -9,6 +9,7 @@
 近期更新：
 
 - **双系统**：测试机已在 Android 旁安装 Ubuntu。从 Ubuntu 切换到 Android、A 槽启动成功标记均已真机验证。
+- **内核 7.2.6-piano5**：ADSP、PCIe 与 Adreno 830 改用上游版本，CPU 按原厂温度限频，键盘底座提供平板模式开关，两颗背光芯片合成一个 `ktz8866-backlight`（可经 sysfs 调亮度，GNOME 暂无亮度条）。内置麦克风已能经 VA 通路录音，但声学信号尚未确认。
 - **Wi-Fi 5 GHz**：测试机使用内核 7.2.6-piano4 时，NetworkManager 的扫描除 2.4 GHz 外也能找到 5 GHz 网络；连接网络尚未验证。
 - **内核 7.2.6-piano3**：Wi-Fi 从已安装系统加载固件、使用本机 MAC 地址并可扫描；加入只读的充电器输入状态与若干启动日志修正。
 - **内核 7.2.6-piano2**：显示时钟控制器改为内建，修复了启动后黑屏、GPU 与触控超时的问题。
@@ -48,12 +49,12 @@
 
 ## 硬件支持
 
-以下为测试机使用内核 7.2.6-piano4、截至 2026-10-10 的状态；不代表其他版本或配件均已验证。
+以下为测试机使用内核 7.2.6-piano5、截至 2026-10-10 的状态；不代表其他版本或配件均已验证。
 测试配置、已知问题与路线图见 [docs/STATUS.md](docs/STATUS.md)（英文）。
 
 ✅ 可用 · 🟡 部分支持 · ❌ 不支持 · 🧪 未验证
 
-✅ 只用于真机验证过的结果。“测试构建”指诊断启动中取得、尚未进入 7.2.6-piano4 的结果。
+✅ 只用于真机验证过的结果。“测试构建”指诊断启动中取得、尚未进入 7.2.6-piano5 的结果。
 
 ### 平台、显示与输入
 
@@ -86,7 +87,7 @@
 | 功能 | 器件 / 实现 | 状态 | 范围与限制 |
 |---|---|---|---|
 | 扬声器 | 4 × FS19xx 系列功放 | ❌ 不支持 | 没有主线驱动，没有播放设备 |
-| 麦克风 | 内置 DMIC / ADSP / AudioReach | 🧪 未验证 | 声卡与录音 PCM 已注册，但没有后端 DAI 和 UCM 配置；录音未测试 |
+| 麦克风 | 内置 DMIC / ADSP / AudioReach | 🧪 未验证 | 经 VA 通路与 UCM 可录音，但尚未证明信号来自声音 |
 | 视频解码 | 高通 Iris（VPU35） | ❌ 不支持 | 已编译为模块，未启用 |
 | 摄像头 | 后摄 S5KJN1SQ03、前摄 OV32D40 | ❌ 不支持 | 主线缺少 SM8750 CAMSS 支持 |
 | 旋转、光感与霍尔传感器 | ADSP 传感器中枢（SSC） | ❌ 不支持 | 用户态栈已准备，未启用 |
@@ -130,7 +131,7 @@ fastboot -s <serial> reboot
 | xiaomipad-8pro-mainline | 设备用户态、Ubuntu 集成、构建/打包/切换工具、固件、文档 |
 | [linux-sm8750-piano](https://github.com/yzddmr6/linux-sm8750-piano) | Linux 内核：在上游 v7.2.6 stable 历史之上维护驱动、设备树与配置，分支 `piano/dev` |
 
-[kernel/source.json](kernel/source.json) 锁定内核提交与配置片段；[kernel/abi.json](kernel/abi.json) 为每次打包构建分配唯一 release（当前为 `7.2.6-piano4`）。
+[kernel/source.json](kernel/source.json) 锁定内核提交与配置片段；[kernel/abi.json](kernel/abi.json) 为每次打包构建分配唯一 release（当前为 `7.2.6-piano5`）。
 本机输入（标定、蓝牙地址、启动配置、签名密钥、备份）归各设备所有者所有，从不提交。
 调试镜像组（`tools/build-persistent-boot.py --debug`）另带一个供 `fastboot boot` 使用的检查镜像，经 USB 提供无认证的 root shell，仅用于诊断。
 

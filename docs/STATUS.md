@@ -12,8 +12,8 @@ All hardware statuses refer to this configuration only.
 |---|---|
 | Device | Xiaomi Pad 8 Pro (`piano`), model 25091RP04C (China), SoC SM8750P, 16 GB RAM, 512 GB UFS; bootloader unlocked |
 | Stock build | OS3.0.303.0.WPYCNXM |
-| Kernel | `7.2.6-piano4` (ABI 4), kernel repository commit `9e5e3fe3f` as pinned in [`kernel/source.json`](../kernel/source.json) and recorded in [`kernel/abi.json`](../kernel/abi.json); fragments `piano-diagnostic.config`, `piano-desktop-diag.config`, `piano-persistent.config`, `piano-release.config`; DTB `sm8750-xiaomi-piano-desktop.dtb`; 1071 modules. `7.2.6-piano3` owns the rollback image set; the piano3 and piano2 packages stay installed |
-| Integration | this repository at `85260a8`; `piano-device-support` 0.1+20261009.2, `piano-local-firmware` 0.2+os3.0.303.0 (built from `firmware/`) |
+| Kernel | `7.2.6-piano5` (ABI 5), kernel repository commit `45c26b919` as pinned in [`kernel/source.json`](../kernel/source.json) and recorded in [`kernel/abi.json`](../kernel/abi.json); fragments `piano-diagnostic.config`, `piano-desktop-diag.config`, `piano-persistent.config`, `piano-release.config`; DTB `sm8750-xiaomi-piano-desktop.dtb`; 1071 modules. `7.2.6-piano4` owns the rollback image set; the piano4 and piano3 packages stay installed |
+| Integration | this repository at `6f6c0d0`; `piano-device-support` 0.1+20261009.2, `piano-local-firmware` 0.3+os3.0.303.0 (built from `firmware/`, VA capture topology), `piano-ubuntu-desktop` 0.1+20261010.1 (on-screen keyboard guard, microphone UCM) |
 | Userspace | Ubuntu 26.04 Desktop ARM64; Mesa 26.2.0 with `mesa/a830-speedbin.patch` |
 
 Verification basis: the installed system was checked with a debug image set
@@ -51,7 +51,7 @@ visually and with DPU frame counters. The release image set boots from slot A.
    states refused) and a GSettings override that sets the GNOME idle actions
    to `nothing`. A same-named file in `/etc/systemd/sleep.conf.d/` re-enables
    sleep for testing; resume has never been exercised on this kernel.
-7. **Kernel updates.** Installing `linux-image-7.2.6-piano4` took 20 s on the
+7. **Kernel updates.** Installing `linux-image-7.2.6-piano5` took 21 s on the
    device (dracut, the kdump-tools initrd and the boot image set). The 10 to
    12.5 minutes measured before came from sessions running the older
    `7.2.6-piano+` kernel, with dispcc as a module and so probably in the slow
@@ -79,7 +79,7 @@ visually and with DPU frame counters. The release image set boots from slot A.
     unit's MAC address from the boot DTB (`/etc/piano/wlan-address`, see
     [device/boot](../device/boot/README.md)), or a random locally administered
     one when no address is provided, and NetworkManager's scans find 2.4 and
-    5 GHz networks (7.2.6-piano4, with a not yet merged upstream fix of
+    5 GHz networks (7.2.6-piano4 and later, with a not yet merged upstream fix of
     ath12k's frequency range). Association, DHCP and throughput are untested,
     and the board file is the API 1 `board.bin` (no `board-2.bin` yet).
 
@@ -114,15 +114,15 @@ Upstream candidates in the kernel repository, by commit subject:
 | Area | Commits |
 |---|---|
 | Driver core | driver core: release the old glue directory after a successful move; driver core: add KUnit coverage for device_move glue references |
-| GPU power | drm/msm/a6xx: build MX dependency votes from the GPU OPP table; pmdomain: qcom: rpmhpd: skip the retention level for GMXC |
+| GPU power | pmdomain: qcom: rpmhpd: skip the retention level for GMXC (the MX vote change was replaced by the upstream "drm/msm/a6xx: Fix RPMH dependency votes" in 7.2.6-piano5) |
 | Firmware framebuffer | drm/simpledrm: describe firmware scanout bandwidth with an OPP table (the binding change is to be split out) |
 | Type-C | dt-bindings: usb: fsa4480: describe DIO4485 compatible; usb: typec: fsa4480: support DIO4485 and propagate I/O failures; soc: qcom: pmic_glink_altmode: encode DP assignments and honor route failures |
 | Audio | ASoC: qcom: sdw: avoid orphan streams on direct DMIC links; ASoC: lpass-tx-macro: use the channel mask for mixer state and mute (with its regression tests) |
 | Pin control | pinctrl: qcom: sm8750: describe the TLMM I2C pull-up bit |
-| Backlight | backlight: ktz8866: report register errors and support distinct instances |
-| New drivers | Input: add NT36532E cascade THP transport and firmware tests; HID: nanosic: add initial piano I2C and HID transport. Both lack power management |
+| Backlight | backlight: ktz8866: report register errors and support distinct instances; dt-bindings: leds: backlight: kinetic,ktz8866: describe a secondary chip; backlight: ktz8866: drive a secondary chip and keep the boot state |
+| New drivers | Input: add NT36532E cascade THP transport and firmware tests; HID: nanosic: add initial piano I2C and HID transport; HID: nanosic: report tablet mode from the keyboard attach state. They lack power management |
 | WCN7860 | wifi: ath12k: use a random MAC address if none is available; dt-bindings: regulator: qcom,qca6390-pmu: document the WCN7860 PMU; dt-bindings: net: bluetooth: add the Qualcomm WCN7860 binding; wifi: ath12k: declare WCN7860 firmware files; dt-bindings: net: wireless: qcom,ath12k: allow a MAC address property; wifi: ath12k: retrieve MAC address from system firmware if needed. These depend on the imported WCN7860 series |
-| Charger | power: supply: qcom_battmgr: release the GLINK client after its users; soc: qcom: pmic_glink: add a client for the Xiaomi MCA charger firmware; power: supply: add a read-only driver for the Xiaomi MCA charger firmware (with KUnit tests); dt-bindings: soc: qcom: pmic-glink: document the Xiaomi Pad 8 Pro |
+| Charger | power: supply: qcom_battmgr: release the GLINK client after its users; soc: qcom: pmic_glink: add a client for the Xiaomi MCA charger firmware; power: supply: add a read-only driver for the Xiaomi MCA charger firmware (with KUnit tests); power: supply: xiaomi_mca: allow setting the input and charge currents (not yet exercised on the tablet); dt-bindings: soc: qcom: pmic-glink: document the Xiaomi Pad 8 Pro |
 | Board | the `arm64: dts: qcom: piano:` series (board DTS) |
 
 Local-only changes: soc: qcom: restore the DT root identity replaced by ABL
@@ -130,12 +130,15 @@ and the configuration fragments. The supervised diagnostic DT variants are
 kept on the kernel `piano/diag` branch, not on `piano/dev`.
 
 Imported community work keeps its original authorship; its upstream status
-follows its authors: Adreno 830 driver, bindings, DT nodes and cooling
-(Jie Zhang, Akhil P Oommen, Gaurav Kohli; Qualcomm), SM8750 GPU clock and
-SMMU nodes (ROCKNIX), WCN7860 ath12k, PCI power control, power sequencing and
+follows its authors: Adreno 830 driver, bindings, DT nodes, cooling and the
+RPMH dependency vote fix (Jie Zhang, Akhil P Oommen, Gaurav Kohli; Qualcomm)
+and SM8750 GPU clock and SMMU nodes (Konrad Dybcio), all taken from
+linux-next since 7.2.6-piano5; the q6v5 handover fixes (Abel Vesa, Shawn
+Guo; upstream); the ath12k scan guard during firmware recovery (Jose Ignacio
+Tornos Martinez, FROMLIST); WCN7860 ath12k, PCI power control, power sequencing and
 Bluetooth (Teguh Sobirin), ath12k QDSS configuration download (Gianni
 Spadoni), the PCIe `#iommu-cells` fix of `qcom_pcie_config_sid_1_9_0()`
-(Manivannan Sadhasivam, FROMLIST), the ath12k frequency range fix for
-single-pdev devices (Shenghan Gao, FROMLIST), APR/GPR, q6v5 handover and UFS fixes
-(Junhao Xie, via BigfootACA/linux), Novatek NT36532 panel driver (Junjie Cao),
+(Manivannan Sadhasivam, now from linux-next), the ath12k frequency range fix for
+single-pdev devices (Shenghan Gao, FROMLIST), APR/GPR and UFS fixes and the
+CPU thermal trips (Junhao Xie, via BigfootACA/linux), Novatek NT36532 panel driver (Junjie Cao),
 and DSC slice-per-packet support (Alexander Koskovich, Jonathan Marek).
