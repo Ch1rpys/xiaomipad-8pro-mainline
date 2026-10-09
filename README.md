@@ -1,240 +1,147 @@
-# Ubuntu on Xiaomi Pad 8 Pro (piano)
+# Ubuntu for Xiaomi Pad 8 Pro
 
-[中文](README.zh-CN.md)
+Run Ubuntu 26.04 LTS with GNOME on the Xiaomi Pad 8 Pro (`piano`, SM8750P) alongside Android, with a device-adapted kernel based on upstream Linux 7.2. [中文](README.zh-CN.md)
 
-Mainline-based Linux 7.2.y and Ubuntu 26.04 LTS with GNOME for the Xiaomi Pad 8 Pro (codename
-`piano`, Qualcomm SM8750P), installed alongside Android. Both systems boot from the active A slot;
-switching writes the other system's `boot`, `init_boot` and `vendor_boot` images from Fastboot. This
-repository is the integration layer: build and packaging tools, device userspace and Ubuntu
-integration; the kernel is maintained in a separate repository. The project is intended for
-developers and experienced users who can recover the tablet over Fastboot. In the first release the
-installed system boots to GNOME with display, touch and GPU acceleration; Wi-Fi and battery charging
-are not yet available.
+## Latest Release and Recent Updates
 
-## Support matrix
+**v0.1.0-preview** is in preparation; no release has been published yet. It will contain the Ubuntu boot image set (`boot`, `init_boot`, `vendor_boot`), the root filesystem image, the firmware package, the switching and recovery tools, and manual installation steps. Automated installation will follow in a later version.
 
-Status on the test unit described in [Requirements](#requirements), as of 2026-10-08. Test
-configuration, known issues and roadmap: [docs/STATUS.md](docs/STATUS.md).
+Recent updates:
 
-**Working**: functions as expected · **Partial**: functions with the listed limits ·
-**Untested**: enabled, function not verified · **Not yet**: not enabled · **Unsupported**: outside
-the project scope
+- **Dual boot**: Ubuntu is installed next to Android on the test unit. Switching from Ubuntu to Android and marking slot A as successfully booted are verified on the device.
+- **Kernel 7.2.6-piano2**: the display clock controller is built in, which fixes boots that ended in a black screen or in GPU and touch timeouts.
+- **Developer mode**: optional SSH over the USB cable for maintenance, off by default and verified on the device.
+- **In progress**: Wi-Fi (firmware load and scan verified in a test build) and read-only charger reporting.
 
-| Component | Status | Notes |
-|---|---|---|
-| Boot (ABL, AVB) | Partial | ABL boots a v4 `boot`/`init_boot`/`vendor_boot` set from slot A. AVB footers are signed with the owner's key, which only an unlocked bootloader accepts; `vbmeta` is unchanged. After a host Fastboot install ABL counts slot A's retries down until the slot is marked successful. `piano-slot-success` marks it after each persistent Ubuntu boot; this is not yet verified on the device, and without it the slot becomes unbootable after about seven Ubuntu boots unless reset. |
-| Display | Partial | 3200×2136 at 120 Hz through simpledrm on the bootloader framebuffer (firmware scanout). No native MDSS/DSI/panel driver: brightness stays at the bootloader level; no screen-off or wake. Intermittent whole-screen flicker has been observed with touch active. |
-| GNOME desktop | Working | Ubuntu 26.04 GNOME on Wayland with GDM, GPU-composited, 200 % scaling. |
-| GPU | Working | Adreno 830 (msm DRM) with OpenGL ES from Mesa 26.2.0 plus one patch, packaged as `piano-mesa`. Ubuntu's Mesa 26.0.3 does not support the A830. Vulkan, sustained load and GPU power management are untested. |
-| Touchscreen | Partial | Novatek NT36532E over SPI with host-side processing (`piano-thp`, per-device calibration). Single-finger input and orientation are correct. Long press does not work; multi-touch, edge accuracy and power management are untested. |
-| Stylus | Not yet | Pen scanning is disabled when touch starts. |
-| Magnetic keyboard | Partial | Xiaomi keyboard through the Nanosic WN8030 I2C bridge (`hid-nanosic`); keys work. Detach/reattach and power management are untested. The tested keyboard has no touchpad. |
-| Power key | Partial | Key events reach logind; screen-off and wake are unavailable. Volume keys are untested. |
-| Bluetooth | Partial | WCN7860 over UART: firmware loading, power-on and device discovery. Pairing, audio and Wi-Fi coexistence are untested. |
-| Wi-Fi | Not yet | WCN7860 on PCIe (ath12k). PCIe stays disabled until the PHY supply mapping of this board is established. |
-| Speakers | Not yet | Four FS19xx-family amplifiers have no mainline driver; no playback device exists. |
-| Microphone | Untested | Internal DMIC path through the ADSP (AudioReach): the sound card and capture PCM register, but the PCM reports no backend DAI. Recording is untested; no UCM profile. |
-| Battery gauges, thermal | Working | Two BQ27Z561 gauges report capacity, voltage and current; thermal zones are readable. Thermal throttling is untested. |
-| Charging | Not yet | No charger driver. The battery discharges under Linux, also with USB connected; charge in Android. |
-| Suspend | Not yet | Disabled by policy (systemd `sleep.conf.d`, GNOME idle override) until suspend and resume are validated. |
-| Hibernation | Unsupported | The layout has no swap partition. |
-| Real-time clock | Not yet | The PMIC RTC cannot be written; the time is wrong after each boot until set manually. |
-| Internal storage | Working | UFS; ext4 root (60 GiB) and `/home` (about 201 GiB). |
-| USB device mode | Partial | USB 2.0 NCM gadget in debug images. Release images expose no USB function unless the administrator turns on [developer mode](device/devmode/README.md) (SSH over USB, off by default, not yet run on the device). |
-| USB host, Type-C roles | Not yet | Type-C role switching (UCSI) is not enabled. |
-| External display | Not yet | DisplayPort Alt Mode requires the native display driver; the DP and DIO4485 SBU-switch nodes are disabled. |
-| Video decoding | Not yet | Iris (VPU35) is built as modules but not enabled. |
-| Sensors | Not yet | Rotation, light and Hall sensors sit behind the ADSP sensor hub (SSC); the userspace stack is prepared but not enabled. |
-| Cameras | Not yet | S5KJN1SQ03 rear and OV32D40 front sensors; mainline lacks SM8750 CAMSS support. |
-| Fingerprint | Not yet | No driver. |
+## 📮 Follow & Discuss
 
-## Requirements
+Progress updates, usage tips and AI discussions (primarily in Chinese) are published here first — issue feedback is welcome.
 
-- **Device:** Xiaomi Pad 8 Pro (`piano`, SM8750P). The test unit is model 25091RP04C (China) with
-  16 GB RAM and 512 GB UFS. Other variants and storage sizes are untested; the layout below assumes
-  512 GB.
-- **Stock build OS3.0.303.0.WPYCNXM.** The firmware locks in `firmware/` pin its file names and
-  hashes. The boot images copy its header fields (OS version, security patch level), rollback
-  indices and AVB properties; without them ABL marks the slot unbootable. The boot DTB is prepared
-  against its stock DTB and DTBO, which ABL overlays at boot. On the test unit slot B holds an older
-  stock chain that does not boot Android, so slot B is not a fallback.
-- **Unlocked bootloader** (Xiaomi's official process); a locked bootloader is unsupported.
-- **Backup** of every partition except `userdata`, plus the GPT of each UFS LUN, before any write;
-  reading partitions requires root in Android. The stock `boot`, `init_boot` and `vendor_boot`
-  images of slot A form the Android image set used for switching back.
-- **Battery at 40 % or more** before leaving Android. Linux does not charge the battery.
-- **Host:** Linux with `fastboot`, `adb` and Python 3 ([Build from source](#build-from-source)).
+| WeChat: 熵减矩阵 | Xiaohongshu: yzddmr6 |
+|:---:|:---:|
+| <img src="docs/assets/gzh-qr.png" width="200" alt="WeChat: 熵减矩阵"> | <img src="docs/assets/xhs-qr.jpg" width="200" alt="Xiaohongshu: yzddmr6"> |
+| Updates · Tips · AI talks | Sharing · Feedback |
 
-## What gets installed
+## ⚠️ Read Before Installing
 
-| Partition (UFS LUN 0) | Size | Content |
-|---|---|---|
-| `userdata` | 200 GiB | Android data, re-created empty |
-| `linux_rootfs` | 60 GiB | Ubuntu `/`, ext4 |
-| `linux_data` | remainder, about 201.27 GiB | `/home`, ext4 |
+- **Data loss**: installation re-creates `userdata` and clears `metadata`. All Android data on the tablet is erased.
+- **Unlocked bootloader**: required, through Xiaomi's official process. Locked bootloaders are unsupported.
+- **Stock build OS3.0.303.0.WPYCNXM on slot A**: the boot images copy its header fields, rollback indices and AVB properties, and the boot DTB is built against its DTB and DTBO. Other builds are unsupported.
+- **Back up first**: back up every partition and the GPT of each UFS LUN before any write (reading partitions needs root in Android); `userdata` can be skipped because it is erased. Slot A's stock `boot`, `init_boot` and `vendor_boot` are your way back to Android.
+- **No charging under Linux**: the battery discharges even with USB connected. Charge in Android and keep at least 40 % before switching.
+- **Recovery**: with no picture or no response, hold Power + Volume Down to enter Fastboot and switch to Android with `tools/piano-switch.py` (see [Usage and Maintenance](#usage-and-maintenance)). Release images have no debug console.
+- **Unofficial and experimental**: not affiliated with Xiaomi. Only for the Xiaomi Pad 8 Pro (`piano`, SM8750P), tested on one unit: model 25091RP04C (China), 16 GB RAM, 512 GB UFS. Other variants and capacities are untested.
 
-- The three partitions occupy the original `userdata` range; other GPT entries and LUNs are
-  unchanged. `userdata` and `metadata` are cleared and Android re-creates them: all Android data is
-  lost.
-- **Active-slot image rotation:** slot A holds either the Android or the Ubuntu image set; the other
-  set is kept as checksummed files. `vbmeta`, `dtbo`, slot B and firmware partitions are never
-  written.
-- **Ubuntu image set:** `boot.img` (kernel, command line with the root PARTUUID), `init_boot.img`
-  (empty ramdisk) and `vendor_boot.img` (distribution dracut initrd, boot DTB with the device's
-  Bluetooth address), sized like the stock partitions (96, 8 and 96 MiB).
-- **Image locations:** the host build directory holds the images, `SHA256SUMS` and
-  `manifest.json`. On the installed system the kernel postinst hook `piano-boot-update` rebuilds the
-  Ubuntu set in `/var/lib/piano/switch/ubuntu/` (the previous one in `ubuntu.prev/`) after kernel or
-  initrd updates and rewrites slot A in place when it holds an Ubuntu set; the Android set is kept in
-  `/var/lib/piano/switch/android/`. Store layout: [device/boot/README.md](device/boot/README.md).
-- **Packages:** `linux-image-7.2.6-piano2` (one unique release per packaged build, see `kernel/abi.json`); `piano-device-support` (boot hooks, slot switching and
-  success marking, touch service, platform helper, suspend policy); `piano-local-firmware` (device
-  firmware, local use only); `piano-mesa` and `piano-ubuntu-desktop` (Mesa environment, display
-  scale).
+The 512 GB layout splits the original `userdata` range into `userdata` (200 GiB, Android), `linux_rootfs` (60 GiB, Ubuntu `/`) and `linux_data` (about 201.27 GiB, `/home`); other partitions and LUNs are unchanged.
+Never flash `vbmeta`, write slot B or make it active: on the test unit slot B holds an older stock chain that does not boot Android. Android OTA updates are untested.
+Calibration data and the Bluetooth address must come from your own tablet; never copy them between devices.
 
-## Installation
+## 🚀 Getting Started
 
-The partitioning and root-filesystem installer is not published yet ([roadmap](docs/STATUS.md#roadmap)).
-The installation consists of these steps:
+1. **Use a release**: not available yet; see [Latest Release](#latest-release-and-recent-updates).
+2. **Build from source**: inputs are pinned in [kernel/source.json](kernel/source.json) and [kernel/abi.json](kernel/abi.json) (kernel commit, configuration fragments, release), [mesa/source.json](mesa/source.json) (Mesa 26.2.0 and its A830 patch), [ubuntu/](ubuntu/26.04.sources) (official 26.04 Desktop ARM64 ISO, snapshot APT sources) and `device/*/source.json`. The tools in [tools/](tools/) build the kernel package, Mesa, the device packages, the ext4 root image and the signed boot image set without root privileges. Touch calibration, Bluetooth address, boot profile, stock DTB and DTBO and an AVB signing key come from your own tablet and are never committed. Details: [docs/build.zh-CN.md](docs/build.zh-CN.md) (Chinese).
+3. **Install**: follow the manual steps in [docs/AGENT-GUIDE.md](docs/AGENT-GUIDE.md) §4.
 
-1. Back up the device as described in [Requirements](#requirements).
-2. Build the kernel, packages, root filesystem and Ubuntu image set with the device's own inputs.
-3. In a RAM-booted Linux environment (`fastboot boot`), identify the target by UFS controller, LUN,
-   GPT GUIDs, labels and geometry: `sdX` names change between boots, and backup file names are not
-   device names. Rewrite the LUN 0 GPT (backup GPT first), clear `userdata` and `metadata`, write the
-   root filesystem, and create the empty `/home` filesystem on the device. A sparse image of an
-   empty ext4 encodes zero blocks as FILL chunks, which the device still writes in full.
-4. Write the Ubuntu image set to slot A with `tools/piano-switch.py`.
+Do not mix files from different builds: the kernel image and its modules must come from the same build.
 
-### Switching and recovery
+<a id="support-matrix"></a>
 
-`tools/piano-switch.py` runs on the host in Fastboot mode. It checks the product, unlock state,
-current slot and partition sizes, verifies both image sets against their `SHA256SUMS`, writes
-`init_boot_a`, `vendor_boot_a` and `boot_a` in that order, and writes the rollback set back if a
-write fails. The three writes are not atomic; a power loss during a switch can require recovery
-from the host.
+## Hardware Support
+
+Status on the test unit with kernel 7.2.6-piano2, as of 2026-10-09; other variants and accessories are not implied tested.
+Test configuration, known issues and roadmap: [docs/STATUS.md](docs/STATUS.md).
+
+✅ Working · 🟡 Partial · ❌ Unsupported · 🧪 Unverified
+
+✅ marks results verified on the device. *Test build* marks results from diagnostic boots that are not yet in 7.2.6-piano2.
+
+### Platform, Display and Input
+
+| Feature | Component / Implementation | Status | Scope and Limitations |
+|---|---|---|---|
+| SoC / CPU | Qualcomm Snapdragon 8 Elite (SM8750P), ARM64 | ✅ Working | SCMI frequency scaling on all eight cores |
+| Boot | Xiaomi ABL / AVB, slot A | ✅ Working | Owner-signed v4 image set; slot marked successful after each boot; `vbmeta` unchanged |
+| Dual-boot switching | `piano-boot-switch`, slot A image sets | 🟡 Partial | Switching from Ubuntu verified; app-grid button and Android-side module unverified |
+| Internal storage | KIOXIA UFS / ext4 | ✅ Working | 60 GiB root and about 201 GiB `/home` |
+| Display | Bootloader framebuffer / simpledrm | 🟡 Partial | 3200×2136 at 120 Hz; no native driver, so fixed brightness and no screen-off or wake; occasional flicker with touch active |
+| GNOME desktop | Ubuntu 26.04 GNOME / Wayland / GDM | ✅ Working | GPU-composited, 200 % scaling |
+| GPU | Adreno 830 / msm / Mesa 26.2.0 + patch (`piano-mesa`) | ✅ Working | OpenGL ES; Ubuntu's Mesa 26.0.3 lacks A830 support; Vulkan, sustained load and GPU power management unverified |
+| Touchscreen | Novatek NT36532E / SPI / `piano-thp` | 🟡 Partial | Single-finger input, correct orientation; no long press; lock-screen on-screen keyboard fails; multi-touch, edges and power management unverified |
+| Stylus | Novatek NT36532E pen scanning | ❌ Unsupported | Pen scanning is turned off when touch starts |
+| Magnetic keyboard | Nanosic WN8030 I2C bridge / `hid-nanosic` | 🟡 Partial | Keys work; reattach and power management unverified; the tested keyboard has no touchpad |
+| Fingerprint | — | ❌ Unsupported | No driver |
+
+### Wireless and USB
+
+| Feature | Component / Implementation | Status | Scope and Limitations |
+|---|---|---|---|
+| Wi-Fi | Qualcomm WCN7860 / PCIe / ath12k | 🟡 Partial | Firmware load and scan verified in a test build; association not yet verified |
+| Bluetooth | Qualcomm WCN7860 / UART / `hci_qca` | 🟡 Partial | Firmware, power-on and device discovery; pairing, audio and Wi-Fi coexistence unverified |
+| USB device mode | Synopsys DWC3 / USB 2.0 NCM | ✅ Working | SSH over USB in developer mode, off by default; no other USB function in release images |
+| USB host / Type-C roles | UCSI | ❌ Unsupported | Type-C role switching not enabled |
+| USB-C external display | DisplayPort Alt Mode / DIO4485 | ❌ Unsupported | Needs the native display driver; DP and DIO4485 nodes disabled |
+
+### Audio, Video and Sensors
+
+| Feature | Component / Implementation | Status | Scope and Limitations |
+|---|---|---|---|
+| Speakers | 4 × FS19xx-family amplifiers | ❌ Unsupported | No mainline driver; no playback device |
+| Microphone | Internal DMIC / ADSP / AudioReach | 🧪 Unverified | Sound card and capture PCM register, but without a backend DAI or UCM profile; recording untested |
+| Video decoding | Qualcomm Iris (VPU35) | ❌ Unsupported | Built as modules, not enabled |
+| Cameras | S5KJN1SQ03 rear, OV32D40 front | ❌ Unsupported | Mainline lacks SM8750 CAMSS support |
+| Rotation, light and Hall sensors | ADSP sensor hub (SSC) | ❌ Unsupported | Userspace stack prepared, not enabled |
+
+### Power and Time
+
+| Feature | Component / Implementation | Status | Scope and Limitations |
+|---|---|---|---|
+| Power / volume keys | Qualcomm PMIC | 🟡 Partial | Power key reaches logind; no screen-off or wake; volume keys unverified |
+| Battery gauges / thermal | 2 × TI BQ27Z561 / thermal zones | ✅ Working | Capacity, voltage and current; thermal zones readable; throttling unverified |
+| Charging | Xiaomi MCA charger via ADSP | 🟡 Partial | Read-only USB input reporting in a test build; no charge control; the battery discharges under Linux, also on USB |
+| Suspend | Linux power management | ❌ Unsupported | Disabled by policy until suspend and resume are validated |
+| Hibernation | — | ❌ Unsupported | The layout has no swap partition |
+| Real-time clock | PMK8550 RTC | ❌ Unsupported | Not writable; the clock is wrong after each boot until set or synced |
+
+## Usage and Maintenance
+
+**Switching systems.** In Ubuntu, `sudo piano-boot-switch to-android --reboot` writes the stored Android set to slot A, reads it back and restarts (verified on the device); the **Switch to Android** app-grid entry runs the same tool but is not yet verified.
+From Android, the KernelSU module in [device/android/piano-switch-ksu](device/android/piano-switch-ksu/README.md) switches to Ubuntu; it is not yet verified on the device, so use the host path below until it is.
+Switching inside either system keeps the slot attributes.
+
+**Recovery from the host.** In Fastboot (Power + Volume Down), `tools/piano-switch.py` checks the device and both image sets, writes slot A and restores the previous set if a write fails:
 
 ```sh
-# To Android: in Ubuntu, power off, then hold Power + Volume Down for Fastboot.
 python3 tools/piano-switch.py --serial <serial> --images <android-set> --rollback <ubuntu-set>
 fastboot -s <serial> reboot
-
-# To Ubuntu, from Android:
-adb -s <serial> reboot bootloader
-python3 tools/piano-switch.py --serial <serial> --images <ubuntu-set> --rollback <android-set>
-fastboot -s <serial> reboot
 ```
 
-From Ubuntu, **Switch to Android** in the app grid (or `sudo piano-boot-switch to-android --reboot`)
-writes the Android set from `/var/lib/piano/switch/android/` with the same checks, full readback and
-rollback, then restarts. It is not yet verified on the device; see
-[device/boot/README.md](device/boot/README.md).
+A host write resets slot A's retry counter, and `piano-slot-success` marks the slot again after the next Ubuntu boot. If Fastboot shows `slot-unbootable:a` = `yes`, `fastboot -s <serial> --set-active=a` resets it; slot B stays unusable. See [device/boot](device/boot/README.md).
 
-- **No picture or no response:** hold Power + Volume Down to enter Fastboot and switch to Android.
-  Release images have no debug console.
-- **Stuck in Fastboot with `slot-unbootable:a` = `yes`:** `fastboot -s <serial> --set-active=a`
-  resets slot A's retry counter. On the test unit this also raised slot B's priority; slot B remains
-  unusable.
-- **Diagnostics without writing partitions:** a debug build (`build-persistent-boot.py --debug
-  --debug-timeout <seconds>`) also produces `boot-ram-check.img` for `fastboot boot`. It starts the
-  installed system with an unauthenticated root shell over USB NCM (192.168.88.2, port 2323) and
-  returns to Fastboot when the timeout expires.
-- Never flash `vbmeta`, write slot B or activate slot B. Android OTA updates are untested here.
+**Updating the kernel.** `sudo dpkg -i linux-image-<release>_*.deb` runs dracut and `piano-boot-update`, which rebuilds the Ubuntu image set and rewrites slot A in place when it holds Ubuntu (about 12.5 minutes on the device); reboot to use it. Otherwise `sudo piano-boot-switch to-ubuntu` writes the new set.
 
-## Build from source
+**Developer mode.** `sudo piano-devmode on` adds SSH over the USB cable (USB NCM, tablet at 192.168.88.2); it is off by default and needs `openssh-server`. From the host, `python3 tools/piano-devmode-ssh.py USER` connects about 22 s after boot. See [device/devmode](device/devmode/README.md).
 
-| Input | Pin |
+**Time after boot.** The PMIC RTC cannot be written, so the clock is wrong after every boot. Set it manually, for example `sudo date -s '2026-10-09 18:00'`, or let network time correct it once the tablet is online.
+
+## Development and Contributions
+
+| Repository | Contents |
 |---|---|
-| Kernel | [`kernel/source.json`](kernel/source.json): commit on branch `piano/dev`, based on v7.2.6 |
-| Kernel configuration | `piano-diagnostic.config` + `piano-desktop-diag.config` + `piano-persistent.config`, modules enabled; DTB `sm8750-xiaomi-piano-desktop.dtb` |
-| Ubuntu | official 26.04 Desktop ARM64 ISO, SHA-256 `c2afd538d66fdd77377d03f1ed2ac76a34f1c116baecc9a8170d68f833121f57`; [`ubuntu/26.04.sources`](ubuntu/26.04.sources); APT inputs from snapshot.ubuntu.com timestamps |
-| Mesa | [`mesa/source.json`](mesa/source.json) (26.2.0) and `mesa/a830-speedbin.patch` |
-| AOSP tools, BusyBox | `tools/fetch-aosp-mkbootimg.sh` (pinned commit), `tools/fetch-busybox-arm64.sh` (Ubuntu package); `avbtool` from AOSP `external/avb` has no fetch script yet and is passed with `--avbtool` |
-| Other userspace | `device/*/source.json`, `ubuntu/systemd/source.json` |
+| xiaomipad-8pro-mainline | Device userspace, Ubuntu integration, build, packaging and switching tools, firmware, documentation |
+| [linux-sm8750-piano](https://github.com/yzddmr6/linux-sm8750-piano) | Linux kernel: drivers, device trees and configuration on the upstream v7.2.6 stable history, branch `piano/dev` |
 
-| Area | Tools in `tools/` |
-|---|---|
-| Kernel | `build-kernel.sh` (image, DTBs, modules, `build-result.json`); `build-kernel-deb.py` (`linux-image` package whose Ubuntu maintainer scripts run dracut) |
-| Boot | `prepare-boot-dtb.py` (boot DTB with the stock overlay symbols ABL expects); `build-persistent-boot.py` (signed v4 set and v2 RAM check image); `piano-switch.py` (switch with rollback) |
-| Ubuntu root | `prepare-ubuntu-desktop.sh`, `merge-desktop-tars.py`, `prepare-ubuntu-apt.py`, `build-ubuntu-ext4.py` (official layers, signed APT inputs, ext4 image, all without root privileges) |
-| Userspace | `build-mesa.sh`; `extract-thp-calibration.py`; `build-firmware-deb.py`, `stage-firmware.py` (DSP firmware); `build-device-debs.py` (the four `piano-*` packages) |
-| Diagnostics | `build-boot.py`, `build-initramfs.sh`, `prepare-module-initramfs.py` (bounded RAM images) |
+[kernel/source.json](kernel/source.json) pins the kernel commit and configuration fragments; [kernel/abi.json](kernel/abi.json) gives every packaged build a unique release (`7.2.6-piano2` is current).
+Device-specific inputs (calibration, Bluetooth address, boot profile, signing key, backups) belong to each owner and are never committed.
+Debug image sets (`tools/build-persistent-boot.py --debug`) add a `fastboot boot` check image with an unauthenticated root shell over USB, for diagnostics only.
 
-```sh
-CONFIG_FRAGMENT_EXTRA="arch/arm64/configs/piano-desktop-diag.config arch/arm64/configs/piano-persistent.config" \
-BUILD_MODULES=1 KERNEL_SOURCE=/path/to/linux OUT_DIR="$PWD/out/kernel-persistent" bash tools/build-kernel.sh
+Before working on the device, read [docs/AGENT-GUIDE.md](docs/AGENT-GUIDE.md), written for human operators and AI agents alike. Contribution rules are in [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). No patch has been submitted upstream yet; candidates are listed in [docs/STATUS.md](docs/STATUS.md#upstreaming).
 
-python3 tools/build-persistent-boot.py --kernel <Image> --dtb <boot.dtb> --initrd <initrd> \
-  --profile <boot-profile.json> --mkbootimg tools/local/aosp-mkbootimg/mkbootimg.py \
-  --avbtool <avbtool.py> --key <signing-key.pem> --root-partuuid <linux_rootfs PARTUUID> \
-  --bt-address-file <bluetooth-address> --output out/ubuntu-boot
-```
+Report problems through [GitHub Issues](https://github.com/yzddmr6/xiaomipad-8pro-mainline/issues) with the device model, stock build, kernel release and image set identity; remove serial numbers, Bluetooth addresses, calibration data and personal information first.
 
-Detailed build notes (Chinese, including RAM diagnostics): [docs/build.zh-CN.md](docs/build.zh-CN.md).
-
-**Device-specific inputs** come from the owner's device and are never committed (`.gitignore`
-excludes their usual names):
-
-- **Firmware** from the same stock build: ADSP/CDSP (`adsp*`, `cdsp*`; lock
-  `firmware/piano-os3.0.303.0.json`), GPU (`gen80000_sqe.fw`, `gen80000_gmu.bin`,
-  `gen80000_aqe.fw`, device-signed `gen80000_zap.mbn`; lock `firmware/piano-gpu.json`), Bluetooth
-  (`gngbtfw20.mbn`, `gngbtnv20.*`; lock `firmware/piano-bluetooth-rom20.json`), touch
-  (`novatek_nt36532_piano_fw_csot.bin`) and keyboard bridge (`MCU_Upgrade.bin`). Redistribution
-  rights are not established; generated firmware packages stay local.
-- **Touch calibration**, extracted from the stock `piano_nova_csot_thp_config.ini`.
-- **Bluetooth address** of the device; without it the controller keeps its NVM default and stays
-  unconfigured.
-- **Boot profile:** stock header geometry, capacities, rollback indices and AVB properties of
-  `boot`, `init_boot` and `vendor_boot`, and the observed active slot. The generator is part of the
-  unpublished installer.
-- **Stock DTB and DTBO** for `prepare-boot-dtb.py`; an owner-generated **AVB signing key** (RSA-4096).
-
-**Reproducibility:** the kernel package is byte-identical for identical inputs. `init_boot.img`
-depends on the Python version (the gzip header of its empty ramdisk records OS byte 0x03 under
-Python 3.12 and 0xff under 3.14; both are functionally identical). dracut initrds are not
-reproducible, so `vendor_boot.img` differs between builds. `CONFIG_MODVERSIONS` is disabled: install
-the kernel image and modules from the same build.
-
-## Repository layout
-
-```
-device/      device userspace: boot integration, touch processing (piano-thp), platform identity
-             helper, audio topology, QRTR and sensor stacks
-docs/        status page and build notes
-firmware/    identity locks (names, sizes, SHA-256) for user-supplied firmware; no firmware bytes
-initramfs/   RAM diagnostic initramfs: USB NCM console, Ubuntu RAM root, module delivery
-kernel/      source.json: kernel repository pin
-mesa/        Mesa source lock, A830 patch and device checks
-packaging/   files installed by piano-device-support
-tools/       build, packaging and switching tools
-ubuntu/      APT sources and the systemd source-package override
-LICENSES/    third-party licence texts
-```
-
-Three repositories have separate responsibilities: **integration** (this repository: tools, device
-userspace, Ubuntu integration, input locks, documentation); **kernel** (`linux-sm8750-piano`, branch
-`piano/dev`: drivers, device trees, bindings and configuration on the upstream stable history;
-`kernel/source.json` pins the commit and records the public location once published); and
-**device-specific inputs** (firmware, calibration, Bluetooth address, boot profile, signing key,
-backups), which belong to each device owner and are never committed to either repository.
-
-## Roadmap and upstreaming
-
-Known issues, roadmap and upstreaming state: [docs/STATUS.md](docs/STATUS.md). No patch has been
-submitted upstream yet; candidates include driver core, Adreno power-voting, simpledrm, DIO4485
-Type-C, PMIC GLINK Alt Mode and Qualcomm ASoC fixes, and the NT36532E touch and Nanosic drivers.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). Hardware reports state the device
-model, stock build, kernel commit and image set identity, and omit serial numbers, Bluetooth
-addresses, calibration data and personal information. The issue tracker and public remote are not
-established yet.
-
-## Credits and licence
+## Acknowledgments and Licensing
 
 This project reuses and adapts work from:
-- the OnePlus Pad 2 Pro (`erhai`) mainline integration project (GPL-2.0-only; no public URL yet);
+- the OnePlus Pad 2 Pro (`erhai`) mainline integration project (GPL-2.0-only; no public URL);
 - the Xiaomi Pad 6 Pro (`liuqin`) mainline project: [integration](https://github.com/yzddmr6/xiaomipad-6pro-mainline) (MIT) and
   [kernel](https://github.com/yzddmr6/linux-sm8450-liuqin) (GPL-2.0);
 - [BigfootACA/linux](https://github.com/BigfootACA/linux/tree/full-v7.1.3) (GPL-2.0);
@@ -266,5 +173,8 @@ Related projects, studied but not reused:
 Per-file sources, commits and changes are recorded in [NOTICE](NOTICE). Original integration code is
 licensed under [MIT](LICENSE) unless a file's SPDX header states otherwise; several tools adapted
 from GPL-2.0-only sources remain GPL-2.0-only. The kernel is GPL-2.0. Third-party components keep
-their licences (see `LICENSES/`). Firmware belongs to its respective owners, is not distributed and
-is not covered by these licences.
+their licences (see `LICENSES/`). The stock firmware in [firmware/](firmware/README.md) is
+distributed unmodified from build OS3.0.303.0.WPYCNXM for interoperability. Its vendors have
+granted no redistribution licence; it is not covered by the licences above and will be removed at
+a rights holder's request. You can substitute firmware extracted from your own device with the
+documented tool.
