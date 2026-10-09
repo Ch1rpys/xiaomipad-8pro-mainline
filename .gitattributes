@@ -1,2 +1,4 @@
 # A unified diff represents a blank context line with one required space.
 ubuntu/systemd/worker-cap.patch whitespace=-blank-at-eol
+# Unmodified stock firmware (firmware/README.md): no text conversion, diff or merge.
+/firmware/*/** binary

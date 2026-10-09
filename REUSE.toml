@@ -1,0 +1,6 @@
+version = 1
+
+[[annotations]]
+path = "firmware/*/**"
+SPDX-FileCopyrightText = "Respective rights holders of the stock firmware, such as Xiaomi, Qualcomm, Novatek and Nanosic"
+SPDX-License-Identifier = "LicenseRef-Proprietary-Firmware"

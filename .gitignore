@@ -25,10 +25,12 @@ __pycache__/
 boot-profile.json
 layout.json
 bluetooth-address
-# Proprietary firmware bytes and raw touch captures are never redistributed here.
+# Proprietary firmware bytes and raw touch captures stay out of the repository, except the stock
+# firmware tree below firmware/, where every file must be listed in a firmware/piano-*.json lock.
 *.bin
 *.fw
 *.mbn
 *.mdt
 *.b[0-9a-f][0-9a-f]
 *.ntp1
+!/firmware/*/**

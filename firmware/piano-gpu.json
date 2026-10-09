@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "kind": "User-supplied piano GPU firmware identity lock; no redistribution permission",
+  "kind": "Pinned piano GPU firmware identities (vendor_a and odm_a firmware directories); not a redistribution license",
   "stock_build": "OS3.0.303.0.WPYCNXM",
   "files": {
     "qcom/gen80000_aqe.fw": {

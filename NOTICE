@@ -64,8 +64,19 @@ initramfs/prepare-ubuntu and the Ubuntu hand-off in initramfs/init:
   the device-tested path. No NBD implementation is copied here.
 initramfs/ubuntu-state is new GPL-2.0-only read-only session diagnostics.
 
-No stock ROM, device firmware, calibration, keys or device backups are distributed
-by this repository. Kernel and other dependencies retain their own licenses.
+No stock ROM, calibration, keys or device backups are distributed by this
+repository. Kernel and other dependencies retain their own licenses.
+
+firmware/ (all files in its subdirectories):
+  Unmodified stock firmware of the Xiaomi Pad 8 Pro (piano), build
+  OS3.0.303.0.WPYCNXM, from the modem_a and bluetooth_a FAT images and the
+  odm_a and vendor_a firmware directories; the six Wi-Fi files renamed to the
+  ath12k request names. Copyright belongs to the respective rights holders.
+  No redistribution license has been granted; the files are distributed for
+  interoperability and will be removed at a rights holder's request.
+  LicenseRef-Proprietary-Firmware: LICENSES/LicenseRef-Proprietary-Firmware.txt,
+  firmware/README.md and REUSE.toml. The project licenses do not cover them.
+  The firmware/piano-*.json locks and firmware/README.md are MIT.
 
 tools/build-boot.py and tools/prepare-boot-dtb.py:
   Adapted from erhai commit e02d52ffc7859aba2b41a257b7a9dca73c9dbedb,
@@ -94,9 +105,8 @@ Firmware packaging follows the dpkg-deb --root-owner-group method used in
 liuqin commit 7df47f82f6e6ca5a04ab02fbcc4a3486c6a259be,
 tools/build-liuqin-debs.sh (MIT). No liuqin firmware, maintainer identity,
 device settings, diversions or installation scripts are copied.
-The firmware JSON contains filenames and hashes, not proprietary bytes.
-Neither this repository's license nor the generated package grants firmware
-redistribution rights. Generated firmware packages must remain local.
+Neither this repository's license nor the generated package grants rights in
+the firmware it contains (see the firmware/ entry above).
 The APT helper uses native APT and python-debian/apt_pkg interfaces; Ubuntu
 package and repository signatures keep their original ownership and licenses.
 
@@ -318,5 +328,4 @@ Third-party files placed in locally generated packages (tools/build-device-debs.
     sources listed above, plus the external MIT nlohmann JSON headers).
   piano-mesa contains a Mesa build (MIT and other per-file upstream licenses).
   The generated packages do not yet carry /usr/share/doc/<package>/copyright
-  files with these notices. Until they do, keep them local like the firmware
-  package, which is never redistributable under this repository's license.
+  files with these notices. Until they do, keep them local.

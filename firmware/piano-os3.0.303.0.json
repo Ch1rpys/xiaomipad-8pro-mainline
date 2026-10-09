@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "kind": "User-supplied proprietary DSP input lock; not a distribution license",
+  "kind": "Pinned ADSP/CDSP firmware identities from the modem_a FAT image directory; not a redistribution license",
   "device": "xiaomi,piano",
   "stock_build": "OS3.0.303.0.WPYCNXM",
   "package": "piano-firmware-dsp",
@@ -395,5 +395,5 @@
       "sha256": "6d01cd7dce745204d5de20efe57e2511149ca2a5b48ee562fbedefda573ca465"
     }
   ],
-  "redistribution": "No firmware redistribution permission established. Obtain inputs from your matching stock system and keep the generated package local."
+  "redistribution": "The vendors have granted no redistribution license. The repository ships only the ADSP images unmodified for interoperability (firmware/README.md); the CDSP images and service maps are pinned for owner-supplied extractions."
 }

@@ -1,0 +1,24 @@
+LicenseRef-Proprietary-Firmware
+
+Applies to: every file in the subdirectories of firmware/ (the firmware
+images). It does not apply to firmware/README.md or to the
+firmware/piano-*.json identity locks, which are part of this project's
+MIT-licensed integration files.
+
+The firmware images are copied unmodified from the Xiaomi Pad 8 Pro (piano)
+stock build OS3.0.303.0.WPYCNXM; the six Wi-Fi files are renamed to the names
+the Linux driver requests. Copyright in them belongs to their respective
+rights holders, such as Xiaomi, Qualcomm, Novatek and Nanosic.
+
+No rights holder has granted this project a license to redistribute these
+files. The MIT license of this project and the other licenses in LICENSES/
+do not apply to them and grant no rights in them.
+
+They are distributed solely for interoperability: so that owners of this
+device can run a mainline Linux system on hardware they already own. Do not
+use them with any other device. They are provided without warranty of any
+kind.
+
+A rights holder who objects to their distribution can ask the maintainers to
+remove them, and they will be removed. Users can replace them with files
+extracted from their own device (see firmware/README.md).

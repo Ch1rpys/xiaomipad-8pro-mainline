@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "purpose": "Pinned WCN7860 GANGES ROM 0x20 rampatch/NVM identities; not a redistribution license",
-  "source": "User-supplied OS3.0.303.0.WPYCNXM bluetooth_a FAT image, /image directory; firmware bytes are not distributed",
+  "source": "OS3.0.303.0.WPYCNXM bluetooth_a FAT image, image directory, names unchanged",
   "install_dir": "/usr/lib/firmware/qca",
   "selection": "btqca (WCN7860 import) requests qca/gngbtfw%02x.mbn and qca/gngbtnv%02x.b%02x by board id, falling back to .bin; rom 0x20 follows the stock SOC version 0x40210200. All rom-0x20 NVMs are delivered so the driver's own board-id choice shows in dmesg.",
   "files": {
