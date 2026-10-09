@@ -80,10 +80,13 @@ def main():
     with disk.open('xb') as f:
         f.truncate(start + root_bytes + (1 << 30) + (1 << 20))
     sectors = root_bytes // 512
-    subprocess.run(['sgdisk', '-o', '-n', f'1:2048:+{sectors - 1}', '-c', '1:linux_rootfs', '-t', '1:8300',
+    subprocess.run(['sgdisk', '-o', '-n', f'1:2048:{2048 + sectors - 1}', '-c', '1:linux_rootfs', '-t', '1:8300',
                     '-n', '2:0:+1G', '-c', '2:linux_data', '-t', '2:8300', str(disk)],
                    capture_output=True, check=True)
     layout = subprocess.check_output(['sgdisk', '-p', str(disk)], text=True)
+    first, last = map(int, re.search(r'^\s+1\s+(\d+)\s+(\d+)', layout, re.M).groups())
+    if (last - first + 1) * 512 != root_bytes:
+        raise SystemExit('linux_rootfs partition size differs from the image')
     data_start = int(re.search(r'^\s+2\s+(\d+)\s+(\d+)', layout, re.M)[1]) * 512
     subprocess.run(['dd', f'if={image}', f'of={disk}', 'bs=4M', f'seek={start}', 'oflag=seek_bytes',
                     'conv=sparse,notrunc', 'status=none'], check=True)
@@ -135,14 +138,16 @@ def main():
             for path in [disk, *files.values()]:
                 path.unlink(missing_ok=True)
     text = log.read_bytes()
-    lines = [l.decode(errors='replace') for l in text.splitlines()]
+    # systemd colours its status lines; match on the text without the escape sequences.
+    lines = [re.sub(r'\x1b\[[0-9;:]*[A-Za-z]', '', l.decode(errors='replace')) for l in re.split(rb'[\r\n]+', text)]
     result.update(
         elapsed_seconds=round(time.monotonic() - started, 1), qemu_returncode=proc.returncode,
         multi_user_reached_seconds=reached,
         root_by_partlabel=any('by-partlabel/linux_rootfs' in l or 'Reached target initrd-root-fs.target' in l
                               for l in lines),
         home_mounted=any(re.search(r'Mounted home\.mount', l) for l in lines),
-        failed=[l.strip() for l in lines if 'FAILED' in l or 'Failed to start' in l],
+        failed=sorted({l.strip() for l in lines if l.lstrip().startswith('[FAILED]')}),
+        pending_jobs=sorted({m[1] for l in lines[-200:] if (m := re.search(r'Job (\S+)/start running', l))}),
         kernel_panic='Kernel panic' in text.decode(errors='replace'),
         clean_power_down=b'reboot: Power down' in text)
     result['passed'] = bool(reached and result['home_mounted'] and not result['kernel_panic']

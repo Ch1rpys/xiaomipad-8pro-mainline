@@ -90,7 +90,7 @@ python3 tools/build-rootfs-image.py \
   --boot-profile <boot-profile.json read from a stock unit> --boot-key <release signing key> \
   --output out/rootfs-<version>
 # expect "state": "ROOT_IMAGE_BUILT_OFFLINE_CHECKS_PASS_NOT_BOOTED"
-# 4. Boot the image in QEMU to multi-user.target (optional, about 10-20 minutes)
+# 4. Boot the image in QEMU towards multi-user.target (optional; under TCG, snap seeding exceeds 20 minutes)
 python3 tools/check-rootfs-boot.py --rootfs-build out/rootfs-<version> --qemu <qemu-system-aarch64> \
   --debugfs <debugfs> --mke2fs <mke2fs> --output out/rootfs-<version>-boot
 # 5. The release directory
@@ -156,7 +156,10 @@ updates leave the boot set unchanged. Use the magnetic keyboard for Initial Setu
 ## Verification status
 
 - The offline checks and the QEMU boot cover the image and the boot set as files; QEMU virt has
-  no piano hardware.
+  no piano hardware. In the v0.1.0-preview run (TCG, `apparmor=0`, 20 minutes) the image's dracut
+  initrd found and checked `linux_rootfs` by name, `/home` mounted from `linux_data`, the only failed
+  unit was `piano-slot-success` (expected: QEMU is not piano), and `multi-user.target` was still
+  waiting for Ubuntu's first-boot `snapd.seeded.service` when the budget ended.
 - The release image as a whole has not been flashed to a tablet. Its parts run on the test unit:
   the packages, the dracut initrd path and the installed root built by the same procedure. The
   PARTLABEL root and the serial-free command line are new in the release set and not yet verified on

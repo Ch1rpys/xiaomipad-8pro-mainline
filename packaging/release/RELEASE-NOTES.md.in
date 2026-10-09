@@ -75,7 +75,9 @@ your own boot profile before writing slot A.
 - With no picture or no response, hold Power + Volume Down for Fastboot and switch with `piano-switch.py`.
 - The Android-side KernelSU module (`piano-switch-ksu`) is not yet verified on the device.
 - Not verified on the device as a whole: this image was assembled offline from the packages and
-  procedure that run on the test unit; it was checked offline and booted in QEMU only.
+  procedure that run on the test unit. It was checked offline and booted in QEMU (no piano hardware),
+  where the initrd mounted the root and `/home` by partition name; Ubuntu's first-boot snap seeding
+  did not finish within the 20-minute emulation budget, so `multi-user.target` was not observed.
 
 The firmware package carries unmodified stock files of `$stock_build`; there is no redistribution
 licence for them, and they are removed on request of the rights holder. Integration code is MIT,
