@@ -3,7 +3,7 @@
   "kind": "Pinned WCN7860 hw2.0 WLAN firmware identities for ath12k; not a redistribution license",
   "stock_build": "OS3.0.303.0.WPYCNXM",
   "source": "modem_a FAT image, image/peach directory, renamed to the ath12k request names: amss20.bin -> amss.bin, phy_ucode20.elf -> m3.bin, aux_ucode20.elf -> aux_ucode.bin, regdb_xiaomi.bin -> regdb.bin, qdss_trace_config_v2.cfg -> qdss.cfg, bd_p81.elf -> board.bin",
-  "selection": "board.bin is the stock China-region API 1 board file (bd_p81.elf) used as the fallback when no board-2.bin is present; qdss.cfg is only read by kernels carrying the QDSS download patches. The MAC address is reported by the firmware; no persist or wlan_mac data is included.",
+  "selection": "board.bin is the stock China-region API 1 board file (bd_p81.elf) used as the fallback when no board-2.bin is present; qdss.cfg is only read by kernels carrying the QDSS download patches. The firmware reports an all-zero MAC address on this unit; the address comes from the per-device persist data at build time (never included here).",
   "files": {
     "ath12k/WCN7860/hw2.0/amss.bin": {
       "bytes": 6930496,
