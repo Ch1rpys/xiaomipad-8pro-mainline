@@ -206,10 +206,26 @@ device/sensors/libssc/patches/0001-propagate-test-process-exit-status.patch:
 device/audio/Piano-Capture-Diag.m4:
   Derived from linux-msm/audioreach-topology SM8550-HDK.m4, commit
   2af1f1ebb8d4fd03b5f53891467ddde2e208a8a0, Copyright Linaro Ltd, 2023,
-  BSD-3-Clause. Retains one physical microphone with a two-channel capture graph and TX3 backend; playback,
-  secondary capture and other devices are omitted. The upstream macro library
+  BSD-3-Clause. Retains the VA_CODEC_DMA_TX_0 capture device subgraph with one
+  two-channel MultiMedia3 capture stream; playback, the TX3 backend, secondary
+  capture and other devices are omitted. The upstream macro library
   is consumed from its pinned checkout, not copied here.
   License: LICENSES/audioreach-BSD-3-Clause.txt. No proprietary firmware.
+
+device/audio/ucm2/:
+  Adapted from blu-sharky/debian-piano, commit
+  a75f8c5d5fa099d65c171ac839c2e3bb6c63ec45,
+  rootfs/overlay/usr/share/alsa/ucm2/Qualcomm/sm8750/Xiaomi-Pad-8-Pro/
+  (HiFi.conf, Xiaomi-Pad-8-Pro.conf), Copyright (c) 2026 bluseliu50 and piano
+  mainline contributors, MIT (LICENSES/debian-piano-MIT.txt); and from
+  alsa-project/alsa-ucm-conf, commit d260eedd1900dbf3b477047e048d5382a5f50e24,
+  ucm2/Qualcomm/sm8750/MTP/ and ucm2/codecs/qcom-lpass/va-macro/DMIC0*Seq.conf,
+  Copyright (c) 2019 Advanced Linux Sound Architecture (ALSA) project,
+  BSD-3-Clause (LICENSES/alsa-ucm-conf-BSD-3-Clause.txt).
+  Changes: card long name Piano-Capture-Diag; capture only, without the
+  speaker route and amplifier controls; two channels with VA DEC0 <- DMIC0 and
+  DEC1 <- DMIC2 taken from piano's stock mixer instead of the source files'
+  single DMIC; no stock gain, calibration or other device's values.
 
 tools/kernel_modules.py and tools/stage-kernel-modules.py:
   GPL-2.0-only. Receipt validation is extracted from tools/build-kernel-deb.py;
