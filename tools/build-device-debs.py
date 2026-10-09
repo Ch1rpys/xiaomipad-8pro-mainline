@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Assemble the existing device userspace/firmware/Mesa into local Debian packages."""
+"""Assemble the existing device userspace and Mesa into local Debian packages.
+
+The firmware package, piano-local-firmware, is built by build-firmware-deb.py.
+"""
 import argparse
 import hashlib
 import json
@@ -17,7 +20,7 @@ def sha(p):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    for name in ('output', 'firmware-tree', 'thp-live', 'thp-firmware', 'mesa-build', 'busybox', 'avbtool'):
+    for name in ('output', 'thp-live', 'mesa-build', 'busybox', 'avbtool'):
         ap.add_argument('--' + name, type=Path, required=True)
     ap.add_argument('--version', required=True)
     ap.add_argument('--support-only', action='store_true', help='Rebuild only the small device integration package')
@@ -84,13 +87,6 @@ def main():
     if a.support_only:
         (a.output / 'manifest.json').write_text(json.dumps(receipts, indent=2) + '\n')
         return
-
-    firmware = stages / 'piano-local-firmware'
-    (firmware / 'usr/lib').mkdir(parents=True)
-    shutil.copytree(a.firmware_tree, firmware / 'usr/lib/firmware')
-    copy(a.thp_firmware, firmware, 'usr/lib/firmware/novatek/piano/novatek_nt36532_piano_fw_csot.bin')
-    package('piano-local-firmware', firmware, 'linux-base',
-            'User-supplied piano firmware - local use, no redistribution grant')
 
     mesa = stages / 'piano-mesa'
     subprocess.run(['python3', str(repo / 'tools/prepare-mesa-initramfs.py'), '--mesa-build', str(a.mesa_build),

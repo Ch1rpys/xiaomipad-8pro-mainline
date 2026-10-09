@@ -32,6 +32,24 @@ other regions use a different stock board file.
 - the audio capture topology `qcom/sm8750/Piano-Capture-Diag-tplg.bin`, which is built from
   [`device/audio`](../device/audio/README.md).
 
+## Packaging and using your own extraction
+
+`tools/build-firmware-deb.py` builds `piano-local-firmware` from this tree. The package contains
+every locked file and the capture topology built from `device/audio`. Each file is checked against
+its lock:
+
+```sh
+python3 tools/build-firmware-deb.py --topology out/audio/Piano-Capture-Diag-tplg.bin \
+  --maintainer 'Your Name <you@example.org>' --output out/firmware-deb
+```
+
+To use files from your own device instead, copy them from its stock partitions into a directory
+with the same layout. Rename the Wi-Fi files as listed in `piano-wlan.json`. Then add
+`--firmware-tree /path/to/your/tree`. Files outside the locks are ignored, and a missing or
+different file stops the build. A different stock build therefore needs updated locks.
+`tools/stage-firmware.py --firmware-dir /path/to/modem/image` stages the DSP files alone from the
+flat stock `image/` directory.
+
 ## Licence
 
 `SPDX-License-Identifier: LicenseRef-Proprietary-Firmware`

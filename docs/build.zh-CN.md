@@ -192,27 +192,26 @@ sqfstar 默认忽略 TAR 根目录项，因此构建器从归档显式传入根�
 这是官方 Desktop 的原始合并底层，不是 piano 安装镜像：尚未创建用户、更新 APT、加入设备包、
 配置启动链或验证 GNOME 真机运行。不要把此 SquashFS 直接写入平板分区。
 
-## 本地 DSP 固件包
+## 固件包
 
-build-firmware-deb.py 接受用户自行取得的同版 modem/image 文件，不下载或分发固件。
-firmware/piano-os3.0.303.0.json 是 OS3.0.303.0.WPYCNXM 的输入身份锁：72 个 ADSP/CDSP
-加载文件和 4 个服务域描述；不读取 persist 或用户私钥，不打包 Wi-Fi BDF 或触控算法。
+仓库 `firmware/` 按内核请求的路径存放 OS3.0.303.0.WPYCNXM 的 95 个原厂固件文件；来源、许可与排除项见
+[firmware/README.md](../firmware/README.md)，`firmware/piano-*.json` 锁定每个文件的名称、大小与 SHA-256。
+build-firmware-deb.py 默认从该树构建 `piano-local-firmware`（Architecture all），另加由 device/audio 构建的
+采集拓扑；`--firmware-tree` 可换成按同一布局整理的本机提取。只打包锁中列出的文件（DSP 锁只取内核加载的
+adsp/adsp_dtb 两个镜像，CDSP 与服务映射不打包），任一文件缺失或 hash 不符即中止。
 只使用 dpkg-deb 标准格式，保留原始字节，不安装、不执行 blob，也不附带刷写/服务脚本。
 
 需要 Python 3、python3-debian 和 dpkg-deb（支持 --root-owner-group / --threads-max）。
 
 ```sh
-python3 tools/build-firmware-deb.py \
-  --firmware-dir /path/to/own/stock/modem/image \
-  --maintainer 'Your Name <your-email>' --output private/firmware-package
+python3 tools/build-firmware-deb.py --topology out/audio/Piano-Capture-Diag-tplg.bin \
+  --maintainer 'Your Name <your-email>' --output out/firmware-deb
 ```
 
-输出包只写 /usr/lib/firmware/qcom/sm8750/piano 和自身文档目录，不覆盖发行版通用固件。
-后续 DTS 的 firmware-name 必须显式选择这个目录，包构建成功不等于 PAS 认证或 DSP 启动成功。
-当前原厂字节的再分发许可尚未确认；代码可开源，生成的 deb 不得随公开仓发布。
-包归档全文件 hash、root 属主/权限、md5sums 和同输入重复构建已离线验证。
-构建器按 Debian 的 KiB 估算规则填写 Installed-Size，当前锁定输入为 38427 KiB；
-补齐字段前后的 data.tar 完全相同，避免 APT 将固件空间误估为零。目标根镜像/平板尚未安装此包。
+SOURCE_DATE_EPOCH 固定；同输入重复构建与从原厂提取树构建的 deb 逐字节相同。
+0.2+os3.0.303.0 与已安装的 0.1+20261007 相比，原有 90 个文件的字节与权限相同，新增 6 个 Wi-Fi 文件和
+/usr/share/doc 下的 copyright、inputs.json；control 改为 Architecture all，去掉 Depends: linux-base。
+build-device-debs.py 不再构建这个包。包构建成功不等于固件加载成功。
 
 ## 隔离 APT 准备
 
@@ -337,10 +336,10 @@ QEMU 中 flash-kernel 因 linux,dummy-virt 在其数据库中而无操作；pian
 
 `CONFIG_FRAGMENT_EXTRA=arch/arm64/configs/piano-adsp-diag.config` 使用独立 OUT，
 对应 `sm8750-xiaomi-piano-adsp-diag.dtb`；基础板级保持禁用。
-私有 FIRMWARE_DIR 只提供 DSP 锁中 adsp.* / adsp_dtb.* 的 56 个文件，放在
+FIRMWARE_DIR 只提供 DSP 锁中 adsp.* / adsp_dtb.* 的 56 个文件（stage-firmware.py 默认从仓库树暂存），放在
 `qcom/sm8750/piano/` 下。build-boot 限定 `--diagnostic ncm`，并核其内建依赖、
 禁用的 PMIC GLINK/FastRPC/APR 和完整文件清单。不是充电/音频/传感器功能镜像。
-固件字节不随源码分发；离线检查不证明 PAS、DSP 或服务在平板可用。
+离线检查不证明 PAS、DSP 或服务在平板可用。
 
 ## 隔离 Mesa 用户态候选
 
@@ -375,16 +374,18 @@ Wayland scanner 须满足目标依赖版本；可用目标包的 scanner 经 qem
 ## 独立的固件暂存与 HexagonRPC 修复
 
 固件的文件校验/复制在 `tools/firmware_payload.py` 维护，deb 构建器与纯文件暂存入口复用它。
-完整暂存保留原锁的 76 个 DSP/服务映射文件；显式选择 ADSP 两个 MDT 时只含对应的 56 个文件：
+不带 --firmware-dir 时从仓库 firmware/ 暂存内核加载的 ADSP 两个 MDT 及其分段（56 个文件）；
+--firmware-dir 指向本机原厂 modem image 目录时，默认暂存锁中全部 76 个 DSP/服务映射文件，可用 --image 选择：
 
 ```sh
+python3 -S tools/stage-firmware.py --output /path/to/new/output
 python3 -S tools/stage-firmware.py --firmware-dir /path/to/own/modem/image \
-  --image adsp.mdt --image adsp_dtb.mdt --output /path/to/new/private-output
+  --image adsp.mdt --image adsp_dtb.mdt --output /path/to/new/output
 ```
 
 该入口只需 Python 标准库；输出 `root/usr/lib/firmware/qcom/sm8750/piano/` 和清单，
 不安装包或启用服务。失败不发布输出目录，已有输出不会被覆盖。
-initramfs 构建器可使用 `FIRMWARE_DIR=/path/to/private-output/root/usr/lib/firmware`；
+initramfs 构建器可使用 `FIRMWARE_DIR=/path/to/output/root/usr/lib/firmware`；
 另一发行版的包配方可以消费同一文件树，包元数据与生命周期由其原生工具处理。
 本轮与旧版 deb、P23 ADSP 子集分别逐字节比对通过；没有重新安装或改变冻结候选。
 

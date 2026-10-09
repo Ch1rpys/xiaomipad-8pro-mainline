@@ -3,9 +3,6 @@
   "kind": "Pinned ADSP/CDSP firmware identities from the modem_a FAT image directory; not a redistribution license",
   "device": "xiaomi,piano",
   "stock_build": "OS3.0.303.0.WPYCNXM",
-  "package": "piano-firmware-dsp",
-  "version": "0.1+os3.0.303.0.wpycnxm",
-  "source_date_epoch": 0,
   "firmware_directory": "usr/lib/firmware/qcom/sm8750/piano",
   "images": [
     "adsp.mdt",
