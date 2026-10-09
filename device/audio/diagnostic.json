@@ -21,9 +21,11 @@
   "topology": {
     "path": "qcom/sm8750/Piano-Capture-Diag-tplg.bin",
     "bytes": 5164,
-    "sha256": "2727c427dff9f7360f993a8552a5681fb653a0a8c81c7bcb3c727a2b9685dc1e",
+    "sha256": "fc92bb0850c91a7211779c263111939127d038c34917d1aafbf9e364fe25cee6",
     "source": "Piano-Capture-Diag.m4",
-    "source_sha256": "ddb9b48497ba065123c2ac5f1f5784de1c9dc5087850f5cc6053a42b0e183563"
+    "source_sha256": "b26bc3165d132544742baef9d4bda3533ef4cdf9c3a0f04c78a33529266c9811",
+    "backend": "VA_CODEC_DMA_TX_0",
+    "pairs_with": "sm8750-xiaomi-piano-desktop.dtb from kernel piano/mic-va-20261010 (VA dai-link); the TX3 graph 2727c427... in Git history pairs with earlier desktop DTBs and the piano/diag mic-diag DTB"
   },
   "scope": "Supervised RAM-only ALSA/DSP probe after baseline capture. Not a recording result or product autoload policy."
 }

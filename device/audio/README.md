@@ -1,28 +1,70 @@
-# Piano capture diagnostic topology
+# Piano internal-microphone capture: topology and UCM
 
-This is a small board graph using upstream AudioReach macros. It has one
-48 kHz S16_LE two-channel capture stream (MultiMedia3) and the TX_CODEC_DMA_TX_3 backend,
-intended to test one physical DMIC.
-The stock sun machine source maps that backend to tx_macro_tx1; the saved piano
-ODM override selects DMIC4 through DEC2 for the main microphone. These are source
-and stock configuration facts, not successful Linux recording.
+This directory holds the single capture graph (`Piano-Capture-Diag.m4`) and the
+UCM profile (`ucm2/`) for the `Piano-Capture-Diag` sound card that the desktop
+DTB declares. Capture uses the LPASS VA macro: `VA_CODEC_DMA_TX_0` feeds the
+MultiMedia3 front end (PCM device 2), 48 kHz, S16_LE, two channels. There is no
+playback; the speaker amplifiers are not enabled. Nothing here has recorded on
+the tablet yet.
 
-The Linux capture frontend has a two-channel minimum. Separately, the sound-card
-fixup sets TX3's backend channel interval to 1–2, and `q6dma_hw_params()` takes
-its upper bound (2). AudioReach therefore constructs a contiguous 0x3 DMA mask,
-which excludes the stock DEC2 route (0x4). This is a source trace, not DSP readback.
-The initial Linux route should use `TX DEC0 MUX=MSM_DMIC`,
-`TX DMIC MUX0=DMIC4` and `TX_AIF1_CAP Mixer DEC0`; verify the real controls and
-clock/power state before recording. This chooses a decoder for piano's DMIC4,
-without importing another tablet's microphone, bias or gain settings.
-Record both PCM channels and evaluate them separately; the second channel's
-behavior and the active channel's correlation with sound require hardware evidence.
+## Why the VA macro
 
-Build against a clean independent checkout at the exact commit in `source.json`.
-Use existing m4 and alsatplg; no program here accesses audio or tablet devices:
+From the saved stock piano build (OS3.0.303.0.WPYCNXM):
+
+- The stock machine node routes every `Digital MicN` to both `TX DMICn` and
+  `VA DMICn`, and the vendor `lpass_cdc_dmic_clk_enable()` programs the VA
+  `DMICx_CTL` clock for TX and VA alike. The DMIC lines are shared; the macro is
+  a routing choice, not wiring.
+- All four DMIC pin pairs are enabled: LPI GPIO6/7 (DMIC0/1), 8/9 (DMIC2/3),
+  12/13 (DMIC4/5) and 17/18 (DMIC6/7), 4 mA. The ODM mixer overlay uses one
+  microphone per pair: DMIC0 side-top, DMIC2 side-bottom, DMIC4 top, DMIC6 back.
+- Android records ordinary audio on TX (`CODEC_DMA-LPAIF_RXTX-TX-3`) and uses
+  VA (`CODEC_DMA-LPAIF_VA-TX-0`) for voice activation. Its default handset
+  recording pairs DMIC0 and DMIC2; its VA dual-microphone path is
+  DEC0 <- DMIC0, DEC1 <- DMIC2.
+- Both macros use DMIC clock divider 4 at 48 kHz (TX by its DT factor; VA's 16
+  is switched to 4 above 16 kHz in the vendor `hw_params`).
+
+On mainline, the VA path owns the DMIC clock itself, as on the upstream SM8750
+MTP, while the TX DMIC inputs have no clock event and needed the VA macro as an
+auxiliary device. The VA route therefore takes the same microphones and clock
+divider as stock with the upstream driver structure. It differs from Android's
+normal-recording backend (TX3); that route stays available in Git history
+(topology `2727c427...`) if VA fails on the tablet.
+
+The matching DT change is kernel commit `062a6c01d647` on branch
+`piano/mic-va-20261010`: a VA dai-link, the four DMIC pin pairs on the VA macro
+at 4 mA and `qcom,dmic-sample-rate = <2400000>` (9.6 MHz / 4). **This topology
+and UCM require that DTB.** Desktop DTBs from earlier kernels and the
+`piano/diag` mic-diag DTB use TX3 and pair only with the earlier graph; do not
+ship one without the other.
+
+## UCM
+
+`ucm2/` follows the alsa-ucm-conf layout: `conf.d/sm8750/Piano-Capture-Diag.conf`
+(symlink; driver `sm8750`, card long name `Piano-Capture-Diag`) points to
+`Qualcomm/sm8750/Xiaomi-Pad-8-Pro/Piano-Capture-Diag.conf`, which loads
+`HiFi.conf`. Install the tree under `/usr/share/alsa/ucm2/` keeping the symlink.
+The verb enables the `MultiMedia3 Mixer VA_CODEC_DMA_TX_0` route; the `Mic`
+device sets VA DEC0 <- DMIC0 and DEC1 <- DMIC2 (stock `va-mic-dmic`) at gain 100
+(+16 dB, the upstream VA DMIC default; stock's 84 = 0 dB is followed by DSP gain
+that this graph lacks). DEC mode stays at the driver default; stock
+`ADC_LOW_PWR` belongs to voice activation. The mainline VA driver forces a
+150 Hz high-pass filter on every stream start.
+
+Checked offline: alsa-lib 1.2.11 `alsaucm` parses the tree (with `${CardId}`
+replaced in a temporary copy, since no card exists on the build host) and
+reports verb HiFi, device Mic, `CapturePCM hw:0,2`, two channels. All cset
+names and values exist in the real piano control readback of P24-03 (VA
+controls) or in the decoded topology (the MultiMedia3 route). The sequences
+have not run against the card.
+
+## Build
+
+Build against a clean checkout at the commit in `source.json`, using m4 and
+alsatplg:
 
 ```sh
-# Run from this integration repository; check out source.json's exact commit first.
 set -eu
 AUDIOREACH_SOURCE=/path/to/audioreach-topology
 expected=$(python3 -c 'import json; print(json.load(open("device/audio/source.json"))["commit"])')
@@ -34,63 +76,36 @@ alsatplg -c out/audio/Piano-Capture-Diag.conf -o out/audio/Piano-Capture-Diag-tp
 alsatplg -d out/audio/Piano-Capture-Diag-tplg.bin -o out/audio/decoded.conf
 ```
 
-Compile and decode completed with alsatplg 1.2.9 / libatopology 1.2.11. The tool
-warns that `TX_CODEC_DMA_TX_3 Capture` is an undefined route source; the unmodified
-upstream graph has the same warning, and the kernel DAI table declares this name.
-Runtime graph binding remains untested. Recompiling the decoded output fails on
-tuple references with this tool version, also for unmodified upstream input;
-roundtrip equality is not claimed. No integrity check was disabled.
+With alsatplg 1.2.9 / libatopology 1.2.11 this gives 5164 bytes, the identity
+locked in `diagnostic.json`. The compiler warns that `VA_CODEC_DMA_TX_0 Capture`
+is an undefined route source, as it did for TX3 and does for the unmodified
+upstream graph; the kernel DAI table declares the stream. Decoding shows one
+two-channel 48 kHz capture PCM, the VA device subgraph (interface type VA,
+index TX0) and no playback. Recompiling the decoded output fails on tuple
+references with this tool version, also for upstream input; no roundtrip is
+claimed. The kernel loads `qcom/sm8750/Piano-Capture-Diag-tplg.bin`.
 
-The conventional loader path would be
-`qcom/sm8750/Piano-Capture-Diag-tplg.bin` for a card with that model name.
-The installed desktop DTB, `sm8750-xiaomi-piano-desktop.dtb`, carries that card
-name (the isolated `sm8750-xiaomi-piano-mic-diag.dtb` is on the kernel piano/diag branch). The paired 60-second NCM probe can now be packaged with its exact firmware and module inputs. Do not install this graph as a replacement
-for an unrelated sound card. The output is topology data, independent
-of CPU architecture, distribution and desktop; native packaging remains separate.
+## Recording check
 
-The diagnostic DTS connects TX3 to the TX macro, selects the saved piano LPI
-GPIO12/13 settings at 4 mA, and adds the VA macro through standard ASoC `aux-devs`.
-`TX DMIC4 <- VA DMIC4` and `VA DMIC4 <- VA_MCLK` reuse VA's existing shared clock
-control. Its 2.4 MHz setting matches the stock TX divisor of 4 from a 9.6 MHz
-source. There is no second VA register owner in the TX driver.
+The q6apm capture front end needs two channels, at least 6144 bytes per period
+and multiples of 480 frames; a 1920-frame period and 7680-frame buffer satisfy
+this. Keep `arecord -v` output and the live `hw_params`.
 
-A direct-DMIC stream leak in the shared SoundWire helper is fixed in the kernel;
-its five ARM64 KUnit tests pass. A generic ASoC DAPM test confirms clock/gate order
-and closing/reopening for this routing shape. It uses synthetic widgets, and does
-not test real codec probing, aux-device registration, MMIO or DSP traffic.
+`tools/mic-capture-check.py` judges a WAV taken on the tablet
+(`--print-command` gives the arecord line). Per channel, after the first
+0.5 s: not silent or constant, not clipped, AC level at least -60 dBFS, and a
+non-flat spectrum (Welch spectral flatness below 0.8 over 50 Hz to 8 kHz).
+Narrow lines, mains-related or not, are warnings. `path_alive` reports live
+data separately from the verdict. A quiet room can leave a working microphone
+below -60 dBFS (FAIL with `path_alive`), and ambient sound cannot prove the
+signal is acoustic: clock leakage or interference can be non-flat. `--tone HZ`
+checks a known source. Audibility of speech needs a person.
 
-`tools/stage-kernel-modules.py` can stage the explicit audio dependency closure;
-this is independent of Debian packaging. The audio set has been loaded by BusyBox
-modprobe in QEMU with its matching Image. It contains no PMIC GLINK, battmgr or
-FastRPC module. Physical ADSP/GPR/APM operation and runtime routing are untested.
-`diagnostic.json` fixes the explicit module order, excluded consumers and compiled
-topology identity. The boot packager requires the exact 56 DSP firmware files,
-this topology, matching module bytes and modular PAS/APR/card drivers. The runner
-requires `--load-modules`, captures a baseline first, then loads once in order and
-collects module/ALSA/remoteproc state. Its original 60-second PID1 timer remains.
-The frozen P24 probe contains the older mono topology. Its probe-only evidence
-remains historical; recording needs this corrected topology in a newly identified
-payload. Existing P24 boot bytes have not been replaced.
-The existing ADSP-only P23 remains the first bounded hardware step.
+`diagnostic.json` keeps the explicit RAM-probe module order, excluded
+consumers and the compiled topology identity used by `build-boot.py` and
+`build-firmware-deb.py`. The P23/P24 hardware probe results remain those of the
+earlier TX3 graph.
 
-The TX mixer now uses its channel bitmap as the single source of state. Repeated
-writes and disabling an inactive channel leave other channels intact; channel
-counts are derived from the bitmap and stream mute covers all selected channels.
-The real ALSA controls and DAI callbacks pass five ARM64 software regressions
-using a synthetic register bus. This does not test codec power, clocks or DSP
-capture, and the frozen P24 still contains the earlier driver.
-
-For the first native ALSA recording, also inspect the negotiated buffer sizes.
-At 48 kHz/S16_LE/two channels, q6apm requires at least 6144 bytes per period and
-period/buffer sizes in multiples of 480 frames. A 1920-frame period with four
-periods (7680-frame buffer) satisfies these source constraints; it is a starting
-request, not a hardware result. Preserve `arecord -v` output and the live ALSA
-hardware parameters. The original Ubuntu desktop already supplies ALSA tools;
-the static tinymix utility remains a mixer-inspection tool.
-
-Real capture must establish the effective mixer controls, DMIC/decimator mapping,
-clock/power behavior, audible speech and reopening. Add UCM after those controls
-are proven, then use standard ALSA/PipeWire interfaces. No volume defaults, mic
-calibration, sensor matrices, proprietary firmware or installed service are here.
-The upstream BSD-3-Clause macros remain at their source; see `NOTICE` and
-`LICENSES/audioreach-BSD-3-Clause.txt` for the derivative graph's license.
+The upstream BSD-3-Clause macros are consumed from their pinned checkout. See
+`NOTICE`, `LICENSES/audioreach-BSD-3-Clause.txt`, `LICENSES/debian-piano-MIT.txt`
+and `LICENSES/alsa-ucm-conf-BSD-3-Clause.txt`.
