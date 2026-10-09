@@ -23,8 +23,13 @@ __pycache__/
 *.pem
 *.key
 boot-profile.json
+boot-partitions.json
 layout.json
+thp-calibration.json
 bluetooth-address
+wlan-address
+bt-address.txt
+wlan-address.txt
 # Proprietary firmware bytes and raw touch captures stay out of the repository, except the stock
 # firmware tree below firmware/, where every file must be listed in a firmware/piano-*.json lock.
 *.bin

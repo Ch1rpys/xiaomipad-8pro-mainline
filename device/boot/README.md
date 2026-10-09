@@ -127,6 +127,17 @@ above), and a `ubuntu.prev/` that boots the removed kernel is deleted because
 its modules are gone. A set's release is the `kernel_release` of its
 `manifest.json`, or the Image banner in `boot.img` for older sets.
 
+Each set's DTB carries two per-unit addresses that never enter the
+repository. `/etc/piano/bluetooth-address` (required) becomes the WCN7860
+Bluetooth `local-bd-address`; `/etc/piano/wlan-address` (optional, root,
+mode 0600, one unicast `XX:XX:XX:XX:XX:XX` line, from `wlan/wlan_mac.bin` on
+the stock `persist` partition) becomes the `local-mac-address` of
+`/soc@0/pcie@1c00000/pcie@0/wifi@0`, which ath12k uses because this card
+reports an all-zero address. `piano-boot-update` passes them to
+`build-persistent-boot.py --bt-address-file` / `--wlan-address-file`; without
+`wlan-address` the set has no Wi-Fi address and `wlp1s0` cannot be brought
+up. A changed address takes effect with the next `piano-boot-update` run.
+
 ### Accepting a boot or kernel update
 
 A boot can pass a one-time reading and still be degraded. With the display
