@@ -65,7 +65,7 @@ page size and load addresses).
 | `thp-calibration.json` | this unit's panel | `/etc/piano/` | no touch input |
 | `boot-profile.json` | this unit (`serial`) and its stock build (the rest) | `/etc/piano/` | `piano-boot-update` keeps the prebuilt set; `piano-boot-switch` refuses |
 | `boot-signing.pem` | the owner | `/etc/piano/` | `piano-boot-update` keeps the prebuilt set |
-| `boot-partitions.json` | this unit's GPT | `/etc/piano/` | `piano-boot-switch` refuses |
+| `boot-partitions.json` | this unit's GPT (`tools/extract-boot-partitions.py`) | `/etc/piano/` | `piano-boot-switch` refuses; on a persistent boot, kernel and initrd updates leave the set and slot A unchanged (piano-device-support 0.1+20261010.6 and later) |
 | Android set (`boot_a`, root-patched `init_boot_a`, `vendor_boot_a`) | this unit | `/var/lib/piano/switch/android/` | switching to Android from Ubuntu is refused; use Fastboot |
 | stock base DTB (`vendor_boot_a`) and DTBO entry (`dtbo_a`) | the stock build | `prepare-boot-dtb.py`, then the kernel package | needed only to build a kernel package |
 

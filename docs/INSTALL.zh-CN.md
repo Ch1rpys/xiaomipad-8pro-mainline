@@ -30,7 +30,7 @@ v0.1 只能手工安装，尚无安装器；写入新分区表（[第 6 步](#6-
 | 小米平板 8 Pro，原厂 `OS3.0.303.0.WPYCNXM`，A 槽活动 | Android 中可用 `adb` |
 | Android root | 用 Magisk 或 KernelSU-Next 修补 `init_boot_a`，用于读取分区（*手工*，按该项目的说明操作） |
 | 小米磁吸键盘 | 安装本机触控标定之前唯一的输入方式（[第 10 步](#10-安装本机文件)） |
-| Linux x86_64 主机 | Android platform-tools（`adb`、`fastboot`）、Python 3、`openssl`、`uuidgen`、`sgdisk`、`sfdisk`、`losetup`、`mkfs.ext4`、`img2simg`、`sha256sum`、`telnet` |
+| Linux x86_64 主机 | Android platform-tools（`adb`、`fastboot`）、Python 3、`openssl`、`uuidgen`、`sgdisk`、`sfdisk`、`losetup`、`mkfs.ext4`、`img2simg`、`sha256sum`、`telnet`、`nc`（OpenBSD netcat） |
 | AOSP `avbtool.py` | 来自 AOSP `external/avb`（尚无获取脚本） |
 | 本仓库 | 检出到发布版 `RELEASE-NOTES.md` 中的集成提交，然后执行 `sh tools/fetch-aosp-mkbootimg.sh` |
 | 发布目录 | 同一版本的全部文件，不与其他版本混用 |
@@ -112,7 +112,7 @@ cp backup/vendor_boot_a.img android-set/vendor_boot.img
 | `bluetooth-address` | 蓝牙控制器不完成配置 |
 | `wlan-address` | Wi-Fi 每次启动使用随机 MAC 地址 |
 | `boot-profile.json`、`boot-signing.pem` | 无法重建启动镜像组：地址不生效，内核更新也不会改写 A 槽 |
-| `boot-partitions.json`（第 10 步生成） | `piano-boot-switch` 拒绝切换 |
+| `boot-partitions.json`（第 8a 或 10 步生成） | `piano-boot-switch` 拒绝切换，内核与 initrd 更新不改动启动镜像组和 A 槽 |
 
 **触控标定。** 原厂 ODM 分区有 `piano_nova_csot_thp_config.ini`（CSOT 面板，与测试机相同）和
 `piano_nova_boe_thp_config.ini`。使用原厂驱动加载的那一份；测试机的原厂内核日志中是 CSOT 文件。
@@ -321,30 +321,53 @@ fastboot -s <SERIAL> boot <release>/boot/boot-ram-check.img     # 预期 "Bootin
 
 ## 8a. 推荐：首次启动前安装本机文件
 
-可以用[第 6 步](#6-写入分区表平板上)的维护镜像，在 Ubuntu 首次启动前把第 3 步的本机文件放进新根并打开开发者模式。
+可以用[第 6 步](#6-写入分区表平板上)的维护镜像，在 Ubuntu 首次启动前生成分区映射，把它与触控标定、地址一起放进新根，并打开开发者模式。
 这样初始设置中触控可用，账户建好后主机即可经 SSH 连接平板。不做本步时，初始设置使用磁吸键盘，并在第 10 步复制文件。
 
-平板处于 Fastboot，主机当前目录里有第 3 步的五个文件：
+`boot-profile.json` 与 `boot-signing.pem` 留在主机上，到第 10 步再装。初始设置的键盘页会重建 initrd；根中有这两个文件时，
+启动钩子会重建启动镜像组并写入 A 槽，而 v0.1.0-preview 根中的 `piano-boot-switch`（0.1+20261010.3）拒绝写入（见第 10 步），
+软件包配置随之失败，`dracut` 停在半配置状态。
+
+平板处于 Fastboot，主机当前目录里有第 3 步的文件：
 
 ```bash
 fastboot -s <SERIAL> boot <release>/boot/boot-ram-maintenance.img    # 预期 "Booting OKAY"
 python3 tools/piano-devmode-ssh.py --serial <SERIAL> --check         # 预期 "... ready"
 python3 -m http.server --bind 192.168.88.10 8000 &                    # 空闲端口，同第 6 步
-sha256sum thp-calibration.json bluetooth-address wlan-address boot-profile.json boot-signing.pem
 telnet 192.168.88.2 2323
 ```
 
-在 telnet 会话中：
+在主机的第二个终端中（同一目录）等待启动 LUN 的分区表：
+
+```bash
+nc -l 192.168.88.10 8001 | python3 tools/extract-boot-partitions.py --input - \
+  --profile boot-profile.json --output boot-partitions.json
+```
+
+在 telnet 会话中发送（也可换用其他空闲端口）：
+
+```sh
+sfdisk --json /dev/sdY | nc 192.168.88.10 8001      # sdY：登录表中的 LUN 4
+```
+
+第二个终端打印 `init_boot_a`（8388608 B）、`vendor_boot_a` 与 `boot_a`（各 100663296 B），并写出 `boot-partitions.json`。
+没有 `boot_a` 与 `boot_b` 的磁盘、大小与启动配置不符时工具拒绝；磁盘不是 LUN 4 时 `piano-boot-switch` 之后会拒绝该映射。然后在主机上：
+
+```bash
+sha256sum thp-calibration.json bluetooth-address wlan-address boot-partitions.json
+```
+
+再在 telnet 会话中：
 
 ```sh
 disk=/dev/sdX                                       # 登录表中的 LUN 0
 for p in /sys/class/block/${disk##*/}*; do grep -qx PARTNAME=linux_rootfs $p/uevent && root=/dev/${p##*/}; done
 echo $root                                          # LUN 0 的第 35 项，例如 /dev/sda35
 mkdir -p /mnt && mount -t ext4 $root /mnt
-for f in thp-calibration.json bluetooth-address wlan-address boot-profile.json boot-signing.pem; do
+for f in thp-calibration.json bluetooth-address wlan-address boot-partitions.json; do
   wget -O /mnt/etc/piano/$f http://192.168.88.10:8000/$f && chmod 600 /mnt/etc/piano/$f
 done
-sha256sum /mnt/etc/piano/*                          # 五个哈希必须与主机一致
+sha256sum /mnt/etc/piano/*                          # 四个哈希必须与主机一致
 mkdir -p /mnt/etc/systemd/system/usb-gadget.target.wants
 ln -sf /usr/lib/systemd/system/piano-devmode.service /mnt/etc/systemd/system/usb-gadget.target.wants/
 sync; umount /mnt
@@ -352,7 +375,8 @@ piano-maint fastboot
 ```
 
 此环境中 `lsblk` 不显示分区标签，上面的循环从 sysfs 读取。该符号链接就是 `piano-devmode on` 所创建的。
-测试机已验证（2026-10-10）：文件以 600 权限和主机哈希写入，无残留挂载，随后发布镜像组的启动中触控按标定运行、开发者模式启动。
+测试机已验证（2026-10-10，用本步旧版的五个文件）：文件以 600 权限和主机哈希写入，无残留挂载，随后发布镜像组的启动中触控按标定运行、开发者模式启动。
+在此生成映射尚未在平板上运行；离线时，发布版 BusyBox 的 `nc` 在分区表结束时关闭连接，主机的 `nc -l` 随即退出，工具从测试机 LUN 4 的 GPT 重建出其映射。
 
 ## 9. 写入 A 槽并首次启动
 
@@ -372,6 +396,7 @@ fastboot -s <SERIAL> reboot
 - 启动完成后该槽被标记为启动成功：`sudo piano-slot-success --check` 应报告 `"state": "already-successful"`。
 
 第 10 步之前：没有蓝牙，Wi-Fi 使用随机 MAC，不能从 Ubuntu 切换，内核更新也不会改写 A 槽（地址由该步重建的启动镜像组带入）。只有做过第 8a 步，首次启动起触控才可用。
+初始设置的键盘页会重建 initrd；`/etc/piano` 中没有 `boot-profile.json` 与 `boot-signing.pem` 时，启动镜像组不受影响。
 
 ## 10. 安装本机文件
 
@@ -386,38 +411,42 @@ piano-devmode status       # 预期 "developer mode: enabled, active" 与 "SSH s
 
 ```bash
 python3 tools/piano-devmode-ssh.py --check     # 预期 "... 192.168.88.10 -> 192.168.88.2 ready"
-scp -r thp-calibration.json bluetooth-address wlan-address boot-profile.json boot-signing.pem \
-  android-set piano-device-support_<版本>_arm64.deb <USER>@192.168.88.2:
 ```
-
-做过第 8a 步时五个文件已在 `/etc/piano` 中，只需复制 `android-set` 和软件包。
 
 如果主机没有取得 DHCP 地址，`--check` 会打印设置地址的 `ip` 命令。
 
-**生成分区映射**（*手工*）。在平板上：
+**生成分区映射**（第 8a 步已生成时跳过）。在平板上：
 
 ```bash
-for p in boot_a init_boot_a vendor_boot_a; do
-  n=$(readlink -f /dev/disk/by-partlabel/$p); s=/sys/class/block/${n##*/}
-  echo "$p $(lsblk -no PARTUUID $n) $(lsblk -no PTUUID $n) $(($(cat $s/start) * 512)) $(($(cat $s/size) * 512)) $(readlink -f $s/../device)"
-done
-# 预期设备路径以 ":4" 结尾（LUN 4），大小为 100663296、8388608、100663296
+d=$(lsblk -no PKNAME "$(readlink -f /dev/disk/by-partlabel/boot_a)"); readlink -f /sys/block/$d/device
+# 预期路径以 ":4" 结尾（LUN 4）
+sudo sfdisk --json /dev/$d > ~/boot-lun.json
 ```
 
-把数值写进 `~/boot-partitions.json`：
+在主机上：
 
-```
-[
-  {"label": "boot_a",        "partuuid": "<PARTUUID>", "disk_guid": "<PTUUID>", "lun": 4, "start_bytes": <int>, "bytes": 100663296},
-  {"label": "vendor_boot_a", "partuuid": "<PARTUUID>", "disk_guid": "<PTUUID>", "lun": 4, "start_bytes": <int>, "bytes": 100663296},
-  {"label": "init_boot_a",   "partuuid": "<PARTUUID>", "disk_guid": "<PTUUID>", "lun": 4, "start_bytes": <int>, "bytes": 8388608}
-]
+```bash
+scp <USER>@192.168.88.2:boot-lun.json .
+python3 tools/extract-boot-partitions.py --input boot-lun.json --profile boot-profile.json --output boot-partitions.json
+# 预期 init_boot_a 8388608 B，vendor_boot_a 与 boot_a 各 100663296 B
 ```
 
-> **本步需要 piano-device-support 0.1+20261010.5 或更高版本。** v0.1.0-preview 根自带 0.1+20261010.3，其
+此方式取代本指南旧版的手写映射，尚未在平板上运行。
+
+**复制文件：**
+
+```bash
+scp -r thp-calibration.json bluetooth-address wlan-address boot-partitions.json boot-profile.json \
+  boot-signing.pem android-set piano-device-support_<版本>_arm64.deb <USER>@192.168.88.2:
+```
+
+做过第 8a 步时其中四个文件已在 `/etc/piano` 中，只需复制 `boot-profile.json`、`boot-signing.pem`、`android-set` 和软件包。
+
+> **本步需要 piano-device-support 0.1+20261010.6 或更高版本。** v0.1.0-preview 根自带 0.1+20261010.3，其
 > `piano-boot-switch` 在发布启动镜像组上以 `"code": "serial-mismatch"` 拒绝所有命令：发布版命令行不含
-> `androidboot.serialno`，引导程序只在 `/proc/bootconfig` 中传入它，而 0.1+20261010.3 只读 `/proc/cmdline`。
-> 按 [BUILD](build.zh-CN.md) 构建该包，与下面的文件一起复制到平板并先安装：`sudo dpkg -i piano-device-support_<版本>_arm64.deb`。
+> `androidboot.serialno`，引导程序只在 `/proc/bootconfig` 中传入它，而 0.1+20261010.3 只读 `/proc/cmdline`（0.1+20261010.5 修正）。
+> 自 0.1+20261010.6 起，持久启动中缺 `boot-partitions.json` 时，内核与 initrd 更新不改动启动镜像组和 A 槽，而不是失败。
+> 按 [BUILD](build.zh-CN.md) 构建该包，与文件一起复制到平板并先安装：`sudo dpkg -i piano-device-support_<版本>_arm64.deb`。
 
 **安装文件、存入 Android 镜像组并重建启动镜像组：**
 
@@ -425,13 +454,19 @@ done
 cd ~
 sudo dpkg -i piano-device-support_<版本>_arm64.deb
 sudo install -m 600 bluetooth-address wlan-address thp-calibration.json boot-profile.json \
-  boot-signing.pem boot-partitions.json /etc/piano/       # 做过第 8a 步时只装 boot-partitions.json
+  boot-signing.pem boot-partitions.json /etc/piano/       # 做过第 8a 步时只装 boot-profile.json boot-signing.pem
 sudo piano-boot-switch status          # 预期 "occupant": "ubuntu" 与 "backup_gpt": "valid"
 sudo piano-boot-switch import-android --from ~/android-set     # 预期 "result": "imported"
 sudo piano-boot-update $(uname -r)
 # 预期 "Piano boot image set prepared for <release>" 与 "Slot A now holds store/ubuntu"
 sudo systemctl reboot
 ```
+
+如果初始设置运行时 `/etc/piano` 中已有 `boot-profile.json` 与 `boot-signing.pem`（本指南旧版的第 8a 步），
+`sudo dpkg --audit` 报告 `dracut` 半配置，`status` 报告 `"occupant": "ubuntu.prev"`：A 槽仍是发布镜像组（现为 `ubuntu.prev`），
+`ubuntu/` 中是未写入的镜像组。装好软件包和文件后，先运行 `sudo piano-boot-switch to-ubuntu`（预期 `"result": "written"`），
+再运行 `piano-boot-update` 或 `sudo dpkg --configure -a`，否则二者会删除 A 槽中的镜像组。然后继续上面的命令，
+最后运行 `sudo dpkg --configure -a`（`sudo dpkg --audit` 无输出）。测试机于 2026-10-10 按此恢复。
 
 新镜像组带有你的地址、序列号和密钥；发布镜像组保留为 `ubuntu.prev`。重启后：
 
@@ -463,5 +498,4 @@ sudo piano-boot-switch verify          # 预期退出码 0
 | Wi-Fi 地址、启动配置（第 3 步） | 标准命令，无生成工具 |
 | 新分区表（第 5 步） | 在 loop 设备上用标准 `sgdisk`/`sfdisk` |
 | 写入分区表（第 6 步） | 在发布目录的维护 RAM 镜像中执行标准 `dd` 命令 |
-| 分区映射（第 10 步） | 标准命令 |
 | 恢复原分区表并移除 Ubuntu | 无工具，也无已验证流程；请保留分区表备份 |

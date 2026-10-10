@@ -10,8 +10,9 @@ from the installed distro initrd, the device's original header geometry and
 rollback indices, its root PARTUUID (or the GPT name `linux_rootfs`), the optional
 local Bluetooth and Wi-Fi addresses and a signing key.  A release root ships a set
 built with `--root-partlabel linux_rootfs --no-serial` and no addresses; until the
-owner installs `boot-profile.json` and `boot-signing.pem` in `/etc/piano`,
-`piano-boot-update` keeps that set (docs/RELEASE.md).
+owner installs `boot-profile.json` and `boot-signing.pem` in `/etc/piano`, and on a
+running persistent boot also `boot-partitions.json`, `piano-boot-update` keeps that
+set and slot A unchanged and succeeds (docs/RELEASE.md).
 It writes regular files only. Normal images have no development console or
 expiry timer; both require explicit debug options. A v2 image is also emitted
 for bounded testing against the persistent root before changing the boot slot.
@@ -124,7 +125,11 @@ Only unique releases `<version>-piano<ABI>` (see `kernel/abi.json`) take
 part, and, as flash-kernel does, only the newest installed one. An initramfs
 update for an older kernel, or for the legacy `7.2.6-piano+` that
 `linux-version` sorts above every `-piano<N>`, leaves the store and the slot
-alone. After a piano kernel package is removed, the `postrm.d` hook runs
+alone. On a running persistent boot without `/etc/piano/boot-partitions.json`
+the update also leaves both alone and exits 0: the new set could not be
+written, and a set rotated in without being written would leave slot A on
+`ubuntu.prev`, which the next rotation deletes. `tools/extract-boot-partitions.py`
+makes the map on the host from `sfdisk --json` of the boot LUN. After a piano kernel package is removed, the `postrm.d` hook runs
 `piano-boot-update --removed <release>`: if that kernel owned `ubuntu/`, the
 set is rebuilt for the newest remaining piano kernel (and slot A rewritten as
 above), and a `ubuntu.prev/` that boots the removed kernel is deleted because

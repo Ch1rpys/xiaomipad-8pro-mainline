@@ -289,6 +289,7 @@ adb -s <SERIAL> exec-out su -c 'dd if=/dev/block/sdX bs=4096 skip=<blocks-34> 2>
 | `thp-calibration.json` | 原厂 ODM 分区中的 `piano_nova_csot_thp_config.ini`（测试机为 CSOT 面板；使用本机原厂驱动加载的那份） | `python3 tools/extract-thp-calibration.py --input <ini> --output thp-calibration.json` |
 | `boot-signing.pem` | 所有者新生成的密钥 | `openssl genrsa -out boot-signing.pem 4096` |
 | `boot-profile.json` | 原厂 `boot_a`、`init_boot_a`、`vendor_boot_a` | v0.1 手工步骤，见下 |
+| `boot-partitions.json` | 启动 LUN（LUN 4，即 GPT 含 `boot_a` 与 `boot_b` 的 LUN）的 `sfdisk --json` | `python3 tools/extract-boot-partitions.py --input <sfdisk json> --profile boot-profile.json --output boot-partitions.json`（§4.8；INSTALL 第 8a 步在维护镜像中读取分区表） |
 | 原厂基础 DTB、DTBO 条目 | `vendor_boot_a`、`dtbo_a` | v0.1 手工步骤（§3.3） |
 
 启动配置由 `build-persistent-boot.py` 读取；其生成工具尚不可用：
@@ -524,22 +525,20 @@ fastboot -s <SERIAL> boot out/install/debug-set/boot-ram-check.img     # 预期 
 findmnt -no SOURCE,UUID /        # 预期 linux_rootfs 分区与 ROOT_UUID
 findmnt -no UUID /home           # 预期 DATA_UUID
 uname -r                         # 预期 <release>
-for p in boot_a init_boot_a vendor_boot_a; do
-  n=$(readlink -f /dev/disk/by-partlabel/$p); s=/sys/class/block/${n##*/}
-  echo "$p $(lsblk -no PARTUUID $n) $(lsblk -no PTUUID $n) $(($(cat $s/start) * 512)) $(($(cat $s/size) * 512)) $(readlink -f $s/../device)"
-done
-# 预期设备路径以 ":4" 结尾（LUN 4），大小为 100663296、8388608、100663296
+d=$(lsblk -no PKNAME "$(readlink -f /dev/disk/by-partlabel/boot_a)"); readlink -f /sys/block/$d/device
+# 预期路径以 ":4" 结尾（LUN 4）
+sfdisk --json /dev/$d            # 把输出在主机上存为 boot-lun.json
 ```
 
-把这些值写入 `piano-boot-switch` 所需的 `/etc/piano/boot-partitions.json`（root，权限 0600）：
+在主机上生成 `piano-boot-switch` 所需的映射，再装到平板的 `/etc/piano/boot-partitions.json`（root，权限 0600）：
 
+```bash
+python3 tools/extract-boot-partitions.py --input boot-lun.json --profile boot-profile.json --output boot-partitions.json
+# 预期 init_boot_a 8388608 B，vendor_boot_a 与 boot_a 各 100663296 B
 ```
-[
-  {"label": "boot_a",        "partuuid": "<PARTUUID>", "disk_guid": "<PTUUID>", "lun": 4, "start_bytes": <int>, "bytes": 100663296},
-  {"label": "vendor_boot_a", "partuuid": "<PARTUUID>", "disk_guid": "<PTUUID>", "lun": 4, "start_bytes": <int>, "bytes": 100663296},
-  {"label": "init_boot_a",   "partuuid": "<PARTUUID>", "disk_guid": "<PTUUID>", "lun": 4, "start_bytes": <int>, "bytes": 8388608}
-]
-```
+
+磁盘没有 `boot_a` 与 `boot_b`、大小与配置中的容量不符时工具拒绝；映射记录 LUN 4，由 `piano-boot-switch` 与磁盘比对。
+它取代旧版的手写映射，尚未对平板运行。
 
 ```sh
 piano-boot-switch status         # 预期 "occupant": "android" 与 "backup_gpt": "valid"
@@ -606,8 +605,9 @@ sudo piano-boot-switch verify                     # 预期退出码 0
 ```
 
 钩子重建 `/var/lib/piano/switch/ubuntu/`，把旧组移到 `ubuntu.prev/`；A 槽为 Ubuntu 镜像组时原位重写 A 槽，
-下次启动即使用新内核。A 槽为 Android 时，之后用 `sudo piano-boot-switch to-ubuntu` 写入新组：在运行中的
-Ubuntu 中（§5.4）、在 Android 中用 KernelSU 模块（§6.2），或从主机写入（§6.3）。
+下次启动即使用新内核。缺 `boot-profile.json` 或 `boot-signing.pem`，以及持久启动中缺 `boot-partitions.json` 时
+（piano-device-support 0.1+20261010.6 起），钩子不改存储和 A 槽，退出码 0，并提示装好哪个文件后运行 `piano-boot-update <release>`。
+A 槽为 Android 时，之后用 `sudo piano-boot-switch to-ubuntu` 写入新组：在运行中的 Ubuntu 中（§5.4）、在 Android 中用 KernelSU 模块（§6.2），或从主机写入（§6.3）。
 
 ### 5.3 重启并核对
 

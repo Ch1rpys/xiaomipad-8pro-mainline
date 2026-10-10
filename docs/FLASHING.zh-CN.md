@@ -86,8 +86,8 @@ A 槽的 Android root 补丁变化后（例如从 Magisk 换成 KernelSU），�
 | `sudo piano-boot-switch import-android --from DIR` | 存储 | `"result": "imported"`；替换 `android/` |
 | `sudo piano-boot-switch import-ubuntu [--from DIR]` | 存储 | `imported`；原 `ubuntu/` 变为 `ubuntu.prev/` |
 
-- v0.1.0-preview 安装需要 piano-device-support 0.1+20261010.5 或更高版本（0.1+20261010.3 对所有命令报
-  `serial-mismatch`，见 [INSTALL 第 10 步](INSTALL.zh-CN.md#10-安装本机文件)）。
+- v0.1.0-preview 安装需要 piano-device-support 0.1+20261010.6 或更高版本，即 [INSTALL 第 10 步](INSTALL.zh-CN.md#10-安装本机文件)
+  所装版本（0.1+20261010.3 对所有命令报 `serial-mismatch`）。
 - 需要 `/etc/piano/` 中有本机的 `boot-profile.json` 和 `boot-partitions.json`；只在 A 槽为已知镜像组时写入，
   该镜像组同时作为回滚。每个分区都完整写入并读回；失败时写回原镜像组。
 - `"result": "refused"` 表示什么都没写，`code` 与 `message` 说明原因。

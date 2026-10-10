@@ -37,7 +37,9 @@ visually and with DPU frame counters. The release image set boots from slot A.
 4. **Display.** Firmware scanout only: brightness stays at the bootloader
    level and there is no screen-off or wake. simpledrm reports no physical
    size, so GNOME shows an unknown 40-inch monitor; `piano-ubuntu-desktop`
-   presets 200 % scaling. Intermittent whole-screen black flicker has been
+   presets 200 % scaling for accounts (0.1+20261010.5 and later: one
+   system-wide `/etc/xdg/monitors.xml` that also covers the login screen and
+   Initial Setup, which were at 100 %; not yet checked on the device). Intermittent whole-screen black flicker has been
    observed with touch active; the cause is not identified.
 5. **Touch.** Long press does not work: a stationary finger is released after
    about one frame. After the first touch the controller stays in 120 Hz

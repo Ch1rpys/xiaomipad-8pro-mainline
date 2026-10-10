@@ -319,6 +319,7 @@ adb -s <SERIAL> exec-out su -c 'dd if=/dev/block/sdX bs=4096 skip=<blocks-34> 2>
 | `thp-calibration.json` | `piano_nova_csot_thp_config.ini` from the stock ODM partition (the CSOT panel of the test unit; use the file your panel's stock driver loads) | `python3 tools/extract-thp-calibration.py --input <ini> --output thp-calibration.json` |
 | `boot-signing.pem` | new owner key | `openssl genrsa -out boot-signing.pem 4096` |
 | `boot-profile.json` | stock `boot_a`, `init_boot_a`, `vendor_boot_a` | manual in v0.1, below |
+| `boot-partitions.json` | `sfdisk --json` of the boot LUN (LUN 4: the one whose GPT holds `boot_a` and `boot_b`) | `python3 tools/extract-boot-partitions.py --input <sfdisk json> --profile boot-profile.json --output boot-partitions.json` (§4.8; INSTALL step 8a reads the table in the maintenance image) |
 | stock base DTB, DTBO entry | `vendor_boot_a`, `dtbo_a` | manual in v0.1 (§3.3) |
 
 The boot profile is read by `build-persistent-boot.py`; its generator is not yet available:
@@ -568,23 +569,22 @@ Connect to the debug console (§7.2). *On the tablet*, in the root phase:
 findmnt -no SOURCE,UUID /        # expect the linux_rootfs partition and ROOT_UUID
 findmnt -no UUID /home           # expect DATA_UUID
 uname -r                         # expect <release>
-for p in boot_a init_boot_a vendor_boot_a; do
-  n=$(readlink -f /dev/disk/by-partlabel/$p); s=/sys/class/block/${n##*/}
-  echo "$p $(lsblk -no PARTUUID $n) $(lsblk -no PTUUID $n) $(($(cat $s/start) * 512)) $(($(cat $s/size) * 512)) $(readlink -f $s/../device)"
-done
-# expect device paths ending in ":4" (LUN 4) and sizes 100663296, 8388608, 100663296
+d=$(lsblk -no PKNAME "$(readlink -f /dev/disk/by-partlabel/boot_a)"); readlink -f /sys/block/$d/device
+# expect a path ending in ":4" (LUN 4)
+sfdisk --json /dev/$d            # save the output on the host as boot-lun.json
 ```
 
-Write the values to `/etc/piano/boot-partitions.json` (root, mode 0600), which `piano-boot-switch`
-requires:
+On the host, make the map that `piano-boot-switch` requires and install it on the tablet as
+`/etc/piano/boot-partitions.json` (root, mode 0600):
 
+```bash
+python3 tools/extract-boot-partitions.py --input boot-lun.json --profile boot-profile.json --output boot-partitions.json
+# expect init_boot_a 8388608 B, vendor_boot_a and boot_a 100663296 B each
 ```
-[
-  {"label": "boot_a",        "partuuid": "<PARTUUID>", "disk_guid": "<PTUUID>", "lun": 4, "start_bytes": <int>, "bytes": 100663296},
-  {"label": "vendor_boot_a", "partuuid": "<PARTUUID>", "disk_guid": "<PTUUID>", "lun": 4, "start_bytes": <int>, "bytes": 100663296},
-  {"label": "init_boot_a",   "partuuid": "<PARTUUID>", "disk_guid": "<PTUUID>", "lun": 4, "start_bytes": <int>, "bytes": 8388608}
-]
-```
+
+The tool refuses a disk without `boot_a` and `boot_b` and sizes other than the profile's
+capacities; the map records LUN 4, which `piano-boot-switch` compares with the disk. It replaces
+the hand-written map of earlier versions and has not yet been run against the tablet.
 
 ```sh
 piano-boot-switch status         # expect "occupant": "android" and "backup_gpt": "valid"
@@ -654,6 +654,9 @@ sudo piano-boot-switch verify                     # expect exit status 0
 
 The hook rebuilds `/var/lib/piano/switch/ubuntu/`, moves the previous set to `ubuntu.prev/` and,
 when slot A holds an Ubuntu set, rewrites slot A in place, so the next boot uses the new kernel.
+Without `boot-profile.json` and `boot-signing.pem`, and on a persistent boot also without
+`boot-partitions.json` (piano-device-support 0.1+20261010.6 and later), it changes neither the store
+nor slot A, exits 0 and prints which file to install before running `piano-boot-update <release>`.
 When slot A holds Android, write the new set later with `sudo piano-boot-switch to-ubuntu` from a
 running Ubuntu (§5.4), from Android with the KernelSU module (§6.2), or from the host (§6.3).
 

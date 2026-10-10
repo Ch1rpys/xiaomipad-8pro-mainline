@@ -68,7 +68,7 @@ address, touch calibration, boot profile, partition map or signing key of yours.
 | `wlan-address` | Wi-Fi uses a random MAC address on every boot: this unit's WCN7860 reports an all-zero address, and ath12k falls back to a random one unless the boot DTB carries the address, which `piano-boot-update` writes from this file |
 | `bluetooth-address` | the Bluetooth controller stays unconfigured |
 | `boot-profile.json`, `boot-signing.pem` | `piano-boot-update` cannot rebuild the boot set, so the addresses above are not applied and kernel updates leave the set unchanged |
-| `boot-partitions.json` | `piano-boot-switch` (switching from Ubuntu, the app-grid button) refuses |
+| `boot-partitions.json` | `piano-boot-switch` (switching from Ubuntu, the app-grid button) refuses; with piano-device-support 0.1+20261010.6 or later, kernel and initrd updates then leave the boot set and slot A unchanged |
 
 After adding them run `sudo piano-boot-update $kernel_release`; it rebuilds the set with your addresses and
 key and rewrites slot A. Your stock Android set goes into the store with

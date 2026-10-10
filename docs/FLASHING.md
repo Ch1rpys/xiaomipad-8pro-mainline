@@ -99,8 +99,9 @@ Android set from the current slot A images and store it with
 | `sudo piano-boot-switch import-android --from DIR` | store | `"result": "imported"`; replaces `android/` |
 | `sudo piano-boot-switch import-ubuntu [--from DIR]` | store | `imported`; the old `ubuntu/` becomes `ubuntu.prev/` |
 
-- It needs piano-device-support 0.1+20261010.5 or later on a v0.1.0-preview install (0.1+20261010.3
-  refuses every command with `serial-mismatch`, see [INSTALL.md step 10](INSTALL.md#10-install-your-units-files)).
+- It needs piano-device-support 0.1+20261010.6 or later on a v0.1.0-preview install, as installed in
+  [INSTALL.md step 10](INSTALL.md#10-install-your-units-files) (0.1+20261010.3 refuses every command
+  with `serial-mismatch`).
 - It needs your `boot-profile.json` and `boot-partitions.json` in `/etc/piano/`, and writes only
   when slot A holds a known set, which serves as the rollback. Each partition is written and read
   back in full; on a failure the previous set is written back.

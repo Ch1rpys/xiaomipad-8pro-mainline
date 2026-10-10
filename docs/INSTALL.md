@@ -35,7 +35,7 @@ Steps that use standard commands because no project tool exists yet are marked *
 | Xiaomi Pad 8 Pro on stock `OS3.0.303.0.WPYCNXM`, slot A active | `adb` reachable in Android |
 | Root in Android | Magisk or KernelSU-Next in a patched `init_boot_a`, to read partitions (*manual*, follow that project's instructions) |
 | Xiaomi magnetic keyboard | the only input until your touch calibration is installed ([step 10](#10-install-your-units-files)) |
-| Linux x86_64 host | Android platform-tools (`adb`, `fastboot`), Python 3, `openssl`, `uuidgen`, `sgdisk`, `sfdisk`, `losetup`, `mkfs.ext4`, `img2simg`, `sha256sum`, `telnet` |
+| Linux x86_64 host | Android platform-tools (`adb`, `fastboot`), Python 3, `openssl`, `uuidgen`, `sgdisk`, `sfdisk`, `losetup`, `mkfs.ext4`, `img2simg`, `sha256sum`, `telnet`, `nc` (OpenBSD netcat) |
 | AOSP `avbtool.py` | from AOSP `external/avb` (no fetch script yet) |
 | This repository | checked out at the integration commit in the release's `RELEASE-NOTES.md`; then `sh tools/fetch-aosp-mkbootimg.sh` |
 | The release directory | every file of one release, not mixed with other releases |
@@ -125,7 +125,7 @@ They are installed in Ubuntu in [step 10](#10-install-your-units-files).
 | `bluetooth-address` | the Bluetooth controller stays unconfigured |
 | `wlan-address` | Wi-Fi uses a random MAC address on every boot |
 | `boot-profile.json`, `boot-signing.pem` | the boot set cannot be rebuilt: the addresses are not applied and kernel updates leave slot A unchanged |
-| `boot-partitions.json` (created in step 10) | `piano-boot-switch` refuses to switch |
+| `boot-partitions.json` (made in step 8a or 10) | `piano-boot-switch` refuses to switch, and kernel and initrd updates leave the boot set and slot A unchanged |
 
 **Touch calibration.** The stock ODM partition holds `piano_nova_csot_thp_config.ini` (CSOT panel,
 as on the test unit) and `piano_nova_boe_thp_config.ini`. Use the one your stock driver loads; on the
@@ -358,32 +358,59 @@ Fastboot with Power + Volume Down.
 
 ## 8a. Recommended: install your unit's files before the first boot
 
-The maintenance image of [step 6](#6-write-the-partition-table-on-the-tablet) can put your files of
-step 3 into the new root and turn on developer mode before Ubuntu first boots. Touch then works in
-Initial Setup, and the host can reach the tablet over SSH as soon as the account exists. Without this
-step, use the magnetic keyboard in Initial Setup and copy the files in step 10.
+The maintenance image of [step 6](#6-write-the-partition-table-on-the-tablet) can make the partition
+map, put it with your touch calibration and addresses into the new root and turn on developer mode
+before Ubuntu first boots. Touch then works in Initial Setup, and the host can reach the tablet over
+SSH as soon as the account exists. Without this step, use the magnetic keyboard in Initial Setup and
+copy the files in step 10.
 
-In Fastboot, with the five files of step 3 in the current directory on the host:
+Keep `boot-profile.json` and `boot-signing.pem` on the host until step 10. Initial Setup's keyboard
+page rebuilds the initrd; with these two files in the root, the boot hook rebuilds the boot set and
+writes slot A, which the v0.1.0-preview root's `piano-boot-switch` (0.1+20261010.3) refuses (step
+10). The package configuration then fails and `dracut` stays half-configured.
+
+In Fastboot, with the files of step 3 in the current directory on the host:
 
 ```bash
 fastboot -s <SERIAL> boot <release>/boot/boot-ram-maintenance.img    # expect "Booting OKAY"
 python3 tools/piano-devmode-ssh.py --serial <SERIAL> --check         # expect "... ready"
 python3 -m http.server --bind 192.168.88.10 8000 &                    # a free port, as in step 6
-sha256sum thp-calibration.json bluetooth-address wlan-address boot-profile.json boot-signing.pem
 telnet 192.168.88.2 2323
 ```
 
-In the telnet session:
+In a second terminal on the host, in the same directory, wait for the boot LUN's partition table:
+
+```bash
+nc -l 192.168.88.10 8001 | python3 tools/extract-boot-partitions.py --input - \
+  --profile boot-profile.json --output boot-partitions.json
+```
+
+In the telnet session, send it (another free port works as well):
+
+```sh
+sfdisk --json /dev/sdY | nc 192.168.88.10 8001      # sdY: LUN 4 from the login table
+```
+
+The second terminal prints `init_boot_a` (8388608 B), `vendor_boot_a` and `boot_a` (100663296 B
+each) and writes `boot-partitions.json`. The tool refuses a disk without `boot_a` and `boot_b`, and
+sizes other than those in your boot profile; `piano-boot-switch` later refuses the map unless the
+disk is LUN 4. Then, on the host:
+
+```bash
+sha256sum thp-calibration.json bluetooth-address wlan-address boot-partitions.json
+```
+
+and in the telnet session:
 
 ```sh
 disk=/dev/sdX                                       # LUN 0 from the login table
 for p in /sys/class/block/${disk##*/}*; do grep -qx PARTNAME=linux_rootfs $p/uevent && root=/dev/${p##*/}; done
 echo $root                                          # entry 35 of LUN 0, for example /dev/sda35
 mkdir -p /mnt && mount -t ext4 $root /mnt
-for f in thp-calibration.json bluetooth-address wlan-address boot-profile.json boot-signing.pem; do
+for f in thp-calibration.json bluetooth-address wlan-address boot-partitions.json; do
   wget -O /mnt/etc/piano/$f http://192.168.88.10:8000/$f && chmod 600 /mnt/etc/piano/$f
 done
-sha256sum /mnt/etc/piano/*                          # the five hashes must equal the host's
+sha256sum /mnt/etc/piano/*                          # the four hashes must equal the host's
 mkdir -p /mnt/etc/systemd/system/usb-gadget.target.wants
 ln -sf /usr/lib/systemd/system/piano-devmode.service /mnt/etc/systemd/system/usb-gadget.target.wants/
 sync; umount /mnt
@@ -391,9 +418,12 @@ piano-maint fastboot
 ```
 
 `lsblk` shows no partition labels in this environment; the loop above reads them from sysfs. The
-symbolic link is what `piano-devmode on` creates. Verified on the test unit (2026-10-10): the files
-landed with mode 600 and the host's hashes, nothing stayed mounted, and the next boot of the release
-set ran touch with the calibration and started developer mode.
+symbolic link is what `piano-devmode on` creates. Verified on the test unit (2026-10-10) with the
+five files of an earlier version of this step: the files landed with mode 600 and the host's hashes,
+nothing stayed mounted, and the next boot of the release set ran touch with the calibration and
+started developer mode. Making the map here has not yet run on the tablet; offline, the release's
+BusyBox `nc` closed the connection at the end of the table, the host's `nc -l` then exited, and the
+tool rebuilt the test unit's map from its LUN 4 GPT.
 
 ## 9. Write slot A and first boot
 
@@ -419,7 +449,8 @@ fastboot -s <SERIAL> reboot
 
 Until step 10: no Bluetooth, a random Wi-Fi MAC address, no switching from Ubuntu, and kernel
 updates leave slot A unchanged (the addresses are applied by the boot set rebuilt there). Touch works
-from the first boot only after step 8a.
+from the first boot only after step 8a. Initial Setup's keyboard page rebuilds the initrd; without
+`boot-profile.json` and `boot-signing.pem` in `/etc/piano` this leaves the boot set alone.
 
 ## 10. Install your unit's files
 
@@ -435,39 +466,46 @@ On the host, with `<USER>` the account from Initial Setup:
 
 ```bash
 python3 tools/piano-devmode-ssh.py --check     # expect "... 192.168.88.10 -> 192.168.88.2 ready"
-scp -r thp-calibration.json bluetooth-address wlan-address boot-profile.json boot-signing.pem \
-  android-set piano-device-support_<version>_arm64.deb <USER>@192.168.88.2:
 ```
-
-After step 8a the five files are already in `/etc/piano`; copy only `android-set` and the package.
 
 If the host did not take the DHCP address, `--check` prints the `ip` command to set it.
 
-**Create the partition map** (*manual*). On the tablet:
+**Create the partition map** unless step 8a made it. On the tablet:
 
 ```bash
-for p in boot_a init_boot_a vendor_boot_a; do
-  n=$(readlink -f /dev/disk/by-partlabel/$p); s=/sys/class/block/${n##*/}
-  echo "$p $(lsblk -no PARTUUID $n) $(lsblk -no PTUUID $n) $(($(cat $s/start) * 512)) $(($(cat $s/size) * 512)) $(readlink -f $s/../device)"
-done
-# expect device paths ending in ":4" (LUN 4) and sizes 100663296, 8388608, 100663296
+d=$(lsblk -no PKNAME "$(readlink -f /dev/disk/by-partlabel/boot_a)"); readlink -f /sys/block/$d/device
+# expect a path ending in ":4" (LUN 4)
+sudo sfdisk --json /dev/$d > ~/boot-lun.json
 ```
 
-Write the values into `~/boot-partitions.json`:
+On the host:
 
-```
-[
-  {"label": "boot_a",        "partuuid": "<PARTUUID>", "disk_guid": "<PTUUID>", "lun": 4, "start_bytes": <int>, "bytes": 100663296},
-  {"label": "vendor_boot_a", "partuuid": "<PARTUUID>", "disk_guid": "<PTUUID>", "lun": 4, "start_bytes": <int>, "bytes": 100663296},
-  {"label": "init_boot_a",   "partuuid": "<PARTUUID>", "disk_guid": "<PTUUID>", "lun": 4, "start_bytes": <int>, "bytes": 8388608}
-]
+```bash
+scp <USER>@192.168.88.2:boot-lun.json .
+python3 tools/extract-boot-partitions.py --input boot-lun.json --profile boot-profile.json --output boot-partitions.json
+# expect init_boot_a 8388608 B, vendor_boot_a and boot_a 100663296 B each
 ```
 
-> **piano-device-support 0.1+20261010.5 or later is required for this step.** The v0.1.0-preview root
+This route replaces the hand-written map of earlier versions of this guide and has not yet run on
+the tablet.
+
+**Copy the files:**
+
+```bash
+scp -r thp-calibration.json bluetooth-address wlan-address boot-partitions.json boot-profile.json \
+  boot-signing.pem android-set piano-device-support_<version>_arm64.deb <USER>@192.168.88.2:
+```
+
+After step 8a four of the files are already in `/etc/piano`; copy only `boot-profile.json`,
+`boot-signing.pem`, `android-set` and the package.
+
+> **piano-device-support 0.1+20261010.6 or later is required for this step.** The v0.1.0-preview root
 > ships 0.1+20261010.3, whose `piano-boot-switch` refuses every command on the release boot set with
 > `"code": "serial-mismatch"`: the release command line carries no `androidboot.serialno`, the
-> bootloader passes it only in `/proc/bootconfig`, and 0.1+20261010.3 read `/proc/cmdline` only. Build
-> the package ([BUILD.md](BUILD.md)), copy it with the files below and install it first:
+> bootloader passes it only in `/proc/bootconfig`, and 0.1+20261010.3 read `/proc/cmdline` only
+> (fixed in 0.1+20261010.5). From 0.1+20261010.6, kernel and initrd updates on a running persistent
+> boot without `boot-partitions.json` leave the boot set and slot A unchanged instead of failing.
+> Build the package ([BUILD.md](BUILD.md)), copy it with the files and install it first:
 > `sudo dpkg -i piano-device-support_<version>_arm64.deb`.
 
 **Install the files, store the Android set and rebuild the boot set:**
@@ -476,13 +514,22 @@ Write the values into `~/boot-partitions.json`:
 cd ~
 sudo dpkg -i piano-device-support_<version>_arm64.deb
 sudo install -m 600 bluetooth-address wlan-address thp-calibration.json boot-profile.json \
-  boot-signing.pem boot-partitions.json /etc/piano/       # after step 8a: boot-partitions.json only
+  boot-signing.pem boot-partitions.json /etc/piano/       # after step 8a: boot-profile.json boot-signing.pem
 sudo piano-boot-switch status          # expect "occupant": "ubuntu" and "backup_gpt": "valid"
 sudo piano-boot-switch import-android --from ~/android-set     # expect "result": "imported"
 sudo piano-boot-update $(uname -r)
 # expect "Piano boot image set prepared for <release>" and "Slot A now holds store/ubuntu"
 sudo systemctl reboot
 ```
+
+If Initial Setup ran with `boot-profile.json` and `boot-signing.pem` already in `/etc/piano` (step 8a
+of earlier versions of this guide), `sudo dpkg --audit` reports `dracut` half-configured and `status`
+reports `"occupant": "ubuntu.prev"`: slot A still holds the release set, now `ubuntu.prev`, and
+`ubuntu/` holds a set that was not written. After installing the package and the files, run
+`sudo piano-boot-switch to-ubuntu` (expect `"result": "written"`) before `piano-boot-update` or
+`sudo dpkg --configure -a`, either of which would otherwise delete the set in slot A. Then continue
+with the commands above and finish with `sudo dpkg --configure -a` (`sudo dpkg --audit` prints
+nothing). The test unit was recovered this way on 2026-10-10.
 
 The new set carries your addresses, serial and key; the release set is kept as `ubuntu.prev`. After
 the reboot:
@@ -519,5 +566,4 @@ the host ([FLASHING.md](FLASHING.md#from-the-host-piano-switchpy)).
 | Wi-Fi address, boot profile (step 3) | standard commands; no generator |
 | New partition table (step 5) | standard `sgdisk`/`sfdisk` on a loop device |
 | Writing the partition table (step 6) | standard `dd` commands in the release's maintenance RAM image |
-| Partition map (step 10) | standard commands |
 | Restoring the original partition table and removing Ubuntu | no tool and no verified procedure; keep the GPT backups |
