@@ -255,7 +255,7 @@ void orientation() {
               "top-to-bottom swipe does not increase Y at constant X");
         previous = point;
     }
-    // P18 swipe endpoints as emitted by the ccb78ad transform (X, Y) become (Y, X) now.
+    // P18 swipe endpoints as emitted by the b43a191 transform (X, Y) become (Y, X) now.
     constexpr std::array<std::array<int, 2>, 4> emitted{{{8813, 141}, {9442, 27795}, {251, 16057}, {21322, 15722}}};
     for (const auto &old : emitted) {
         const auto point = at(old[1], 21359 - old[0]);

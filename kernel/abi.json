@@ -5,37 +5,37 @@
   "releases": [
     {
       "kernel_release": "7.2.6-piano1",
-      "kernel_commit": "65bf28a0fc2229b3baa3c09731a9e311583524d6",
+      "kernel_commit": "fc9d7c7d2dcebd1b69061a77fb92bec59b694309",
       "config_sha256": "d15df47683d6e8590efb0d23516bc760be77204d30d3c2ca922129b02395a9f2",
       "upload": 1
     },
     {
       "kernel_release": "7.2.6-piano2",
-      "kernel_commit": "d79b3bbc65a05ebf1c719e1b679fa8ee2efa9909",
+      "kernel_commit": "6f1a510bd32e1b8955a3892a55cf0c21d7108e19",
       "config_sha256": "08a06cad5748b4c70bd70a9803219ec4d673a55723a6dcd03086c38356fccd75",
       "upload": 1
     },
     {
       "kernel_release": "7.2.6-piano3",
-      "kernel_commit": "e81699cfab00ab22ad701d795a0ce67feff5f30a",
+      "kernel_commit": "8d4d5d32c581dd9c5d44fc8f4b9b27dfbca9ca3b",
       "config_sha256": "d074fcd2f067d67378b9000d7442b8351356f33872dff399dcdb8468f54afd2a",
       "upload": 1
     },
     {
       "kernel_release": "7.2.6-piano4",
-      "kernel_commit": "9e5e3fe3f85213eefae6031a63a99b4d6fdda15d",
+      "kernel_commit": "5f683c1d63936a716a0210604c32f18236c51bea",
       "config_sha256": "1cb756095d2db507d6f2975a06d692d5b13ef65f34dbe3e801a7b4a7f1b18934",
       "upload": 1
     },
     {
       "kernel_release": "7.2.6-piano5",
-      "kernel_commit": "45c26b919e16993653297645197a69aeb4433a7e",
+      "kernel_commit": "24dd771023e5927ecf87b010f2d1730378621a71",
       "config_sha256": "ae7804323ce35d2eae680ecf2db88abfcf47b9b931f886fae18f5d4eedb892d6",
       "upload": 1
     },
     {
       "kernel_release": "7.2.6-piano6",
-      "kernel_commit": "48e3436dc2c90c96f6c7233c84ea056a54d7b6a5",
+      "kernel_commit": "32c92fc0dc8e69566f546f12b109a206cf92d05d",
       "config_sha256": "cae84018695394a309c13455ad3c3da4c4f772261be04e0726e08320d19c277e",
       "upload": 1
     }

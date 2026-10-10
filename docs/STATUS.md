@@ -12,8 +12,8 @@ All hardware statuses refer to this configuration only.
 |---|---|
 | Device | Xiaomi Pad 8 Pro (`piano`), model 25091RP04C (China), SoC SM8750P, 16 GB RAM, 512 GB UFS; bootloader unlocked |
 | Stock build | OS3.0.303.0.WPYCNXM |
-| Kernel | `7.2.6-piano5` (ABI 5), kernel repository commit `45c26b919` as pinned in [`kernel/source.json`](../kernel/source.json) and recorded in [`kernel/abi.json`](../kernel/abi.json); fragments `piano-diagnostic.config`, `piano-desktop-diag.config`, `piano-persistent.config`, `piano-release.config`; DTB `sm8750-xiaomi-piano-desktop.dtb`; 1071 modules. `7.2.6-piano4` owns the rollback image set; the piano4 and piano3 packages stay installed |
-| Integration | this repository at `6f6c0d0`; `piano-device-support` 0.1+20261009.2, `piano-local-firmware` 0.3+os3.0.303.0 (built from `firmware/`, VA capture topology), `piano-ubuntu-desktop` 0.1+20261010.1 (on-screen keyboard guard, microphone UCM) |
+| Kernel | `7.2.6-piano5` (ABI 5), kernel repository commit `24dd77102` as pinned in [`kernel/source.json`](../kernel/source.json) and recorded in [`kernel/abi.json`](../kernel/abi.json); fragments `piano-diagnostic.config`, `piano-desktop-diag.config`, `piano-persistent.config`, `piano-release.config`; DTB `sm8750-xiaomi-piano-desktop.dtb`; 1071 modules. `7.2.6-piano4` owns the rollback image set; the piano4 and piano3 packages stay installed |
+| Integration | this repository at `950743c`; `piano-device-support` 0.1+20261009.2, `piano-local-firmware` 0.3+os3.0.303.0 (built from `firmware/`, VA capture topology), `piano-ubuntu-desktop` 0.1+20261010.1 (on-screen keyboard guard, microphone UCM) |
 | Userspace | Ubuntu 26.04 Desktop ARM64; Mesa 26.2.0 with `mesa/a830-speedbin.patch` |
 
 Verification basis: the installed system was checked with a debug image set

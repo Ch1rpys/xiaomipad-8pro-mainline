@@ -20,6 +20,11 @@ Prefer upstream and distribution packages. Keep package-manager hooks, service
 management and desktop preferences out of hardware protocols and processing code.
 Changes for another distribution should mainly concern packaging and system integration;
 kernel/modules, firmware and userspace interfaces still require compatible versions.
+Commits prepared with an AI assistant are authored and committed by the person
+submitting them; name the assistant only in a `Co-Authored-By:` trailer. Imported
+third-party commits keep their original author, date and `Signed-off-by:`, and an AI
+tool never adds a `Signed-off-by:` on a person's behalf.
+
 Report problems and send changes through GitHub issues and pull requests on
 https://github.com/yzddmr6/xiaomipad-8pro-mainline; kernel changes go to
 https://github.com/yzddmr6/linux-sm8750-piano (branch `piano/dev`). Remove serial

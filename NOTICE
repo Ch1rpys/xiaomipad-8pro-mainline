@@ -363,7 +363,7 @@ device/boot/piano-slot-success and device/boot/piano_bootslot.py:
 packaging/piano-device-support/ files with a GPL-2.0-only header (piano-boot-update,
 the etc/kernel and etc/initramfs zz-piano-boot hooks, the dracut module 99piano and
 usr/libexec/piano/debug-*):
-  New code written for this project (first in 92fd0c2). GPL-2.0-only to match the
+  New code written for this project (first in ec551c5). GPL-2.0-only to match the
   GPL-2.0-only boot builder (tools/build-persistent-boot.py) and initramfs USB
   console (initramfs/usb-diag) they run or reuse; a line comparison with the erhai
   integration tree finds only boilerplate in common. The other packaging files

@@ -80,7 +80,7 @@ divider as stock with the upstream driver structure. It differs from Android's
 normal-recording backend (TX3); that route stays available in Git history
 (topology `2727c427...`) if VA fails on the tablet.
 
-The matching DT change is kernel commit `062a6c01d647` on branch
+The matching DT change is kernel commit `79dee9cc9b2a` on branch
 `piano/mic-va-20261010`: a VA dai-link, the four DMIC pin pairs on the VA macro
 at 4 mA and `qcom,dmic-sample-rate = <2400000>` (9.6 MHz / 4). **This topology
 and UCM require that DTB.** Desktop DTBs from earlier kernels and the

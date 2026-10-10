@@ -24,8 +24,8 @@ KERNEL_SOURCE=/path/to/independent/linux OUT_DIR="$PWD/out/kernel-diag" JOBS=8 \
 配置仅在内核仓 arch/arm64/configs/piano-diagnostic.config 维护。
 每次增量构建先运行原生 olddefconfig，处理源码新增的 Kconfig 项；片段变化时才重新生成/合并基线。
 生成 Image、sm8750-xiaomi-piano.dtb、安装系统所用的 sm8750-xiaomi-piano-desktop.dtb、最终 .config、日志与 build-result.json。
-自 7.2.6-piano3（内核 `e81699cfab00`）起，各诊断变体 DTS（adsp/bt/desktop-diag/gpu/input/iris/kbd/mic/power/thp/ufs-ro/usb-role）及其片段、
-dummy_hcd 回环片段只保留在内核仓 `piano/diag` 分支（`8b20df71544b`，即移除前一提交）；下面对各变体的说明只适用于该分支，
+自 7.2.6-piano3（内核 `8d4d5d32c581`）起，各诊断变体 DTS（adsp/bt/desktop-diag/gpu/input/iris/kbd/mic/power/thp/ufs-ro/usb-role）及其片段、
+dummy_hcd 回环片段只保留在内核仓 `piano/diag` 分支（`668c9d7e36d6`，即移除前一提交）；下面对各变体的说明只适用于该分支，
 构建时用独立 OUT，并把 kernel/source.json 的 commit 临时指向该分支 HEAD（build-kernel.sh 只构建主分支的两个 DTB，变体 DTB 需另列目标）。
 thp-diag 是有人监督触控诊断用的变体，只额外启用 gpi_dma1、spi2 和触控节点；P15 已用它在真机取得触控流，默认 piano DTB 仍禁用它们。
 ufs-ro-diag 只把 UFS 主机与 QMP PHY 设为 okay，供有人监督的只读识盘；默认 DTB 和默认配置都不启用 UFS。
@@ -49,7 +49,7 @@ USB 尚未真机验证；电源输入拓扑、REFGEN 和完整 Type-C 路径仍�
 `tools/build-persistent-boot.py` 把两个每台设备不同、只放私有输入的地址写进打包 DTB，不进公开仓：
 - `--bt-address-file`：一行 `XX:XX:XX:XX:XX:XX`，写成蓝牙节点的 `local-bd-address`（小端 bdaddr_t）。
 - `--wlan-address-file`：一行 `XX:XX:XX:XX:XX:XX`（单播、非全零），写成 `/soc@0/pcie@1c00000/pcie@0/wifi@0` 的 `local-mac-address`（按书写顺序）。
-  本机 WCN7860 在 WMI ready 中报告全零地址，ath12k（内核 `8b20df71544b`）此时用 `device_get_mac_address()` 读取该属性。
+  本机 WCN7860 在 WMI ready 中报告全零地址，ath12k（内核 `668c9d7e36d6`）此时用 `device_get_mac_address()` 读取该属性。
   原厂值在 persist 分区 `wlan/wlan_mac.bin`（一行 `wlan0=<12 位十六进制>`），换成冒号格式即可。
 manifest 只记录 `private_bt_address_injected`/`private_wlan_address_injected`，不记录地址。设备上的 `piano-boot-update` 从
 `/etc/piano/bluetooth-address` 与 `/etc/piano/wlan-address` 取这两个文件，均为可选、存在才传；缺少本机 `boot-profile.json` 或 `boot-signing.pem` 时（发布根文件系统首次启动前的状态）它不重建镜像组、保留存储中的镜像组并正常退出。
