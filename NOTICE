@@ -331,6 +331,15 @@ device/boot/piano-slot-success and device/boot/piano_bootslot.py:
   the slot must hold a registered image set; the written GPT is compared byte
   for byte with the single-bit change. Unit ordering after boot-complete.target
   follows Debian's qbootctl.service; no qbootctl code is used.
+packaging/piano-device-support/ files with a GPL-2.0-only header (piano-boot-update,
+the etc/kernel and etc/initramfs zz-piano-boot hooks, the dracut module 99piano and
+usr/libexec/piano/debug-*):
+  New code written for this project (first in 92fd0c2). GPL-2.0-only to match the
+  GPL-2.0-only boot builder (tools/build-persistent-boot.py) and initramfs USB
+  console (initramfs/usb-diag) they run or reuse; a line comparison with the erhai
+  integration tree finds only boilerplate in common. The other packaging files
+  are MIT.
+
 device/boot/tests/ is new test code with synthetic disks and images only: MIT,
 except test_boot_update.py, GPL-2.0-only like the piano-boot-update hook it tests.
 packaging/piano-device-support/usr/share/polkit-1/actions/io.github.piano.switch.policy:
@@ -354,5 +363,9 @@ Third-party files placed in locally generated packages (tools/build-device-debs.
   - the piano-thp-live binary built from device/piano-thp (Apache-2.0 and MIT
     sources listed above, plus the external MIT nlohmann JSON headers).
   piano-mesa contains a Mesa build (MIT and other per-file upstream licenses).
-  The generated packages do not yet carry /usr/share/doc/<package>/copyright
-  files with these notices. Until they do, keep them local.
+  Each generated package carries /usr/share/doc/<package>/copyright
+  (machine-readable, one paragraph per licence and per third-party file set,
+  with the licence texts or their /usr/share/common-licenses names) and a copy
+  of this NOTICE. The BusyBox binary is unmodified Ubuntu busybox-static; its
+  corresponding source is the Ubuntu busybox source package of the same version.
+  Packages built before this change lack these files.

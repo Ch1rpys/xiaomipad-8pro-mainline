@@ -72,9 +72,11 @@ visually and with DPU frame counters. The release image set boots from slot A.
     shell over USB. Release images do not set it.
 11. **Module ABI.** `CONFIG_MODVERSIONS` is disabled. Install the kernel image
     and modules from the same build only.
-12. **Package notices.** Locally generated packages contain third-party
-    binaries (BusyBox, AOSP tools, Mesa) but no
-    `/usr/share/doc/<package>/copyright` files yet. Keep them local.
+12. **Package notices.** `piano-device-support`, `piano-mesa` and
+    `piano-ubuntu-desktop` contain third-party binaries (BusyBox, AOSP tools,
+    Mesa). Packages built by `tools/build-device-debs.py` from 2026-10-10 carry
+    `/usr/share/doc/<package>/copyright` and `NOTICE`; the versions listed in
+    the test configuration above were built earlier and lack them.
 13. **Wi-Fi.** The WCN7860 probes from the installed firmware, takes this
     unit's MAC address from the boot DTB (`/etc/piano/wlan-address`, see
     [device/boot](../device/boot/README.md)), or a random locally administered
@@ -92,7 +94,7 @@ In priority order:
 2. Charging: charge control over the vendor charger protocol (MCA), which
    differs from the upstream `battmgr` interface; reading it is done.
 3. Publish the installer (partitioning, filesystem creation, boot-profile
-   generation); add package copyright files, an avbtool fetch script and
+   generation); add an avbtool fetch script and
    Python-independent `init_boot` output.
 4. Native display: MDSS/DPU/DSI with the NT36532 panel driver and both
    KTZ8866 backlight controllers, providing brightness and screen-off/wake.
