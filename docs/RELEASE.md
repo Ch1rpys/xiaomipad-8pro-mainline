@@ -218,4 +218,4 @@ address, and kernel package updates leave the boot set unchanged. Use the magnet
   0.1+20261010.7 and piano-ubuntu-desktop 0.1+20261010.6 (integration `26b3a8e`) passed every offline
   check (`ROOT_IMAGE_BUILT_OFFLINE_CHECKS_PASS_NOT_BOOTED`); the `fstrim` step (`391ab9c`) was measured
   on that build's `root.ext4`. No complete build with both has run yet, and none of it has been booted.
-- The release image as a whole has not been flashed to a tablet.
+- The v0.1.0-preview release artefacts (piano5 root) were installed from scratch on the test unit twice on 2026-10-10 (INSTALL steps 1, 6, 7, 8a, 9, 10, Initial Setup, switching, cold-boot acceptance); the piano7 build above has not been flashed yet.
