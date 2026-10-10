@@ -219,6 +219,7 @@ adsp/adsp_dtb 两个镜像，CDSP 与服务映射不打包），任一文件缺�
 
 ```sh
 python3 tools/build-firmware-deb.py --topology out/audio/Piano-Capture-Diag-tplg.bin \
+  --card-topology out/audio/Xiaomi-Pad-8-Pro-tplg.bin \
   --maintainer 'Your Name <your-email>' --output out/firmware-deb
 ```
 

@@ -177,8 +177,9 @@ mkdir -p out/audio
 m4 -I <audioreach-topology checkout> device/audio/Piano-Capture-Diag.m4 > out/audio/Piano-Capture-Diag.conf
 alsatplg -c out/audio/Piano-Capture-Diag.conf -o out/audio/Piano-Capture-Diag-tplg.bin
 python3 tools/build-firmware-deb.py --topology out/audio/Piano-Capture-Diag-tplg.bin \
+  --card-topology out/audio/Xiaomi-Pad-8-Pro-tplg.bin \
   --maintainer 'Name <email>' --output out/firmware-deb
-# 预期 JSON 中 "deb": "piano-local-firmware_0.3+os3.0.303.0_all.deb" 与 "deb_sha256"
+# 预期 JSON 中 "deb": "piano-local-firmware_0.4+os3.0.303.0_all.deb" 与 "deb_sha256"
 ```
 
 - `build-firmware-deb.py` 默认使用 `firmware/`；使用自己的提取结果时加 `--firmware-tree <tree>`（§2）。

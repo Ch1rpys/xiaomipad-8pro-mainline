@@ -113,6 +113,7 @@ mkdir -p out/audio
 m4 -I <audioreach-topology checkout> device/audio/Piano-Capture-Diag.m4 > out/audio/Piano-Capture-Diag.conf
 alsatplg -c out/audio/Piano-Capture-Diag.conf -o out/audio/Piano-Capture-Diag-tplg.bin
 python3 tools/build-firmware-deb.py --topology out/audio/Piano-Capture-Diag-tplg.bin \
+  --card-topology out/audio/Xiaomi-Pad-8-Pro-tplg.bin \
   --maintainer 'Name <email>' --output out/firmware-deb
 ```
 

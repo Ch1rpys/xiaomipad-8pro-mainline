@@ -25,7 +25,10 @@ from firmware_payload import sha
 
 PACKAGE = 'piano-local-firmware'
 # 0.3: the capture topology is the VA graph of device/audio (fc92bb08, kernel 7.2.6-piano5 and later).
-VERSION = '0.3+os3.0.303.0'
+# 0.4: adds the card topology of device/audio/card.json (Xiaomi-Pad-8-Pro: speakers and microphones, kernel
+# 7.2.6-piano6 and later) and, through firmware/piano-audio.json, the FS19xx preset; the capture-only
+# topology stays for kernels whose card is still Piano-Capture-Diag.
+VERSION = '0.4+os3.0.303.0'
 SOURCE_DATE_EPOCH = 0
 
 
@@ -40,6 +43,8 @@ def main():
                         help='Tree with the /usr/lib/firmware layout (default: the repository firmware/ tree)')
     parser.add_argument('--topology', type=Path, required=True,
                         help='Capture topology built from device/audio (Piano-Capture-Diag-tplg.bin)')
+    parser.add_argument('--card-topology', type=Path, required=True,
+                        help='Card topology built from device/audio (Xiaomi-Pad-8-Pro-tplg.bin, device/audio/card.json)')
     parser.add_argument('--output', type=Path, required=True, help='New directory for the deb and its manifest')
     parser.add_argument('--maintainer', required=True, help='Local package builder identity, Name <email>')
     args = parser.parse_args()
@@ -51,11 +56,14 @@ def main():
     builds = {json.loads(p.read_text()).get('stock_build') for p in locks} - {None}
     if len(builds) != 1:
         parser.error('The firmware locks must name one stock build')
-    topology = json.loads((repo / 'device/audio/diagnostic.json').read_text())['topology']
-    status = args.topology.lstat()
-    if (not stat.S_ISREG(status.st_mode) or status.st_size != topology['bytes'] or
-            sha(args.topology) != topology['sha256']):
-        parser.error('Topology does not match device/audio/diagnostic.json')
+    topologies = []
+    for lock, given in (('diagnostic.json', args.topology), ('card.json', args.card_topology)):
+        topology = json.loads((repo / 'device/audio' / lock).read_text())['topology']
+        status = given.lstat()
+        if (not stat.S_ISREG(status.st_mode) or status.st_size != topology['bytes'] or
+                sha(given) != topology['sha256']):
+            parser.error(f'Topology {given} does not match device/audio/{lock}')
+        topologies.append((given, topology))
     os.umask(0o022)
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=False, mode=0o700)
@@ -66,21 +74,22 @@ def main():
         stage.chmod(0o755)
         firmware = stage / firmware_payload.FIRMWARE_ROOT
         firmware_payload.stage_tree(rows, args.firmware_tree, firmware)
-        target = firmware / topology['path']
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(args.topology, target)
-        target.chmod(0o644)
+        for given, topology in topologies:
+            target = firmware / topology['path']
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(given, target)
+            target.chmod(0o644)
         docs = stage / 'usr/share/doc' / PACKAGE
         docs.mkdir(parents=True)
         inputs = {'stock_build': builds.pop(), 'files': rows,
-                  'topology': {k: topology[k] for k in ('path', 'bytes', 'sha256')}}
+                  'topologies': [{k: t[k] for k in ('path', 'bytes', 'sha256')} for _, t in topologies]}
         (docs / 'inputs.json').write_text(json.dumps(inputs, indent=2) + '\n')
         (docs / 'copyright').write_text(
             'Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\n\n' +
             license_paragraph('*', 'Respective rights holders of the stock firmware',
                               'LicenseRef-Proprietary-Firmware',
                               (repo / 'LICENSES/LicenseRef-Proprietary-Firmware.txt').read_text()) + '\n' +
-            license_paragraph(f'usr/lib/firmware/{topology["path"]}',
+            license_paragraph(' '.join(f'usr/lib/firmware/{t["path"]}' for _, t in topologies),
                               '2021-2024 Linaro Ltd.; the piano mainline project contributors', 'BSD-3-Clause',
                               (repo / 'LICENSES/audioreach-BSD-3-Clause.txt').read_text()))
         # Debian's KiB estimate for this regular-file/directory-only payload.
@@ -93,8 +102,9 @@ def main():
                          'Maintainer': args.maintainer, 'Section': 'non-free/kernel', 'Priority': 'optional',
                          'Description': 'Xiaomi Pad 8 Pro stock firmware\n'
                                         ' Unmodified ADSP, GPU, Bluetooth, Wi-Fi, touch and keyboard-bridge\n'
-                                        ' firmware from stock build OS3.0.303.0.WPYCNXM, and the audio capture\n'
-                                        ' topology built from device/audio. No firmware license is granted.'})
+                                        ' firmware and the FS19xx amplifier preset from stock build\n'
+                                        ' OS3.0.303.0.WPYCNXM, and the audio topologies built from device/audio.\n'
+                                        ' No firmware license is granted.'})
         (control / 'control').write_text(fields.dump())
         files = sorted(p for p in stage.rglob('*') if p.is_file() and control not in p.parents)
         (control / 'md5sums').write_text(''.join(
@@ -109,7 +119,7 @@ def main():
                 'firmware_tree': ('repository firmware/' if args.firmware_tree.resolve() == firmware_payload.REPO_FIRMWARE
                                   else 'owner-supplied --firmware-tree'),
                 'input_locks_sha256': {p.name: sha(p) for p in locks},
-                'topology_sha256': topology['sha256'], 'builder_sha256': sha(Path(__file__)),
+                'topology_sha256': {t['path']: t['sha256'] for _, t in topologies}, 'builder_sha256': sha(Path(__file__)),
                 'payload_builder_sha256': sha(Path(firmware_payload.__file__)),
                 'deb': archive.name, 'deb_bytes': archive.stat().st_size, 'deb_sha256': sha(archive),
                 'installed_size_kib': installed_kib,

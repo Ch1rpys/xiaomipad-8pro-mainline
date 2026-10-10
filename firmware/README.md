@@ -41,6 +41,7 @@ its lock:
 
 ```sh
 python3 tools/build-firmware-deb.py --topology out/audio/Piano-Capture-Diag-tplg.bin \
+  --card-topology out/audio/Xiaomi-Pad-8-Pro-tplg.bin \
   --maintainer 'Your Name <you@example.org>' --output out/firmware-deb
 ```
 

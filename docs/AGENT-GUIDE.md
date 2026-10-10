@@ -197,8 +197,9 @@ mkdir -p out/audio
 m4 -I <audioreach-topology checkout> device/audio/Piano-Capture-Diag.m4 > out/audio/Piano-Capture-Diag.conf
 alsatplg -c out/audio/Piano-Capture-Diag.conf -o out/audio/Piano-Capture-Diag-tplg.bin
 python3 tools/build-firmware-deb.py --topology out/audio/Piano-Capture-Diag-tplg.bin \
+  --card-topology out/audio/Xiaomi-Pad-8-Pro-tplg.bin \
   --maintainer 'Name <email>' --output out/firmware-deb
-# expect JSON with "deb": "piano-local-firmware_0.3+os3.0.303.0_all.deb" and "deb_sha256"
+# expect JSON with "deb": "piano-local-firmware_0.4+os3.0.303.0_all.deb" and "deb_sha256"
 ```
 
 - `build-firmware-deb.py` takes `firmware/` by default; add `--firmware-tree <tree>` for your own
