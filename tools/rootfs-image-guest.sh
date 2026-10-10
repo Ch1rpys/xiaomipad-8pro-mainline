@@ -5,8 +5,9 @@
 # docs/AGENT-GUIDE.md section 4.4 to the target ext4 on a second disk: image
 # policy, /etc/piano/layout.json and fstab, then dpkg --install in a chroot
 # with policy-rc.d and SYSTEMD_OFFLINE=1, so the distribution kernel hooks run
-# dracut and the piano hooks inside the target.  It then builds the release
-# boot image set into the store and removes per-machine state.  The target
+# dracut and the piano hooks inside the target, and purges the base's generic
+# kernels and kdump.  It then builds the release boot image set into the
+# store and removes per-machine state and the base's package indexes.  The target
 # never boots.  Inputs are a tar on the third disk, results a tar on the fourth.
 set -eu
 IN=/run/piano-inputs
@@ -56,6 +57,12 @@ install -m 644 "$IN/files/etc/apt/sources.list.d/ubuntu.sources" "$T/etc/apt/sou
 rm "$T/etc/apt/sources.list.d/cdrom.sources"
 : >"$T/etc/cloud/cloud-init.disabled"
 chmod 644 "$T/etc/cloud/cloud-init.disabled"
+# A device name instead of the base's localhost.localdomain.  GNOME Initial
+# Setup replaces the static hostname with its "Computer" field (the user name
+# unless edited); the pretty hostname stays, and BlueZ prefers it.
+install -m 644 "$IN/files/etc/hostname" "$T/etc/hostname"
+[ ! -e "$T/etc/machine-info" ] || fail 'the base already has /etc/machine-info'
+install -m 644 "$IN/files/etc/machine-info" "$T/etc/machine-info"
 
 step piano layout
 # layout.json must exist before the kernel package is configured: it enables
@@ -89,6 +96,44 @@ chroot "$T" /usr/bin/env SYSTEMD_OFFLINE=1 DEBIAN_FRONTEND=noninteractive \
 audit=$(chroot "$T" dpkg --audit)
 [ -z "$audit" ] || fail "dpkg --audit: $audit"
 rm -r "$T/var/cache/piano-install"
+
+step distribution kernels
+# Only the piano kernel boots this tablet.  The base's generic HWE kernel and
+# kdump (no crashkernel) would make every update download, rebuild initrds
+# for and keep a kernel that never boots.  Purge their packages with what
+# apt then no longer needs, keeping linux-firmware, which is not tied to a
+# kernel.  Still within policy-rc.d and update_initramfs=no.
+chroot "$T" dpkg-query -W -f '${db:Status-Abbrev}|${Package}|${Version}|${Architecture}\n' \
+	>"$OUT/dpkg-query-base.txt"
+kernels=$(chroot "$T" dpkg-query -W -f '${db:Status-Abbrev} ${Package}\n' | awk '
+	$1 != "ii" { next }
+	$2 ~ /^linux-(generic|image-generic|headers-generic|tools-generic)/ ||
+	$2 ~ /^linux-(image|image-unsigned|modules|modules-extra|main-modules-[a-z0-9]+|headers|tools)-[0-9].*-generic$/ ||
+	$2 == "kdump-tools" { print $2 }')
+[ -n "$kernels" ] || fail 'no distribution kernel packages found'
+echo "purging:" $kernels
+df -B1 --output=used "$T" | tail -1 >"$OUT/used-bytes-before-purge.txt"
+chroot "$T" apt-mark manual linux-firmware
+# shellcheck disable=SC2086 # one word per package name
+chroot "$T" /usr/bin/env SYSTEMD_OFFLINE=1 DEBIAN_FRONTEND=noninteractive \
+	apt-get --yes --purge --autoremove remove $kernels </dev/null
+df -B1 --output=used "$T" | tail -1 >"$OUT/used-bytes-after-purge.txt"
+audit=$(chroot "$T" dpkg --audit)
+[ -z "$audit" ] || fail "dpkg --audit after the purge: $audit"
+left=$(chroot "$T" dpkg-query -W -f '${db:Status-Abbrev} ${Package}\n' 'linux-image-*' 'linux-modules-*' \
+	'linux-headers-*' 'kdump-tools' 2>/dev/null | awk 'substr($1, 2, 1) != "n" && $2 != "linux-image-'"$RELEASE"'" { print $2 }')
+[ -z "$left" ] || fail "kernel packages left besides linux-image-$RELEASE: $left"
+chroot "$T" apt-get --simulate autoremove </dev/null >"$OUT/autoremove-simulate.txt"
+! grep '^Remv ' "$OUT/autoremove-simulate.txt" || fail 'apt autoremove would still remove packages'
+others=$(cd "$T/boot" && ls | grep -v -x -e "vmlinuz-$RELEASE" -e "initrd.img-$RELEASE" -e "config-$RELEASE" \
+	-e "System.map-$RELEASE" -e vmlinuz -e initrd.img -e vmlinuz.old -e initrd.img.old || true)
+[ -z "$others" ] || fail "/boot has files of another kernel: $others"
+# linux-update-symlinks points the .old links at the remaining kernel.
+for link in vmlinuz vmlinuz.old initrd.img initrd.img.old; do
+	[ ! -L "$T/boot/$link" ] || [ "$(readlink "$T/boot/$link")" = "${link%.old}-$RELEASE" ] ||
+		fail "/boot/$link points to $(readlink "$T/boot/$link")"
+done
+[ "$(ls "$T/usr/lib/modules")" = "$RELEASE" ] || fail "/usr/lib/modules has another kernel: $(ls "$T/usr/lib/modules")"
 rm "$T/usr/sbin/policy-rc.d" "$T/etc/initramfs-tools/update-initramfs.conf"
 [ -f "$T/boot/initrd.img-$RELEASE" ] || fail "no initrd for $RELEASE"
 
@@ -118,6 +163,10 @@ if [ -s "$T/etc/machine-id" ]; then
 fi
 rm -f "$T/var/lib/systemd/random-seed" "$T/var/lib/systemd/credential.secret"
 rm -f "$T"/var/cache/apt/*.bin "$T"/var/cache/apt/archives/*.deb
+# The base's package indexes are those of the build machine's mirror
+# (archive.ubuntu.com), not of the Ports sources installed above; without
+# them the first apt run needs `apt update` instead of finding nothing.
+find "$T/var/lib/apt/lists" -mindepth 1 -maxdepth 1 -type f ! -name lock -delete
 rm -rf "$T"/var/log/journal/*
 
 step report

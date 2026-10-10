@@ -7,15 +7,17 @@ mke2fs -d (libarchive), creating the ext4 at the full partition size.  A
 disposable QEMU ARM64 guest, whose own root is that SquashFS mounted
 read-only, then runs rootfs-image-guest.sh as root: the steps of
 docs/AGENT-GUIDE.md section 4.4 in a chroot of the target (policy-rc.d,
-SYSTEMD_OFFLINE=1 dpkg --install, distribution kernel hooks and dracut) and
-the release boot image set.  The target never boots.
+SYSTEMD_OFFLINE=1 dpkg --install, distribution kernel hooks and dracut), the
+purge of the base's generic kernels and kdump, and the release boot image
+set.  The target never boots.
 
 The image is for any unit: fstab and /etc/piano/layout.json name the fixed
 GPT partitions linux_rootfs and linux_data; the boot set is built with
 --root-partlabel and --no-serial from a boot profile reduced to the stock
 build's fields, without Bluetooth or Wi-Fi addresses.  There is no account
-(GNOME Initial Setup creates the first one), no machine ID, no SSH host keys
-and no per-unit file in /etc/piano.  Outputs: root.ext4 (sparse),
+(GNOME Initial Setup creates the first one), no machine ID, no SSH host keys,
+no package indexes and no per-unit file in /etc/piano; the hostnames name the
+device model.  Outputs: root.ext4 (sparse),
 root.sparse.img (sparse_image.py encode-ext4: only used blocks are written,
 free blocks are DONT_CARE), SHA256SUMS, manifest.json, verification.json.
 """
@@ -40,6 +42,10 @@ DATA_PARTLABEL = 'linux_data'
 FSTAB = (f'PARTLABEL={ROOT_PARTLABEL} / ext4 defaults,noatime 0 1\n'
          f'PARTLABEL={DATA_PARTLABEL} /home ext4 defaults,noatime 0 2\n')
 LAYOUT = {'root_partlabel': ROOT_PARTLABEL, 'data_partlabel': DATA_PARTLABEL}
+# Device names until the owner picks one: GNOME Initial Setup replaces the static
+# hostname with its "Computer" field, the pretty hostname (Bluetooth name) stays.
+HOSTNAME = 'xiaomipad-8pro\n'
+MACHINE_INFO = 'PRETTY_HOSTNAME="Xiaomi Pad 8 Pro"\n'
 # The profile fields build-persistent-boot.py reads.  They come from the stock
 # build (header geometry, rollback indices, AVB properties); the serial, slot
 # observations and image hashes of the unit they were read from are dropped.
@@ -51,8 +57,13 @@ PROFILE_FIELDS = {
 }
 PIANO_PACKAGES = ('piano-device-support', 'piano-local-firmware', 'piano-mesa', 'piano-ubuntu-desktop')
 UNITS_ENABLED = {'piano-slot-success.service': 'enabled', 'piano-devmode.service': 'disabled',
-                 'ssh.socket': 'disabled', 'ssh.service': 'disabled'}
+                 'ssh.socket': 'disabled', 'ssh.service': 'disabled',
+                 'fake-hwclock-load.service': 'enabled', 'fake-hwclock-save.service': 'enabled',
+                 'fake-hwclock-save.timer': 'enabled'}
 SERIALS = ('piano-helper', 'piano-target', 'piano-inputs', 'piano-result')
+# Ubuntu's package enables /dev/zram0 by default; without CONFIG_ZRAM the boot waits for
+# that device, so it goes with exactly the kernels that have zram.
+ZRAM_GENERATOR = 'systemd-zram-generator'
 
 
 def sha(path):
@@ -174,12 +185,20 @@ def dpkg_status(text):
     return packages
 
 
-def verify(fs, scratch, expected_packages, release, caps, set_hashes, boot_hashes):
+def verify(fs, scratch, expected_packages, release, caps, set_hashes, boot_hashes, kernel_zram):
     """The offline release checks of docs/RELEASE.md on the finished image."""
     checks = {}
     status = dpkg_status(fs.cat('/var/lib/dpkg/status').decode())
     checks['packages_installed'] = {p: status.get(p) == ('install ok installed', v)
                                     for p, v in sorted(expected_packages.items())}
+    # The piano kernel is the only one: no other image, modules or headers package, no kdump.
+    checks['only_piano_kernel'] = sorted(
+        p for p, (s, _) in status.items() if s and s.split()[2] != 'not-installed'
+        and (re.match(r'linux-(image|modules|headers)-', p) or p == 'kdump-tools')) == [f'linux-image-{release}']
+    checks['zram_generator_matches_kernel'] = (
+        status.get(ZRAM_GENERATOR, ('',))[0] == 'install ok installed') == kernel_zram
+    checks['boot_only_piano_files'] = sorted(set(fs.names('/boot')) - {'initrd.img.old', 'vmlinuz.old'}) == sorted(
+        ['initrd.img', 'vmlinuz'] + [f'{n}-{release}' for n in ('System.map', 'config', 'initrd.img', 'vmlinuz')])
     # Fully installed or removed with configuration kept: nothing half-installed or pending triggers.
     checks['no_package_in_other_state'] = sorted(
         p for p, (s, _) in status.items()
@@ -207,6 +226,9 @@ def verify(fs, scratch, expected_packages, release, caps, set_hashes, boot_hashe
     checks['layout_root_0600'] = re.search(rb'Mode: +0600', mode) is not None and re.search(rb'User: +0 ', mode) is not None
     checks['layout_by_partlabel'] = json.loads(fs.cat('/etc/piano/layout.json')) == LAYOUT
     checks['fstab_by_partlabel'] = fs.cat('/etc/fstab') == FSTAB.encode()
+    checks['device_hostnames'] = (fs.cat('/etc/hostname') == HOSTNAME.encode()
+                                  and fs.cat('/etc/machine-info') == MACHINE_INFO.encode())
+    checks['fake_hwclock_data'] = fs.size('/etc/fake-hwclock.data') not in (None, 0)
     checks['no_install_leftovers'] = not any(fs.exists(p) for p in (
         '/var/cache/piano-install', '/usr/sbin/policy-rc.d', '/etc/initramfs-tools/update-initramfs.conf',
         '/var/lib/systemd/random-seed'))
@@ -215,6 +237,7 @@ def verify(fs, scratch, expected_packages, release, caps, set_hashes, boot_hashe
                             and fs.exists('/etc/cloud/cloud-init.disabled'))
     checks['apt_caches_clean'] = not [n for n in fs.names('/var/cache/apt/archives') or [] if n.endswith('.deb')] and not any(
         fs.exists('/var/cache/apt/' + n) for n in ('pkgcache.bin', 'srcpkgcache.bin'))
+    checks['apt_lists_empty'] = set(fs.names('/var/lib/apt/lists') or []) <= {'auxfiles', 'lock', 'partial'}
     journal = fs.names('/var/log/journal')
     checks['journal_empty'] = journal in (None, [])
     wants = {
@@ -222,6 +245,9 @@ def verify(fs, scratch, expected_packages, release, caps, set_hashes, boot_hashe
         'piano-devmode.service': '/etc/systemd/system/usb-gadget.target.wants/piano-devmode.service',
         'ssh.socket': '/etc/systemd/system/sockets.target.wants/ssh.socket',
         'ssh.service': '/etc/systemd/system/multi-user.target.wants/ssh.service',
+        'fake-hwclock-load.service': '/etc/systemd/system/sysinit.target.wants/fake-hwclock-load.service',
+        'fake-hwclock-save.service': '/etc/systemd/system/shutdown.target.wants/fake-hwclock-save.service',
+        'fake-hwclock-save.timer': '/etc/systemd/system/timers.target.wants/fake-hwclock-save.timer',
     }
     checks['unit_enablement'] = {u: fs.exists(p) == (UNITS_ENABLED[u] == 'enabled') for u, p in wants.items()}
     checks['kernel_files'] = {f'/boot/{n}-{release}': fs.dump_sha(f'/boot/{n}-{release}', scratch) == boot_hashes.get(
@@ -311,6 +337,12 @@ def main():
         if not match:
             raise ValueError('The kernel package must be a released linux-image-<version>-piano<ABI>')
         release = match[1]
+        config = extract_member(a.kernel_deb, f'boot/config-{release}', out / f'config-{release}')
+        kernel_zram = re.search(rb'^CONFIG_ZRAM=[ym]$', config.read_bytes(), re.M) is not None
+        config.unlink()
+        if kernel_zram != any(d['package'] == ZRAM_GENERATOR for _, d in debs):
+            raise ValueError(f'{ZRAM_GENERATOR} belongs in the APT download exactly when the kernel has CONFIG_ZRAM '
+                             f'({release}: {"set" if kernel_zram else "not set"})')
         for path in [a.kernel_deb, *a.deb]:
             fields = deb_fields(path)
             debs.append((path, {'package': fields['Package'], 'version': fields['Version'],
@@ -322,7 +354,7 @@ def main():
         names = [d['package'] for _, d in debs]
         if len(names) != len(set(names)) or not set(PIANO_PACKAGES) <= set(names):
             raise ValueError(f'Need exactly one of each package and all of {PIANO_PACKAGES}')
-        result.update(kernel_release=release, squashfs_sha256=a.squashfs_sha256,
+        result.update(kernel_release=release, kernel_config_zram=kernel_zram, squashfs_sha256=a.squashfs_sha256,
                       apt_manifest_sha256=sha(a.apt_manifest), apt_snapshot=apt['snapshot'],
                       boot_profile_sha256=sha(out / 'boot-profile.json'),
                       boot_key_public_sha256=hashlib.sha256(subprocess.check_output(
@@ -374,6 +406,8 @@ def main():
             'files/etc/apt/sources.list.d/ubuntu.sources': (REPO / 'ubuntu/26.04.sources').read_bytes(),
             'files/etc/piano/layout.json': (json.dumps(LAYOUT, indent=2) + '\n').encode(),
             'files/etc/fstab': FSTAB.encode(),
+            'files/etc/hostname': HOSTNAME.encode(),
+            'files/etc/machine-info': MACHINE_INFO.encode(),
             'release/boot-profile.json': (out / 'boot-profile.json').read_bytes(),
             'release/boot-signing.pem': a.boot_key.read_bytes(),
         }
@@ -449,6 +483,14 @@ def main():
                                 'effective_dtb_sha256': set_manifest['effective_dtb_sha256'],
                                 'manifest_sha256': sha(out / 'ubuntu-set/manifest.json')},
                       boot_files_sha256=boot_hashes)
+
+        def installed(name):
+            return {line.split('|')[1] for line in (guest_dir / name).read_text().splitlines()
+                    if line.startswith('ii')}
+        result['distribution_kernel_purge'] = {
+            'removed_packages': sorted(installed('dpkg-query-base.txt') - installed('dpkg-query.txt')),
+            'used_bytes_before': int((guest_dir / 'used-bytes-before-purge.txt').read_text()),
+            'used_bytes_after': int((guest_dir / 'used-bytes-after-purge.txt').read_text())}
         save()
 
         # Seal: whole-filesystem check, hashes, sparse image, offline checks.
@@ -462,7 +504,7 @@ def main():
         scratch = out / 'scratch'
         scratch.mkdir()
         report = verify(Debugfs(a.debugfs.resolve(), final, env), scratch, expected, release, caps,
-                        set_hashes, boot_hashes)
+                        set_hashes, boot_hashes, kernel_zram)
         scratch.rmdir()
         (out / 'verification.json').write_text(json.dumps(report, indent=2) + '\n')
         if not report['passed']:
