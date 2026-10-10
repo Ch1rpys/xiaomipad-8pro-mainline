@@ -112,7 +112,7 @@ A host write resets slot A's retry counter, and `piano-slot-success` marks the s
 
 **Developer mode.** `sudo piano-devmode on` adds SSH over the USB cable (USB NCM, tablet at 192.168.88.2); it is off by default and needs `openssh-server`. From the host, `python3 tools/piano-devmode-ssh.py USER` connects about 22 s after boot. The installation turns it on; turn it off afterwards with `sudo piano-devmode off` ([INSTALL.md](docs/INSTALL.md) step 10). See [device/devmode](device/devmode/README.md).
 
-**Time after boot.** The PMIC RTC cannot be written. From piano-ubuntu-desktop 0.1+20261010.6 a boot starts from the time saved at the last shutdown, which is behind by the time the tablet was off or in Android; chrony corrects it on networks where Ubuntu's NTS servers answer, but not behind a router that answers NTP itself. Otherwise set it manually, for example `sudo date -s '2026-10-09 18:00'`.
+**Time after boot.** The PMIC RTC cannot be written. From piano-ubuntu-desktop 0.1+20261010.6 a boot starts from the time saved at the last shutdown, which is behind by the time the tablet was off or in Android. chrony corrects it once online, from 0.1+20261010.7 also behind a router that answers NTP itself, by accepting unauthenticated time when NTS is unavailable (`authselectmode ignore`, not yet tested). Otherwise set it manually, for example `sudo date -s '2026-10-09 18:00'`.
 
 **After Initial Setup.** Initial Setup makes the user name the hostname unless you edit its *Computer* field; change it later with `sudo hostnamectl hostname --static <name>`. Run `sudo apt update` before the first `apt install`: the image has no current package indexes.
 

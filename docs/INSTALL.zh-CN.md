@@ -397,9 +397,9 @@ fastboot -s <SERIAL> reboot
   需要别的名字时修改该栏，或之后运行 `sudo hostnamectl hostname --static <名字>`。蓝牙显示的友好名称“Xiaomi Pad 8 Pro”保持不变。
 - **时钟。**硬件时钟不可写。piano-ubuntu-desktop 0.1+20261010.6 及以后（7.2.6-piano7 构建）每次启动从上次关机或每小时保存的时间开始
   （`fake-hwclock`），因此慢了平板关机或停留在 Android 的时长；更早的构建每次启动都从 systemd 内置日期 2026-04-15 开始。
-  联网后 chrony 会校时，但只在能连到 Ubuntu NTS 服务器时有效：路由器自己应答所有 NTP 请求时（测试网络即如此）收不到经认证的应答，
-  时钟保持错误。这时手动设置：`sudo date -s 'YYYY-MM-DD HH:MM'`。在 chrony 配置 `/etc/chrony/conf.d/60-local.conf` 中写
-  `authselectmode ignore` 可改为接受未认证的时间，但放弃了 NTS 认证，镜像不做此设置。
+  联网后 chrony 会校时。路由器自己应答所有 NTP 请求时（测试网络即如此）收不到经 NTS 认证的应答；自 piano-ubuntu-desktop
+  0.1+20261010.7 起 chrony 这时采用未认证的时间（`authselectmode ignore`，尚未实测），代价是 NTS 不可用时失去其防篡改保护。
+  更早的版本在这种网络下时钟保持错误，需手动设置：`sudo date -s 'YYYY-MM-DD HH:MM'`。
 - 启动完成后该槽被标记为启动成功：`sudo piano-slot-success --check` 应报告 `"state": "already-successful"`。
 
 第 10 步之前：没有蓝牙，Wi-Fi 使用随机 MAC，不能从 Ubuntu 切换，内核更新也不会改写 A 槽（地址由该步重建的启动镜像组带入）。只有做过第 8a 步，首次启动起触控才可用。

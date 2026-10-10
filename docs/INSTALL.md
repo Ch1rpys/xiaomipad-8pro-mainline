@@ -452,12 +452,11 @@ fastboot -s <SERIAL> reboot
 - **Clock.** The hardware clock cannot be written. With piano-ubuntu-desktop 0.1+20261010.6 or later
   (the 7.2.6-piano7 build) a boot starts from the time saved at the last shutdown or hourly
   (`fake-hwclock`), so the clock is behind by the time the tablet was off or in Android; earlier builds
-  start every boot at systemd's built-in date, 2026-04-15. chrony corrects it once online, but only
-  where Ubuntu's NTS servers can be reached: a router that answers every NTP request itself (as on the
-  test network) gives no authenticated reply and the clock stays wrong. There, set it by hand,
-  `sudo date -s 'YYYY-MM-DD HH:MM'`. A chrony file `/etc/chrony/conf.d/60-local.conf` with
-  `authselectmode ignore` would accept the unauthenticated time instead; it gives up NTS
-  authentication, and the image does not set it.
+  start every boot at systemd's built-in date, 2026-04-15. chrony corrects it once online. Behind a
+  router that answers every NTP request itself (as on the test network) no NTS-authenticated reply
+  arrives; from piano-ubuntu-desktop 0.1+20261010.7 chrony then uses the unauthenticated time
+  (`authselectmode ignore`; not yet tested), which gives up NTS protection when NTS is unavailable.
+  With earlier versions the clock stays wrong there: set it by hand, `sudo date -s 'YYYY-MM-DD HH:MM'`.
 - The slot is marked as successfully booted after the boot completes:
   `sudo piano-slot-success --check` should report `"state": "already-successful"`.
 

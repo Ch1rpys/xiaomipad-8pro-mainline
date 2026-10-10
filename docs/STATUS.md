@@ -36,10 +36,11 @@ visually and with DPU frame counters. The release image set boots from slot A.
    1970 in the initrd and systemd then advances it to its built-in date
    (2026-04-15). From piano-ubuntu-desktop 0.1+20261010.6, `fake-hwclock`
    restores the time saved at the last shutdown or hourly and chrony skips
-   the NTS certificate time checks until its first update; behind a router
-   that answers every NTP request itself, chrony gets no authenticated time
-   and the clock must still be set manually. Accepting unauthenticated time
-   (`authselectmode ignore`) is an open decision, not set.
+   the NTS certificate time checks until its first update. From
+   0.1+20261010.7 chrony selects sources regardless of authentication
+   (`authselectmode ignore`), so that it also synchronises behind a router
+   that answers every NTP request itself (not yet tested). Trade-off:
+   unauthenticated time is accepted when NTS is unavailable.
 4. **Display.** Firmware scanout only: brightness stays at the bootloader
    level and there is no screen-off or wake. simpledrm reports no physical
    size, so GNOME shows an unknown 40-inch monitor; `piano-ubuntu-desktop`

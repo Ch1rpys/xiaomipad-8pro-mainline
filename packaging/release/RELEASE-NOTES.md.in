@@ -56,9 +56,10 @@ $package_rows
   on the tablet.
 - Clock: a boot starts from the time `fake-hwclock` saved at the last shutdown or hourly instead of
   systemd's built-in date (2026-04-15), and chrony skips the NTS certificate time checks until its
-  first update (`nocerttimecheck 1`). Behind a router that answers every NTP request itself the clock
-  still does not synchronise. Both are interim measures until the clock offset can be stored on the
-  PMIC.
+  first update (`nocerttimecheck 1`). chrony selects sources regardless of authentication
+  (`authselectmode ignore`), so that it also synchronises behind a router that answers every NTP request
+  itself (not yet tested); unauthenticated time is then accepted when NTS is unavailable. These are
+  interim measures until the clock offset can be stored on the PMIC.
 - Developer mode stays off in the image; the installation guide turns it on for the installation and
   off at the end of step 10. Its SSH socket accepts connections on the USB interface `usb0` only, not
   over Wi-Fi.
