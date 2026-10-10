@@ -388,14 +388,15 @@ sudo cp $R/boot/vmlinuz-<release> $R/boot/initrd.img-<release> \
   $R/usr/lib/linux-image-<release>/piano-boot.dtb out/install/
 sudo rm -r $R/usr/sbin/policy-rc.d $R/var/cache/piano-install
 sudo umount $R/dev/pts $R/dev $R/sys $R/proc $R
-e2fsck -f out/install/root.ext4 && img2simg out/install/root.ext4 out/install/root.sparse.img
+e2fsck -f out/install/root.ext4 && python3 tools/sparse_image.py encode-ext4 out/install/root.ext4 out/install/root.sparse.img
 
 truncate -s 216115687424 out/install/data.ext4     # 512 GB 机型的 linux_data 大小（§4.5）
 mkfs.ext4 -U "$DATA_UUID" out/install/data.ext4 && img2simg -s out/install/data.ext4 out/install/data.sparse.img
 ```
 
-`img2simg` 把全零块存为 FILL 块，Fastboot 仍会完整写入：根约 55 GB（测试机 41 s）。`-s` 不写入未用块（DONT_CARE），
-数据盘镜像只让平板写约 1 GiB 而不是 216 GB（2026-10-10 已验证；不加 `-s` 时 1803 s）。刷写前核对块类型合计；根镜像保持构建原样（其字节即发布物）。
+不带参数的 `img2simg` 把全零块存为 FILL 块，Fastboot 仍会完整写入：根约 55 GB，引导程序回 `OKAY` 后在后台以约 30 MB/s
+写入（测试机 2026-10-10 为 1839 s）。`encode-ext4` 只把空闲块设为 DONT_CARE，已用的全零块（inode 表、日志）保留为 FILL：
+发布根约写 9.4 GiB。`-s` 不写数据盘镜像的未用块。刷写前用 `python3 tools/sparse_image.py summary` 核对合计；根镜像保持构建原样（其字节即发布物）。
 
 ### 4.5 新的 LUN 0 GPT（主机，v0.1 手工步骤）
 
@@ -498,8 +499,9 @@ fastboot -s <SERIAL> getvar partition-size:linux_data     # 512 GB 机型预期 
 fastboot -s <SERIAL> erase userdata
 fastboot -s <SERIAL> erase metadata
 fastboot -s <SERIAL> flash linux_rootfs out/install/root.sparse.img
-fastboot -s <SERIAL> flash linux_data out/install/data.sparse.img     # 预留 30 分钟
+fastboot -s <SERIAL> flash linux_data out/install/data.sparse.img
 # 预期每个 Sending 与 Writing 行均为 "OKAY"，最后 "Finished."
+# 返回 OKAY 时引导程序可能仍在写 FILL 块，下一条命令会等它写完；等待期间不要拔线、复位或关机。
 ```
 
 Android 下次启动时重建 `userdata` 和 `metadata`；全部 Android 数据（包括 root 管理器的配置）都会丢失。

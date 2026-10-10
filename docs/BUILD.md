@@ -18,7 +18,7 @@ Linux x86_64. Commands run from the root of this repository.
 | Packages | `dpkg-deb`, `python3-debian`, `aarch64-linux-gnu-g++`, `nlohmann-json3-dev`, `m4`, `alsatplg` |
 | Mesa | Meson 1.9, Ninja, Mako, PyYAML, Python packaging, Bison, Flex, a native `glslangValidator`, an ARM64 GCC/G++ cross toolchain, and a Meson cross file with an explicit ARM64 sysroot (libdrm, zlib, zstd, expat, Wayland 1.24 and wayland-protocols, X11/XCB development packages from Ubuntu 26.04) |
 | Ubuntu base | `7z`, `unsquashfs`, squashfs-tools-ng 1.2 (`sqfs2tar`), `apt`, `python3-apt` |
-| Root image and release | e2fsprogs 1.47.4 built with libarchive and NLS (`mke2fs`, `e2fsck`, `debugfs`), `img2simg`, `sgdisk`, `zip`, QEMU `qemu-system-aarch64` |
+| Root image and release | e2fsprogs 1.47.4 built with libarchive and NLS (`mke2fs`, `e2fsck`, `debugfs`, `dumpe2fs`), `img2simg`, `sgdisk`, `zip`, QEMU `qemu-system-aarch64` |
 
 ```bash
 sh tools/fetch-aosp-mkbootimg.sh       # pinned checkout in tools/local/aosp-mkbootimg

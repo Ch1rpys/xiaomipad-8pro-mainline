@@ -294,14 +294,20 @@ mkfs.ext4 -L linux_data data.ext4 && img2simg -s data.ext4 data.sparse.img     #
 ```bash
 fastboot -s <SERIAL> erase userdata
 fastboot -s <SERIAL> erase metadata
-fastboot -s <SERIAL> flash linux_rootfs <release>/rootfs/root.sparse.img   # 约 1 分钟（测试机 USB 3 实测 41 s）
-fastboot -s <SERIAL> flash linux_data data.sparse.img                      # 数秒；平板实际写入约 1 GiB
+python3 tools/sparse_image.py summary <release>/rootfs/root.sparse.img data.sparse.img   # 平板将写入的量
+fastboot -s <SERIAL> flash linux_rootfs <release>/rootfs/root.sparse.img   # 数分钟；约写入 9.4 GiB
+fastboot -s <SERIAL> flash linux_data data.sparse.img                      # 数秒
 # 预期每个 Sending 与 Writing 行均为 "OKAY"，最后 "Finished."
 ```
 
-稀疏镜像传输量小，但平板会写入其描述的每个块：根镜像覆盖整个 60 GiB（其中约 52 GiB 为零填充）。`img2simg -s`
-不写入 `data.sparse.img` 的未用块（6 MB 数据加 1 GiB 日志填充），平板约写 1 GiB 而不是 201 GiB（测试机 2026-10-10：
-0.2 s 返回 `OKAY`，之后下一次 `fastboot boot` 多用约 30 s；不加 `-s` 时写入用了 1803 s）。等每次写入自行结束。已返回 `OKAY` 的写入不要重复。
+平板写入稀疏镜像的 RAW 与 FILL 块，跳过 DONT_CARE 块。根镜像只写文件系统用到的块（8.2 GiB 数据加 1.1 GiB
+置零的 inode 表与日志；51 GiB 空闲空间为 DONT_CARE）；`img2simg -s` 同样不写 `data.sparse.img` 的空闲块
+（6 MB 数据，日志填充至多 1 GiB）。
+
+**`OKAY` 不代表写入已完成。** 引导程序在数据传完时即应答，随后在后台以约 30 MB/s 继续写 FILL 块；下一条 Fastboot
+命令会等它写完。命令等待期间不要拔线、复位或关机，已返回 `OKAY` 的写入不要重复。（测试机 2026-10-10：本预览的早期镜像把根的
+空闲空间存成 51.8 GiB FILL，`flash linux_rootfs` 41 s 返回 `OKAY`，随后只有 6 MB 的 `flash linux_data` 到 1839 s 才返回，
+等的是根镜像的 FILL 写入；含 1 GiB FILL 的数据盘镜像使下一次 `fastboot boot` 多用约 30 s。）
 Android 下次启动时重建 `userdata` 与 `metadata`；全部 Android 数据（包括 root 管理器的配置）都会丢失。
 
 ## 8. 可选：不写 A 槽先试启动

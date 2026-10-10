@@ -77,7 +77,7 @@ another stock build, prepare the DTB and the set from your own images.
 
 Host tools, none run as root: `dpkg-deb`, `python3-debian`, `img2simg`, `sgdisk`, `openssl`, `zip`,
 QEMU `qemu-system-aarch64` (TCG), squashfs-tools-ng 1.2 `sqfs2tar`, and e2fsprogs 1.47.4
-`mke2fs`/`e2fsck`/`debugfs` built with libarchive (the identity is recorded in the manifests).
+`mke2fs`/`e2fsck`/`debugfs`/`dumpe2fs` built with libarchive (the identity is recorded in the manifests).
 
 ```bash
 # 1. Ubuntu packages added to the base, from a signed snapshot
@@ -88,7 +88,7 @@ python3 tools/prepare-ubuntu-apt.py --rootfs out/ubuntu-desktop-pristine/ubuntu-
 python3 tools/build-rootfs-image.py \
   --squashfs out/ubuntu-desktop-pristine/ubuntu-desktop.squashfs --squashfs-sha256 <sha256> \
   --sqfs2tar <sqfs2tar> --mke2fs <mke2fs> --mke2fs-config <mke2fs.conf> --e2fsck <e2fsck> --debugfs <debugfs> \
-  --qemu <qemu-system-aarch64> --kernel-deb out/kernel-deb-<N>/linux-image-<release>_*.deb \
+  --dumpe2fs <dumpe2fs> --qemu <qemu-system-aarch64> --kernel-deb out/kernel-deb-<N>/linux-image-<release>_*.deb \
   --deb <piano-device-support.deb> --deb <piano-local-firmware.deb> --deb <piano-mesa.deb> --deb <piano-ubuntu-desktop.deb> \
   --apt-manifest out/apt-release/manifest.json \
   --boot-profile <boot-profile.json read from a stock unit> --boot-key <release signing key> \
@@ -124,9 +124,17 @@ python3 tools/build-release.py --rootfs-build out/rootfs-<version> \
 - `--forbid-file` makes `build-release.py` scan every output for identifiers of your unit (serial,
   Bluetooth and Wi-Fi address in text and binary forms). The files are read, never copied or recorded;
   the scan does not see inside compressed files.
-- `root.sparse.img` stores the zero blocks of the 60 GiB file as FILL chunks, which Fastboot writes in
-  full (41 s on the test unit over USB 3). `build-release.py` hard-links it, so the release directory
-  must be on the same filesystem as the build.
+- `root.sparse.img` comes from [tools/sparse_image.py](../tools/sparse_image.py) `encode-ext4`: the
+  holes of `root.ext4` are made exactly its zero free blocks (zeros are written into holes of used
+  blocks such as the inode tables and journal, which ext4 trusts to be zero), then `img2simg -s`
+  stores the holes as DONT_CARE; the bytes of `root.ext4` do not change. Fastboot writes RAW and FILL
+  blocks only, so the tablet writes the used blocks (about 9.4 GiB for v0.1.0-preview) instead of
+  60 GiB. The build stops if a DONT_CARE block is in use or more than 64 MiB of FILL lies on free
+  blocks, and records the summary in `manifest.json` (`sparse`).
+- `build-release.py` prints what Fastboot writes for every image and stops on the same rules (for the
+  root, the recorded summary must match the file's chunks; `--allow-fill` only reports). Before
+  flashing, `python3 tools/sparse_image.py summary <image>...` prints the same totals. It hard-links
+  the root image, so the release directory must be on the same filesystem as the build.
 
 ## Installing the release
 

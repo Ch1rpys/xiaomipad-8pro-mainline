@@ -325,17 +325,26 @@ Erase Android's data and write both filesystems:
 ```bash
 fastboot -s <SERIAL> erase userdata
 fastboot -s <SERIAL> erase metadata
-fastboot -s <SERIAL> flash linux_rootfs <release>/rootfs/root.sparse.img   # about 1 minute (41 s on the test unit, USB 3)
-fastboot -s <SERIAL> flash linux_data data.sparse.img                      # seconds; the tablet commits about 1 GiB
+python3 tools/sparse_image.py summary <release>/rootfs/root.sparse.img data.sparse.img   # what the tablet will write
+fastboot -s <SERIAL> flash linux_rootfs <release>/rootfs/root.sparse.img   # a few minutes; about 9.4 GiB written
+fastboot -s <SERIAL> flash linux_data data.sparse.img                      # seconds
 # expect "OKAY" on every Sending and Writing line, then "Finished."
 ```
 
-The sparse images are small to transfer, but the tablet writes every block they describe: the root
-image covers the full 60 GiB (about 52 GiB of it zero fill). `img2simg -s` leaves the unused blocks
-of `data.sparse.img` out (6 MB of data, 1 GiB of journal fill), so the tablet writes about 1 GiB
-instead of 201 GiB (2026-10-10 on the test unit: `OKAY` after 0.2 s, the bootloader then needed about
-30 s more before the next `fastboot boot`; without `-s` the write took 1803 s). Let each write finish. Do not repeat a write that finished with `OKAY`. Android re-creates `userdata` and `metadata`
-on its next boot; all Android data, including the root manager's configuration, is gone.
+The tablet writes the RAW and FILL blocks of a sparse image and skips its DONT_CARE blocks. The root
+image writes only the blocks its filesystem uses (8.2 GiB of data and 1.1 GiB of zeroed inode tables
+and journal; the 51 GiB of free space are DONT_CARE); `img2simg -s` likewise leaves the free blocks of
+`data.sparse.img` out (6 MB of data, at most 1 GiB of journal fill).
+
+**`OKAY` does not mean the write is finished.** The bootloader answers once the data has arrived and
+keeps writing FILL blocks in the background at about 30 MB/s; the next Fastboot command waits until it
+is done. Do not unplug the cable, reset or power off the tablet while a command waits, and do not
+repeat a write that finished with `OKAY`. (On the test unit, 2026-10-10: an earlier image of this
+preview stored the free space of the root as 51.8 GiB of FILL; `flash linux_rootfs` returned `OKAY`
+after 41 s, and the following `flash linux_data` of a 6 MB image returned only after 1839 s, the root's
+FILL commit. A data image with 1 GiB of FILL delayed the next `fastboot boot` by about 30 s.) Android
+re-creates `userdata` and `metadata` on its next boot; all Android data, including the root manager's
+configuration, is gone.
 
 ## 8. Optional: test-boot without writing slot A
 

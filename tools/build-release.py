@@ -16,8 +16,11 @@ Layout of the output directory:
 The data partition is not shipped: RELEASE-NOTES.md and docs/RELEASE.md give
 the mkfs recipe.  Before writing anything the tool checks that the boot set
 carries no unit identity: no serial on its command line, no address properties
-in its DTB, the stock-build-only boot profile.  --forbid-file adds a byte scan
-of every output for identifiers of a real unit (serial, Bluetooth or Wi-Fi
+in its DTB, the stock-build-only boot profile, and prints what Fastboot writes
+for every image (sparse_image.py): it stops if a sparse image carries FILL
+beyond the limit or DONT_CARE on used ext4 blocks; the root image is judged by
+the ext4 bitmap check recorded when it was encoded.  --forbid-file adds a byte
+scan of every output for identifiers of a real unit (serial, Bluetooth or Wi-Fi
 address), read from private files that are never copied or recorded.
 """
 import argparse
@@ -30,6 +33,9 @@ import shutil
 import string
 import struct
 import subprocess
+import sys
+
+import sparse_image
 
 REPO = Path(__file__).resolve().parents[1]
 REPO_URL = 'https://github.com/yzddmr6/xiaomipad-8pro-mainline'
@@ -109,6 +115,9 @@ def main():
                     help='Output directory of build-persistent-boot.py --maintenance --no-serial for this kernel')
     ap.add_argument('--forbid-file', type=Path, action='append', default=[],
                     help='Private file with an identifier of a real unit that no output may contain')
+    ap.add_argument('--max-fill-mib', type=int, default=sparse_image.DEFAULT_MAX_FILL_MIB,
+                    help='FILL limit per sparse image (on free blocks for the ext4 root)')
+    ap.add_argument('--allow-fill', action='store_true', help='Report FILL beyond the limit without stopping')
     ap.add_argument('--output', type=Path, required=True, help='New release directory')
     a = ap.parse_args()
     build = a.rootfs_build.resolve()
@@ -168,6 +177,26 @@ def main():
     }
     if not all(maint_checks.values()):
         raise SystemExit(f'Maintenance image does not fit this release: {[k for k, v in maint_checks.items() if not v]}')
+
+    # What Fastboot writes for each image.  The root's bitmap check needs the raw ext4, so its
+    # encoding record stands in for it once it matches the file's chunks.
+    images = {f'boot/{n}': s / n for n in SET_FILES if n.endswith('.img')}
+    images['boot/boot-ram-maintenance.img'] = maint_image
+    images['rootfs/root.sparse.img'] = build / 'root.sparse.img'
+    writes = {}
+    for rel, path in sorted(images.items()):
+        row = sparse_image.summary(path)
+        recorded = rootfs.get('sparse') if rel == 'rootfs/root.sparse.img' else None
+        if recorded is not None:
+            if {k: recorded.get(k) for k in row} != row:
+                raise SystemExit('root.sparse.img does not match the sparse summary recorded at its build')
+            row = recorded
+        writes[rel] = row
+        print(f'{rel}: ' + sparse_image.describe(row).split(': ', 1)[1], file=sys.stderr)
+    found = [f for r in writes.values()
+             for f in sparse_image.problems(r, None if a.allow_fill else a.max_fill_mib << 20)]
+    if found:
+        raise SystemExit('Sparse image check failed: ' + '; '.join(found))
 
     out = a.output.resolve()
     out.mkdir(parents=True, exist_ok=False)
@@ -248,6 +277,8 @@ def main():
         'dtb_property_count': len(properties), 'identity_scan': identity,
         'data_partition': 'not shipped; create it at install time (docs/RELEASE.md)',
         'qemu_boot_check': 'included' if a.boot_check else 'not run for this build',
+        'fastboot_writes': {rel: {k: r[k] for k in ('sparse', 'device_write_bytes', 'raw', 'fill', 'dont_care', 'ext4')
+                                  if k in r} for rel, r in writes.items()},
         'files_sha256': hashes,
         'scope': 'Local release directory; not published, not booted on a tablet as a whole',
     }

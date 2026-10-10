@@ -420,16 +420,18 @@ sudo cp $R/boot/vmlinuz-<release> $R/boot/initrd.img-<release> \
   $R/usr/lib/linux-image-<release>/piano-boot.dtb out/install/
 sudo rm -r $R/usr/sbin/policy-rc.d $R/var/cache/piano-install
 sudo umount $R/dev/pts $R/dev $R/sys $R/proc $R
-e2fsck -f out/install/root.ext4 && img2simg out/install/root.ext4 out/install/root.sparse.img
+e2fsck -f out/install/root.ext4 && python3 tools/sparse_image.py encode-ext4 out/install/root.ext4 out/install/root.sparse.img
 
 truncate -s 216115687424 out/install/data.ext4     # linux_data size on the 512 GB unit (§4.5)
 mkfs.ext4 -U "$DATA_UUID" out/install/data.ext4 && img2simg -s out/install/data.ext4 out/install/data.sparse.img
 ```
 
-`img2simg` stores zero blocks as FILL chunks, which Fastboot writes in full: about 55 GB for the root
-(41 s on the test unit). `-s` leaves unused blocks out (DONT_CARE): the data image then makes the
-tablet write about 1 GiB instead of 216 GB (verified 2026-10-10; 1803 s without `-s`). Check the
-chunk totals before flashing; keep the root image as built (its bytes are the release's).
+Plain `img2simg` stores zero blocks as FILL chunks, which Fastboot writes in full: about 55 GB for
+the root, committed by the bootloader at about 30 MB/s after it has answered `OKAY` (1839 s on the
+test unit, 2026-10-10). `encode-ext4` makes only the free blocks DONT_CARE and keeps zero used blocks
+(inode tables, journal) as FILL: about 9.4 GiB written for the release root. `-s` leaves the unused
+blocks of the data image out. Check the totals with `python3 tools/sparse_image.py summary` before
+flashing; keep the root image as built (its bytes are the release's).
 
 ### 4.5 New LUN 0 GPT (host, manual in v0.1)
 
@@ -540,8 +542,10 @@ fastboot -s <SERIAL> getvar partition-size:linux_data     # expect "0x32517fb000
 fastboot -s <SERIAL> erase userdata
 fastboot -s <SERIAL> erase metadata
 fastboot -s <SERIAL> flash linux_rootfs out/install/root.sparse.img
-fastboot -s <SERIAL> flash linux_data out/install/data.sparse.img     # allow 30 minutes
+fastboot -s <SERIAL> flash linux_data out/install/data.sparse.img
 # expect "OKAY" on every Sending and Writing line, then "Finished."
+# OKAY can come while the bootloader still writes FILL blocks; the next command waits for it.
+# Never unplug, reset or power off the tablet while a command waits.
 ```
 
 Android re-creates `userdata` and `metadata` on its next boot; all Android data, including the

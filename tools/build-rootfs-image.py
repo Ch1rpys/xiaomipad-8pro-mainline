@@ -16,7 +16,8 @@ GPT partitions linux_rootfs and linux_data; the boot set is built with
 build's fields, without Bluetooth or Wi-Fi addresses.  There is no account
 (GNOME Initial Setup creates the first one), no machine ID, no SSH host keys
 and no per-unit file in /etc/piano.  Outputs: root.ext4 (sparse),
-root.sparse.img (img2simg), SHA256SUMS, manifest.json, verification.json.
+root.sparse.img (sparse_image.py encode-ext4: only used blocks are written,
+free blocks are DONT_CARE), SHA256SUMS, manifest.json, verification.json.
 """
 import argparse
 import hashlib
@@ -30,6 +31,8 @@ import subprocess
 import tarfile
 import time
 import uuid
+
+import sparse_image
 
 REPO = Path(__file__).resolve().parents[1]
 ROOT_PARTLABEL = 'linux_rootfs'
@@ -247,6 +250,7 @@ def main():
     ap.add_argument('--mke2fs-config', type=Path, required=True)
     ap.add_argument('--e2fsck', type=Path, required=True)
     ap.add_argument('--debugfs', type=Path, required=True)
+    ap.add_argument('--dumpe2fs', type=Path, required=True)
     ap.add_argument('--qemu', type=Path, required=True, help='qemu-system-aarch64')
     ap.add_argument('--kernel-deb', type=Path, required=True)
     ap.add_argument('--deb', type=Path, action='append', required=True,
@@ -326,7 +330,7 @@ def main():
                       qemu_version=subprocess.check_output([str(a.qemu), '--version'], text=True).splitlines()[0],
                       packages=[d for _, d in debs],
                       tools={n: sha(getattr(a, n)) for n in ('sqfs2tar', 'mke2fs', 'mke2fs_config', 'e2fsck',
-                                                             'debugfs', 'qemu')},
+                                                             'debugfs', 'dumpe2fs', 'qemu')},
                       img2simg_version=subprocess.run(['dpkg-query', '-W', '-f', '${Version}',
                                                        'android-sdk-libsparse-utils'],
                                                       capture_output=True, text=True).stdout or None,
@@ -464,7 +468,11 @@ def main():
         if not report['passed']:
             raise RuntimeError(f'Offline checks failed: {report["failed"]}; see verification.json')
         t = lap('verify', t)
-        subprocess.run(['img2simg', str(final), str(out / 'root.sparse.img')], check=True)
+        sparse, found = sparse_image.encode_ext4(final, out / 'root.sparse.img', a.dumpe2fs.resolve(),
+                                                 sparse_image.DEFAULT_MAX_FILL_MIB << 20)
+        result['sparse'] = sparse
+        if found:
+            raise RuntimeError(f'Sparse image check failed: {found}')
         t = lap('img2simg', t)
         outputs = {n: {'bytes': (out / n).stat().st_size, 'sha256': sha(out / n)}
                    for n in ('root.ext4', 'root.sparse.img')}
