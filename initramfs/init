@@ -22,24 +22,36 @@ mode=console
 root_sha=
 root_transport=http
 session_seconds=180
+maint_idle=600
 for arg in $(cat /proc/cmdline); do
 	case "$arg" in piano.diag=*) mode=${arg#*=} ;; esac
 	case "$arg" in piano.diag_timeout=*) timeout_seconds=${arg#*=} ;; esac
 	case "$arg" in piano.rootfs.sha256=*) root_sha=${arg#*=} ;; esac
 	case "$arg" in piano.rootfs.transport=*) root_transport=${arg#*=} ;; esac
 	case "$arg" in piano.session=*) session_seconds=${arg#*=} ;; esac
+	case "$arg" in piano.maint_idle=*) maint_idle=${arg#*=} ;; esac
 done
 
 case "$timeout_seconds" in *[!0-9]*|'') timeout_seconds=180 ;; esac
 [ "$timeout_seconds" -ge 15 ] 2>/dev/null && [ "$timeout_seconds" -le 900 ] 2>/dev/null || timeout_seconds=180
-(
-	trap 'exit 0' TERM
-	sleep "$timeout_seconds" &
-	wait $!
-	echo "<6>PIANO_DIAG_TIMEOUT: rebooting after $timeout_seconds seconds" >/dev/kmsg
-	echo "PIANO_DIAG_TIMEOUT: rebooting after $timeout_seconds seconds"
-	reboot -f
-) &
+# An initramfs without the maintenance payload keeps the fixed timeout.
+[ "$mode" != maintenance ] || [ -x /bin/piano-maint ] || mode=ncm
+if [ "$mode" = maintenance ]; then
+	# No fixed timeout: /bin/piano-maint reboots to Fastboot after an idle period.
+	case "$maint_idle" in *[!0-9]*|'') maint_idle=600 ;; esac
+	[ "$maint_idle" -ge 30 ] && [ "$maint_idle" -le 3600 ] || maint_idle=600
+	timeout_seconds=idle-$maint_idle
+	/bin/piano-maint watchdog "$maint_idle" &
+else
+	(
+		trap 'exit 0' TERM
+		sleep "$timeout_seconds" &
+		wait $!
+		echo "<6>PIANO_DIAG_TIMEOUT: rebooting after $timeout_seconds seconds" >/dev/kmsg
+		echo "PIANO_DIAG_TIMEOUT: rebooting after $timeout_seconds seconds"
+		reboot -f
+	) &
+fi
 watchdog_pid=$!
 
 echo "<6>PIANO_RAM_INIT: $(uname -r) build=$(cat /etc/build-id) storage-unmounted" >/dev/kmsg
@@ -50,7 +62,8 @@ cat /etc/build-id
 
 usb_mode=$mode
 # ufs-ro only needs the NCM console; its read-only stage is sent by the host.
-case "$mode" in ubuntu|ufs-ro) usb_mode=ncm ;; esac
+# maintenance logs in through piano-maint (initramfs built with MAINTENANCE_DIR).
+case "$mode" in ubuntu|ufs-ro|maintenance) usb_mode=ncm ;; esac
 if [ "$mode" = ubuntu ]; then
 	/bin/busybox mkfifo -m 0600 /run/piano-start
 fi
@@ -59,7 +72,9 @@ if [ "$mode" != console ]; then
 	if /bin/usb-diag "$usb_mode"; then
 		if [ "$usb_mode" = ncm ]; then
 			. /etc/piano-network
-			telnetd -F -b "$PIANO_DEVICE_IP:2323" -l /bin/sh &
+			shell=/bin/sh
+			[ "$mode" != maintenance ] || shell=/bin/piano-maint-login
+			telnetd -F -b "$PIANO_DEVICE_IP:2323" -l "$shell" &
 		else
 			(
 				while :; do

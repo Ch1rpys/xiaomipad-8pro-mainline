@@ -10,6 +10,7 @@ no GitHub release is created and no tablet is accessed. No release has been publ
 |---|---|
 | `boot/boot.img`, `boot/init_boot.img`, `boot/vendor_boot.img` | Ubuntu boot image set for slot A, AVB-signed with a release key; `boot/SHA256SUMS` lists them |
 | `boot/boot-ram-check.img` | v2 image with the same kernel, initrd, DTB and command line, for `fastboot boot` before writing slot A |
+| `boot/boot-ram-maintenance.img`, `boot/maintenance-manifest.json` | v2 RAM image with the same kernel and DTB and the maintenance initramfs: a root shell over USB with nothing mounted, for writing the partition table ([INSTALL.md step 6](INSTALL.md#6-write-the-partition-table-on-the-tablet)); its inputs and command line |
 | `boot/manifest.json`, `boot/boot-profile.json`, `boot/piano-boot.dtb` | set inputs and outputs; the boot profile holds only stock-build fields; the DTB the set carries |
 | `rootfs/root.sparse.img` | the 60 GiB `linux_rootfs` ext4 as an Android sparse image, for `fastboot flash linux_rootfs` |
 | `rootfs/manifest.json`, `rootfs/verification.json`, `rootfs/qemu-boot-check.json` | every input hash and package version; the offline checks; the QEMU boot result |
@@ -93,9 +94,14 @@ python3 tools/build-rootfs-image.py \
 # 4. Boot the image in QEMU towards multi-user.target (optional; under TCG, snap seeding exceeds 20 minutes)
 python3 tools/check-rootfs-boot.py --rootfs-build out/rootfs-<version> --qemu <qemu-system-aarch64> \
   --debugfs <debugfs> --mke2fs <mke2fs> --output out/rootfs-<version>-boot
-# 5. The release directory
+# 5. The maintenance RAM image of the same kernel package (AGENT-GUIDE.md §4.6), address-free
+python3 tools/build-persistent-boot.py --maintenance --no-serial --kernel <vmlinuz-<release>> \
+  --kernel-release <release> --dtb <piano-boot.dtb of the package> --initrd out/maintenance-initramfs/initramfs.cpio.gz \
+  --profile out/rootfs-<version>/boot-profile.json --mkbootimg tools/local/aosp-mkbootimg/mkbootimg.py \
+  --output out/maintenance-ram-<version>
+# 6. The release directory
 python3 tools/build-release.py --rootfs-build out/rootfs-<version> \
-  --boot-check out/rootfs-<version>-boot/result.json \
+  --boot-check out/rootfs-<version>-boot/result.json --maintenance out/maintenance-ram-<version> \
   --forbid-file <your bluetooth-address> --forbid-file <your wlan-address> --forbid-file <your boot-profile.json> \
   --output out/release-<version>
 (cd out/release-<version> && sha256sum -c SHA256SUMS)
@@ -131,7 +137,7 @@ Manual in v0.1. The owner's step-by-step guide is [INSTALL.md](INSTALL.md); it f
    truncate -s <linux_data bytes> data.ext4
    mkfs.ext4 -L linux_data data.ext4 && img2simg data.ext4 data.sparse.img
    ```
-3. §4.5–§4.6 unchanged, except that the GUIDs of `linux_rootfs` and `linux_data` may be any new
+3. §4.5–§4.6 unchanged (§4.6 in `boot/boot-ram-maintenance.img`), except that the GUIDs of `linux_rootfs` and `linux_data` may be any new
    values: the release finds both partitions by name. The names must be exactly `linux_rootfs` and
    `linux_data`.
 4. §4.7 with `rootfs/root.sparse.img` for `linux_rootfs` and `data.sparse.img` for `linux_data`.
@@ -165,4 +171,8 @@ address, and kernel package updates leave the boot set unchanged. Use the magnet
   7.2.6-piano3 (TCG, `apparmor=0`, 20 minutes) found and checked `linux_rootfs` by name and mounted
   `/home` from `linux_data`; the only failed unit was `piano-slot-success` (expected: QEMU is not
   piano), and `multi-user.target` was still waiting for Ubuntu's first-boot `snapd.seeded.service`.
+- On the test unit (2026-10-10), `boot/boot-ram-maintenance.img` (`21f3a043…`, 7.2.6-piano5,
+  serial-free) booted from RAM: NCM link after 4 s, six LUNs, LUN 0's `sgdisk -p`, `sfdisk --json` and
+  `sgdisk --verify` matching the installed table, nothing mounted, and the idle timer rebooted it
+  into Fastboot by itself. No write was run from it.
 - The release image as a whole has not been flashed to a tablet.

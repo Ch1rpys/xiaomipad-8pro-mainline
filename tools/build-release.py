@@ -4,7 +4,9 @@
 
 Layout of the output directory:
   boot/    the address-free Ubuntu boot set (boot, init_boot, vendor_boot, its
-           SHA256SUMS, manifest, boot profile, DTB) and boot-ram-check.img
+           SHA256SUMS, manifest, boot profile, DTB), boot-ram-check.img and
+           boot-ram-maintenance.img (build-persistent-boot.py --maintenance
+           --no-serial, same kernel and DTB) with maintenance-manifest.json
   rootfs/  root.sparse.img (for fastboot flash linux_rootfs), its manifest and
            offline verification
   debs/    the piano packages installed in the image (kernel, device support,
@@ -103,6 +105,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--rootfs-build', type=Path, required=True, help='Output directory of build-rootfs-image.py')
     ap.add_argument('--boot-check', type=Path, help='result.json of check-rootfs-boot.py for this image')
+    ap.add_argument('--maintenance', type=Path, required=True,
+                    help='Output directory of build-persistent-boot.py --maintenance --no-serial for this kernel')
     ap.add_argument('--forbid-file', type=Path, action='append', default=[],
                     help='Private file with an identifier of a real unit that no output may contain')
     ap.add_argument('--output', type=Path, required=True, help='New release directory')
@@ -149,6 +153,22 @@ def main():
     if not all(checks.values()):
         raise SystemExit(f'Boot set is not address-free: {[k for k, v in checks.items() if not v]}')
 
+    # The maintenance image: the set's kernel and address-free DTB, no serial.
+    m = a.maintenance.resolve()
+    maint = json.loads((m / 'manifest.json').read_text())
+    maint_image = m / maint['image']['file']
+    maint_checks = {
+        'kind': maint.get('kind') == 'piano-maintenance-ram',
+        'same_kernel': maint['inputs']['kernel'] == manifest['inputs']['kernel']
+                       and maint['kernel_release'] == release,
+        'same_address_free_dtb': maint['inputs']['dtb'] == manifest['effective_dtb_sha256'],
+        'cmdline_without_serial': not maint['serial_in_cmdline'] and 'androidboot.serialno' not in maint['cmdline']
+                                  and b'androidboot.serialno' not in maint_image.read_bytes()[:4096],
+        'image_matches_manifest': sha(maint_image) == maint['image']['sha256'],
+    }
+    if not all(maint_checks.values()):
+        raise SystemExit(f'Maintenance image does not fit this release: {[k for k, v in maint_checks.items() if not v]}')
+
     out = a.output.resolve()
     out.mkdir(parents=True, exist_ok=False)
     for d in ('boot', 'rootfs', 'debs', 'tools'):
@@ -156,6 +176,8 @@ def main():
     for name in SET_FILES:
         shutil.copy2(s / name, out / 'boot' / name)
     (out / 'boot/boot-profile.json').write_bytes((build / 'boot-profile.json').read_bytes())
+    shutil.copy2(maint_image, out / 'boot/boot-ram-maintenance.img')
+    shutil.copy2(m / 'manifest.json', out / 'boot/maintenance-manifest.json')
     # The same file system: a hard link instead of a second 9 GB copy.
     os.link(build / 'root.sparse.img', out / 'rootfs/root.sparse.img')
     for name in ('manifest.json', 'verification.json'):
@@ -198,6 +220,7 @@ def main():
     purposes = {
         'boot/boot.img': 'slot A `boot_a`', 'boot/init_boot.img': 'slot A `init_boot_a`',
         'boot/vendor_boot.img': 'slot A `vendor_boot_a`', 'boot/boot-ram-check.img': '`fastboot boot` check of the installed root',
+        'boot/boot-ram-maintenance.img': '`fastboot boot` maintenance shell for the partition table (INSTALL.md step 6)',
         'rootfs/root.sparse.img': '`fastboot flash linux_rootfs`',
         'tools/piano-switch.py': 'host Fastboot switching and recovery',
     }
@@ -221,6 +244,7 @@ def main():
         'release_name': release_name, 'kernel_release': release, 'kernel_commit': kernel_commit,
         'integration_commit': head, 'integration_tree_dirty': bool(dirty), 'tools_committed': tools_committed,
         'rootfs_manifest_sha256': sha(build / 'manifest.json'), 'boot_set_checks': checks,
+        'maintenance_image_checks': maint_checks,
         'dtb_property_count': len(properties), 'identity_scan': identity,
         'data_partition': 'not shipped; create it at install time (docs/RELEASE.md)',
         'qemu_boot_check': 'included' if a.boot_check else 'not run for this build',

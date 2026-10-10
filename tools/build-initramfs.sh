@@ -8,6 +8,8 @@ if [[ ${1:-} == --help ]]; then
 	echo 'Usage: BUSYBOX=... GEN_INIT_CPIO=... OUT_DIR=... [FIRMWARE_DIR=...] [MODULES_DIR=...] build-initramfs.sh'
 	echo 'MODULES_DIR: optional verified stage-kernel-modules output; no automatic module loading.'
 	echo 'MESA_DIR: optional locked build-mesa output; isolated RAM desktop graphics only.'
+	echo 'MAINTENANCE_DIR: optional prepare-maintenance-payload.py output for piano.diag=maintenance;'
+	echo 'not combined with FIRMWARE_DIR or MODULES_DIR (the payload owns /lib -> usr/lib).'
 	echo 'FIRMWARE_DIR: optional private tree copied to /lib/firmware/<relative path>;'
 	echo 'its manifest (path size sha256) goes to /etc/piano-firmware and OUT_DIR/firmware-manifest.'
 	exit 0
@@ -53,7 +55,14 @@ if [[ -n ${FIRMWARE_DIR:-} ]]; then
 			"$(sha256sum -- "$fw_dir/$rel" | cut -d' ' -f1)"
 	done <"$stage/firmware-files" >"$stage/piano-firmware"
 fi
-rm -f "$out/module-manifest.json"
+rm -f "$out/module-manifest.json" "$out/maintenance-manifest.json"
+if [[ -n ${MAINTENANCE_DIR:-} ]]; then
+	[[ -z ${FIRMWARE_DIR:-} && -z ${MODULES_DIR:-} ]] || {
+		echo 'MAINTENANCE_DIR is not combined with FIRMWARE_DIR or MODULES_DIR.' >&2; exit 1;
+	}
+	python3 "$repo/tools/prepare-maintenance-payload.py" stage --payload "$MAINTENANCE_DIR" \
+		--stage-dir "$stage/maintenance" >"$stage/maintenance.list"
+fi
 if [[ -n ${MODULES_DIR:-} ]]; then
 	python3 "$repo/tools/prepare-module-initramfs.py" --modules-tree "$MODULES_DIR" \
 		--stage "$stage/modules" >"$stage/modules.list"
@@ -69,6 +78,9 @@ fi
 		sha256sum "$stage/modules/etc/piano-modules.sha256" "$stage/modules/bin/piano-modules" | cut -d' ' -f1
 	fi
 	[[ ! -f $stage/mesa.list ]] || sha256sum "$stage/mesa/etc/piano-mesa.json" | cut -d' ' -f1
+	if [[ -f $stage/maintenance.list ]]; then
+		sha256sum "$repo/initramfs/piano-maint" "$stage/maintenance/piano-maintenance.json" | cut -d' ' -f1
+	fi
 } | sha256sum | cut -d' ' -f1 >"$stage/build-id"
 python3 - "$network_src" "$stage/piano-network" <<'PY'
 import json, pathlib, shlex, sys
@@ -95,6 +107,17 @@ PY
 	fi
 	[[ ! -f $stage/modules.list ]] || cat "$stage/modules.list"
 	[[ ! -f $stage/mesa.list ]] || cat "$stage/mesa.list"
+	if [[ -f $stage/maintenance.list ]]; then
+		cat "$stage/maintenance.list"
+		printf 'file /bin/piano-maint %s 0755 0 0\n' "$repo/initramfs/piano-maint"
+		printf 'slink /bin/piano-maint-login piano-maint 0777 0 0\n'
+		# The shell tools of the maintenance environment; Ubuntu's are in /usr.
+		for app in dd sha256sum sha512sum md5sum cmp sync stat wget nc cut head tail wc sed sort uniq \
+			hexdump xxd insmod lsmod rmmod ps kill date rm cp mv chmod find df free less vi \
+			tee env expr seq test true false mktemp basename dirname umount lsscsi partprobe uptime; do
+			printf 'slink /bin/%s busybox 0777 0 0\n' "$app"
+		done
+	fi
 	if [[ -f $stage/piano-firmware ]]; then
 		printf 'file /etc/piano-firmware %s 0644 0 0\n' "$stage/piano-firmware"
 		printf 'dir /lib/firmware 0755 0 0\n'
@@ -118,5 +141,6 @@ PY
 mv "$out/initramfs.cpio.gz.new" "$out/initramfs.cpio.gz"
 [[ ! -f $stage/piano-firmware ]] || cp "$stage/piano-firmware" "$out/firmware-manifest"
 [[ ! -f $stage/modules.list ]] || cp "$stage/modules/etc/piano-modules.json" "$out/module-manifest.json"
+[[ ! -f $stage/maintenance.list ]] || cp "$stage/maintenance/piano-maintenance.json" "$out/maintenance-manifest.json"
 sha256sum "$out/initramfs.cpio.gz" >"$out/initramfs.cpio.gz.sha256"
 echo "Built $out/initramfs.cpio.gz (RAM diagnostic userspace, not a boot image)"

@@ -1,0 +1,167 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
+# Maintenance mode of the RAM initramfs (piano.diag=maintenance): a root shell
+# over the NCM link for work on the UFS disks that must not run from a mounted
+# system, such as writing the LUN 0 partition table. This script mounts,
+# writes and discards nothing on the disks; only the operator's commands do.
+#   piano-maint-login         telnetd login: banner and map, then a root shell
+#   piano-maint map           LUNs, mounts and the LUN 0 partition table
+#   piano-maint status        idle count, limit, sessions, Fastboot readiness
+#   piano-maint keepalive     restart the idle count
+#   piano-maint idle SECONDS  set the idle limit (30-3600)
+#   piano-maint fastboot      reboot to Fastboot now
+#   piano-maint watchdog SECONDS   started by /init
+# The watchdog reboots to Fastboot once SECONDS pass with no open session
+# (a running login shell while the USB link has carrier) and no touch of the
+# keepalive file, so a forgotten tablet does not stay in this environment.
+export PATH=/usr/sbin:/usr/bin:/bin
+# Overridable only for the host test (tools/test-maintenance-initramfs.py).
+state=${PIANO_MAINT_STATE:-/run/piano-maint}
+sys=${PIANO_MAINT_SYS:-/sys}
+tick=5
+
+limit() {
+	v=
+	read -r v 2>/dev/null <"$state/idle"
+	case "$v" in ''|*[!0-9]*) v=600 ;; esac
+	echo "$v"
+}
+
+reboot_mode_ready() {
+	for d in "$sys"/bus/platform/drivers/nvmem-reboot-mode/*; do
+		[ -L "$d" ] && [ "${d##*/}" != module ] && return 0
+	done
+	return 1
+}
+
+# nvmem-reboot-mode stores the reboot argument in the PMIC SDAM cell that ABL
+# reads; without it bound a reboot returns to slot A (piano-reboot-bootloader).
+load_reboot_mode() {
+	m=/usr/lib/modules/$(uname -r)/kernel/drivers
+	insmod "$m/nvmem/nvmem_qcom-spmi-sdam.ko" 2>/dev/null
+	insmod "$m/power/reset/nvmem-reboot-mode.ko" 2>/dev/null
+	reboot_mode_ready
+}
+
+# reboot_to_fastboot REASON [fallback]: without the reboot mode, refuse, or
+# with fallback (the watchdog) reboot normally rather than stay here.
+reboot_to_fastboot() {
+	sync
+	if reboot_mode_ready || load_reboot_mode; then
+		echo "<6>PIANO_MAINT: rebooting to Fastboot ($1)" >/dev/kmsg
+		echo "piano-maint: rebooting to Fastboot ($1)"
+		/bin/restart2 bootloader
+	fi
+	echo "<3>PIANO_MAINT: nvmem-reboot-mode not bound ($1)" >/dev/kmsg
+	echo 'piano-maint: nvmem-reboot-mode is not bound; a reboot would not reach Fastboot' >&2
+	[ "${2:-}" = fallback ] || return 1
+	reboot -f
+}
+
+sessions() {
+	n=0
+	for f in "$state"/sessions/*; do
+		[ -e "$f" ] || continue
+		if [ -d "/proc/${f##*/}" ]; then n=$((n + 1)); else rm -f "$f"; fi
+	done
+	echo "$n"
+}
+
+watchdog() {
+	mkdir -p "$state/sessions"
+	echo "$1" >"$state/idle"
+	load_reboot_mode
+	idle=0
+	last=
+	while :; do
+		sleep "${PIANO_MAINT_SLEEP:-$tick}"
+		active=
+		[ "$(sessions)" = 0 ] || active=session
+		carrier=0
+		read -r carrier 2>/dev/null <"$sys/class/net/usb0/carrier"
+		[ "$carrier" = 1 ] || active=
+		now=$(stat -c %Y "$state/keepalive" 2>/dev/null)
+		if [ "$now" != "$last" ]; then
+			last=$now
+			active=keepalive
+		fi
+		if [ -n "$active" ]; then idle=0; else idle=$((idle + tick)); fi
+		echo "$idle" >"$state/idle-count"
+		[ "$idle" -lt "$(limit)" ] || break
+	done
+	reboot_to_fastboot "no session or keepalive for $idle s" fallback
+}
+
+map() {
+	lun0=
+	echo 'LUN disk sectors(512 B) block-size device'
+	for p in "$sys"/block/sd*; do
+		[ -e "$p" ] || continue
+		path=$(readlink -f "$p/device")
+		read -r size <"$p/size"
+		read -r bs <"$p/queue/logical_block_size"
+		case "$path" in *1d84000*:*) lun=${path##*:} ;; *) lun=- ;; esac
+		echo "$lun ${p##*/} $size $bs $path"
+		[ "$lun" != 0 ] || lun0=$lun0${lun0:+ }${p##*/}
+	done
+	mounted=$(grep '^/dev/sd' /proc/mounts)
+	echo "Mounted from the UFS disks: ${mounted:-none}"
+	case "$lun0" in
+	'') echo 'LUN 0: not found; the UFS controller has not probed (dmesg | grep ufs)' ;;
+	*' '*) echo "LUN 0: ambiguous ($lun0); do not write" ;;
+	*) echo "LUN 0: /dev/$lun0"; sgdisk -p "/dev/$lun0" ;;
+	esac
+}
+
+banner() {
+	. /etc/piano-network
+	cat <<EOT
+piano maintenance environment: Linux $(uname -r), initramfs $(cut -c1-16 /etc/build-id)
+RAM only; no partition of the UFS disks is mounted. This is a root shell: dd, sgdisk and
+sfdisk write when you run them. Tools: sgdisk sfdisk lsblk partx blockdev dd sha256sum wget.
+Idle timer: Fastboot after $(limit) s with no open session and no keepalive.
+  piano-maint map | status | keepalive | idle SECONDS | fastboot
+Files from the host (there: python3 -m http.server -b $PIANO_HOST_IP 8000):
+  wget -O /run/FILE http://$PIANO_HOST_IP:8000/FILE
+EOT
+}
+
+login() {
+	mkdir -p "$state/sessions"
+	: >"$state/sessions/$$"
+	touch "$state/keepalive"
+	banner
+	map
+	export HOME=/run PS1='piano-maint# '
+	exec /bin/sh -i
+}
+
+usage() {
+	echo 'usage: piano-maint map|status|keepalive|idle SECONDS|fastboot' >&2
+	exit 2
+}
+
+[ -z "${PIANO_MAINT_LIBRARY:-}" ] || return 0
+case "${0##*/}" in piano-maint-login) login ;; esac
+case "${1:-}" in
+map) map ;;
+status)
+	if reboot_mode_ready; then ready=ready; else ready='not ready'; fi
+	echo "idle $(cat "$state/idle-count" 2>/dev/null || echo 0) of $(limit) s;" \
+		"open sessions $(sessions); Fastboot reboot $ready"
+	;;
+keepalive) touch "$state/keepalive" ;;
+idle)
+	case "${2:-}" in ''|*[!0-9]*) usage ;; esac
+	[ "$2" -ge 30 ] && [ "$2" -le 3600 ] || usage
+	echo "$2" >"$state/idle"
+	touch "$state/keepalive"
+	echo "idle limit $2 s"
+	;;
+fastboot) reboot_to_fastboot requested ;;
+watchdog)
+	case "${2:-}" in ''|*[!0-9]*) usage ;; esac
+	watchdog "$2"
+	;;
+*) usage ;;
+esac

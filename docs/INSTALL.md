@@ -3,9 +3,9 @@
 [中文](INSTALL.zh-CN.md) | [Project overview](../README.md) | [Fastboot, switching and recovery](FLASHING.md)
 
 This guide installs a v0.1.0-preview release next to Android on the Xiaomi Pad 8 Pro (`piano`) by
-hand. Installation is manual in v0.1: there is no installer yet, and one step (writing the new
-partition table, [step 6](#6-write-the-partition-table-on-the-tablet)) needs an environment that is
-not published. Read the whole guide before you start.
+hand. Installation is manual in v0.1: there is no installer yet. Writing the new partition table
+([step 6](#6-write-the-partition-table-on-the-tablet)) runs in the release's maintenance RAM image.
+Read the whole guide before you start.
 
 ## Read first
 
@@ -35,7 +35,7 @@ Steps that use standard commands because no project tool exists yet are marked *
 | Xiaomi Pad 8 Pro on stock `OS3.0.303.0.WPYCNXM`, slot A active | `adb` reachable in Android |
 | Root in Android | Magisk or KernelSU-Next in a patched `init_boot_a`, to read partitions (*manual*, follow that project's instructions) |
 | Xiaomi magnetic keyboard | the only input until your touch calibration is installed ([step 10](#10-install-your-units-files)) |
-| Linux x86_64 host | Android platform-tools (`adb`, `fastboot`), Python 3, `openssl`, `uuidgen`, `sgdisk`, `sfdisk`, `losetup`, `mkfs.ext4`, `img2simg`, `sha256sum` |
+| Linux x86_64 host | Android platform-tools (`adb`, `fastboot`), Python 3, `openssl`, `uuidgen`, `sgdisk`, `sfdisk`, `losetup`, `mkfs.ext4`, `img2simg`, `sha256sum`, `telnet` |
 | AOSP `avbtool.py` | from AOSP `external/avb` (no fetch script yet) |
 | This repository | checked out at the integration commit in the release's `RELEASE-NOTES.md`; then `sh tools/fetch-aosp-mkbootimg.sh` |
 | The release directory | every file of one release, not mixed with other releases |
@@ -47,7 +47,8 @@ Check the release before using it:
 cd <release> && sha256sum -c SHA256SUMS          # expect every line "OK"
 ```
 
-The release contains `boot/` (the Ubuntu boot set for slot A and `boot-ram-check.img`),
+The release contains `boot/` (the Ubuntu boot set for slot A, `boot-ram-check.img` and
+`boot-ram-maintenance.img`),
 `rootfs/root.sparse.img` (the 60 GiB root), `debs/`, `tools/piano-switch.py` and the KernelSU module.
 Its contents are described in [RELEASE.md](RELEASE.md).
 
@@ -241,30 +242,60 @@ sudo losetup -d "$LOOP"
 
 ## 6. Write the partition table (on the tablet)
 
-*Manual; no published environment.* This step needs Linux running on the tablet from
-`fastboot boot`, with the UFS driver, a root shell and no mounted partition of LUN 0. v0.1.0-preview
-does not include such an image: the release's `boot-ram-check.img` boots the installed root, which
-does not exist yet. Writing the table from running Android, with `userdata` mounted, has not been
-verified. Do not improvise this step.
+*Manual commands in a project environment.* `boot/boot-ram-maintenance.img` starts the release
+kernel from RAM with a small initramfs: the UFS driver, a root shell over the USB cable
+(192.168.88.2, telnet port 2323, no password; the link carries only this cable) and the tools of
+this step (`sgdisk`, `sfdisk`, `lsblk`, `partx`, `blockdev`, `dd`, `sha256sum`, `wget`). It mounts
+no partition of any UFS disk and writes nothing by itself; slot A keeps Android. With no open
+session for 10 minutes (also after the cable is pulled), it reboots into Fastboot.
 
-With such an environment, copy `new-primary.bin` and `new-backup.bin` to the tablet and run as root:
+On the host, with the tablet in Fastboot and `new-primary.bin` and `new-backup.bin` of step 5 in
+the current directory:
+
+```bash
+fastboot -s <SERIAL> boot <release>/boot/boot-ram-maintenance.img    # expect "Booting OKAY"
+python3 tools/piano-devmode-ssh.py --serial <SERIAL> --check         # expect "... 192.168.88.10 -> 192.168.88.2 ready" (about 5 s)
+python3 -m http.server --bind 192.168.88.10 8000 &                    # serves the two files to the tablet
+telnet 192.168.88.2 2323
+```
+
+If `--check` prints `ip` commands instead, run them and check again. The login prints the LUN
+table (LUN, disk, size in 512-byte sectors, block size, device path), `Mounted from the UFS
+disks: none` and the `sgdisk -p` table of LUN 0. LUN 0 is the line starting with `0`, size
+996417536 and block size 4096 on the 512 GB unit; check that the table is your table of step 2.
+Then, in the telnet session:
 
 ```sh
 FIRST=<first usable LBA>; LAST=<last usable LBA>; BLOCKS=<LUN 0 blocks>    # the values of step 5
-for p in /sys/block/sd*; do echo ${p##*/} $(readlink -f $p/device) $(cat $p/size) $(cat $p/queue/logical_block_size); done
-# LUN 0: the one path containing "1d84000" and ending in ":0" (size 996417536, block size 4096 on the 512 GB unit)
-grep '^/dev/sd' /proc/mounts                            # expect no output
-disk=/dev/sdX
+disk=/dev/sdX                                           # LUN 0 from the login table
+piano-maint map                                         # again: "LUN 0: /dev/sdX", "Mounted from the UFS disks: none"
+wget -O /run/new-primary.bin http://192.168.88.10:8000/new-primary.bin
+wget -O /run/new-backup.bin http://192.168.88.10:8000/new-backup.bin
+sha256sum /run/new-primary.bin /run/new-backup.bin      # expect the hashes of step 5
 dd if=$disk bs=4096 count=$FIRST | sha256sum            # expect the current primary region hash of step 5
-dd if=new-backup.bin of=$disk bs=4096 seek=$((LAST + 1)) conv=fsync
+dd if=/run/new-backup.bin of=$disk bs=4096 seek=$((LAST + 1)) conv=fsync
 dd if=$disk bs=4096 skip=$((LAST + 1)) count=$((BLOCKS - LAST - 1)) | sha256sum   # expect new-backup.bin
-dd if=new-primary.bin of=$disk bs=4096 conv=fsync
+dd if=/run/new-primary.bin of=$disk bs=4096 conv=fsync
 dd if=$disk bs=4096 count=$FIRST | sha256sum            # expect new-primary.bin
 sync
+sgdisk --verify $disk                                   # expect "No problems found."
+sgdisk -p $disk                                         # expect entries 34-36 userdata, linux_rootfs, linux_data
+piano-maint fastboot                                    # reboots into Fastboot
 ```
 
-Write the backup copy first, then the primary, and compare each readback before continuing. Then
-return to Fastboot (Power + Volume Down).
+Write the backup copy first, then the primary, and compare each readback before continuing. The
+kernel keeps the old partition list until the reboot; do not mount or format anything in this
+session. Stop the host's `http.server` afterwards.
+
+- `piano-maint status` shows the idle count; `piano-maint keepalive` restarts it and
+  `piano-maint idle SECONDS` (30–3600) changes the limit. An open telnet session holds the
+  timer only while the cable is connected.
+- If `piano-maint fastboot` says `nvmem-reboot-mode is not bound`, it does not reboot; use
+  Power + Volume Down.
+- Verified on the test unit (2026-10-10): boot, link after about 4 s, LUN table, `sgdisk -p`,
+  `sfdisk --json` and `sgdisk --verify` of LUN 0 matching the table written on 2026-10-07, nothing
+  mounted, and the idle reboot into Fastboot. The write commands above wrote that table on
+  2026-10-07 from an earlier RAM environment; they have not yet been run from this image.
 
 ## 7. Write the filesystems (Fastboot)
 
@@ -411,6 +442,6 @@ the host ([FLASHING.md](FLASHING.md#from-the-host-piano-switchpy)).
 | Partition backup and manifest (step 2) | standard `adb`/`dd` commands |
 | Wi-Fi address, boot profile (step 3) | standard commands; no generator |
 | New partition table (step 5) | standard `sgdisk`/`sfdisk` on a loop device |
-| Writing the partition table (step 6) | no published tablet environment |
+| Writing the partition table (step 6) | standard `dd` commands in the release's maintenance RAM image |
 | Partition map (step 10) | standard commands |
 | Restoring the original partition table and removing Ubuntu | no tool and no verified procedure; keep the GPT backups |

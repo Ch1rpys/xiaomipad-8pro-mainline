@@ -208,7 +208,9 @@ python3 tools/build-persistent-boot.py \
   `piano-boot-update` 自行调用本工具（§5）。
 - 输出：`boot.img`、`init_boot.img`、`vendor_boot.img`（100,663,296、8,388,608 和 100,663,296 字节，
   AVB footer 用你的密钥签名），`SHA256SUMS`，`manifest.json`（输入与输出 SHA-256、命令行、release），
-  以及 `boot-ram-check.img`（供 `fastboot boot` 的 v2 镜像，内核、initrd、DTB 与命令行相同）。
+  以及 `boot-ram-check.img`（供 `fastboot boot` 的 v2 镜像，内核、initrd、DTB 与命令行相同）。命令行超过 511 字节时工具拒绝构建：
+  v2 头字段只容 511 字节，piano 的 ABL 丢弃其余部分。
+- `--maintenance` 只用维护 initramfs 构建 `boot-ram-maintenance.img`（§4.6）。
 - 正式命令行：`root=PARTUUID=<...> rootfstype=ext4 rw rootwait console=ttyMSM0,115200n8
   log_buf_len=2M panic=15 msm.separate_gpu_kms=1 piano.boot=persistent systemd.gpt_auto=0 bootconfig
   androidboot.serialno=<SERIAL>`，不含调试入口。
@@ -436,27 +438,55 @@ sudo losetup -d "$LOOP"
 
 ### 4.6 写入 GPT（平板，v0.1 手工步骤）
 
-需要以 `fastboot boot` 启动的平板 Linux 环境：带 UFS 驱动和 root shell，且 LUN 0 没有任何已挂载分区。
-该环境尚无公开构建：§7.2 的调试镜像针对已安装的根，`build-boot.py --diagnostic ufs-ro` 按设计只读。
+在维护 RAM 镜像中执行：发布目录的 `boot/boot-ram-maintenance.img`，或为其他内核包构建的同类镜像。它停留在
+initramfs 中（[initramfs/init](../initramfs/init) 的 `piano.diag=maintenance`），不挂载任何 UFS 分区，经
+`initramfs/network.json` 的 NCM 链路在 `192.168.88.2:2323` 提供 root shell；没有打开的会话、也没有
+`piano-maint keepalive` 达 `--maintenance-idle` 秒（默认 600）后重启进入 Fastboot（[initramfs/piano-maint](../initramfs/piano-maint)）。
+
+```bash
+# 取自锁定桌面 SquashFS 的 Ubuntu 工具、内核包中的 reboot-mode 模块、基于内核 nolibc 的 restart2
+python3 tools/prepare-maintenance-payload.py build \
+  --squashfs out/ubuntu-desktop-pristine/ubuntu-desktop.squashfs --squashfs-sha256 <sha256> \
+  --kernel-deb out/kernel-deb-<N>/linux-image-<release>_*.deb --nolibc <kernel tree>/tools/include/nolibc \
+  --output out/maintenance-payload
+BUSYBOX=<pinned busybox> GEN_INIT_CPIO=<kernel OUT>/usr/gen_init_cpio OUT_DIR=out/maintenance-initramfs \
+  MAINTENANCE_DIR=out/maintenance-payload bash tools/build-initramfs.sh
+dpkg-deb --fsys-tarfile out/kernel-deb-<N>/linux-image-<release>_*.deb | tar -x -C out/maintenance-kernel \
+  ./boot/vmlinuz-<release> ./usr/lib/linux-image-<release>/piano-boot.dtb
+python3 tools/build-persistent-boot.py --maintenance --no-serial \
+  --kernel out/maintenance-kernel/boot/vmlinuz-<release> --kernel-release <release> \
+  --dtb out/maintenance-kernel/usr/lib/linux-image-<release>/piano-boot.dtb \
+  --initrd out/maintenance-initramfs/initramfs.cpio.gz --profile boot-profile.json \
+  --mkbootimg tools/local/aosp-mkbootimg/mkbootimg.py --output out/maintenance-ram
+MAINTENANCE_INITRAMFS=out/maintenance-initramfs/initramfs.cpio.gz python3 tools/test-maintenance-initramfs.py
+```
+
+`build-release.py --maintenance out/maintenance-ram` 先核对镜像使用镜像组的内核与无地址 DTB、命令行无序列号，再复制进发布目录。
 在运行中、`userdata` 已挂载的 Android 里写 GPT 尚未验证。
 
-*平板上*（先把 `new-primary.bin` 和 `new-backup.bin` 复制过去）：
+脚本驱动该会话时不要发送 `stty -echo`：此后 BusyBox ash 经 stdio 读取预先送入的各行，管道末尾读标准输入的 applet
+（`cut`、`head`）会读到后续命令行而不是管道内容（测试机 2026-10-10 实测）。
+
+*平板上*（`fastboot boot` 该镜像后 `telnet 192.168.88.2 2323`；登录时打印 LUN 表和 LUN 0 的 `sgdisk -p`；
+主机用 `python3 -m http.server --bind 192.168.88.10 8000` 提供两个文件）：
 
 ```sh
 FIRST=<first usable LBA>; LAST=<last usable LBA>; BLOCKS=<LUN 0 blocks>    # §4.5 中的值
-for p in /sys/block/sd*; do echo ${p##*/} $(readlink -f $p/device) $(cat $p/size) $(cat $p/queue/logical_block_size); done
-# LUN 0：唯一一条含 "1d84000" 且以 ":0" 结尾的路径；512 GB 机型 size 为 996417536，块大小 4096
-grep '^/dev/sd' /proc/mounts                            # 预期无输出
-disk=/dev/sdX
+disk=/dev/sdX                                           # 登录表或 piano-maint map 中的 "LUN 0: /dev/sdX"
+wget -O /run/new-primary.bin http://192.168.88.10:8000/new-primary.bin
+wget -O /run/new-backup.bin http://192.168.88.10:8000/new-backup.bin
+sha256sum /run/new-primary.bin /run/new-backup.bin      # 预期等于 §4.5 的哈希
 dd if=$disk bs=4096 count=$FIRST | sha256sum            # 预期等于 §4.5 中当前主 GPT 区域的哈希
-dd if=new-backup.bin of=$disk bs=4096 seek=$((LAST + 1)) conv=fsync
+dd if=/run/new-backup.bin of=$disk bs=4096 seek=$((LAST + 1)) conv=fsync
 dd if=$disk bs=4096 skip=$((LAST + 1)) count=$((BLOCKS - LAST - 1)) | sha256sum   # 预期等于 new-backup.bin
-dd if=new-primary.bin of=$disk bs=4096 conv=fsync
+dd if=/run/new-primary.bin of=$disk bs=4096 conv=fsync
 dd if=$disk bs=4096 count=$FIRST | sha256sum            # 预期等于 new-primary.bin
 sync
+sgdisk --verify $disk                                   # 预期 "No problems found."
+piano-maint fastboot
 ```
 
-先写备份 GPT，再写主 GPT，每次读回比对通过后再继续。然后回到 Fastboot（该环境的计时退出，或电源 + 音量下）。
+先写备份 GPT，再写主 GPT，每次读回比对通过后再继续。
 
 ### 4.7 擦除并写入文件系统（Fastboot）
 

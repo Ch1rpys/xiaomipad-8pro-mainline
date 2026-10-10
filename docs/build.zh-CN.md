@@ -484,3 +484,9 @@ mesa/source.json、补丁 hash、全部文件内容和符号链接边界，并�
 build-boot 只允许该载荷与合并 desktop-diag 配对，逐文件核实际 CPIO 字节。
 prepare-ubuntu 在原生 GDM 启动前通过标准环境配置选择此栈，不覆盖发行版库，也不修改原始根。
 这仍是显式诊断策略；发行版覆盖 A830 后应撤销，产品交付需按原生 Mesa 包收敛。
+
+`MAINTENANCE_DIR=<prepare-maintenance-payload.py build 的输出>` 构建维护 initramfs（`piano.diag=maintenance`）：
+载荷含取自锁定桌面 SquashFS 的 Ubuntu `sgdisk`/`sfdisk`/`lsblk`/`partx`/`blockdev` 及其库、内核包的两个 reboot-mode 模块和
+基于内核 nolibc 的 `restart2`；`stage` 子命令逐文件核对清单后输出 cpio 行，不与 `FIRMWARE_DIR`/`MODULES_DIR` 组合。
+`build-persistent-boot.py --maintenance` 由它生成 `boot-ram-maintenance.img`，命令见 [AGENT-GUIDE.zh-CN.md](AGENT-GUIDE.zh-CN.md) §4.6；
+`MAINTENANCE_INITRAMFS=... python3 tools/test-maintenance-initramfs.py` 检查归档内容、ELF 依赖闭包和看门狗逻辑。

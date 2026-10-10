@@ -113,5 +113,69 @@ class RootAndSerial(unittest.TestCase):
             self.assertTrue(manifest['serial_in_cmdline'])
 
 
+def newc(files):
+    """gzip of a newc archive: directories for every parent, then the given regular files."""
+    names, blob = [], b''
+    for path in files:
+        parts = path.split('/')
+        names += ['/'.join(parts[:i]) for i in range(1, len(parts)) if '/'.join(parts[:i]) not in names]
+    entries = [('.', 0o040755, b'')] + [(n, 0o040755, b'') for n in names] + \
+              [(n, 0o100644, data) for n, data in files.items()] + [('TRAILER!!!', 0, b'')]
+    for i, (name, mode, data) in enumerate(entries):
+        raw = name.encode() + b'\0'
+        blob += b'070701' + b''.join(f'{v:08x}'.encode() for v in
+                                     (i, mode, 0, 0, 1, 0, len(data), 0, 0, 0, 0, len(raw), 0)) + raw
+        blob += b'\0' * (-len(blob) % 4) + data + b'\0' * (-len(data) % 4)
+    return gzip.compress(blob)
+
+
+def maintenance(d, *options, release='7.2.6-piano9', output='maint'):
+    (d / 'maint.cpio.gz').write_bytes(newc({
+        'etc/piano-maintenance.json': json.dumps({'kernel_release': release,
+                                                  'payload_manifest_sha256': '0' * 64}).encode(),
+        'etc/build-id': b'1234\n', 'bin/piano-maint': b'#!/bin/sh\n'}))
+    return subprocess.run([sys.executable, str(TOOL), '--maintenance', '--kernel', str(d / 'Image'),
+                           '--dtb', str(d / 'dtb'), '--initrd', str(d / 'maint.cpio.gz'),
+                           '--profile', str(d / 'profile.json'), '--mkbootimg', str(MKBOOTIMG),
+                           '--output', str(d / output), *options], capture_output=True, text=True)
+
+
+class Maintenance(unittest.TestCase):
+    def test_refuses_unit_and_debug_options(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            fake_inputs(d)
+            for extra in (['--root-partlabel', 'linux_rootfs'], ['--debug'], ['--avbtool', 'x'],
+                          ['--maintenance-idle', '29'], ['--maintenance-idle', '3601']):
+                result = maintenance(d, '--no-serial', *extra)
+                self.assertEqual(result.returncode, 2, extra)
+            self.assertIn('not 7.2.6-piano9', maintenance(d, '--no-serial', release='7.2.6-piano8').stderr)
+            self.assertFalse((d / 'maint').exists())
+            plain = build(d, '--no-serial')
+            self.assertIn('--avbtool, --key and --root-partuuid or --root-partlabel are required', plain.stderr)
+
+    @unittest.skipUnless(MKBOOTIMG.is_file(), 'needs tools/local/aosp-mkbootimg')
+    def test_address_free_and_unit_images(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            fake_inputs(d, serial='abc1234')
+            done = maintenance(d, '--no-serial', '--maintenance-idle', '900')
+            self.assertEqual(done.returncode, 0, done.stderr)
+            manifest = json.loads((d / 'maint/manifest.json').read_text())
+            self.assertEqual(manifest['cmdline'], 'rdinit=/init console=ttyMSM0,115200n8 log_buf_len=2M panic=15 '
+                                                  'piano.diag=maintenance piano.maint_idle=900')
+            self.assertEqual((manifest['kind'], manifest['serial_in_cmdline'], manifest['kernel_release']),
+                             ('piano-maintenance-ram', False, '7.2.6-piano9'))
+            image = (d / 'maint/boot-ram-maintenance.img').read_bytes()
+            self.assertIn(manifest['cmdline'].encode() + b'\0', image[:4096])
+            self.assertEqual(hashlib.sha256(image).hexdigest(), manifest['image']['sha256'])
+            self.assertEqual(sorted(p.name for p in (d / 'maint').iterdir()),
+                             ['SHA256SUMS', 'boot-ram-maintenance.img', 'manifest.json'])
+            unit = maintenance(d, output='unit')
+            self.assertEqual(unit.returncode, 0, unit.stderr)
+            self.assertTrue(json.loads((d / 'unit/manifest.json').read_text())['cmdline'].endswith(
+                ' piano.maint_idle=600 androidboot.serialno=abc1234'))
+
+
 if __name__ == '__main__':
     unittest.main()

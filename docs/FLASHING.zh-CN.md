@@ -26,6 +26,30 @@ fastboot -s <SERIAL> getvar current-slot          # 预期 "current-slot: a"
 fastboot -s <SERIAL> getvar battery-soc-ok        # 预期 "battery-soc-ok: yes"
 ```
 
+## 维护 RAM 镜像
+
+发布目录的 `boot/boot-ram-maintenance.img` 是只在 RAM 中运行的 Linux，用于不能在已挂载系统中进行的 UFS 盘操作，
+例如 [INSTALL.zh-CN.md 第 6 步](INSTALL.zh-CN.md#6-写入分区表平板上)的分区表写入。它不写任何分区，也不改变 A 槽。
+
+```bash
+fastboot -s <SERIAL> boot <release>/boot/boot-ram-maintenance.img    # 预期 "Booting OKAY"
+python3 tools/piano-devmode-ssh.py --serial <SERIAL> --check         # 预期 "... 192.168.88.10 -> 192.168.88.2 ready"
+telnet 192.168.88.2 2323                                              # root shell，无密码
+```
+
+| 会话中 | 作用 |
+|---|---|
+| （登录） | 打印内核、LUN 表、`Mounted from the UFS disks: none` 和 LUN 0 的 `sgdisk -p` |
+| `piano-maint map` | 再打印一次该表 |
+| `piano-maint status` | 空闲计数与时限、打开的会话、能否重启进入 Fastboot |
+| `piano-maint keepalive`、`piano-maint idle SECONDS` | 重新计数；设置时限（30–3600 s） |
+| `piano-maint fastboot` | 立即重启进入 Fastboot |
+| `wget -O /run/FILE http://192.168.88.10:8000/FILE` | 从主机上的 `python3 -m http.server --bind 192.168.88.10 8000` 复制文件 |
+
+10 分钟内没有打开的会话时，平板自行重启进入 Fastboot；会话只在连着线时计入。之后 `fastboot -s <SERIAL> reboot` 启动 A 槽。
+工具：`sgdisk`、`sfdisk`、`lsblk`、`partx`、`blockdev`（Ubuntu 26.04 二进制）、BusyBox `dd`、`sha256sum` 和 `wget`。
+所有命令以 root 运行：你让 `dd`、`sgdisk`、`sfdisk` 写盘时它们就会写盘。测试机已验证：启动、链路、LUN 表和空闲后自动重启进入 Fastboot。
+
 ## 镜像组
 
 镜像组是一个目录，含 `boot.img`、`init_boot.img`、`vendor_boot.img`（均为完整分区大小）和列出这三个文件的 `SHA256SUMS`。
@@ -139,5 +163,5 @@ fastboot -s <SERIAL> getvar slot-retry-count:a    # 主机写入后为 7，每�
 
 ## 恢复原布局
 
-v0.1 中移除 Ubuntu 并恢复原分区表既无工具，也无已验证的流程。请保留 [INSTALL.zh-CN.md](INSTALL.zh-CN.md#2-备份)
+v0.1 中移除 Ubuntu 并恢复原分区表既无工具，也无已验证的流程；这类写入所需的环境是[维护 RAM 镜像](#维护-ram-镜像)。请保留 [INSTALL.zh-CN.md](INSTALL.zh-CN.md#2-备份)
 中的分区表备份和完整分区备份。

@@ -231,7 +231,9 @@ python3 tools/build-persistent-boot.py \
 - Outputs: `boot.img`, `init_boot.img`, `vendor_boot.img` (100,663,296, 8,388,608 and 100,663,296
   bytes, AVB footers signed with your key), `SHA256SUMS`, `manifest.json` (input and output SHA-256,
   command line, release) and `boot-ram-check.img` (v2 image for `fastboot boot` with the same
-  kernel, initrd, DTB and command line).
+  kernel, initrd, DTB and command line). The tool refuses a command line over 511 bytes: the v2
+  header field keeps 511, and piano's ABL drops the rest.
+- `--maintenance` builds only `boot-ram-maintenance.img` from a maintenance initramfs (§4.6).
 - Release command line: `root=PARTUUID=<...> rootfstype=ext4 rw rootwait console=ttyMSM0,115200n8
   log_buf_len=2M panic=15 msm.separate_gpu_kms=1 piano.boot=persistent systemd.gpt_auto=0 bootconfig
   androidboot.serialno=<SERIAL>`. It has no debug entry.
@@ -472,29 +474,60 @@ sudo losetup -d "$LOOP"
 
 ### 4.6 Write the GPT (tablet, manual in v0.1)
 
-This needs Linux on the tablet with the UFS driver, a root shell and no mounted partition of LUN 0,
-started with `fastboot boot`. That environment is not yet available as a public build: the debug
-image of §7.2 is built for an installed root, and `build-boot.py --diagnostic ufs-ro` is read-only
-by design. Writing the GPT from running Android, with `userdata` mounted, is not yet verified.
+Run it in the maintenance RAM image: the release's `boot/boot-ram-maintenance.img`, or one built
+for another kernel package. It stays in the initramfs (`piano.diag=maintenance` of
+[initramfs/init](../initramfs/init)), mounts no UFS partition, serves a root shell on
+`192.168.88.2:2323` over the NCM link of `initramfs/network.json`, and reboots into Fastboot after
+`--maintenance-idle` seconds (default 600) with no open session and no
+`piano-maint keepalive` ([initramfs/piano-maint](../initramfs/piano-maint)).
 
-*On the tablet* (copy `new-primary.bin` and `new-backup.bin` there first):
+```bash
+# Ubuntu tools from the pinned desktop SquashFS, the reboot-mode modules of the kernel package,
+# restart2 against the kernel's nolibc
+python3 tools/prepare-maintenance-payload.py build \
+  --squashfs out/ubuntu-desktop-pristine/ubuntu-desktop.squashfs --squashfs-sha256 <sha256> \
+  --kernel-deb out/kernel-deb-<N>/linux-image-<release>_*.deb --nolibc <kernel tree>/tools/include/nolibc \
+  --output out/maintenance-payload
+BUSYBOX=<pinned busybox> GEN_INIT_CPIO=<kernel OUT>/usr/gen_init_cpio OUT_DIR=out/maintenance-initramfs \
+  MAINTENANCE_DIR=out/maintenance-payload bash tools/build-initramfs.sh
+dpkg-deb --fsys-tarfile out/kernel-deb-<N>/linux-image-<release>_*.deb | tar -x -C out/maintenance-kernel \
+  ./boot/vmlinuz-<release> ./usr/lib/linux-image-<release>/piano-boot.dtb
+python3 tools/build-persistent-boot.py --maintenance --no-serial \
+  --kernel out/maintenance-kernel/boot/vmlinuz-<release> --kernel-release <release> \
+  --dtb out/maintenance-kernel/usr/lib/linux-image-<release>/piano-boot.dtb \
+  --initrd out/maintenance-initramfs/initramfs.cpio.gz --profile boot-profile.json \
+  --mkbootimg tools/local/aosp-mkbootimg/mkbootimg.py --output out/maintenance-ram
+MAINTENANCE_INITRAMFS=out/maintenance-initramfs/initramfs.cpio.gz python3 tools/test-maintenance-initramfs.py
+```
+
+`build-release.py --maintenance out/maintenance-ram` copies the image into the release after
+checking that it has the set's kernel and address-free DTB and no serial. Writing the GPT from
+running Android, with `userdata` mounted, is not verified.
+
+For a script driving the session: do not send `stty -echo`. BusyBox ash then reads the typed-ahead
+lines through stdio, and an applet that reads standard input at the end of a pipeline (`cut`,
+`head`) receives the following lines instead of its pipe (seen on the test unit, 2026-10-10).
+
+*On the tablet* (`fastboot boot` the image, `telnet 192.168.88.2 2323`; the login prints the LUN
+table and LUN 0's `sgdisk -p`; serve the two files with `python3 -m http.server --bind 192.168.88.10 8000`):
 
 ```sh
 FIRST=<first usable LBA>; LAST=<last usable LBA>; BLOCKS=<LUN 0 blocks>    # the values of §4.5
-for p in /sys/block/sd*; do echo ${p##*/} $(readlink -f $p/device) $(cat $p/size) $(cat $p/queue/logical_block_size); done
-# LUN 0: the one path containing "1d84000" and ending in ":0"; size 996417536 and block size 4096 on the 512 GB unit
-grep '^/dev/sd' /proc/mounts                            # expect no output
-disk=/dev/sdX
+disk=/dev/sdX                                           # "LUN 0: /dev/sdX" of the login table or piano-maint map
+wget -O /run/new-primary.bin http://192.168.88.10:8000/new-primary.bin
+wget -O /run/new-backup.bin http://192.168.88.10:8000/new-backup.bin
+sha256sum /run/new-primary.bin /run/new-backup.bin      # expect the hashes of §4.5
 dd if=$disk bs=4096 count=$FIRST | sha256sum            # expect the current primary region hash from §4.5
-dd if=new-backup.bin of=$disk bs=4096 seek=$((LAST + 1)) conv=fsync
+dd if=/run/new-backup.bin of=$disk bs=4096 seek=$((LAST + 1)) conv=fsync
 dd if=$disk bs=4096 skip=$((LAST + 1)) count=$((BLOCKS - LAST - 1)) | sha256sum   # expect new-backup.bin
-dd if=new-primary.bin of=$disk bs=4096 conv=fsync
+dd if=/run/new-primary.bin of=$disk bs=4096 conv=fsync
 dd if=$disk bs=4096 count=$FIRST | sha256sum            # expect new-primary.bin
 sync
+sgdisk --verify $disk                                   # expect "No problems found."
+piano-maint fastboot
 ```
 
-Write the backup copy first, then the primary, and compare each readback before continuing. Then
-return to Fastboot (the environment's timeout, or Power + Volume Down).
+Write the backup copy first, then the primary, and compare each readback before continuing.
 
 ### 4.7 Erase and write the filesystems (Fastboot)
 

@@ -30,6 +30,35 @@ fastboot -s <SERIAL> getvar current-slot          # expect "current-slot: a"
 fastboot -s <SERIAL> getvar battery-soc-ok        # expect "battery-soc-ok: yes"
 ```
 
+## Maintenance RAM image
+
+`boot/boot-ram-maintenance.img` of the release is a RAM-only Linux for work on the UFS disks that
+must not run from a mounted system, such as the partition table write of
+[INSTALL.md step 6](INSTALL.md#6-write-the-partition-table-on-the-tablet). It writes no partition and
+does not change slot A.
+
+```bash
+fastboot -s <SERIAL> boot <release>/boot/boot-ram-maintenance.img    # expect "Booting OKAY"
+python3 tools/piano-devmode-ssh.py --serial <SERIAL> --check         # expect "... 192.168.88.10 -> 192.168.88.2 ready"
+telnet 192.168.88.2 2323                                              # root shell, no password
+```
+
+| In the session | Effect |
+|---|---|
+| (login) | prints the kernel, the LUN table, `Mounted from the UFS disks: none` and `sgdisk -p` of LUN 0 |
+| `piano-maint map` | the same table again |
+| `piano-maint status` | idle count and limit, open sessions, whether the Fastboot reboot is ready |
+| `piano-maint keepalive`, `piano-maint idle SECONDS` | restart the idle count; set the limit (30–3600 s) |
+| `piano-maint fastboot` | reboot into Fastboot now |
+| `wget -O /run/FILE http://192.168.88.10:8000/FILE` | copy a file from `python3 -m http.server --bind 192.168.88.10 8000` on the host |
+
+With no open session for 10 minutes the tablet reboots into Fastboot by itself; a session counts
+only while the cable is connected. `fastboot -s <SERIAL> reboot` then starts slot A. Tools:
+`sgdisk`, `sfdisk`, `lsblk`, `partx`, `blockdev` (Ubuntu 26.04 binaries), BusyBox `dd`,
+`sha256sum` and `wget`. Every command runs as root: `dd`, `sgdisk` and `sfdisk` write the disk
+when you tell them to. Verified on the test unit: boot, the link, the LUN table and the idle
+reboot into Fastboot.
+
 ## Image sets
 
 An image set is a directory with `boot.img`, `init_boot.img`, `vendor_boot.img` (each the full
@@ -154,5 +183,6 @@ not answer.
 ## Restoring the original layout
 
 Removing Ubuntu and restoring the original partition table has no tool and no verified procedure
-in v0.1. Keep the partition table backups of [INSTALL.md](INSTALL.md#2-back-up) and the full
+in v0.1; the [maintenance RAM image](#maintenance-ram-image) is the environment such a write would
+need. Keep the partition table backups of [INSTALL.md](INSTALL.md#2-back-up) and the full
 partition backup.

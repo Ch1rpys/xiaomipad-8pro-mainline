@@ -142,6 +142,9 @@ python3 tools/build-persistent-boot.py \
   files. `build-rootfs-image.py` builds it in step 7.
 - `--debug` and the other debug options add an unauthenticated root shell over USB; never write a
   debug set to slot A for normal use ([AGENT-GUIDE.md](AGENT-GUIDE.md) §3.6, §7.2).
+- `--maintenance` builds only `boot-ram-maintenance.img`, the RAM image for writing the partition
+  table, from a maintenance initramfs (`tools/prepare-maintenance-payload.py` and
+  `build-initramfs.sh` with `MAINTENANCE_DIR`); the commands are in [AGENT-GUIDE.md](AGENT-GUIDE.md) §4.6.
 
 ## 7. Ubuntu base and root image
 

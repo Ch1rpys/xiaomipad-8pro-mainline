@@ -3,7 +3,7 @@
 [English](INSTALL.md) ｜ [项目首页](../README.zh-CN.md) ｜ [Fastboot、切换与恢复](FLASHING.zh-CN.md)
 
 本指南手工把 v0.1.0-preview 发布版本安装到小米平板 8 Pro（`piano`）的 Android 旁边。
-v0.1 只能手工安装，尚无安装器；其中一步（写入新分区表，[第 6 步](#6-写入分区表平板上)）需要的环境尚未公开。
+v0.1 只能手工安装，尚无安装器；写入新分区表（[第 6 步](#6-写入分区表平板上)）在发布目录的维护 RAM 镜像中进行。
 开始前请通读全文。
 
 ## 先读
@@ -30,7 +30,7 @@ v0.1 只能手工安装，尚无安装器；其中一步（写入新分区表，
 | 小米平板 8 Pro，原厂 `OS3.0.303.0.WPYCNXM`，A 槽活动 | Android 中可用 `adb` |
 | Android root | 用 Magisk 或 KernelSU-Next 修补 `init_boot_a`，用于读取分区（*手工*，按该项目的说明操作） |
 | 小米磁吸键盘 | 安装本机触控标定之前唯一的输入方式（[第 10 步](#10-安装本机文件)） |
-| Linux x86_64 主机 | Android platform-tools（`adb`、`fastboot`）、Python 3、`openssl`、`uuidgen`、`sgdisk`、`sfdisk`、`losetup`、`mkfs.ext4`、`img2simg`、`sha256sum` |
+| Linux x86_64 主机 | Android platform-tools（`adb`、`fastboot`）、Python 3、`openssl`、`uuidgen`、`sgdisk`、`sfdisk`、`losetup`、`mkfs.ext4`、`img2simg`、`sha256sum`、`telnet` |
 | AOSP `avbtool.py` | 来自 AOSP `external/avb`（尚无获取脚本） |
 | 本仓库 | 检出到发布版 `RELEASE-NOTES.md` 中的集成提交，然后执行 `sh tools/fetch-aosp-mkbootimg.sh` |
 | 发布目录 | 同一版本的全部文件，不与其他版本混用 |
@@ -42,7 +42,7 @@ v0.1 只能手工安装，尚无安装器；其中一步（写入新分区表，
 cd <release> && sha256sum -c SHA256SUMS          # 预期每行均为 "OK"
 ```
 
-发布目录包含 `boot/`（A 槽的 Ubuntu 启动镜像组和 `boot-ram-check.img`）、`rootfs/root.sparse.img`（60 GiB 根）、
+发布目录包含 `boot/`（A 槽的 Ubuntu 启动镜像组、`boot-ram-check.img` 和 `boot-ram-maintenance.img`）、`rootfs/root.sparse.img`（60 GiB 根）、
 `debs/`、`tools/piano-switch.py` 和 KernelSU 模块，内容说明见 [RELEASE.md](RELEASE.md)（英文）。
 
 ## 1. 解锁并核对原厂版本
@@ -224,28 +224,51 @@ sudo losetup -d "$LOOP"
 
 ## 6. 写入分区表（平板上）
 
-*手工；尚无公开环境。* 这一步需要用 `fastboot boot` 在平板上运行 Linux：带 UFS 驱动和 root shell，
-且 LUN 0 没有任何已挂载分区。v0.1.0-preview 不包含这样的镜像：发布版的 `boot-ram-check.img`
-启动的是已安装的根，而此时它还不存在。在运行中、`userdata` 已挂载的 Android 里写分区表尚未验证。
-不要临场变通这一步。
+*在项目环境中手工执行命令。* `boot/boot-ram-maintenance.img` 从 RAM 启动发布版内核和一个小 initramfs：
+带 UFS 驱动、经 USB 线提供的 root shell（192.168.88.2，telnet 端口 2323，无密码；该链路只连这根线）以及本步所需工具
+（`sgdisk`、`sfdisk`、`lsblk`、`partx`、`blockdev`、`dd`、`sha256sum`、`wget`）。它不挂载任何 UFS 盘的分区，自身不写任何内容，
+A 槽仍为 Android。10 分钟内没有打开的会话（拔线后同样计时）时，它会自行重启进入 Fastboot。
 
-有这样的环境时，把 `new-primary.bin` 和 `new-backup.bin` 复制到平板，以 root 执行：
+在主机上，平板处于 Fastboot，当前目录里有第 5 步的 `new-primary.bin` 和 `new-backup.bin`：
+
+```bash
+fastboot -s <SERIAL> boot <release>/boot/boot-ram-maintenance.img    # 预期 "Booting OKAY"
+python3 tools/piano-devmode-ssh.py --serial <SERIAL> --check         # 预期 "... 192.168.88.10 -> 192.168.88.2 ready"（约 5 s）
+python3 -m http.server --bind 192.168.88.10 8000 &                    # 向平板提供这两个文件
+telnet 192.168.88.2 2323
+```
+
+如果 `--check` 打印的是 `ip` 命令，执行后再检查一次。登录后会打印 LUN 表（LUN、磁盘、以 512 字节扇区计的大小、块大小、设备路径）、
+`Mounted from the UFS disks: none` 和 LUN 0 的 `sgdisk -p` 分区表。LUN 0 是以 `0` 开头的那一行，512 GB 机型 size 为
+996417536、块大小 4096；核对该分区表就是第 2 步备份的分区表。然后在 telnet 会话中：
 
 ```sh
 FIRST=<first usable LBA>; LAST=<last usable LBA>; BLOCKS=<LUN 0 blocks>    # 第 5 步的数值
-for p in /sys/block/sd*; do echo ${p##*/} $(readlink -f $p/device) $(cat $p/size) $(cat $p/queue/logical_block_size); done
-# LUN 0：唯一一条含 "1d84000" 且以 ":0" 结尾的路径（512 GB 机型 size 为 996417536，块大小 4096）
-grep '^/dev/sd' /proc/mounts                            # 预期无输出
-disk=/dev/sdX
+disk=/dev/sdX                                           # 登录表中的 LUN 0
+piano-maint map                                         # 再看一次："LUN 0: /dev/sdX"、"Mounted from the UFS disks: none"
+wget -O /run/new-primary.bin http://192.168.88.10:8000/new-primary.bin
+wget -O /run/new-backup.bin http://192.168.88.10:8000/new-backup.bin
+sha256sum /run/new-primary.bin /run/new-backup.bin      # 预期等于第 5 步的哈希
 dd if=$disk bs=4096 count=$FIRST | sha256sum            # 预期等于第 5 步当前主分区表区域的哈希
-dd if=new-backup.bin of=$disk bs=4096 seek=$((LAST + 1)) conv=fsync
+dd if=/run/new-backup.bin of=$disk bs=4096 seek=$((LAST + 1)) conv=fsync
 dd if=$disk bs=4096 skip=$((LAST + 1)) count=$((BLOCKS - LAST - 1)) | sha256sum   # 预期等于 new-backup.bin
-dd if=new-primary.bin of=$disk bs=4096 conv=fsync
+dd if=/run/new-primary.bin of=$disk bs=4096 conv=fsync
 dd if=$disk bs=4096 count=$FIRST | sha256sum            # 预期等于 new-primary.bin
 sync
+sgdisk --verify $disk                                   # 预期 "No problems found."
+sgdisk -p $disk                                         # 预期 34–36 项为 userdata、linux_rootfs、linux_data
+piano-maint fastboot                                    # 重启进入 Fastboot
 ```
 
-先写备份分区表，再写主分区表，每次读回比对通过后再继续。然后回到 Fastboot（电源 + 音量下）。
+先写备份分区表，再写主分区表，每次读回比对通过后再继续。重启前内核仍使用旧的分区列表；本会话中不要挂载或格式化任何分区。
+完成后停止主机上的 `http.server`。
+
+- `piano-maint status` 显示空闲计数；`piano-maint keepalive` 重新计数，`piano-maint idle SECONDS`（30–3600）修改时限。
+  打开的 telnet 会话只在连着线时才阻止计时。
+- 如果 `piano-maint fastboot` 提示 `nvmem-reboot-mode is not bound`，它不会重启；请按电源 + 音量下。
+- 测试机已验证（2026-10-10）：启动、约 4 s 后链路就绪、LUN 表、LUN 0 的 `sgdisk -p`、`sfdisk --json` 与 `sgdisk --verify`
+  与 2026-10-07 写入的分区表一致、无挂载，以及空闲后自动重启进入 Fastboot。上面的写入命令于 2026-10-07 在更早的
+  RAM 环境中写入了该分区表，尚未在本镜像中执行过。
 
 ## 7. 写入文件系统（Fastboot）
 
@@ -379,6 +402,6 @@ sudo piano-boot-switch verify          # 预期退出码 0
 | 分区备份与清单（第 2 步） | 标准 `adb`/`dd` 命令 |
 | Wi-Fi 地址、启动配置（第 3 步） | 标准命令，无生成工具 |
 | 新分区表（第 5 步） | 在 loop 设备上用标准 `sgdisk`/`sfdisk` |
-| 写入分区表（第 6 步） | 尚无公开的平板环境 |
+| 写入分区表（第 6 步） | 在发布目录的维护 RAM 镜像中执行标准 `dd` 命令 |
 | 分区映射（第 10 步） | 标准命令 |
 | 恢复原分区表并移除 Ubuntu | 无工具，也无已验证流程；请保留分区表备份 |

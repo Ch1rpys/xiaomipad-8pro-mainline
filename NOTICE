@@ -49,6 +49,21 @@ initramfs/usb-diag (originally usb-acm):
   no reference-device address, serial or host permission changes are imported.
   ACM and NCM share one gadget setup implementation.
 
+initramfs/piano-maint, initramfs/restart2.c and tools/prepare-maintenance-payload.py:
+  Original (GPL-2.0-only). The maintenance mode of the same RAM init reuses its
+  NCM gadget and BusyBox telnet shell. restart2.c is compiled against the
+  Linux kernel's tools/include/nolibc (LGPL-2.1 OR MIT) of the pinned kernel
+  tree. The maintenance initramfs and boot/boot-ram-maintenance.img carry
+  unmodified Ubuntu 26.04 ARM64 binaries taken from the pinned desktop
+  SquashFS: sgdisk (gdisk, GPL-2.0), sfdisk (fdisk), lsblk, partx, blockdev
+  (util-linux) and their libraries (glibc, libstdc++/libgcc, libpopt,
+  ncurses, readline, libselinux, PCRE2, systemd's libudev), each with its
+  Debian copyright file in /usr/share/doc/<package>/copyright inside the
+  image; the corresponding sources are the Ubuntu source packages of those
+  binaries in the pinned desktop image (package names in its manifest,
+  versions in that image's dpkg status). Two kernel modules of the piano
+  kernel package (GPL-2.0) are included unchanged.
+
 initramfs/prepare-ubuntu and the Ubuntu hand-off in initramfs/init:
   Adapted from initramfs/init-ncm in the same erhai commit (GPL-2.0-only).
   Retains HTTP-to-RAM SquashFS, OverlayFS, switch_root, a temporary USB console,

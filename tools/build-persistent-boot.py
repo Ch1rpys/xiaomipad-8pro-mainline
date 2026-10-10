@@ -2,10 +2,16 @@
 # SPDX-License-Identifier: GPL-2.0-only
 """Build piano's v4 boot triplet and a v2 RAM check from explicit inputs.
 
+--maintenance instead builds only boot-ram-maintenance.img, a v2 RAM image of
+the kernel with the maintenance initramfs (build-initramfs.sh MAINTENANCE_DIR):
+it stays in the initramfs, mounts no UFS partition, serves a root shell over
+the NCM link and reboots to Fastboot when idle (initramfs/piano-maint).
+
 Adapted from erhai build-mainline-gki.py/sign-boot-triplet.py; see NOTICE.
 This tool writes regular output files only. It never discovers or flashes disks.
 """
 import argparse
+import gzip
 import hashlib
 import json
 from pathlib import Path
@@ -16,6 +22,8 @@ import subprocess
 import uuid
 import zlib
 
+from initramfs_archive import read_newc, regular_file
+
 # Debug-only observation of a boot that stops before userspace. console-ramoops
 # (pstore) is always a console; dropping the 115200 serial console keeps the
 # extra output from adding seconds of synchronous UART time, so the pstore copy
@@ -23,6 +31,11 @@ import zlib
 # with its completion. CONFIG_NULL_TTY is off, so ttynull only names "no tty".
 DEBUG_BOOT_TRACE = ('console=ttynull ignore_loglevel initcall_debug tp_printk trace_event='
                     'clk:clk_disable,clk:clk_disable_complete,clk:clk_unprepare,clk:clk_unprepare_complete')
+# The RAM init (initramfs/init) reads piano.diag and piano.maint_idle; no root= at all.
+MAINTENANCE_CMDLINE = 'rdinit=/init console=ttyMSM0,115200n8 log_buf_len=2M panic=15 piano.diag=maintenance'
+# The v2 header's cmdline field: mkbootimg puts any rest in extra_cmdline, which piano's ABL drops
+# (speakers-1, 2026-10-10: a 593-byte line arrived cut at byte 511, losing part of modprobe.blacklist=).
+RAM_CMDLINE_MAX = 511
 
 
 def sha(path):
@@ -56,9 +69,11 @@ def empty_ramdisk():
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    for name in ('kernel', 'dtb', 'initrd', 'profile', 'mkbootimg', 'avbtool', 'key', 'output'):
+    for name in ('kernel', 'dtb', 'initrd', 'profile', 'mkbootimg', 'output'):
         p.add_argument('--' + name, type=Path, required=True)
-    root = p.add_mutually_exclusive_group(required=True)
+    for name in ('avbtool', 'key'):
+        p.add_argument('--' + name, type=Path, help='Required except with --maintenance')
+    root = p.add_mutually_exclusive_group()
     root.add_argument('--root-partuuid', type=uuid.UUID, help='The root partition of this unit')
     root.add_argument('--root-partlabel',
                       help='GPT name of the root partition (linux_rootfs): a set that boots on any unit')
@@ -76,7 +91,15 @@ def main():
                    help='Debug boot only: kmod modprobe.blacklist= (stops alias autoload; an explicit insmod still loads)')
     p.add_argument('--debug-boot-trace', action='store_true',
                    help='Debug boot only: replace the serial console by DEBUG_BOOT_TRACE')
+    p.add_argument('--maintenance', action='store_true',
+                   help='Build only boot-ram-maintenance.img from a maintenance initramfs; no root, no AVB')
+    p.add_argument('--maintenance-idle', type=int, default=600, metavar='SECONDS',
+                   help='Maintenance idle limit before the reboot to Fastboot (30-3600, default 600)')
     a = p.parse_args()
+    if a.maintenance:
+        return maintenance(p, a)
+    if a.avbtool is None or a.key is None or (a.root_partuuid is None and a.root_partlabel is None):
+        p.error('--avbtool, --key and --root-partuuid or --root-partlabel are required')
     if a.debug_timeout and (not a.debug or not 60 <= a.debug_timeout <= 900):
         p.error('A 60–900 second timeout is only available for explicit debug boots')
     for control in (a.module_blacklist, a.modprobe_blacklist):
@@ -150,10 +173,7 @@ def main():
         cmdline += ' module_blacklist=' + a.module_blacklist
     if a.modprobe_blacklist:
         cmdline += ' modprobe.blacklist=' + a.modprobe_blacklist
-    # The v2 RAM check carries the command line in its 512-byte cmdline field; mkbootimg puts
-    # any rest in extra_cmdline, which piano's ABL drops (speakers-1, 2026-10-10: a 593-byte
-    # line arrived cut at byte 511, losing part of modprobe.blacklist=).
-    if len(cmdline.encode()) > 511:
+    if len(cmdline.encode()) > RAM_CMDLINE_MAX:
         raise ValueError(f'command line is {len(cmdline.encode())} bytes; the RAM check keeps only 511')
     empty = out / 'empty.cpio.gz'
     empty.write_bytes(empty_ramdisk())
@@ -209,6 +229,56 @@ def main():
     (out / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     (out / 'SHA256SUMS').write_text(''.join(f'{r["sha256"]}  {r["file"]}\n' for r in outputs.values()))
     print(json.dumps({'output': str(out), 'images': list(outputs)}))
+
+
+def maintenance(p, a):
+    """boot-ram-maintenance.img: kernel, DTB and maintenance initramfs; the kernel stays in the initramfs."""
+    unit = [n for n in ('root_partuuid', 'root_partlabel', 'bt_address_file', 'wlan_address_file',
+                        'module_blacklist', 'modprobe_blacklist', 'avbtool', 'key') if getattr(a, n) is not None]
+    if unit or a.debug or a.debug_timeout or a.debug_boot_trace:
+        p.error('--maintenance takes no root, address, AVB or debug option')
+    if not 30 <= a.maintenance_idle <= 3600:
+        p.error('--maintenance-idle must be 30-3600 seconds')
+    release = kernel_release(a.kernel)
+    if not release:
+        p.error('Kernel has no Linux version banner; expected an uncompressed arm64 Image')
+    if a.kernel_release and a.kernel_release != release:
+        p.error(f'Kernel banner is {release}, not {a.kernel_release}')
+    entries = read_newc(gzip.decompress(a.initrd.read_bytes()))
+    info = json.loads(regular_file(entries, 'etc/piano-maintenance.json'))
+    regular_file(entries, 'bin/piano-maint')
+    if info['kernel_release'] != release:
+        p.error(f'The maintenance initramfs carries modules of {info["kernel_release"]}, not {release}')
+    profile = json.loads(a.profile.read_text())
+    vendor = profile['vendor_boot']
+    cmdline = f'{MAINTENANCE_CMDLINE} piano.maint_idle={a.maintenance_idle}'
+    if not a.no_serial:
+        serial = profile.get('serial')
+        if not isinstance(serial, str) or not re.fullmatch('[A-Za-z0-9]+', serial):
+            p.error('Profile requires the verified device serial (or use --no-serial)')
+        cmdline += ' androidboot.serialno=' + serial
+    if len(cmdline.encode()) > RAM_CMDLINE_MAX:
+        p.error(f'command line is {len(cmdline.encode())} bytes; the RAM image keeps only 511')
+    a.output.mkdir(parents=True, exist_ok=False)
+    out = a.output.resolve()
+    image = out / 'boot-ram-maintenance.img'
+    subprocess.run(['python3', str(a.mkbootimg), '--header_version', '2', '--pagesize', str(vendor['page_size']),
+                    '--base', '0', '--kernel_offset', str(vendor['kernel_addr']),
+                    '--ramdisk_offset', str(vendor['ramdisk_addr']), '--tags_offset', str(vendor['tags_addr']),
+                    '--dtb_offset', str(vendor['dtb_addr']), '--kernel', str(a.kernel), '--ramdisk', str(a.initrd),
+                    '--dtb', str(a.dtb), '--cmdline', cmdline, '--output', str(image)], check=True)
+    if cmdline.encode() not in image.read_bytes()[:4096]:
+        raise ValueError('The command line is not in the v2 header')
+    manifest = {'kind': 'piano-maintenance-ram', 'kernel_release': release, 'cmdline': cmdline,
+                'serial_in_cmdline': not a.no_serial, 'idle_seconds': a.maintenance_idle,
+                'inputs': {n: sha(getattr(a, n)) for n in ('kernel', 'dtb', 'initrd', 'profile', 'mkbootimg')},
+                'initramfs_build_id': regular_file(entries, 'etc/build-id').decode().strip(),
+                'payload_manifest_sha256': info['payload_manifest_sha256'],
+                'image': {'file': image.name, 'bytes': image.stat().st_size, 'sha256': sha(image)},
+                'scope': 'Image construction only; the environment must be verified on piano'}
+    (out / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+    (out / 'SHA256SUMS').write_text(f'{manifest["image"]["sha256"]}  {image.name}\n')
+    print(json.dumps({'output': str(out), 'image': image.name, 'sha256': manifest['image']['sha256']}))
 
 
 if __name__ == '__main__':
