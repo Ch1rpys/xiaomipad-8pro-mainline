@@ -204,9 +204,13 @@ def main():
     dropin = desktop / 'etc/systemd/system/gdm.service.d/50-piano-mesa.conf'
     dropin.parent.mkdir(parents=True)
     dropin.write_text('[Service]\n' + ''.join('Environment=' + l + '\n' for l in env.read_text().splitlines()))
+    # The speaker up-mix is a stream property: the same file for PulseAudio and native PipeWire clients.
+    upmix = 'usr/share/pipewire/pipewire-pulse.conf.d/50-piano-speaker-upmix.conf'
+    copy(repo / 'packaging/piano-ubuntu-desktop' / upmix, desktop,
+         'usr/share/pipewire/client.conf.d/50-piano-speaker-upmix.conf')
     # fake-hwclock: the RTC cannot be set (TD-022); it restores the time saved at shutdown or hourly.
     package('piano-ubuntu-desktop', desktop, 'piano-mesa, gdm3, gnome-shell (>= 50), fake-hwclock',
-            'Piano Ubuntu desktop defaults: graphics, clock without RTC, microphone UCM, '
+            'Piano Ubuntu desktop defaults: graphics, clock without RTC, speaker up-mix and UCM, '
             'GNOME Shell 50 on-screen keyboard guard',
             third_party=[(('usr/share/alsa/ucm2/*',),
                           '2026 bluseliu50 and piano mainline contributors; '
