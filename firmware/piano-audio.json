@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "kind": "Pinned speaker amplifier preset identity; not a redistribution license",
+  "stock_build": "OS3.0.303.0.WPYCNXM",
+  "source": "odm_a firmware directory: fs19xx.fsm (FourSemi preset container, customer P81, project 0429, 20250429-1119; register tables per amplifier address, CRC16 checked by the driver), name unchanged",
+  "selection": "Requested through the firmware-name property of the four FS19xx nodes of the piano device tree. The four blocks differ in address, TDM slot registers 0x1a/0x1c, speaker position, registers 0xbd/0xbe and the scene masks of the per-speaker scenes; no per-unit measurement (the stock driver reports re25 default 0), and the file is the same in every unit's odm partition for this build.",
+  "files": {
+    "foursemi/piano/fs19xx.fsm": {
+      "bytes": 4348,
+      "sha256": "ab060b8476065bd789f327f7f8e724a2e17d94e93a85e2e8aa4b4954ce88b90e"
+    }
+  }
+}

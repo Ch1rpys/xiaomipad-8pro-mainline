@@ -19,6 +19,7 @@ Per-unit data is excluded (see below).
 | `ath12k/WCN7860/hw2.0/` | `amss.bin`, `m3.bin`, `aux_ucode.bin`, `regdb.bin`, `qdss.cfg`, `board.bin` | `ath12k` (WCN7860 Wi-Fi) | `modem_a` FAT, `image/peach/` | `piano-wlan.json` |
 | `novatek/piano/` | `novatek_nt36532_piano_fw_csot.bin` | `nt36532e-thp` (touch) | `odm_a`, `firmware/` | `piano-input.json` |
 | `nanosic/piano/` | `MCU_Upgrade.bin` | `hid-nanosic` (keyboard bridge) | `odm_a`, `firmware/` | `piano-input.json` |
+| `foursemi/piano/` | `fs19xx.fsm` (register preset of the four amplifiers) | `snd-soc-fs19xx` (speaker amplifiers) | `odm_a`, `firmware/` | `piano-audio.json` |
 
 Each lock pins the name, size and SHA-256 of its files. `piano-os3.0.303.0.json` also pins the CDSP
 images and service maps of the same build. They are not shipped because the current kernel does not
