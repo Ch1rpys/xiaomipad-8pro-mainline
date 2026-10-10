@@ -150,6 +150,11 @@ def main():
         cmdline += ' module_blacklist=' + a.module_blacklist
     if a.modprobe_blacklist:
         cmdline += ' modprobe.blacklist=' + a.modprobe_blacklist
+    # The v2 RAM check carries the command line in its 512-byte cmdline field; mkbootimg puts
+    # any rest in extra_cmdline, which piano's ABL drops (speakers-1, 2026-10-10: a 593-byte
+    # line arrived cut at byte 511, losing part of modprobe.blacklist=).
+    if len(cmdline.encode()) > 511:
+        raise ValueError(f'command line is {len(cmdline.encode())} bytes; the RAM check keeps only 511')
     empty = out / 'empty.cpio.gz'
     empty.write_bytes(empty_ramdisk())
     mk = ['python3', str(a.mkbootimg)]
