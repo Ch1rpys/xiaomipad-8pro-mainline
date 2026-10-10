@@ -67,7 +67,8 @@ def main(argv=None):
     a = ap.parse_args(argv)
     try:
         text = sys.stdin.read() if a.input == '-' else Path(a.input).read_text()
-        rows = boot_partitions(json.loads(text), json.loads(a.profile.read_text()))
+        document = json.loads(text)
+        rows = boot_partitions(document, json.loads(a.profile.read_text()))
     except (OSError, ValueError, KeyError, TypeError) as error:
         raise SystemExit(f'extract-boot-partitions: {error}; nothing was written') from None
     descriptor = os.open(a.output, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -75,8 +76,11 @@ def main(argv=None):
         json.dump(rows, stream, indent=2)
         stream.write('\n')
     for row in rows:
-        print(f'{row["label"]}: LUN {row["lun"]}, start {row["start_bytes"]} B, {row["bytes"]} B')
-    print(f'Wrote {a.output}; it holds this unit\'s GUIDs: do not commit or share it.')
+        print(f'{row["label"]}: start {row["start_bytes"]} B, {row["bytes"]} B')
+    # The LUN is not in sfdisk's output: the map records 4 and piano-boot-switch checks the disk's.
+    print(f'Wrote {a.output} from {document["partitiontable"].get("device", "the input")}; '
+          f'piano-boot-switch refuses it unless that disk is LUN {BOOT_LUN}. '
+          'It holds this unit\'s GUIDs: do not commit or share it.')
     return 0
 
 
