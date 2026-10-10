@@ -133,12 +133,17 @@ def main():
     copy(repo / 'initramfs/usb-diag', support, 'usr/libexec/piano/usb-diag', 0o755)
     network = json.loads((repo / 'initramfs/network.json').read_text())
     (support / 'etc/piano-network').write_text(''.join(f'PIANO_{k.upper()}={v}\n' for k, v in network.items()))
+    # build-persistent-boot.py imports initramfs_archive from its own directory.
     for source, name in [(repo / 'tools/build-persistent-boot.py', 'build-persistent-boot.py'),
+                         (repo / 'tools/initramfs_archive.py', 'initramfs_archive.py'),
                          (repo / 'tools/local/aosp-mkbootimg/mkbootimg.py', 'mkbootimg.py'),
                          (a.avbtool, 'avbtool.py')]:
         copy(source, support, 'usr/lib/piano/boot/' + name, 0o755)
     shutil.copytree(repo / 'tools/local/aosp-mkbootimg/gki', support / 'usr/lib/piano/boot/gki',
                     ignore=shutil.ignore_patterns('__pycache__', '*test*'))
+    # piano-boot-update runs the packaged copy: it must import from the package alone.
+    subprocess.run(['python3', '-E', '-s', '-B', str(support / 'usr/lib/piano/boot/build-persistent-boot.py'), '--help'],
+                   check=True, stdout=subprocess.DEVNULL, cwd='/')
     busybox = re.search(r'^package=busybox-static_(\S+)_arm64\.deb$',
                         (repo / 'tools/fetch-busybox-arm64.sh').read_text(), re.M).group(1)
     support_third_party = [
