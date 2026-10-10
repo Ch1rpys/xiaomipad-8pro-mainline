@@ -25,7 +25,7 @@ CARD_NAME=Xiaomi-Pad-8-Pro
 UNATTENDED_AMP_MAX=160
 KERNEL_AMP_CAP=215
 WATCHDOG_S=5
-AMPS="Top Left:35 Top Right:37 Bottom Left:34 Bottom Right:36"
+AMPS="Top_Left:35 Top_Right:37 Bottom_Left:34 Bottom_Right:36"
 REGS="00 03 04 06 10 11 16 17 19 1a 1c"
 
 say() { printf '%s\n' "$*"; }
@@ -68,14 +68,14 @@ sample_gauges() { # $1 = tag, $2 = samples (5 Hz)
 }
 
 for a in $AMPS; do
-	pos=${a%%:*}; addr=${a##*:}; dev=$(amp_dev "$addr")
+	pos=$(printf %s "${a%%:*}" | tr _ " "); addr=${a##*:}; dev=$(amp_dev "$addr")
 	say "amp addr=0x$addr pos=\"$pos\" bound=$([ -n "$dev" ] && echo 1 || echo 0) dev=${dev:-none}"
 done
 dump_regs idle
 
 # Volume: unattended value, read back, refuse to play above the limits.
 for a in $AMPS; do
-	pos=${a%%:*}
+	pos=$(printf %s "${a%%:*}" | tr _ " ")
 	amixer -c "$CARD" -q cset name="$pos Amp Volume" $UNATTENDED_AMP_MAX >/dev/null 2>&1
 	info=$(amixer -c "$CARD" cget name="$pos Amp Volume" 2>/dev/null)
 	max=$(printf '%s\n' "$info" | sed -n 's/.*max=\([0-9]*\).*/\1/p' | head -1)

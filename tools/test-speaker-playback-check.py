@@ -124,7 +124,16 @@ def main():
         print(f"{'ok ' if ok else 'BAD'} judge rejects a foreign log")
         failed += not ok
 
-    total = len(CASES) + 5
+    # the device script must name all four amplifiers with their two-word positions
+    probe = subprocess.run(['sh', '-c', 'eval "$(sed -n \'/^AMPS=/p\' "$0")"; for a in $AMPS; do '
+                            'printf "%s|%s\\n" "$(printf %s "${a%%:*}" | tr _ " ")" "${a##*:}"; done',
+                            str(HERE / 'speaker-playback-device.sh')], capture_output=True, text=True)
+    want = 'Top Left|35\nTop Right|37\nBottom Left|34\nBottom Right|36\n'
+    ok = probe.stdout == want
+    print(f"{'ok ' if ok else 'BAD'} device script amplifier list: {probe.stdout!r}")
+    failed += not ok
+
+    total = len(CASES) + 6
     print(f'{total - failed}/{total} passed')
     return 1 if failed else 0
 
