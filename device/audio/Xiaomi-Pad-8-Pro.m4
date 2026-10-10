@@ -16,7 +16,7 @@ include(`audioreach/tokens.m4')
 # MultiMedia1 playback, one to four channels. No DSP volume module: the
 # upstream one goes to +18 dB (65535 with unity at 8192); the gain stays in the
 # amplifiers, which the machine driver caps.
-STREAM_SG_PCM_ADD(audioreach/subgraph-stream-playback.m4, FRONTEND_DAI_MULTIMEDIA1,
+STREAM_SG_PCM_ADD(piano/subgraph-stream-playback.m4, FRONTEND_DAI_MULTIMEDIA1,
     `S16_LE', 48000, 48000, 1, 4,
     0x00004001, 0x00004001, 0x00006001, `110000')
 

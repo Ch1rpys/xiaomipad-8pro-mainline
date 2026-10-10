@@ -221,7 +221,8 @@ device/audio/Xiaomi-Pad-8-Pro.m4 and device/audio/piano/:
   topology/piano/{module_tdm,subgraph-device-tdm-playback}.m4, SPDX
   BSD-3-Clause, Copyright (c) 2026 bluseliu50 and piano mainline contributors.
   Changes: upstream token names, no DSP volume module, capture part as
-  Piano-Capture-Diag.m4. License: LICENSES/audioreach-BSD-3-Clause.txt. No
+  Piano-Capture-Diag.m4; piano/subgraph-stream-playback.m4 is upstream's
+  audioreach/subgraph-stream-playback.m4 with the WR_SH output port 1 instead of 0. License: LICENSES/audioreach-BSD-3-Clause.txt. No
   proprietary firmware; the amplifier preset is not part of the topology.
 
 device/audio/ucm2/:

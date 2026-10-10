@@ -4,19 +4,27 @@
   "topology": {
     "path": "qcom/sm8750/Xiaomi-Pad-8-Pro-tplg.bin",
     "bytes": 10172,
-    "sha256": "ab5b40c518df99c0deae3b6241f862e810a1d0a337ee3f3de1cf131f857d521e",
+    "sha256": "e5d96904284471e89e0c03a38745a136b6db2f3b19801d0fee2409e20968a0f0",
     "source": "Xiaomi-Pad-8-Pro.m4",
-    "source_sha256": "252a3bd0ab68f2ed701912f0e7d2d5ae3ce0028960ba6d91eefe2886d4610f25",
+    "source_sha256": "06e6543ff30e63b1a8a9b67d321b9bdf2863fae7ee62face512dcda0066f1563",
     "includes": {
       "piano/module_tdm.m4": "c2b8d0048bc7d1cf1411804123a89dcaaa26778af42af670b8d639006452c69c",
-      "piano/subgraph-device-tdm-playback.m4": "78b64aac45fa84e78b104d5792cb796e5fd170ac85e8521ecc26fb8bceeaef78"
+      "piano/subgraph-device-tdm-playback.m4": "78b64aac45fa84e78b104d5792cb796e5fd170ac85e8521ecc26fb8bceeaef78",
+      "piano/subgraph-stream-playback.m4": "5916069380edd71815829465fa636b1bc8316610e4f6512ec3e5f8a1d4baae2f"
     },
     "built_with": "m4 -I device/audio -I <audioreach-topology 2af1f1ebb8d4> ; alsatplg 1.2.9 / libatopology 1.2.11",
     "graphs": [
       "MultiMedia1 (hw:N,0) playback, 1-4 ch S16_LE 48 kHz -> SECONDARY_TDM_RX_0: LOG -> MFC -> TDM sink 0x0700100E, LPAIF interface 1, 4 x 32-bit slots, mask 0xf, internal long sync, data delay 1",
       "MultiMedia3 (hw:N,2) capture <- VA_CODEC_DMA_TX_0, 2 ch S16_LE 48 kHz (as Piano-Capture-Diag.m4)"
     ],
-    "pairs_with": "sm8750-xiaomi-piano-desktop.dtb from kernel branch piano/speakers-20261010 (card model Xiaomi-Pad-8-Pro, speaker-dai-link on SECONDARY_TDM_RX_0); kernels whose desktop DTB names the card Piano-Capture-Diag use diagnostic.json's topology"
+    "pairs_with": "sm8750-xiaomi-piano-desktop.dtb from kernel branch piano/speakers-20261010 (card model Xiaomi-Pad-8-Pro, speaker-dai-link on SECONDARY_TDM_RX_0); kernels whose desktop DTB names the card Piano-Capture-Diag use diagnostic.json's topology",
+    "previous": {
+      "sha256": "ab5b40c518df99c0deae3b6241f862e810a1d0a337ee3f3de1cf131f857d521e",
+      "piano_result": "speakers-1 (2026-10-10): APM_CMD_GRAPH_OPEN returned error 1; the WR_SH output port was 0, so the kernel built no WR_SH -> PCM DEC link",
+      "difference": "one tuple: stream0.wrsh_ep1 token 206 (source output port) 0 -> 1"
+    },
+    "structural_check": "tools/check-audioreach-tplg.py: PASS (10 links, 0 errors); the previous binary FAILs with link-dropped on stream0.wrsh_ep1; Piano-Capture-Diag fc92bb08 (accepted on piano) and upstream SM8550-HDK/GLYMUR-CRD/LEMANS-EVK PASS",
+    "scope_note": "The fixed graph has not run on piano."
   },
   "unattended_limits": {
     "amp_volume_max": 160,

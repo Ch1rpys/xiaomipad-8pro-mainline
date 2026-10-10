@@ -29,6 +29,15 @@ inversion. The ACDB holds two such entries that differ only in sync mode; which
 one is playback is not decoded, and long sync (1) is used, as debian-piano
 did.
 
+The playback stream subgraph is `piano/subgraph-stream-playback.m4`, a copy of the unused
+upstream `audioreach/subgraph-stream-playback.m4` with the WR_SH output port set to 1. Upstream
+passes 0 there, so the kernel's topology loader (it keeps a link only when source port,
+destination instance and destination port are all non-zero) gives the DSP a WR_SH that is not
+connected to the PCM decoder; on piano (speakers-1, 2026-10-10) the ADSP rejected
+APM_CMD_GRAPH_OPEN of that graph with error 1 before any TDM, clock or amplifier step. The
+vol-playback variant every upstream board uses has port 1. `tools/check-audioreach-tplg.py`
+reports such dropped links from the compiled binary.
+
 The playback stream graph has no DSP volume module (the upstream one reaches
 +18 dB). Gain lives in the amplifiers: the kernel card caps each `<position>
 Amp Volume` at 215 of 255 (0.375 dB steps, -15 dB) because no speaker
@@ -138,11 +147,16 @@ m4 -I device/audio -I "$AUDIOREACH_SOURCE" device/audio/Xiaomi-Pad-8-Pro.m4 > ou
 alsatplg -c out/audio/Xiaomi-Pad-8-Pro.conf -o out/audio/Xiaomi-Pad-8-Pro-tplg.bin
 ```
 
-giving 10172 bytes (`card.json`), with the same warning for `VA_CODEC_DMA_TX_0
+giving 10172 bytes (`card.json`, `e5d96904…`; the first build `ab5b40c5…` had the WR_SH port 0), with the same warning for `VA_CODEC_DMA_TX_0
 Capture` and one for `Secondary TDM0 Playback`, the stream name of the
 kernel's SECONDARY_TDM_RX_0 DAI. The decoded TDM sink tuples carry module
 0x0700100E, interface type 0 index 1 and tokens 262-269 = 1, 1, 15, 4, 32, 1,
 0, 1. The kernel loads `qcom/sm8750/Xiaomi-Pad-8-Pro-tplg.bin`.
+
+`python3 tools/check-audioreach-tplg.py out/audio/Xiaomi-Pad-8-Pro-tplg.bin` then lists the
+ten in-subgraph links and no error; the first build fails it (`link-dropped` on
+`stream0.wrsh_ep1`), while `Piano-Capture-Diag` `fc92bb08…` (accepted on piano) and upstream
+SM8550-HDK, GLYMUR-CRD and LEMANS-EVK pass.
 
 ## Recording check
 
