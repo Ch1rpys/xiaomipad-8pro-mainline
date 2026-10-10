@@ -12,7 +12,7 @@ Ubuntu 层提取另需 curl、7z、unsquashfs；模拟器验证使用 QEMU syste
 不需要先拥有任何旧平板工作区或旧构建输出。
 
 下列命令在本仓根目录执行。KERNEL_SOURCE 指向独立 Linux Git，其 HEAD 必须与
-kernel/source.json 相符。项目内核源码以 `kernel/source.json` 的 `url` 为准（当前为私有仓库，正式公开前不对外开放）；仅从 stable 上游无法获取包含本地配置与板级提交的版本。
+kernel/source.json 相符。项目内核源码以 `kernel/source.json` 的 `url` 为准；仅从 stable 上游无法获取包含本地配置与板级提交的版本。
 
 ## 诊断内核
 
@@ -86,7 +86,7 @@ ramdisk 无板级固件、存储挂载或账户；ACM/NCM 是实验用 root cons
 /etc/piano-firmware 并镜像到 OUT_DIR/firmware-manifest；清单进入 build-id，因此不同私有固件的候选身份不同，
 不带 FIRMWARE_DIR 时 build-id 算法与之前相同。Ubuntu 模式的 prepare-ubuntu 在交接前将这些文件复制到
 RAM overlay 的 /usr/lib/firmware 并按清单校验，交接后才首次请求固件的驱动也能取到。
-固件字节只存在于私有目录和输出 initramfs，不进入本仓；原厂固件没有再分发依据。
+FIRMWARE_DIR 的内容可由 `tools/stage-firmware.py` 从仓内 `firmware/` 暂存，也可来自自备提取；仓内固件按 [firmware/README.md](../firmware/README.md) 的说明原样分发，没有厂商再分发许可。
 `BUSYBOX=... GEN_INIT_CPIO=... python3 tools/test-build-initramfs.py` 用合成夹具检查 cpio 内容、清单、身份变化和拒绝路径。
 RAM `/init` 与 dracut 模块 99piano 的 `/init` 都在最前面接好 fd 0–2：/dev/console 能打开就用它，否则用 /dev/null。
 内核打不开初始控制台时（例如只有 `console=ttynull`）以关闭的 fd 0–2 启动 PID 1：dracut `/init` 第一次写输出就在 `set -e` 下
