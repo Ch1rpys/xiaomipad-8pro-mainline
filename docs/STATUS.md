@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-10-10. The component support matrix is in the
+Last updated: 2026-10-11. The component support matrix is in the
 [README](../README.md#support-matrix). This page records the test
 configuration, known issues, roadmap and upstreaming state.
 
@@ -32,8 +32,14 @@ visually and with DPU frame counters. The release image set boots from slot A.
    connected. The read-only `xiaomi_mca` client reports the USB input
    (`xiaomi-mca-usb`), but there is no charge control. Charge in Android and
    keep at least 40 % before switching to Linux.
-3. **Clock.** The PMIC RTC cannot be written and there is no network time
-   source; the time must be set manually after each boot.
+3. **Clock.** The PMIC RTC cannot be written: its driver sets the clock to
+   1970 in the initrd and systemd then advances it to its built-in date
+   (2026-04-15). From piano-ubuntu-desktop 0.1+20261010.6, `fake-hwclock`
+   restores the time saved at the last shutdown or hourly and chrony skips
+   the NTS certificate time checks until its first update; behind a router
+   that answers every NTP request itself, chrony gets no authenticated time
+   and the clock must still be set manually. Accepting unauthenticated time
+   (`authselectmode ignore`) is an open decision, not set.
 4. **Display.** Firmware scanout only: brightness stays at the bootloader
    level and there is no screen-off or wake. simpledrm reports no physical
    size, so GNOME shows an unknown 40-inch monitor; `piano-ubuntu-desktop`
@@ -62,7 +68,9 @@ visually and with DPU frame counters. The release image set boots from slot A.
    persistent boot whose slot A holds an Ubuntu set, rewrites slot A in place.
 8. **Generic kernels.** Kernel packages inherited from the Desktop image
    (`linux-image-7.0.0-14-generic`, `linux-generic-hwe-26.04`) remain
-   installable and receive initrds, but cannot boot piano.
+   installable and receive initrds, but cannot boot piano. Release roots
+   built with 7.2.6-piano7 have them and `kdump-tools` purged (47 packages,
+   including `libc6-dev`; install `build-essential` to compile).
 9. **Boot log errors without observed effect:** systemd `bpf-restrict-fs`
    fails to load; Bluetooth frame reassembly errors (-84) during firmware
    download; two snap user services fail. The UFS `EE_CONTROL` -22, the ADSP
@@ -84,15 +92,24 @@ visually and with DPU frame counters. The release image set boots from slot A.
     [device/boot](../device/boot/README.md)), or a random locally administered
     one when no address is provided, and NetworkManager's scans find 2.4 and
     5 GHz networks (7.2.6-piano4 and later, with a not yet merged upstream fix of
-    ath12k's frequency range). Association, DHCP and throughput are untested,
-    and the board file is the API 1 `board.bin` (no `board-2.bin` yet).
+    ath12k's frequency range). With 7.2.6-piano6, 2.4 GHz and 5 GHz 40 MHz
+    networks associated and got DHCP leases; 5 GHz 80 MHz links dropped about
+    12 s after association. 7.2.6-piano7 applies the vendor SAR TX power limit
+    as stock Android does; the two changed modules loaded on 7.2.6-piano6 held
+    an 80 MHz HE link for 120 s with 74.7/100 Mbit/s down/up, and 2.4 GHz still
+    worked. The piano7 package itself is not yet checked on the device. The
+    board file is the API 1 `board.bin` (no `board-2.bin` yet).
+14. **Volume keys.** 7.2.6-piano7 describes them from the stock devicetree
+    (volume up on PM8550 GPIO6, volume down on the PMK8550 resin); key events
+    and wakeup are not yet checked on the device. Earlier kernels have the
+    power key only.
 
 ## Roadmap
 
 In priority order:
 
-1. Wi-Fi: association and data on a user network, and a `board-2.bin`
-   for each board SKU.
+1. Wi-Fi: check the 80 MHz fix with the 7.2.6-piano7 package on the device,
+   and a `board-2.bin` for each board SKU.
 2. Charging: charge control over the vendor charger protocol (MCA), which
    differs from the upstream `battmgr` interface; reading it is done.
 3. Publish the installer (partitioning, filesystem creation, boot-profile

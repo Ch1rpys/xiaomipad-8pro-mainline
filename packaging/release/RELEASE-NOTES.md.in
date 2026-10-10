@@ -37,6 +37,48 @@ $artefact_rows
 |---|---|---|
 $package_rows
 
+## Changes since the first upload (7.2.6-piano5)
+
+- Kernel `7.2.6-piano7`:
+  - Wi-Fi: ath12k applies the vendor SAR TX power limit to the WCN7860, as stock Android does, so
+    5 GHz 80 MHz links no longer drop about 12 s after association. Verified on the test unit with the
+    two changed modules on 7.2.6-piano6 (80 MHz HE for 120 s, 50 MB at 74.7 Mbit/s down and 100 Mbit/s
+    up, 2.4 GHz unchanged), not yet with this kernel package.
+  - Volume keys (PM8550 GPIO6 and the PMK8550 resin, as in the stock devicetree) and the PM8550
+    temperature-alarm thermal zone; not yet tested on the device.
+  - Configuration that Ubuntu's generic kernel has: PSI (for systemd-oomd), zram, uhid and hidraw
+    (Bluetooth LE input devices), nftables and the common xtables modules, WireGuard, the Yama and
+    Landlock security modules, NTFS3, CIFS, ISO 9660, UDF, dm-crypt and binfmt_misc. Not tested on the
+    device; no BTF type information (built without pahole).
+  - Since 7.2.6-piano6: the four speakers (see below).
+- Speakers: stereo streams are up-mixed to the bottom pair at -3 dB (`channelmix.upmix-method = simple`);
+  with PipeWire's default method `none` the bottom pair stayed silent. Checked in QEMU, not yet heard
+  on the tablet.
+- Clock: a boot starts from the time `fake-hwclock` saved at the last shutdown or hourly instead of
+  systemd's built-in date (2026-04-15), and chrony skips the NTS certificate time checks until its
+  first update (`nocerttimecheck 1`). Behind a router that answers every NTP request itself the clock
+  still does not synchronise. Both are interim measures until the clock offset can be stored on the
+  PMIC.
+- Developer mode stays off in the image; the installation guide turns it on for the installation and
+  off at the end of step 10. Its SSH socket accepts connections on the USB interface `usb0` only, not
+  over Wi-Fi.
+- Only the piano kernel is installed: Ubuntu's generic HWE kernel, its headers, tools and zfs modules
+  and `kdump-tools` are removed (47 packages, including `libc6-dev`: install `build-essential` before
+  compiling), so updates no longer download kernels that cannot boot and build initrds for them.
+  `linux-firmware` stays.
+- Swap in compressed RAM (zram): half the memory up to 8 GiB, zstd.
+- The login screen and Initial Setup use 200 % scaling (one system-wide `monitors.xml`); not yet
+  checked on the device.
+- Kernel and initrd updates without `/etc/piano/boot-partitions.json`, such as the one Initial Setup's
+  keyboard page starts, leave the boot set and slot A unchanged instead of failing and leaving `dracut`
+  half-configured; `piano-boot-switch` reads the serial from `/proc/bootconfig` and accepts the
+  release set.
+- Installation: Fastboot writes only the used blocks of the root image, and the build discards the
+  blocks it freed, about 8.7 GB in a check build of this root. The first upload stored the free space
+  as 51.8 GiB of FILL, which the tablet kept writing for about 30 minutes after `OKAY`.
+- Hostname `xiaomipad-8pro` with the pretty name "Xiaomi Pad 8 Pro" (Initial Setup sets the hostname
+  from its *Computer* field); no stale APT indexes: run `sudo apt update` before the first `apt install`.
+
 ## What works
 
 Status on the test unit (one 512 GB unit, model 25091RP04C) with `$kernel_release`; see the
@@ -46,16 +88,18 @@ Status on the test unit (one 512 GB unit, model 25091RP04C) with `$kernel_releas
   GNOME on Wayland at 200 % scaling, Adreno 830 rendering with the bundled Mesa 26.2.0, battery gauges
   and thermal zones, SSH over USB in developer mode.
 - 🟡 Partial: display (firmware framebuffer, 3200×2136 at 120 Hz, brightness only through sysfs, no screen-off),
-  touchscreen (single finger, needs your calibration), magnetic keyboard (keys), Wi-Fi (firmware load and
-  2.4 GHz and 5 GHz scanning verified; association not yet verified), Bluetooth (discovery, needs your
+  touchscreen (single finger, needs your calibration), magnetic keyboard (keys), Wi-Fi (association, DHCP
+  and data on 2.4 GHz and 5 GHz verified with 7.2.6-piano6, 80 MHz with this kernel's fix loaded as
+  modules; not yet with this kernel package), Bluetooth (discovery, needs your
   address), internal microphones (capture verified acoustically: a 1 kHz test tone was recorded by all four
   microphones; speech quality and noise processing unverified), speakers (four amplifiers through the
   TDM path at a fixed gain under a kernel cap; a 1 kHz test tone played by them was recorded by the
   internal microphones; no speaker protection, listening tests and channel mapping pending), switching
-  between Ubuntu and Android, battery and charger reporting (read-only; no charge control), power key.
+  between Ubuntu and Android, battery and charger reporting (read-only; no charge control), power key
+  (volume keys described from the stock devicetree, untested).
 - ❌ Unsupported: charging (the battery discharges under Linux, also on USB), cameras, sensors,
-  video decoding, USB host and external display, suspend, writing the real-time clock (the clock is wrong
-  after every boot), fingerprint, stylus.
+  video decoding, USB host and external display, suspend, writing the real-time clock (the clock resumes
+  from the last shutdown and is behind after every boot), fingerprint, stylus.
 
 ## Per-unit data you must add
 

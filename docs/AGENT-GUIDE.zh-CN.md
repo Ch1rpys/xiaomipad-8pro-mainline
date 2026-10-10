@@ -361,10 +361,12 @@ sudo cp backup/vendor_boot_a.img $A/vendor_boot.img
 (cd $A && sudo sh -c 'sha256sum boot.img init_boot.img vendor_boot.img > SHA256SUMS')
 
 sudo chroot $R dpkg-query -W dracut python3 openssl device-tree-compiler gdm3 linux-base
-# 须列出全部包名；缺少的包及其依赖，连同开发者模式（§7.1）所需的 openssh-server，
-# 从签名快照下载：
+# 须列出全部包名；缺少的包及其依赖，连同开发者模式（§7.1）所需的 openssh-server、
+# piano-ubuntu-desktop 0.1+20261010.6 依赖的 fake-hwclock，以及仅在内核含 CONFIG_ZRAM 时
+# （7.2.6-piano7 及以后）需要的 systemd-zram-generator，从签名快照下载：
 python3 tools/prepare-ubuntu-apt.py --rootfs out/ubuntu-desktop-pristine/ubuntu-desktop.squashfs \
-  --snapshot <YYYYMMDDTHHMMSSZ> --output out/apt-extra --download device-tree-compiler openssh-server
+  --snapshot <YYYYMMDDTHHMMSSZ> --output out/apt-extra \
+  --download device-tree-compiler openssh-server fake-hwclock systemd-zram-generator
 sudo install -d $R/var/cache/piano-install
 sudo cp out/apt-extra/cache/archives/*.deb out/kernel-deb-<N>/linux-image-*.deb out/device-debs/*.deb \
   out/firmware-deb/*.deb $R/var/cache/piano-install/
@@ -374,7 +376,29 @@ sudo chroot $R env SYSTEMD_OFFLINE=1 DEBIAN_FRONTEND=noninteractive dpkg --insta
 sudo chroot $R dpkg --audit                    # 预期无输出
 ```
 
-`openssh-server` 会启用 Ubuntu 自带、监听所有地址的 `ssh.socket`。要从首次启动起使用开发者模式（§7.1）：
+内核有 zram 而未装 `systemd-zram-generator` 时没有交换；内核不含 `CONFIG_ZRAM`（7.2.6-piano6 及更早）却装了它时，
+启动为等待 `/dev/zram0` 多用 90 s（QEMU）。随后按 [tools/rootfs-image-guest.sh](../tools/rootfs-image-guest.sh) 对发布根的做法，
+设置平板主机名，清除底层的通用内核与 kdump（这些包会被更新并生成 initrd，却永远不会启动；下列为 26.04 Desktop 底层的包名，
+guest 按模式选取），并删除属于构建机镜像源的底层软件包索引：
+
+```bash
+printf 'xiaomipad-8pro\n' | sudo tee $R/etc/hostname >/dev/null
+printf 'PRETTY_HOSTNAME="Xiaomi Pad 8 Pro"\n' | sudo tee $R/etc/machine-info >/dev/null
+printf 'update_initramfs=no\n' | sudo tee $R/etc/initramfs-tools/update-initramfs.conf >/dev/null
+sudo chroot $R apt-mark manual linux-firmware
+sudo chroot $R env SYSTEMD_OFFLINE=1 DEBIAN_FRONTEND=noninteractive apt-get --yes --purge --autoremove remove \
+  kdump-tools linux-generic-hwe-24.04 linux-generic-hwe-26.04 linux-headers-7.0.0-14-generic \
+  linux-headers-generic-hwe-26.04 linux-image-7.0.0-14-generic linux-image-generic-hwe-26.04 \
+  linux-main-modules-zfs-7.0.0-14-generic linux-modules-7.0.0-14-generic linux-tools-7.0.0-14-generic
+sudo rm $R/etc/initramfs-tools/update-initramfs.conf
+sudo chroot $R dpkg --audit                    # 预期无输出
+ls $R/usr/lib/modules                          # 预期只有 <release>
+sudo find $R/var/lib/apt/lists -mindepth 1 -maxdepth 1 -type f ! -name lock -delete
+```
+
+发布根上此步共移除 47 个包（`--autoremove` 连带 `libc6-dev` 与 `flash-kernel`；用户编译软件需先装 `build-essential`）。
+
+`openssh-server` 会启用 Ubuntu 自带、监听所有地址的 `ssh.socket`。要从首次启动起使用开发者模式（§7.1；安装完成后关闭）：
 
 ```bash
 sudo systemctl --root=$R disable ssh.socket ssh.service
@@ -388,6 +412,7 @@ sudo cp -r $R/var/lib/piano/switch/ubuntu out/install/ubuntu-set        # §4.9 
 sudo cp $R/boot/vmlinuz-<release> $R/boot/initrd.img-<release> \
   $R/usr/lib/linux-image-<release>/piano-boot.dtb out/install/
 sudo rm -r $R/usr/sbin/policy-rc.d $R/var/cache/piano-install
+sudo fstrim -v $R      # 释放的块保留旧内容；loop 设备须把 discard 传到镜像文件
 sudo umount $R/dev/pts $R/dev $R/sys $R/proc $R
 e2fsck -f out/install/root.ext4 && python3 tools/sparse_image.py encode-ext4 out/install/root.ext4 out/install/root.sparse.img
 
@@ -398,6 +423,8 @@ mkfs.ext4 -U "$DATA_UUID" out/install/data.ext4 && img2simg -s out/install/data.
 不带参数的 `img2simg` 把全零块存为 FILL 块，Fastboot 仍会完整写入：根约 55 GB，引导程序回 `OKAY` 后在后台以约 30 MB/s
 写入（测试机 2026-10-10 为 1839 s）。`encode-ext4` 只把空闲块设为 DONT_CARE，已用的全零块（inode 表、日志）保留为 FILL：
 发布根约写 9.4 GiB。`-s` 不写数据盘镜像的未用块。刷写前用 `python3 tools/sparse_image.py summary` 核对合计；根镜像保持构建原样（其字节即发布物）。
+`encode-ext4` 只把全零的空闲块设为 DONT_CARE，不做 `fstrim` 时清除的内核仍按 RAW 写入（发布根的一次 7.2.6-piano7 试构建：
+不 trim 写 10.14 GB，trim 后 8.73 GB）。
 
 ### 4.5 新的 LUN 0 GPT（主机，v0.1 手工步骤）
 
@@ -790,6 +817,11 @@ python3 tools/piano-devmode-ssh.py -t <USER> sudo piano-reboot-bootloader
 - `piano-reboot-bootloader` 加载 `nvmem_qcom-spmi-sdam` 与 `nvmem-reboot-mode`；没有绑定的 reboot-mode 设备时拒绝重启，
   因为那样平板会重新从 A 槽启动。
 - 已在测试机的正式冷启动中验证。
+- 默认：发布镜像中关闭。安装过程打开它（[INSTALL.zh-CN.md](INSTALL.zh-CN.md) 第 8a 或 10 步），第 10 步最后执行
+  `sudo piano-devmode off`，这是所有者为发布版定的做法。
+- 自 piano-device-support 0.1+20261010.7 起，套接字带 `BindToDevice=usb0`（NCM 功能的网络设备），并在
+  `sys-subsystem-net-devices-usb0.device` 之后启动：仅凭地址时，经 Wi-Fi 到达 192.168.88.2 的连接也会被接受。
+  QEMU 中经其他接口路由到该地址的对端被拒绝；尚未在平板上核对。NCM 设备若不叫 usb0，套接字不会启动（`piano-devmode status` 显示 inactive）。
 
 ### 7.2 调试 RAM 启动
 

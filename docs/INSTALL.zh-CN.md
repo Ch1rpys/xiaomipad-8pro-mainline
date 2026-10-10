@@ -295,14 +295,15 @@ mkfs.ext4 -L linux_data data.ext4 && img2simg -s data.ext4 data.sparse.img     #
 fastboot -s <SERIAL> erase userdata
 fastboot -s <SERIAL> erase metadata
 python3 tools/sparse_image.py summary <release>/rootfs/root.sparse.img data.sparse.img   # 平板将写入的量
-fastboot -s <SERIAL> flash linux_rootfs <release>/rootfs/root.sparse.img   # 数分钟；约写入 9.4 GiB
+fastboot -s <SERIAL> flash linux_rootfs <release>/rootfs/root.sparse.img   # 数分钟；写入 8.7 至 10.1 GB
 fastboot -s <SERIAL> flash linux_data data.sparse.img                      # 数秒
 # 预期每个 Sending 与 Writing 行均为 "OKAY"，最后 "Finished."
 ```
 
-平板写入稀疏镜像的 RAW 与 FILL 块，跳过 DONT_CARE 块。根镜像只写文件系统用到的块（8.2 GiB 数据加 1.1 GiB
-置零的 inode 表与日志；51 GiB 空闲空间为 DONT_CARE）；`img2simg -s` 同样不写 `data.sparse.img` 的空闲块
-（6 MB 数据，日志填充至多 1 GiB）。
+平板写入稀疏镜像的 RAW 与 FILL 块，跳过 DONT_CARE 块。根镜像只写文件系统用到的块（7.2.6-piano6 构建：8.2 GiB 数据加 1.1 GiB
+置零的 inode 表与日志，共 10.1 GB；51 GiB 空闲空间为 DONT_CARE）。自 7.2.6-piano7 构建起，镜像构建还会丢弃移除 Ubuntu
+通用内核后释放的块，共约 8.7 GB（在该根的一次试构建上离线测得）；上面的 `summary` 行给出你的镜像的实际数值。
+`img2simg -s` 同样不写 `data.sparse.img` 的空闲块（6 MB 数据，日志填充至多 1 GiB）。
 
 **`OKAY` 不代表写入已完成。** 引导程序在数据传完时即应答，随后在后台以约 30 MB/s 继续写 FILL 块；下一条 Fastboot
 命令会等它写完。命令等待期间不要拔线、复位或关机，已返回 `OKAY` 的写入不要重复。（测试机 2026-10-10：本预览的早期镜像把根的
@@ -392,7 +393,13 @@ fastboot -s <SERIAL> reboot
 - **GNOME 初始设置**创建第一个账户。做过[第 8a 步](#8a-推荐首次启动前安装本机文件)时触控可用；否则使用磁吸键盘（第 10 步之前触控不可用）。
   跳过网络页面。必须有人在平板旁：账户建好且开发者模式打开（第 8a 或 10 步）之前，主机无法连接平板
   （开发者模式需要账户且拒绝 root 登录），唯一的退路是电源 + 音量下。
-- **每次启动后设置时间**，硬件时钟不可写：`sudo date -s 'YYYY-MM-DD HH:MM'`。
+- **计算机名。**账户页的“计算机”栏默认填入你的用户名，初始设置把它设为主机名，替换镜像的 `xiaomipad-8pro`（7.2.6-piano7 构建）；
+  需要别的名字时修改该栏，或之后运行 `sudo hostnamectl hostname --static <名字>`。蓝牙显示的友好名称“Xiaomi Pad 8 Pro”保持不变。
+- **时钟。**硬件时钟不可写。piano-ubuntu-desktop 0.1+20261010.6 及以后（7.2.6-piano7 构建）每次启动从上次关机或每小时保存的时间开始
+  （`fake-hwclock`），因此慢了平板关机或停留在 Android 的时长；更早的构建每次启动都从 systemd 内置日期 2026-04-15 开始。
+  联网后 chrony 会校时，但只在能连到 Ubuntu NTS 服务器时有效：路由器自己应答所有 NTP 请求时（测试网络即如此）收不到经认证的应答，
+  时钟保持错误。这时手动设置：`sudo date -s 'YYYY-MM-DD HH:MM'`。在 chrony 配置 `/etc/chrony/conf.d/60-local.conf` 中写
+  `authselectmode ignore` 可改为接受未认证的时间，但放弃了 NTS 认证，镜像不做此设置。
 - 启动完成后该槽被标记为启动成功：`sudo piano-slot-success --check` 应报告 `"state": "already-successful"`。
 
 第 10 步之前：没有蓝牙，Wi-Fi 使用随机 MAC，不能从 Ubuntu 切换，内核更新也不会改写 A 槽（地址由该步重建的启动镜像组带入）。只有做过第 8a 步，首次启动起触控才可用。
@@ -447,6 +454,8 @@ scp -r thp-calibration.json bluetooth-address wlan-address boot-partitions.json 
 > `androidboot.serialno`，引导程序只在 `/proc/bootconfig` 中传入它，而 0.1+20261010.3 只读 `/proc/cmdline`（0.1+20261010.5 修正）。
 > 自 0.1+20261010.6 起，持久启动中缺 `boot-partitions.json` 时，内核与 initrd 更新不改动启动镜像组和 A 槽，而不是失败。
 > 按 [BUILD](build.zh-CN.md) 构建该包，与文件一起复制到平板并先安装：`sudo dpkg -i piano-device-support_<版本>_arm64.deb`。
+> 根中已是 0.1+20261010.6 或更高版本时（`dpkg-query -W piano-device-support`；7.2.6-piano7 构建为 0.1+20261010.7），
+> 不需要该包，也不需要下面的 `dpkg -i`。
 
 **安装文件、存入 Android 镜像组并重建启动镜像组：**
 
@@ -474,17 +483,29 @@ sudo systemctl reboot
 sudo piano-boot-switch verify          # 预期退出码 0
 ```
 
-然后删除主目录中的副本（`rm -r ~/android-set ~/boot-signing.pem ...`）。若希望从主机访问平板，可保持开发者模式开启；
-`sudo piano-devmode off` 关闭它。开发者模式接受所有设有密码的本地账户，如需仅允许 SSH 密钥，见
-[device/devmode](../device/devmode/README.md)。
+然后删除主目录中的副本（`rm -r ~/android-set ~/boot-signing.pem ...`），并在平板终端中关闭开发者模式（它只为安装而开启）：
+
+```bash
+sudo piano-devmode off
+piano-devmode status       # 预期 "developer mode: disabled, inactive"
+```
+
+需要主机连接时用 `sudo piano-devmode on` 再次打开。开启期间它经 USB 线接受所有设有密码的本地账户，如需仅允许 SSH 密钥，见
+[device/devmode](../device/devmode/README.md)。自 piano-device-support 0.1+20261010.7 起，其 SSH 套接字只接受 USB 网络接口
+`usb0` 上的连接，不接受经 Wi-Fi 的连接。若平板上 `ip -brief link` 显示 USB 链路是别的名字，该套接字不会启动，主机无法登录；
+请使用平板自己的终端。
 
 如果重建的镜像组无法启动：按电源 + 音量下，从主机写回发布目录的 `boot/` 镜像组（[FLASHING.zh-CN.md](FLASHING.zh-CN.md#从主机piano-switchpy)）。
 
 ## 安装之后
 
 - **切换与恢复：**[FLASHING.zh-CN.md](FLASHING.zh-CN.md)。
+- **软件包：**第一次 `apt install` 之前先运行 `sudo apt update`。镜像不带其软件源的索引（7.2.6-piano7 构建起完全不带），
+  这时 apt 只报 “Unable to locate package”，不会提示 `apt update`。7.2.6-piano7 构建还移除了 Ubuntu 通用内核，
+  连带移除 C 库头文件：编译软件前先安装 `build-essential`。
 - **内核更新：**用 `dpkg -i` 安装新的 `linux-image-<release>` 包；它会重建启动镜像组，A 槽为 Ubuntu 时改写该槽。
-  详见 [AGENT-GUIDE.zh-CN.md](AGENT-GUIDE.zh-CN.md) §5。
+  详见 [AGENT-GUIDE.zh-CN.md](AGENT-GUIDE.zh-CN.md) §5。7.2.6-piano7 构建的根使用 zram 交换（`systemd-zram-generator`）；
+  在这样的根上启动不含 `CONFIG_ZRAM` 的内核（7.2.6-piano6 及更早，例如较旧的回退镜像组），会为等待 `/dev/zram0` 多用约 90 s（QEMU 中测得）。
 - **Android：**首次启动 Android 会重建数据，需要几分钟。如需 root，请重新安装 root 管理器应用；
   A 槽中已打补丁的 `init_boot_a` 不变。更换 A 槽的 root 补丁后，要刷新存储的 Android 镜像组（[FLASHING.zh-CN.md](FLASHING.zh-CN.md#镜像组)）。
 - **已知问题与支持状态：**[README](../README.zh-CN.md#硬件支持)及发布目录中的 `RELEASE-NOTES.md`。

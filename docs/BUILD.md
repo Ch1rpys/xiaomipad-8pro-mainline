@@ -176,11 +176,19 @@ the result offline and writes `root.sparse.img`; it takes about 35 minutes. The 
 
 ```bash
 python3 tools/prepare-ubuntu-apt.py --rootfs out/ubuntu-desktop-pristine/ubuntu-desktop.squashfs \
-  --snapshot <YYYYMMDDTHHMMSSZ> --output out/apt-release --download dracut device-tree-compiler openssh-server
+  --snapshot <YYYYMMDDTHHMMSSZ> --output out/apt-release \
+  --download dracut device-tree-compiler openssh-server fake-hwclock systemd-zram-generator
 python3 tools/build-rootfs-image.py --squashfs out/ubuntu-desktop-pristine/ubuntu-desktop.squashfs ... \
   --boot-profile <boot-profile.json> --boot-key <release signing key> --output out/rootfs-<version>
 # expect "state": "ROOT_IMAGE_BUILT_OFFLINE_CHECKS_PASS_NOT_BOOTED"
 ```
+
+`fake-hwclock` is a dependency of piano-ubuntu-desktop 0.1+20261010.6. Download
+`systemd-zram-generator` only for a kernel with `CONFIG_ZRAM` (7.2.6-piano7 and later): without the
+module the boot waits 90 s for `/dev/zram0` (QEMU, 7.2.6-piano6), and `build-rootfs-image.py`
+refuses the mismatch. The guest also purges Ubuntu's generic kernels and `kdump-tools`, sets the
+hostname `xiaomipad-8pro`, deletes the base's APT indexes and ends with `fstrim`
+([RELEASE.md](RELEASE.md#what-the-image-contains)).
 
 The boot profile is reduced to the stock-build fields before use. The image has no account, no
 machine ID, no SSH host keys and no file of any unit; it is not byte-reproducible because dpkg and

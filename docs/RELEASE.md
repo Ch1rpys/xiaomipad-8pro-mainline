@@ -38,10 +38,21 @@ The `linux_data` (`/home`) filesystem is not shipped; it is created at install t
   PARTLABEL=linux_data /home ext4 defaults,noatime 0 2
   ```
 - The boot set in `/var/lib/piano/switch/ubuntu/`, the same files as `boot/`.
+- From the 7.2.6-piano7 build: the hostname `xiaomipad-8pro` with the pretty name "Xiaomi Pad 8 Pro"
+  (`/etc/machine-info`; GNOME Initial Setup replaces the static name with its *Computer* field);
+  only the piano kernel: Ubuntu's generic HWE kernel, its headers, tools and zfs modules and
+  `kdump-tools` are purged with `apt-get --purge --autoremove` (47 packages and 903 MiB on the
+  7.2.6-piano6 root, including `libc6-dev` and `flash-kernel`; `linux-firmware` is kept); no
+  `/var/lib/apt/lists` indexes (the base's were of the build machine's mirror; users run
+  `apt update` first); zram swap through `systemd-zram-generator` and the piano-ubuntu-desktop
+  drop-in (half the memory up to 8 GiB, zstd, priority 100); and `fstrim` of the target at the end
+  of the guest.
 
 It has no user account (GNOME Initial Setup creates the first one; GDM has no automatic login), an
 empty `/etc/machine-id`, no SSH host keys (developer mode creates them), Ubuntu's `ssh.socket` and
-developer mode off, no journal or APT caches, and no file of any unit in `/etc/piano`.
+developer mode off (the installation turns developer mode on and [INSTALL.md](INSTALL.md) step 10
+off again; from piano-device-support 0.1+20261010.7 its socket accepts connections on `usb0` only),
+no journal or APT caches, and no file of any unit in `/etc/piano`.
 
 The boot set is address-free: `build-persistent-boot.py --root-partlabel linux_rootfs --no-serial`
 without `--bt-address-file` or `--wlan-address-file`. Its command line is
@@ -80,9 +91,12 @@ QEMU `qemu-system-aarch64` (TCG), squashfs-tools-ng 1.2 `sqfs2tar`, and e2fsprog
 `mke2fs`/`e2fsck`/`debugfs`/`dumpe2fs` built with libarchive (the identity is recorded in the manifests).
 
 ```bash
-# 1. Ubuntu packages added to the base, from a signed snapshot
+# 1. Ubuntu packages added to the base, from a signed snapshot; fake-hwclock is a dependency of
+#    piano-ubuntu-desktop 0.1+20261010.6, systemd-zram-generator only for a kernel with CONFIG_ZRAM
+#    (7.2.6-piano7 and later; build-rootfs-image.py refuses a mismatch)
 python3 tools/prepare-ubuntu-apt.py --rootfs out/ubuntu-desktop-pristine/ubuntu-desktop.squashfs \
-  --snapshot 20261001T000000Z --output out/apt-release --download dracut device-tree-compiler openssh-server
+  --snapshot 20261001T000000Z --output out/apt-release \
+  --download dracut device-tree-compiler openssh-server fake-hwclock systemd-zram-generator
 # 2. The piano packages (AGENT-GUIDE.md §3.4, §3.5)
 # 3. The root image and the boot set; about 35 minutes, most of it in the QEMU guest
 python3 tools/build-rootfs-image.py \
@@ -119,8 +133,12 @@ python3 tools/build-release.py --rootfs-build out/rootfs-<version> \
   slot observations and image hashes are dropped and its hash is not recorded.
 - The tool then runs `e2fsck -fn`, checks the finished image with `debugfs` (`verification.json`:
   packages, accounts, machine ID, SSH host keys, `/etc/piano`, fstab, units, kernel files, the store set,
-  file capabilities), and writes `root.sparse.img`, `SHA256SUMS` and `manifest.json`. The image is not
-  byte-reproducible: dpkg and dracut record times, and dracut initrds differ between runs.
+  file capabilities; from the 7.2.6-piano7 build also `only_piano_kernel`, `boot_only_piano_files`,
+  `zram_generator_matches_kernel`, `device_hostnames`, `fake_hwclock_data`, `apt_lists_empty` and the
+  fake-hwclock units; the guest itself fails if another kernel package, `/boot` file or modules tree
+  remains or `apt autoremove` would still remove a package), and writes `root.sparse.img`,
+  `SHA256SUMS` and `manifest.json`. The image is not byte-reproducible: dpkg and dracut record times,
+  and dracut initrds differ between runs.
 - `--forbid-file` makes `build-release.py` scan every output for identifiers of your unit (serial,
   Bluetooth and Wi-Fi address in text and binary forms). The files are read, never copied or recorded;
   the scan does not see inside compressed files.
@@ -129,8 +147,11 @@ python3 tools/build-release.py --rootfs-build out/rootfs-<version> \
   blocks such as the inode tables and journal, which ext4 trusts to be zero), then `img2simg -s`
   stores the holes as DONT_CARE; the bytes of `root.ext4` do not change. Fastboot writes RAW and FILL
   blocks only, so the tablet writes the used blocks (about 9.4 GiB for v0.1.0-preview) instead of
-  60 GiB. The build stops if a DONT_CARE block is in use or more than 64 MiB of FILL lies on free
-  blocks, and records the summary in `manifest.json` (`sparse`).
+  60 GiB. Blocks freed in the guest keep their old content and would be RAW, so the guest ends with
+  `fstrim` on the target, which QEMU opens with `discard=unmap`: on the root of a 7.2.6-piano7 check
+  build, 51.9 GiB trimmed, RAW on free blocks 0, device writes 8.73 GB instead of 10.14 GB without the
+  trim (7.2.6-piano6 root: 10.07 GB). The build stops if a DONT_CARE block is in use or more than
+  64 MiB of FILL lies on free blocks, and records the summary in `manifest.json` (`sparse`).
 - `build-release.py` prints what Fastboot writes for every image and stops on the same rules (for the
   root, the recorded summary must match the file's chunks; `--allow-fill` only reports). Before
   flashing, `python3 tools/sparse_image.py summary <image>...` prints the same totals. It hard-links
@@ -193,4 +214,8 @@ address, and kernel package updates leave the boot set unchanged. Use the magnet
   running with 0 failed units; the acceptance tool (profile debug) passed every criterion except
   `hci0_up`, expected without a Bluetooth address. It returned to Fastboot with
   `piano-reboot-bootloader`.
+- 2026-10-11, offline: a check build of the root with 7.2.6-piano7, piano-device-support
+  0.1+20261010.7 and piano-ubuntu-desktop 0.1+20261010.6 (integration `26b3a8e`) passed every offline
+  check (`ROOT_IMAGE_BUILT_OFFLINE_CHECKS_PASS_NOT_BOOTED`); the `fstrim` step (`391ab9c`) was measured
+  on that build's `root.ext4`. No complete build with both has run yet, and none of it has been booted.
 - The release image as a whole has not been flashed to a tablet.

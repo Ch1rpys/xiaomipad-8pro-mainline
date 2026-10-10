@@ -393,9 +393,12 @@ sudo cp backup/vendor_boot_a.img $A/vendor_boot.img
 
 sudo chroot $R dpkg-query -W dracut python3 openssl device-tree-compiler gdm3 linux-base
 # every name must be listed; fetch missing packages with their dependencies, plus openssh-server
-# for developer mode (§7.1), from the signed snapshot:
+# for developer mode (§7.1), fake-hwclock (a dependency of piano-ubuntu-desktop 0.1+20261010.6) and,
+# only for a kernel with CONFIG_ZRAM (7.2.6-piano7 and later), systemd-zram-generator, from the
+# signed snapshot:
 python3 tools/prepare-ubuntu-apt.py --rootfs out/ubuntu-desktop-pristine/ubuntu-desktop.squashfs \
-  --snapshot <YYYYMMDDTHHMMSSZ> --output out/apt-extra --download device-tree-compiler openssh-server
+  --snapshot <YYYYMMDDTHHMMSSZ> --output out/apt-extra \
+  --download device-tree-compiler openssh-server fake-hwclock systemd-zram-generator
 sudo install -d $R/var/cache/piano-install
 sudo cp out/apt-extra/cache/archives/*.deb out/kernel-deb-<N>/linux-image-*.deb out/device-debs/*.deb \
   out/firmware-deb/*.deb $R/var/cache/piano-install/
@@ -405,8 +408,33 @@ sudo chroot $R env SYSTEMD_OFFLINE=1 DEBIAN_FRONTEND=noninteractive dpkg --insta
 sudo chroot $R dpkg --audit                    # expect no output
 ```
 
+Without `systemd-zram-generator` on a kernel with zram there is no swap; with it on a kernel without
+`CONFIG_ZRAM` (7.2.6-piano6 and earlier) the boot waits 90 s for `/dev/zram0` (QEMU). Then, as
+[tools/rootfs-image-guest.sh](../tools/rootfs-image-guest.sh) does for the release root, name the
+tablet, purge the base's generic kernels and kdump, whose packages would be updated and get initrds
+without ever booting (the names of the 26.04 Desktop base; the guest selects them by pattern), and
+drop the base's package indexes, which belong to the build machine's mirror:
+
+```bash
+printf 'xiaomipad-8pro\n' | sudo tee $R/etc/hostname >/dev/null
+printf 'PRETTY_HOSTNAME="Xiaomi Pad 8 Pro"\n' | sudo tee $R/etc/machine-info >/dev/null
+printf 'update_initramfs=no\n' | sudo tee $R/etc/initramfs-tools/update-initramfs.conf >/dev/null
+sudo chroot $R apt-mark manual linux-firmware
+sudo chroot $R env SYSTEMD_OFFLINE=1 DEBIAN_FRONTEND=noninteractive apt-get --yes --purge --autoremove remove \
+  kdump-tools linux-generic-hwe-24.04 linux-generic-hwe-26.04 linux-headers-7.0.0-14-generic \
+  linux-headers-generic-hwe-26.04 linux-image-7.0.0-14-generic linux-image-generic-hwe-26.04 \
+  linux-main-modules-zfs-7.0.0-14-generic linux-modules-7.0.0-14-generic linux-tools-7.0.0-14-generic
+sudo rm $R/etc/initramfs-tools/update-initramfs.conf
+sudo chroot $R dpkg --audit                    # expect no output
+ls $R/usr/lib/modules                          # expect only <release>
+sudo find $R/var/lib/apt/lists -mindepth 1 -maxdepth 1 -type f ! -name lock -delete
+```
+
+On the release root the purge removed 47 packages (with `--autoremove`, including `libc6-dev` and
+`flash-kernel`; users install `build-essential` to compile).
+
 `openssh-server` enables Ubuntu's `ssh.socket`, which listens on every address. For developer mode
-from the first boot (§7.1):
+from the first boot (§7.1; turn it off after the installation):
 
 ```bash
 sudo systemctl --root=$R disable ssh.socket ssh.service
@@ -420,6 +448,7 @@ sudo cp -r $R/var/lib/piano/switch/ubuntu out/install/ubuntu-set        # writte
 sudo cp $R/boot/vmlinuz-<release> $R/boot/initrd.img-<release> \
   $R/usr/lib/linux-image-<release>/piano-boot.dtb out/install/
 sudo rm -r $R/usr/sbin/policy-rc.d $R/var/cache/piano-install
+sudo fstrim -v $R      # freed blocks keep their content; the loop device must pass discards to the file
 sudo umount $R/dev/pts $R/dev $R/sys $R/proc $R
 e2fsck -f out/install/root.ext4 && python3 tools/sparse_image.py encode-ext4 out/install/root.ext4 out/install/root.sparse.img
 
@@ -432,7 +461,9 @@ the root, committed by the bootloader at about 30 MB/s after it has answered `OK
 test unit, 2026-10-10). `encode-ext4` makes only the free blocks DONT_CARE and keeps zero used blocks
 (inode tables, journal) as FILL: about 9.4 GiB written for the release root. `-s` leaves the unused
 blocks of the data image out. Check the totals with `python3 tools/sparse_image.py summary` before
-flashing; keep the root image as built (its bytes are the release's).
+flashing; keep the root image as built (its bytes are the release's). `encode-ext4` stores only zero
+free blocks as DONT_CARE, so without the `fstrim` the purged kernels stay RAW (a 7.2.6-piano7 check
+build of the release root: 10.14 GB written without it, 8.73 GB with it).
 
 ### 4.5 New LUN 0 GPT (host, manual in v0.1)
 
@@ -862,6 +893,13 @@ python3 tools/piano-devmode-ssh.py -t <USER> sudo piano-reboot-bootloader
 - `piano-reboot-bootloader` loads `nvmem_qcom-spmi-sdam` and `nvmem-reboot-mode` and refuses to
   reboot when no reboot-mode device is bound, since the tablet would restart into slot A instead.
 - Verified on the test unit in a release cold boot.
+- Default: off in the release image. The installation turns it on ([INSTALL.md](INSTALL.md) step 8a
+  or 10) and step 10 ends with `sudo piano-devmode off`, the owner's choice for the release.
+- From piano-device-support 0.1+20261010.7 the socket has `BindToDevice=usb0` (the NCM function's
+  network device) and starts after `sys-subsystem-net-devices-usb0.device`: the address alone also
+  accepted connections that reached 192.168.88.2 over Wi-Fi. In QEMU a peer routing to that address
+  over another interface is refused; not yet checked on the tablet. If the NCM device gets another
+  name, the socket does not start (`piano-devmode status` shows it inactive).
 
 ### 7.2 Debug RAM boot
 

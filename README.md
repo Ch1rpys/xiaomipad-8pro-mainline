@@ -110,9 +110,11 @@ A host write resets slot A's retry counter, and `piano-slot-success` marks the s
 
 **Updating the kernel.** `sudo dpkg -i linux-image-<release>_*.deb` runs dracut and `piano-boot-update`, which rebuilds the Ubuntu image set and rewrites slot A in place when it holds Ubuntu (about 12.5 minutes on the device); reboot to use it. Otherwise `sudo piano-boot-switch to-ubuntu` writes the new set.
 
-**Developer mode.** `sudo piano-devmode on` adds SSH over the USB cable (USB NCM, tablet at 192.168.88.2); it is off by default and needs `openssh-server`. From the host, `python3 tools/piano-devmode-ssh.py USER` connects about 22 s after boot. See [device/devmode](device/devmode/README.md).
+**Developer mode.** `sudo piano-devmode on` adds SSH over the USB cable (USB NCM, tablet at 192.168.88.2); it is off by default and needs `openssh-server`. From the host, `python3 tools/piano-devmode-ssh.py USER` connects about 22 s after boot. The installation turns it on; turn it off afterwards with `sudo piano-devmode off` ([INSTALL.md](docs/INSTALL.md) step 10). See [device/devmode](device/devmode/README.md).
 
-**Time after boot.** The PMIC RTC cannot be written, so the clock is wrong after every boot. Set it manually, for example `sudo date -s '2026-10-09 18:00'`, or let network time correct it once the tablet is online.
+**Time after boot.** The PMIC RTC cannot be written. From piano-ubuntu-desktop 0.1+20261010.6 a boot starts from the time saved at the last shutdown, which is behind by the time the tablet was off or in Android; chrony corrects it on networks where Ubuntu's NTS servers answer, but not behind a router that answers NTP itself. Otherwise set it manually, for example `sudo date -s '2026-10-09 18:00'`.
+
+**After Initial Setup.** Initial Setup makes the user name the hostname unless you edit its *Computer* field; change it later with `sudo hostnamectl hostname --static <name>`. Run `sudo apt update` before the first `apt install`: the image has no current package indexes.
 
 ## Development and Contributions
 

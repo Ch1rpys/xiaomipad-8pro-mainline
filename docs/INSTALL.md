@@ -326,14 +326,17 @@ Erase Android's data and write both filesystems:
 fastboot -s <SERIAL> erase userdata
 fastboot -s <SERIAL> erase metadata
 python3 tools/sparse_image.py summary <release>/rootfs/root.sparse.img data.sparse.img   # what the tablet will write
-fastboot -s <SERIAL> flash linux_rootfs <release>/rootfs/root.sparse.img   # a few minutes; about 9.4 GiB written
+fastboot -s <SERIAL> flash linux_rootfs <release>/rootfs/root.sparse.img   # a few minutes; 8.7 to 10.1 GB written
 fastboot -s <SERIAL> flash linux_data data.sparse.img                      # seconds
 # expect "OKAY" on every Sending and Writing line, then "Finished."
 ```
 
 The tablet writes the RAW and FILL blocks of a sparse image and skips its DONT_CARE blocks. The root
-image writes only the blocks its filesystem uses (8.2 GiB of data and 1.1 GiB of zeroed inode tables
-and journal; the 51 GiB of free space are DONT_CARE); `img2simg -s` likewise leaves the free blocks of
+image writes only the blocks its filesystem uses (7.2.6-piano6 builds: 8.2 GiB of data and 1.1 GiB of
+zeroed inode tables and journal, 10.1 GB in all; the 51 GiB of free space are DONT_CARE). From the
+7.2.6-piano7 build the image build also discards the blocks it freed by removing Ubuntu's generic
+kernels, about 8.7 GB in all (measured offline on a test build of that root); the `summary` line
+above prints the figure of your image. `img2simg -s` likewise leaves the free blocks of
 `data.sparse.img` out (6 MB of data, at most 1 GiB of journal fill).
 
 **`OKAY` does not mean the write is finished.** The bootloader answers once the data has arrived and
@@ -442,8 +445,19 @@ fastboot -s <SERIAL> reboot
   page. Someone must be at the tablet: until the account exists and developer mode is on (step 8a or
   10) the host cannot reach it (developer mode needs an account and refuses root logins), and the only
   way back is Power + Volume Down.
-- **Set the clock** after every boot; the hardware clock cannot be written:
-  `sudo date -s 'YYYY-MM-DD HH:MM'`.
+- **Computer name.** The account page fills its *Computer* field with your user name and makes it
+  the hostname, replacing the image's `xiaomipad-8pro` (7.2.6-piano7 build); edit the field for
+  another name, or later run `sudo hostnamectl hostname --static <name>`. The pretty name
+  "Xiaomi Pad 8 Pro", which Bluetooth shows, stays.
+- **Clock.** The hardware clock cannot be written. With piano-ubuntu-desktop 0.1+20261010.6 or later
+  (the 7.2.6-piano7 build) a boot starts from the time saved at the last shutdown or hourly
+  (`fake-hwclock`), so the clock is behind by the time the tablet was off or in Android; earlier builds
+  start every boot at systemd's built-in date, 2026-04-15. chrony corrects it once online, but only
+  where Ubuntu's NTS servers can be reached: a router that answers every NTP request itself (as on the
+  test network) gives no authenticated reply and the clock stays wrong. There, set it by hand,
+  `sudo date -s 'YYYY-MM-DD HH:MM'`. A chrony file `/etc/chrony/conf.d/60-local.conf` with
+  `authselectmode ignore` would accept the unauthenticated time instead; it gives up NTS
+  authentication, and the image does not set it.
 - The slot is marked as successfully booted after the boot completes:
   `sudo piano-slot-success --check` should report `"state": "already-successful"`.
 
@@ -506,7 +520,9 @@ After step 8a four of the files are already in `/etc/piano`; copy only `boot-pro
 > (fixed in 0.1+20261010.5). From 0.1+20261010.6, kernel and initrd updates on a running persistent
 > boot without `boot-partitions.json` leave the boot set and slot A unchanged instead of failing.
 > Build the package ([BUILD.md](BUILD.md)), copy it with the files and install it first:
-> `sudo dpkg -i piano-device-support_<version>_arm64.deb`.
+> `sudo dpkg -i piano-device-support_<version>_arm64.deb`. A root that already has 0.1+20261010.6 or
+> later (`dpkg-query -W piano-device-support`; the 7.2.6-piano7 build has 0.1+20261010.7) needs
+> neither the package nor the `dpkg -i` below.
 
 **Install the files, store the Android set and rebuild the boot set:**
 
@@ -538,10 +554,20 @@ the reboot:
 sudo piano-boot-switch verify          # expect exit status 0
 ```
 
-Then delete the copies in your home directory (`rm -r ~/android-set ~/boot-signing.pem ...`). Keep
-developer mode on if you want a way to reach the tablet from the host; `sudo piano-devmode off`
-turns it off. Developer mode accepts every local account with a password; see
-[device/devmode](../device/devmode/README.md) to restrict it to SSH keys.
+Then delete the copies in your home directory (`rm -r ~/android-set ~/boot-signing.pem ...`) and,
+in a terminal on the tablet, turn developer mode off; it was on for the installation only:
+
+```bash
+sudo piano-devmode off
+piano-devmode status       # expect "developer mode: disabled, inactive"
+```
+
+`sudo piano-devmode on` turns it on again when you need the host connection. While on, it accepts
+every local account with a password over the USB cable; see [device/devmode](../device/devmode/README.md)
+to restrict it to SSH keys. From piano-device-support 0.1+20261010.7 its SSH socket accepts
+connections on the USB network interface `usb0` only, not over Wi-Fi. If `ip -brief link` on the
+tablet shows the USB link under another name, that socket does not start and the host cannot log in;
+use the tablet's own terminal.
 
 If the rebuilt set does not boot: Power + Volume Down, then write the release `boot/` set back from
 the host ([FLASHING.md](FLASHING.md#from-the-host-piano-switchpy)).
@@ -549,8 +575,16 @@ the host ([FLASHING.md](FLASHING.md#from-the-host-piano-switchpy)).
 ## After installation
 
 - **Switching and recovery:** [FLASHING.md](FLASHING.md).
+- **Packages:** run `sudo apt update` before the first `apt install`. The image carries no indexes of
+  its package sources (from the 7.2.6-piano7 build none at all), and apt then only reports "Unable
+  to locate package", without suggesting `apt update`. The 7.2.6-piano7 build also removes Ubuntu's
+  generic kernels and, with them, the C library headers: install `build-essential` before compiling
+  software.
 - **Kernel updates:** install the new `linux-image-<release>` package with `dpkg -i`; it rebuilds
   the boot set and rewrites slot A when it holds Ubuntu. Details: [AGENT-GUIDE.md](AGENT-GUIDE.md) §5.
+  Roots from the 7.2.6-piano7 build swap to zram (`systemd-zram-generator`); a kernel without
+  `CONFIG_ZRAM` (7.2.6-piano6 and earlier) booted on such a root, for example an older rollback set,
+  waits about 90 s for `/dev/zram0` (measured in QEMU).
 - **Android:** the first Android boot re-creates its data and takes several minutes. Reinstall the
   root manager app if you need root; the root-patched `init_boot_a` is unchanged. After changing the
   root patch in slot A, refresh the stored Android set ([FLASHING.md](FLASHING.md#image-sets)).

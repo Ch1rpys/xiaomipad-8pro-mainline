@@ -108,9 +108,11 @@ fastboot -s <serial> reboot
 
 **更新内核。** `sudo dpkg -i linux-image-<release>_*.deb` 会运行 dracut 和 `piano-boot-update`：它重建 Ubuntu 镜像组，A 槽为 Ubuntu 时原位重写该槽（设备上约 12.5 分钟），重启后生效。A 槽不是 Ubuntu 时，用 `sudo piano-boot-switch to-ubuntu` 写入新镜像组。
 
-**开发者模式。** `sudo piano-devmode on` 开启经 USB 线的 SSH（USB NCM，平板地址 192.168.88.2）；默认关闭，需要安装 `openssh-server`。启动约 22 秒后，可在主机上用 `python3 tools/piano-devmode-ssh.py USER` 连接。详见 [device/devmode](device/devmode/README.md)。
+**开发者模式。** `sudo piano-devmode on` 开启经 USB 线的 SSH（USB NCM，平板地址 192.168.88.2）；默认关闭，需要安装 `openssh-server`。启动约 22 秒后，可在主机上用 `python3 tools/piano-devmode-ssh.py USER` 连接。安装过程会打开它，装完后用 `sudo piano-devmode off` 关闭（[INSTALL](docs/INSTALL.zh-CN.md) 第 10 步）。详见 [device/devmode](device/devmode/README.md)。
 
-**启动后的时间。** PMIC RTC 不可写，每次启动后时钟都不正确。请手动设置（例如 `sudo date -s '2026-10-09 18:00'`），或在联网后由网络校时自动修正。
+**启动后的时间。** PMIC RTC 不可写。自 piano-ubuntu-desktop 0.1+20261010.6 起，每次启动从上次关机时保存的时间开始，慢了平板关机或停留在 Android 的时长；在能连到 Ubuntu NTS 服务器的网络上 chrony 会自动校时，路由器自己应答 NTP 时则不会。其他情况请手动设置（例如 `sudo date -s '2026-10-09 18:00'`）。
+
+**初始设置之后。** 初始设置会把用户名设为主机名，除非你修改其中的“计算机”栏；之后可用 `sudo hostnamectl hostname --static <名字>` 修改。第一次 `apt install` 之前先运行 `sudo apt update`：镜像不带当前的软件包索引。
 
 ## 开发与贡献
 
