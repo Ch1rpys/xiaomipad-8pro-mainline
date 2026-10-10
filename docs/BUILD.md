@@ -51,6 +51,10 @@ BUILD_MODULES=1 KERNEL_SOURCE=../linux OUT_DIR="$PWD/out/kernel-release" bash to
 - `build-kernel.sh` refuses a tree whose HEAD differs from `kernel/source.json` or that has
   uncommitted tracked changes. The base fragment is merged first, then `CONFIG_FRAGMENT_EXTRA` in
   order, `piano-release.config` last.
+- The upstream base is the tag of the version in the kernel's top-level Makefile
+  (`python3 tools/kernel_tag.py ../linux` prints `v7.2.6`); it must exist and be an ancestor of HEAD.
+  `build-kernel.sh` and `build-kernel-deb.py` both use it, so project tags on the kernel repository
+  such as `v0.1.0-preview` are never taken for the upstream version.
 - Reuse the OUT directory for incremental builds (ccache is used when installed); a different
   toolchain or source location needs a new one.
 - Without `piano-release.config` the release keeps a diagnostic suffix and cannot be packaged.

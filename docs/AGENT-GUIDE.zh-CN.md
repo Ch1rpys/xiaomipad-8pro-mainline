@@ -62,7 +62,7 @@ git clone --branch piano/dev https://github.com/yzddmr6/linux-sm8750-piano ../li
 python3 -c 'import json; print(json.load(open("kernel/source.json"))["commit"])'
 git -C ../linux rev-parse HEAD                              # 预期与上一行相同
 git -C ../linux status --porcelain --untracked-files=no     # 预期无输出
-git -C ../linux describe --tags --abbrev=0                  # 预期 "v7.2.6"
+python3 tools/kernel_tag.py ../linux                        # 预期 "v7.2.6"（Makefile 版本对应的上游 tag）
 sh tools/fetch-aosp-mkbootimg.sh                            # 固定版本检出到 tools/local/aosp-mkbootimg
 sh tools/fetch-busybox-arm64.sh                             # 预期 ".../usr/bin/busybox: OK"
 ```

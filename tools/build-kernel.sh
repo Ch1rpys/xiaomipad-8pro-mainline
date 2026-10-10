@@ -56,7 +56,7 @@ fi
 head=$(git -C "$src" rev-parse HEAD)
 expected=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["commit"])' "$repo/kernel/source.json")
 [[ "$head" == "$expected" ]] || { echo "Kernel HEAD does not match kernel/source.json" >&2; exit 1; }
-base=$(git -C "$src" describe --tags --abbrev=0 --match 'v[0-9]*' HEAD)
+base=$(python3 "$repo/tools/kernel_tag.py" "$src" HEAD)
 [[ -z $(git -C "$src" status --porcelain --untracked-files=no) ]] || {
 	echo 'Commit or snapshot tracked kernel changes before building.' >&2
 	exit 1

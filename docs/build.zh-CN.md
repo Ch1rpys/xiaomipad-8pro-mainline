@@ -299,6 +299,9 @@ python3 tools/build-kernel-deb.py --kernel-source /path/to/linux \
 包 manifest 的 `boot_dtb.bound_to` 记录该构建与改动路径。
 
 包名沿用上游 builddeb 与 Ubuntu 的 `linux-image-<kernelrelease>`，SOURCE_DATE_EPOCH 取内核提交时间；同输入重建字节一致。
+上游 tag 由 `tools/kernel_tag.py` 按该提交顶层 Makefile 的 VERSION/PATCHLEVEL/SUBLEVEL/EXTRAVERSION 得出（如 `v7.2.6`），
+须存在且是该提交的祖先；build-kernel.sh 的 OUT 身份与打包器的版本都用它。原先的 `git describe --match 'v[0-9]*'`
+会选中内核仓更近的项目 tag `v0.1.0-preview`（指向 piano5），使 piano5 之后的内核全部被打包器拒绝。
 
 **唯一 release。** 可安装内核的 release 为 `<内核版本>-piano<ABI>`（如 `7.2.6-piano1`）：
 `arch/arm64/configs/piano-release.config` 最后合并，设 `CONFIG_LOCALVERSION="-piano<ABI>"` 并关闭
