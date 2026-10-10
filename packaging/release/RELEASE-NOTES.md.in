@@ -49,9 +49,11 @@ Status on the test unit (one 512 GB unit, model 25091RP04C) with `$kernel_releas
   touchscreen (single finger, needs your calibration), magnetic keyboard (keys), Wi-Fi (firmware load and
   2.4 GHz and 5 GHz scanning verified; association not yet verified), Bluetooth (discovery, needs your
   address), internal microphones (capture verified acoustically: a 1 kHz test tone was recorded by all four
-  microphones; speech quality and noise processing unverified), switching from Ubuntu to Android,
-  battery and charger reporting (read-only; no charge control), power key.
-- ❌ Unsupported: charging (the battery discharges under Linux, also on USB), speakers, cameras, sensors,
+  microphones; speech quality and noise processing unverified), speakers (four amplifiers through the
+  TDM path at a fixed gain under a kernel cap; a 1 kHz test tone played by them was recorded by the
+  internal microphones; no speaker protection, listening tests and channel mapping pending), switching
+  between Ubuntu and Android, battery and charger reporting (read-only; no charge control), power key.
+- ❌ Unsupported: charging (the battery discharges under Linux, also on USB), cameras, sensors,
   video decoding, USB host and external display, suspend, writing the real-time clock (the clock is wrong
   after every boot), fingerprint, stylus.
 
@@ -85,7 +87,7 @@ your own boot profile before writing slot A.
   `fastboot boot`, it gives an unauthenticated root shell over the USB cable (telnet 192.168.88.2:2323) with the
   partition tools, mounts no UFS partition, writes nothing by itself and reboots into Fastboot after 10 minutes
   without a session. It is never written to a partition.
-- The Android-side KernelSU module (`piano-switch-ksu`) is not yet verified on the device.
+- The Android-side KernelSU module (`piano-switch-ksu`) was verified on the test unit with KernelSU-Next (install, `--check`, action to Ubuntu); other root managers are untested.
 - Not flashed to a tablet as a whole: this image was assembled offline from the packages and
   procedure that run on the test unit, and checked offline. On the test unit, 7.2.6-piano4 booted as a RAM boot
   with the partition-name root and the serial-free command line of an address-free set; `$kernel_release`

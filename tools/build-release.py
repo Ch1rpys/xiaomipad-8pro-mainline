@@ -227,7 +227,7 @@ def main():
     for rel, digest in hashes.items():
         if rel in purposes or rel.startswith(('debs/', 'tools/piano-switch-ksu')) and rel.endswith(('.deb', '.zip')):
             purpose = purposes.get(rel) or ('installed in the root image' if rel.endswith('.deb')
-                                            else 'Android KernelSU module (unverified on the device)')
+                                            else 'Android KernelSU module')
             rows.append(f'| `{rel}` | {(out / rel).stat().st_size:,} | `{digest}` | {purpose} |')
     packages = [f'| {e["package"]} | {e["version"]} | {"this project" if e["source"] == "piano" else e["source"]} |'
                 for e in rootfs['packages']]
