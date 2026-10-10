@@ -142,7 +142,7 @@ def main():
     shutil.copytree(repo / 'tools/local/aosp-mkbootimg/gki', support / 'usr/lib/piano/boot/gki',
                     ignore=shutil.ignore_patterns('__pycache__', '*test*'))
     # piano-boot-update runs the packaged copy: it must import from the package alone.
-    subprocess.run(['python3', '-E', '-s', '-B', str(support / 'usr/lib/piano/boot/build-persistent-boot.py'), '--help'],
+    subprocess.run(['python3', '-E', '-s', '-B', str((support / 'usr/lib/piano/boot/build-persistent-boot.py').resolve()), '--help'],
                    check=True, stdout=subprocess.DEVNULL, cwd='/')
     busybox = re.search(r'^package=busybox-static_(\S+)_arm64\.deb$',
                         (repo / 'tools/fetch-busybox-arm64.sh').read_text(), re.M).group(1)
