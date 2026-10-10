@@ -370,12 +370,10 @@ done
 ]
 ```
 
-> **v0.1.0-preview 已知问题（测试机 2026-10-10 发现）。** 在发布启动镜像组上，所有 `piano-boot-switch` 命令都以
-> `"code": "serial-mismatch"` 拒绝，因此 `import-android`、`piano-boot-update`（最后调用 `piano-boot-switch to-ubuntu`）、
-> `verify` 以及从 Ubuntu 切换都不可用。发布版命令行不含 `androidboot.serialno`；引导程序只在 `/proc/bootconfig`
-> 中传入它，而该工具只读 `/proc/cmdline`。在发布修复后的 `piano-device-support` 之前，安装完文件即停止，并从主机回到
-> Android：`sudo piano-reboot-bootloader`，然后用你的 Android 镜像组运行
-> [`piano-switch.py`](FLASHING.zh-CN.md#从主机piano-switchpy)。
+> **本步需要 piano-device-support 0.1+20261010.5 或更高版本。** v0.1.0-preview 根自带 0.1+20261010.3，其
+> `piano-boot-switch` 在发布启动镜像组上以 `"code": "serial-mismatch"` 拒绝所有命令：发布版命令行不含
+> `androidboot.serialno`，引导程序只在 `/proc/bootconfig` 中传入它，而 0.1+20261010.3 只读 `/proc/cmdline`。
+> 按 [BUILD](build.zh-CN.md) 构建该包，与下面的文件一起复制到平板并先安装：`sudo dpkg -i piano-device-support_<版本>_arm64.deb`。
 
 **安装文件、存入 Android 镜像组并重建启动镜像组：**
 

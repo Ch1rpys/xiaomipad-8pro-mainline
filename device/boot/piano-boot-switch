@@ -78,9 +78,8 @@ class Context:
     def __init__(self, host, write, check_slot=True):
         host.require_root()
         slot.require_piano(host)
-        words = slot.kernel_words(host)
         serial = json.loads(host.path(PROFILE).read_text()).get('serial')
-        if not isinstance(serial, str) or 'androidboot.serialno=' + serial not in words:
+        if not isinstance(serial, str) or not serial or serial != slot.firmware_serial(host):
             raise slot.Refusal('serial-mismatch', 'Firmware serial differs from the installed device profile')
         self.host = host
         self.disk = slot.boot_disk(host, strict=False)
@@ -100,7 +99,7 @@ class Context:
                 raise slot.Refusal('partition-mounted', f'{row["label"]} is mounted')
             self.parts[row['label'][:-2]] = part
         if write:
-            for word in words:
+            for word in slot.kernel_words(host):
                 if word.startswith('piano.debug_timeout='):
                     uptime = float(host.path('/proc/uptime').read_text().split()[0])
                     if int(word.split('=', 1)[1]) - uptime < 60:

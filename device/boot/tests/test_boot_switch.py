@@ -227,6 +227,23 @@ class Refusals(Base):
         self.p.cmdline(fp.UBUNTU_CMDLINE.replace(fp.SERIAL, 'other'))
         self.refused('serial-mismatch', 'to-android')
 
+    def test_serial_from_bootconfig_only(self):
+        # The address- and serial-free release boot set: ABL passes the serial only in bootconfig.
+        release = fp.UBUNTU_CMDLINE.replace(f' androidboot.serialno={fp.SERIAL}', '')
+        self.p.cmdline(release + ' androidboot.verifiedbootstate=orange')
+        self.refused('serial-mismatch', 'to-android')
+        (self.p.root / 'proc/bootconfig').write_text(
+            f'androidboot.serialno = "{fp.SERIAL}"\nandroidboot.slot_suffix = "_a"\n')
+        rc, report = self.run_tool('status')
+        self.assertEqual(rc, 0, report)
+        self.assertEqual(report['occupant'], 'ubuntu')
+        (self.p.root / 'proc/bootconfig').write_text('androidboot.serialno = "other"\n')
+        self.refused('serial-mismatch', 'to-android')
+
+    def test_serial_conflict(self):
+        (self.p.root / 'proc/bootconfig').write_text('androidboot.serialno = "other"\n')
+        self.refused('serial-conflict', 'to-android')
+
     def test_malformed_map(self):
         (self.p.root / 'etc/piano/boot-partitions.json').write_text('[{"label": "boot_a"}')
         self.refused('invalid-input', 'to-android')

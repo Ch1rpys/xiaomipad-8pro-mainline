@@ -143,22 +143,43 @@ def require_piano(host):
         raise Refusal('not-piano', 'The devicetree does not identify a Xiaomi Pad 8 Pro (xiaomi,piano)')
 
 
-def slot_suffix(host):
-    """'_a'/'_b' from /proc/bootconfig or /proc/cmdline; None when neither has it."""
+def boot_values(host, name, bare=False):
+    """Every value of androidboot.<name> (and of <name> when bare) in /proc/cmdline and /proc/bootconfig.
+
+    ABL passes androidboot.* parameters in bootconfig when the command line asks for it; a boot set whose
+    own command line omits a parameter (the address- and serial-free release set) sees it only there."""
+    keys = [f'androidboot.{name}='] + ([f'{name}='] if bare else [])
     found = set()
     for word in kernel_words(host):
-        for key in ('androidboot.slot_suffix=', 'slot_suffix='):
+        for key in keys:
             if word.startswith(key):
                 found.add(word[len(key):])
     bootconfig = host.path('/proc/bootconfig')
     if bootconfig.exists():
-        for match in re.finditer(r'^\s*(?:androidboot\.)?slot_suffix\s*=\s*"?([^"\s]*)"?\s*$',
+        prefix = r'(?:androidboot\.)?' if bare else r'androidboot\.'
+        for match in re.finditer(rf'^\s*{prefix}{re.escape(name)}\s*=\s*"?([^"\s]*)"?\s*$',
                                  bootconfig.read_text(), re.M):
             found.add(match[1])
+    return found
+
+
+def slot_suffix(host):
+    """'_a'/'_b' from /proc/bootconfig or /proc/cmdline; None when neither has it."""
+    found = boot_values(host, 'slot_suffix', bare=True)
     if not found:
         return None
     if len(found) != 1 or not found <= {'_a', '_b'}:
         raise Refusal('slot-suffix-conflict', f'Conflicting or invalid slot suffixes: {sorted(found)}')
+    return found.pop()
+
+
+def firmware_serial(host):
+    """androidboot.serialno from /proc/cmdline or /proc/bootconfig; None when neither has it."""
+    found = boot_values(host, 'serialno') - {''}
+    if not found:
+        return None
+    if len(found) != 1:
+        raise Refusal('serial-conflict', 'The command line and bootconfig carry different serials')
     return found.pop()
 
 
