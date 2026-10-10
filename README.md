@@ -2,20 +2,6 @@
 
 Run Ubuntu 26.04 LTS with GNOME on the Xiaomi Pad 8 Pro (`piano`, SM8750P) alongside Android, with a device-adapted kernel based on upstream Linux 7.2. [中文](README.zh-CN.md)
 
-## Latest Release and Recent Updates
-
-**[v0.1.0-preview](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview)** (developer preview, kernel 7.2.6-piano5): the Ubuntu boot image set (`boot`, `init_boot`, `vendor_boot`), the root filesystem image, the maintenance RAM image, the firmware and device packages, the switching and recovery tools, and manual installation steps ([docs/INSTALL.md](docs/INSTALL.md)). Download every `piano-v0.1.0-preview.tar.zst.part*` and restore the release directory with `cat piano-v0.1.0-preview.tar.zst.part* | zstd -d | tar -x` (about 14 GB of free space), then `sha256sum -c SHA256SUMS` inside it. Automated installation will follow in a later version.
-
-Recent updates:
-
-- **Dual boot**: Ubuntu is installed next to Android on the test unit. Switching from Ubuntu to Android and marking slot A as successfully booted are verified on the device.
-- **Kernel 7.2.6-piano5**: upstream versions of the ADSP, PCIe and Adreno 830 changes, CPU thermal throttling at the stock temperatures, a tablet-mode switch from the keyboard dock, and both backlight controllers under one `ktz8866-backlight` device (brightness via sysfs; no GNOME slider yet). The internal microphones record through the VA path; a 1 kHz test tone played near the tablet was recorded by all four.
-- **Wi-Fi 5 GHz**: with kernel 7.2.6-piano4 NetworkManager's scans on the test unit find 5 GHz networks as well as 2.4 GHz ones; connecting is not yet verified.
-- **Kernel 7.2.6-piano3**: Wi-Fi now loads its firmware from the installed system, uses this unit's MAC address and scans; read-only charger input reporting and several boot-log fixes are included.
-- **Kernel 7.2.6-piano2**: the display clock controller is built in, which fixes boots that ended in a black screen or in GPU and touch timeouts.
-- **Developer mode**: optional SSH over the USB cable for maintenance, off by default and verified on the device.
-- **In progress**: Wi-Fi association with a network, and charge control.
-
 ## 📮 Follow & Discuss
 
 Progress updates, usage tips and AI discussions (primarily in Chinese) are published here first — issue feedback is welcome.
@@ -41,7 +27,7 @@ Calibration data and the Bluetooth address must come from your own tablet; never
 
 ## 🚀 Getting Started
 
-1. **Use a release**: [v0.1.0-preview](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview); download and restore as in [Latest Release](#latest-release-and-recent-updates), then follow [docs/INSTALL.md](docs/INSTALL.md). Its contents and the pipeline that builds them are in [docs/RELEASE.md](docs/RELEASE.md).
+1. **Use a release**: [v0.1.0-preview](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview): download every `piano-v0.1.0-preview.tar.zst.part*`, restore with `cat piano-v0.1.0-preview.tar.zst.part* | zstd -d | tar -x` (about 14 GB free space), run `sha256sum -c SHA256SUMS` inside the directory, then follow [docs/INSTALL.md](docs/INSTALL.md). Its contents and the pipeline that builds them are in [docs/RELEASE.md](docs/RELEASE.md).
 2. **Build from source**: inputs are pinned in [kernel/source.json](kernel/source.json) and [kernel/abi.json](kernel/abi.json) (kernel commit, configuration fragments, release), [mesa/source.json](mesa/source.json) (Mesa 26.2.0 and its A830 patch), [ubuntu/](ubuntu/26.04.sources) (official 26.04 Desktop ARM64 ISO, snapshot APT sources) and `device/*/source.json`. The tools in [tools/](tools/) build the kernel package, Mesa, the device packages, the ext4 root image and the signed boot image set without root privileges. Touch calibration, Bluetooth address, boot profile, stock DTB and DTBO and an AVB signing key come from your own tablet and are never committed. Details: [docs/BUILD.md](docs/BUILD.md).
 3. **Install**: follow the manual steps in [docs/INSTALL.md](docs/INSTALL.md); switching, Fastboot recovery and what never to flash are in [docs/FLASHING.md](docs/FLASHING.md).
 

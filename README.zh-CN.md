@@ -2,20 +2,6 @@
 
 在小米平板 8 Pro（`piano`，SM8750P）上与 Android 双系统运行 Ubuntu 26.04 LTS GNOME 桌面，内核基于上游 Linux 7.2 适配。[English](README.md)
 
-## 最新版本与近期更新
-
-**[v0.1.0-preview](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview)**（开发者预览，内核 7.2.6-piano5）：Ubuntu 启动镜像组（`boot`、`init_boot`、`vendor_boot`）、根文件系统镜像、维护用 RAM 镜像、固件与设备包、切换与恢复工具，以及手动安装步骤（[docs/INSTALL.zh-CN.md](docs/INSTALL.zh-CN.md)）。下载全部 `piano-v0.1.0-preview.tar.zst.part*`，用 `cat piano-v0.1.0-preview.tar.zst.part* | zstd -d | tar -x` 还原发布目录（约需 14 GB 空间），再在其中执行 `sha256sum -c SHA256SUMS`。自动安装将在后续版本提供。
-
-近期更新：
-
-- **双系统**：测试机已在 Android 旁安装 Ubuntu。从 Ubuntu 切换到 Android、A 槽启动成功标记均已真机验证。
-- **内核 7.2.6-piano5**：ADSP、PCIe 与 Adreno 830 改用上游版本，CPU 按原厂温度限频，键盘底座提供平板模式开关，两颗背光芯片合成一个 `ktz8866-backlight`（可经 sysfs 调亮度，GNOME 暂无亮度条）。内置麦克风经 VA 通路录音，在平板旁播放的 1 kHz 测试音被四颗麦克风录到。
-- **Wi-Fi 5 GHz**：测试机使用内核 7.2.6-piano4 时，NetworkManager 的扫描除 2.4 GHz 外也能找到 5 GHz 网络；连接网络尚未验证。
-- **内核 7.2.6-piano3**：Wi-Fi 从已安装系统加载固件、使用本机 MAC 地址并可扫描；加入只读的充电器输入状态与若干启动日志修正。
-- **内核 7.2.6-piano2**：显示时钟控制器改为内建，修复了启动后黑屏、GPU 与触控超时的问题。
-- **开发者模式**：可选的 USB 线 SSH 维护通道，默认关闭，已真机验证。
-- **进行中**：Wi-Fi 连接网络与充电控制。
-
 ## 📮 关注与交流
 
 最新进展动态、使用技巧和 AI 讨论会先在公众号和小红书更新；刷机遇到问题也欢迎反馈。
@@ -41,7 +27,7 @@
 
 ## 🚀 获取与安装
 
-1. **使用发布版本**：[v0.1.0-preview](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview)，按[最新版本](#最新版本与近期更新)下载并还原后按 [docs/INSTALL.zh-CN.md](docs/INSTALL.zh-CN.md) 安装。内容与构建流程见 [docs/RELEASE.md](docs/RELEASE.md)（英文）。
+1. **使用发布版本**：[v0.1.0-preview](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview)：下载全部 `piano-v0.1.0-preview.tar.zst.part*`，用 `cat piano-v0.1.0-preview.tar.zst.part* | zstd -d | tar -x` 还原（约需 14 GB 空间），在目录内执行 `sha256sum -c SHA256SUMS`，然后按 [docs/INSTALL.zh-CN.md](docs/INSTALL.zh-CN.md) 安装。内容与构建流程见 [docs/RELEASE.md](docs/RELEASE.md)（英文）。
 2. **从源码构建**：输入锁定在 [kernel/source.json](kernel/source.json) 与 [kernel/abi.json](kernel/abi.json)（内核提交、配置片段、release）、[mesa/source.json](mesa/source.json)（Mesa 26.2.0 及 A830 补丁）、[ubuntu/](ubuntu/26.04.sources)（官方 26.04 Desktop ARM64 ISO、快照 APT 源）和 `device/*/source.json`。[tools/](tools/) 中的工具无需 root 权限即可构建内核包、Mesa、设备软件包、ext4 根镜像和签名的启动镜像组。触控标定、蓝牙地址、启动配置（boot profile）、原厂 DTB 与 DTBO、AVB 签名密钥取自你自己的平板，从不提交。详见 [docs/build.zh-CN.md](docs/build.zh-CN.md)。
 3. **安装**：按 [docs/INSTALL.zh-CN.md](docs/INSTALL.zh-CN.md) 的手动步骤操作；切换、Fastboot 恢复及禁止刷写的分区见 [docs/FLASHING.zh-CN.md](docs/FLASHING.zh-CN.md)。
 
