@@ -370,6 +370,13 @@ done
 ]
 ```
 
+> **v0.1.0-preview 已知问题（测试机 2026-10-10 发现）。** 在发布启动镜像组上，所有 `piano-boot-switch` 命令都以
+> `"code": "serial-mismatch"` 拒绝，因此 `import-android`、`piano-boot-update`（最后调用 `piano-boot-switch to-ubuntu`）、
+> `verify` 以及从 Ubuntu 切换都不可用。发布版命令行不含 `androidboot.serialno`；引导程序只在 `/proc/bootconfig`
+> 中传入它，而该工具只读 `/proc/cmdline`。在发布修复后的 `piano-device-support` 之前，安装完文件即停止，并从主机回到
+> Android：`sudo piano-reboot-bootloader`，然后用你的 Android 镜像组运行
+> [`piano-switch.py`](FLASHING.zh-CN.md#从主机piano-switchpy)。
+
 **安装文件、存入 Android 镜像组并重建启动镜像组：**
 
 ```bash

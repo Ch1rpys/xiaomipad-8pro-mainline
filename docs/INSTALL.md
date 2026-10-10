@@ -409,6 +409,15 @@ Write the values into `~/boot-partitions.json`:
 ]
 ```
 
+> **Known issue in v0.1.0-preview (found on the test unit, 2026-10-10).** On the release boot set every
+> `piano-boot-switch` command refuses with `"code": "serial-mismatch"`, so `import-android`,
+> `piano-boot-update` (which ends with `piano-boot-switch to-ubuntu`), `verify` and switching from
+> Ubuntu do not work. The release command line carries no `androidboot.serialno`; the bootloader
+> passes it only in `/proc/bootconfig`, and the tool reads `/proc/cmdline` only. Until a fixed
+> `piano-device-support` is released, stop after installing the files and return to Android from the
+> host: `sudo piano-reboot-bootloader`, then
+> [`piano-switch.py`](FLASHING.md#from-the-host-piano-switchpy) with your Android set.
+
 **Install the files, store the Android set and rebuild the boot set:**
 
 ```bash
