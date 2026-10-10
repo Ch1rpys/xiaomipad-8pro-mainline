@@ -167,7 +167,11 @@ def punch(fd, offset, length):
 
 
 def match_holes(raw, block, free):
-    """Holes := zero free blocks.  Writes zeros into holes of used blocks and punches zero free blocks."""
+    """Holes := zero free blocks.  Writes zeros into holes of used blocks and punches zero free blocks.
+
+    SEEK_DATA reports an unwritten extent (mke2fs zeroes with FALLOC_FL_ZERO_RANGE) as a hole only
+    while none of its pages is cached, so the page cache is dropped first and every unwritten extent
+    is either written (used) or punched (free): img2simg then sees the same holes whatever it caches."""
     size = Path(raw).stat().st_size
     used, pos = [], 0
     for a, b in free:
@@ -179,6 +183,8 @@ def match_holes(raw, block, free):
     stats = {'zeros_written_bytes': 0, 'free_zero_punched_bytes': 0, 'free_nonzero_bytes': 0}
     fd = os.open(raw, os.O_RDWR)
     try:
+        os.fsync(fd)
+        os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)
         zero = bytes(STEP)
         for a, b in used:
             pos = a
@@ -191,6 +197,11 @@ def match_holes(raw, block, free):
                 pos = h
         empty = bytes(block)
         for a, b in free:
+            pos = a
+            for d, h in list(data_extents(fd, a, b)) + [(b, b)]:
+                if pos < d:
+                    punch(fd, pos, d - pos)
+                pos = h
             for d, h in list(data_extents(fd, a, b)):
                 d, h = d // block * block, -(-h // block) * block
                 run = None

@@ -85,7 +85,7 @@ class Ext4(unittest.TestCase):
             os.pwrite(fd, os.urandom(B), free[-1][0])
             os.pwrite(fd, bytes(B), free[-1][0] + B)
             os.close(fd)
-            before = sha(raw)
+            before = sha(raw)  # also fills the page cache, as e2fsck and debugfs do in the build
             # Plain img2simg -s keeps mke2fs's holes in used blocks (inode tables) as DONT_CARE.
             subprocess.run(['img2simg', '-s', str(raw), str(d / 'plain.img')], check=True)
             self.assertGreater(si.summary(d / 'plain.img', free)['ext4']['dont_care_on_used_bytes'], 0)
