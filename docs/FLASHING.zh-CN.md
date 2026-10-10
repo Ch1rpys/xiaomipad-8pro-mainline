@@ -48,7 +48,7 @@ telnet 192.168.88.2 2323                                              # root she
 
 10 分钟内没有打开的会话时，平板自行重启进入 Fastboot；会话只在连着线时计入。之后 `fastboot -s <SERIAL> reboot` 启动 A 槽。
 工具：`sgdisk`、`sfdisk`、`lsblk`、`partx`、`blockdev`（Ubuntu 26.04 二进制）、BusyBox `dd`、`sha256sum` 和 `wget`。
-所有命令以 root 运行：你让 `dd`、`sgdisk`、`sfdisk` 写盘时它们就会写盘。测试机已验证：启动、链路、LUN 表和空闲后自动重启进入 Fastboot。
+所有命令以 root 运行：你让 `dd`、`sgdisk`、`sfdisk` 写盘时它们就会写盘。测试机已验证：启动、链路、LUN 表、空闲后自动重启进入 Fastboot、`piano-maint fastboot`，以及 [INSTALL 第 6 步](INSTALL.zh-CN.md#6-写入分区表平板上)的写入流程以当前分区表原样重写（2026-10-10）。
 
 ## 镜像组
 

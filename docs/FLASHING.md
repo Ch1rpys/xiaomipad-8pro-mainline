@@ -56,8 +56,9 @@ With no open session for 10 minutes the tablet reboots into Fastboot by itself; 
 only while the cable is connected. `fastboot -s <SERIAL> reboot` then starts slot A. Tools:
 `sgdisk`, `sfdisk`, `lsblk`, `partx`, `blockdev` (Ubuntu 26.04 binaries), BusyBox `dd`,
 `sha256sum` and `wget`. Every command runs as root: `dd`, `sgdisk` and `sfdisk` write the disk
-when you tell them to. Verified on the test unit: boot, the link, the LUN table and the idle
-reboot into Fastboot.
+when you tell them to. Verified on the test unit: boot, the link, the LUN table, the idle
+reboot into Fastboot, `piano-maint fastboot`, and the [INSTALL.md step 6](INSTALL.md#6-write-the-partition-table-on-the-tablet)
+write path rewriting the current table over itself (2026-10-10).
 
 ## Image sets
 

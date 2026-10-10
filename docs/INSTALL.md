@@ -262,6 +262,11 @@ python3 -m http.server --bind 192.168.88.10 8000 &                    # serves t
 telnet 192.168.88.2 2323
 ```
 
+Start `http.server` after `--check` reports the link: the address 192.168.88.10 exists only while the
+link is up (`Cannot assign requested address` otherwise). If it reports `Address already in use`, another
+server holds the port, possibly on every address; use a free port in the `wget` lines below. The hash
+checks of the downloaded files catch a wrong server.
+
 If `--check` prints `ip` commands instead, run them and check again. The login prints the LUN
 table (LUN, disk, size in 512-byte sectors, block size, device path), `Mounted from the UFS
 disks: none` and the `sgdisk -p` table of LUN 0. LUN 0 is the line starting with `0`, size
@@ -298,16 +303,19 @@ session. Stop the host's `http.server` afterwards.
 - Verified on the test unit (2026-10-10): boot, link after about 4 s, LUN table, `sgdisk -p`,
   `sfdisk --json` and `sgdisk --verify` of LUN 0 matching the table written on 2026-10-07, nothing
   mounted, and the idle reboot into Fastboot. The write commands above wrote that table on
-  2026-10-07 from an earlier RAM environment; they have not yet been run from this image.
+  2026-10-07 from an earlier RAM environment. From this image (2026-10-10) they rewrote the same
+  table over itself: the region hashes before and after equal the stored files, both readbacks
+  matched, `sgdisk --verify` found no problems and `piano-maint fastboot` returned to Fastboot; a
+  changed table has not yet been written from this image.
 
 ## 7. Write the filesystems (Fastboot)
 
 Check the new partitions, then create the `/home` image for your `linux_data` size:
 
 ```bash
-fastboot -s <SERIAL> getvar partition-size:userdata       # expect "0x3200000000"
-fastboot -s <SERIAL> getvar partition-size:linux_rootfs   # expect "0xf00000000"
-fastboot -s <SERIAL> getvar partition-size:linux_data     # "0x32517fb000" on the 512 GB unit
+fastboot -s <SERIAL> getvar partition-size:userdata       # expect "3200000000" (hex, printed without 0x)
+fastboot -s <SERIAL> getvar partition-size:linux_rootfs   # expect "0xF00000000"
+fastboot -s <SERIAL> getvar partition-size:linux_data     # "0x32517FB000" on the 512 GB unit
 truncate -s $((0x<linux_data size>)) data.ext4
 mkfs.ext4 -L linux_data data.ext4 && img2simg data.ext4 data.sparse.img
 ```
@@ -317,13 +325,14 @@ Erase Android's data and write both filesystems:
 ```bash
 fastboot -s <SERIAL> erase userdata
 fastboot -s <SERIAL> erase metadata
-fastboot -s <SERIAL> flash linux_rootfs <release>/rootfs/root.sparse.img   # about 4 minutes
-fastboot -s <SERIAL> flash linux_data data.sparse.img                      # about 26 minutes
+fastboot -s <SERIAL> flash linux_rootfs <release>/rootfs/root.sparse.img   # about 1 minute (41 s on the test unit, USB 3)
+fastboot -s <SERIAL> flash linux_data data.sparse.img                      # about 30 minutes (1803 s on the test unit)
 # expect "OKAY" on every Sending and Writing line, then "Finished."
 ```
 
-The sparse images are small to transfer, but the tablet writes the full partitions; let each write
-finish. Do not repeat a write that finished with `OKAY`. Android re-creates `userdata` and `metadata`
+The sparse images are small to transfer, but the tablet writes the full partitions: `data.sparse.img`
+is 6 MB of data and 201 GiB of zero fill, and `fastboot` shows no progress during its single `Writing`
+line. Let each write finish. Do not repeat a write that finished with `OKAY`. Android re-creates `userdata` and `metadata`
 on its next boot; all Android data, including the root manager's configuration, is gone.
 
 ## 8. Optional: test-boot without writing slot A
@@ -349,7 +358,9 @@ fastboot -s <SERIAL> reboot
 ```
 
 - **GNOME Initial Setup** creates the first account. Use the magnetic keyboard; touch is off until
-  step 10. Skip the network page.
+  step 10. Skip the network page. Someone must be at the tablet: from this boot until developer mode
+  is on (step 10) the host cannot reach it (developer mode is off, needs an account and refuses root
+  logins), and the only way back is Power + Volume Down.
 - **Set the clock** after every boot; the hardware clock cannot be written:
   `sudo date -s 'YYYY-MM-DD HH:MM'`.
 - The slot is marked as successfully booted after the boot completes:

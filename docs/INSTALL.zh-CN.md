@@ -240,6 +240,10 @@ python3 -m http.server --bind 192.168.88.10 8000 &                    # 向平�
 telnet 192.168.88.2 2323
 ```
 
+`--check` 报告链路就绪后再启动 `http.server`：地址 192.168.88.10 只在链路建立后存在（否则报
+`Cannot assign requested address`）。若报 `Address already in use`，说明已有其他服务占用该端口（可能监听全部地址），
+请改用空闲端口并同步修改下面的 `wget` 行；下载文件的哈希核对能发现连错服务器。
+
 如果 `--check` 打印的是 `ip` 命令，执行后再检查一次。登录后会打印 LUN 表（LUN、磁盘、以 512 字节扇区计的大小、块大小、设备路径）、
 `Mounted from the UFS disks: none` 和 LUN 0 的 `sgdisk -p` 分区表。LUN 0 是以 `0` 开头的那一行，512 GB 机型 size 为
 996417536、块大小 4096；核对该分区表就是第 2 步备份的分区表。然后在 telnet 会话中：
@@ -270,16 +274,17 @@ piano-maint fastboot                                    # 重启进入 Fastboot
 - 如果 `piano-maint fastboot` 提示 `nvmem-reboot-mode is not bound`，它不会重启；请按电源 + 音量下。
 - 测试机已验证（2026-10-10）：启动、约 4 s 后链路就绪、LUN 表、LUN 0 的 `sgdisk -p`、`sfdisk --json` 与 `sgdisk --verify`
   与 2026-10-07 写入的分区表一致、无挂载，以及空闲后自动重启进入 Fastboot。上面的写入命令于 2026-10-07 在更早的
-  RAM 环境中写入了该分区表，尚未在本镜像中执行过。
+  RAM 环境中写入了该分区表；2026-10-10 在本镜像中以同一分区表原样重写：写前写后区域哈希均等于保存的文件，两次读回一致，
+  `sgdisk --verify` 无问题，`piano-maint fastboot` 回到 Fastboot；尚未在本镜像中写入变更后的分区表。
 
 ## 7. 写入文件系统（Fastboot）
 
 核对新分区，再按 `linux_data` 的大小生成 `/home` 镜像：
 
 ```bash
-fastboot -s <SERIAL> getvar partition-size:userdata       # 预期 "0x3200000000"
-fastboot -s <SERIAL> getvar partition-size:linux_rootfs   # 预期 "0xf00000000"
-fastboot -s <SERIAL> getvar partition-size:linux_data     # 512 GB 机型为 "0x32517fb000"
+fastboot -s <SERIAL> getvar partition-size:userdata       # 预期 "3200000000"（十六进制，不带 0x）
+fastboot -s <SERIAL> getvar partition-size:linux_rootfs   # 预期 "0xF00000000"
+fastboot -s <SERIAL> getvar partition-size:linux_data     # 512 GB 机型为 "0x32517FB000"
 truncate -s $((0x<linux_data 大小>)) data.ext4
 mkfs.ext4 -L linux_data data.ext4 && img2simg data.ext4 data.sparse.img
 ```
@@ -289,12 +294,13 @@ mkfs.ext4 -L linux_data data.ext4 && img2simg data.ext4 data.sparse.img
 ```bash
 fastboot -s <SERIAL> erase userdata
 fastboot -s <SERIAL> erase metadata
-fastboot -s <SERIAL> flash linux_rootfs <release>/rootfs/root.sparse.img   # 约 4 分钟
-fastboot -s <SERIAL> flash linux_data data.sparse.img                      # 约 26 分钟
+fastboot -s <SERIAL> flash linux_rootfs <release>/rootfs/root.sparse.img   # 约 1 分钟（测试机 USB 3 实测 41 s）
+fastboot -s <SERIAL> flash linux_data data.sparse.img                      # 约 30 分钟（测试机实测 1803 s）
 # 预期每个 Sending 与 Writing 行均为 "OKAY"，最后 "Finished."
 ```
 
-稀疏镜像传输量小，但平板会写满整个分区；等每次写入自行结束。已返回 `OKAY` 的写入不要重复。
+稀疏镜像传输量小，但平板会写满整个分区：`data.sparse.img` 只有 6 MB 数据和 201 GiB 零填充，`fastboot` 在唯一一行
+`Writing` 期间不显示进度。等每次写入自行结束。已返回 `OKAY` 的写入不要重复。
 Android 下次启动时重建 `userdata` 与 `metadata`；全部 Android 数据（包括 root 管理器的配置）都会丢失。
 
 ## 8. 可选：不写 A 槽先试启动
@@ -317,7 +323,9 @@ python3 <release>/tools/piano-switch.py --serial <SERIAL> --images <release>/boo
 fastboot -s <SERIAL> reboot
 ```
 
-- **GNOME 初始设置**创建第一个账户。使用磁吸键盘；第 10 步之前触控不可用。跳过网络页面。
+- **GNOME 初始设置**创建第一个账户。使用磁吸键盘；第 10 步之前触控不可用。跳过网络页面。必须有人在平板旁：
+  从这次启动到第 10 步打开开发者模式之前，主机无法连接平板（开发者模式默认关闭、需要账户且拒绝 root 登录），
+  唯一的退路是电源 + 音量下。
 - **每次启动后设置时间**，硬件时钟不可写：`sudo date -s 'YYYY-MM-DD HH:MM'`。
 - 启动完成后该槽被标记为启动成功：`sudo piano-slot-success --check` 应报告 `"state": "already-successful"`。
 
