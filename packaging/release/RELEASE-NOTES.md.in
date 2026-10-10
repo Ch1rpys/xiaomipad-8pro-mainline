@@ -42,12 +42,12 @@ Status on the test unit (one 512 GB unit, model 25091RP04C) with `$kernel_releas
 - 🟡 Partial: display (firmware framebuffer, 3200×2136 at 120 Hz, brightness only through sysfs, no screen-off),
   touchscreen (single finger, needs your calibration), magnetic keyboard (keys), Wi-Fi (firmware load and
   2.4 GHz and 5 GHz scanning verified; association not yet verified), Bluetooth (discovery, needs your
-  address), switching from Ubuntu to Android,
+  address), internal microphones (capture verified acoustically: a 1 kHz test tone was recorded by all four
+  microphones; speech quality and noise processing unverified), switching from Ubuntu to Android,
   battery and charger reporting (read-only; no charge control), power key.
 - ❌ Unsupported: charging (the battery discharges under Linux, also on USB), speakers, cameras, sensors,
   video decoding, USB host and external display, suspend, writing the real-time clock (the clock is wrong
   after every boot), fingerprint, stylus.
-- 🧪 Unverified: internal microphone (capture path and UCM profile installed; not verified acoustically).
 
 ## Per-unit data you must add
 

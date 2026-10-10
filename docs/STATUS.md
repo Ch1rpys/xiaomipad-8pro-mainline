@@ -101,8 +101,9 @@ In priority order:
    External display depends on this step.
 5. Suspend and resume (s2idle and deep) with display, touch, keyboard,
    Bluetooth and UFS recovery.
-6. Speaker playback, microphone recording and UCM, USB host and Type-C
-   roles, sensors, video decoding, cameras.
+6. Speaker playback, microphone speech quality and UCM tuning (capture
+   itself records a test tone), USB host and Type-C roles, sensors, video
+   decoding, cameras.
 
 ## Upstreaming
 
