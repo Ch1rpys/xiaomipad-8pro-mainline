@@ -1,0 +1,158 @@
+# Fastboot, Switching and Recovery
+
+[中文](FLASHING.zh-CN.md) | [Project overview](../README.md) | [Installation](INSTALL.md)
+
+Android and Ubuntu both boot from slot A. Switching writes the other system's image set into
+`init_boot_a`, `vendor_boot_a` and `boot_a`; the active slot never changes. This page covers the
+switching tools, the slot attributes, Fastboot recovery and what must never be written.
+
+## Never write
+
+- `vbmeta` and `dtbo`;
+- any `_b` partition, and never `fastboot --set-active=b`: slot B on the test unit holds an older
+  stock chain that does not boot Android;
+- `persist` or other calibration, modem or firmware partitions;
+- another tablet's images, calibration or addresses.
+
+Bind every command to your tablet (`adb -s <SERIAL>`, `fastboot -s <SERIAL>`,
+`piano-switch.py --serial <SERIAL>`) and run one tool against it at a time. Leave Android with at
+least 40 % battery; Linux does not charge.
+
+## Fastboot
+
+Hold **Power + Volume Down** until Fastboot appears; this works from any state, including a hang.
+From a running system: `adb -s <SERIAL> reboot bootloader` in Android,
+`sudo piano-reboot-bootloader` in Ubuntu.
+
+```bash
+fastboot devices                                  # expect your <SERIAL>
+fastboot -s <SERIAL> getvar current-slot          # expect "current-slot: a"
+fastboot -s <SERIAL> getvar battery-soc-ok        # expect "battery-soc-ok: yes"
+```
+
+## Image sets
+
+An image set is a directory with `boot.img`, `init_boot.img`, `vendor_boot.img` (each the full
+partition size) and a `SHA256SUMS` file listing the three.
+
+| Set | Where |
+|---|---|
+| Android | your backup of slot A ([INSTALL.md](INSTALL.md#2-back-up)); `init_boot` is the root-patched image in use |
+| Ubuntu | the release's `boot/`; after `piano-boot-update`, the store's `ubuntu/` |
+
+On the tablet the store `/var/lib/piano/switch/` holds `android/`, `ubuntu/` and `ubuntu.prev/`
+(the Ubuntu set before the current one). Keep host copies of the Android set and of the current
+Ubuntu set. After each kernel update, copy the new Ubuntu set to the host:
+
+```bash
+# on the tablet
+sudo cp -r /var/lib/piano/switch/ubuntu ~/ubuntu-set && sudo chown -R $USER: ~/ubuntu-set
+# on the host
+scp -r <USER>@192.168.88.2:ubuntu-set ubuntu-set-current
+(cd ubuntu-set-current && sha256sum -c SHA256SUMS)       # expect three "OK" lines
+```
+
+When the Android root patch in slot A changes (for example Magisk to KernelSU), the stored
+`android/` no longer matches and `to-android` would write the old `init_boot` back. Make a new
+Android set from the current slot A images and store it with
+`sudo piano-boot-switch import-android --from <dir>`.
+
+## From Ubuntu: `piano-boot-switch`
+
+| Command | Writes | Result |
+|---|---|---|
+| `sudo piano-boot-switch status` | nothing | slot A occupant (`android`, `ubuntu`, `ubuntu.prev`, `unknown`), slot flags, backup GPT state |
+| `sudo piano-boot-switch verify` | nothing | exit status 0 when every set is intact |
+| `sudo piano-boot-switch to-android --dry-run` | nothing | `"result": "would-write"` |
+| `sudo piano-boot-switch to-android --reboot` | slot A | `"result": "written"`, then Android starts |
+| `sudo piano-boot-switch to-ubuntu [--reboot]` | slot A | `written`, or `unchanged` when slot A already holds it |
+| `sudo piano-boot-switch import-android --from DIR` | store | `"result": "imported"`; replaces `android/` |
+| `sudo piano-boot-switch import-ubuntu [--from DIR]` | store | `imported`; the old `ubuntu/` becomes `ubuntu.prev/` |
+
+- It needs your `boot-profile.json` and `boot-partitions.json` in `/etc/piano/`, and writes only
+  when slot A holds a known set, which serves as the rollback. Each partition is written and read
+  back in full; on a failure the previous set is written back.
+- `"result": "refused"` means nothing was written; `code` and `message` say why.
+  `rollback-failed` or `final-mismatch`: do not reboot; recover from Fastboot (below).
+- Verified on the test unit: `status`, `verify`, both imports, `to-ubuntu`, `to-android --reboot`.
+  The app-grid entry **Switch to Android** runs the same tool but is not yet verified.
+
+## From Android: KernelSU module
+
+*Not yet verified on the device; use the host path until it is.* The module
+`tools/piano-switch-ksu-<version>.zip` of the release needs KernelSU-Next with shell root, a stored
+`android/` set equal to slot A and a clean Ubuntu shutdown.
+
+```bash
+adb -s <SERIAL> push piano-switch-ksu-<version>.zip /data/local/tmp/
+adb -s <SERIAL> shell su -c '/data/adb/ksud module install /data/local/tmp/piano-switch-ksu-<version>.zip'
+adb -s <SERIAL> reboot
+adb -s <SERIAL> shell su -c 'sh /data/adb/modules/piano-switch/piano-switch.sh --check'
+# expect "CHECK OK: slot A holds the android set and the ubuntu set is ready; nothing written"
+adb -s <SERIAL> shell su -c 'ksud module action piano-switch'   # writes slot A and reboots
+```
+
+Exit status 3 means the write and the restore both failed: do not reboot; restore the Android set
+from Fastboot. Details: [device/android/piano-switch-ksu](../device/android/piano-switch-ksu/README.md).
+
+## From the host: `piano-switch.py`
+
+Verified on the test unit in both directions. In Fastboot:
+
+```bash
+# to Android
+python3 tools/piano-switch.py --serial <SERIAL> --images <android-set> --rollback <ubuntu-set>
+fastboot -s <SERIAL> reboot
+# to Ubuntu
+python3 tools/piano-switch.py --serial <SERIAL> --images <ubuntu-set> --rollback <android-set>
+fastboot -s <SERIAL> reboot
+# expect "Active A boot triplet written; remain in Fastboot for a RAM readback before reboot."
+```
+
+- Before the first write it checks `product: piano`, `unlocked: yes`, `current-slot: a`, the three
+  partition sizes and both `SHA256SUMS`. If a write fails it writes the rollback set and reports the
+  error.
+- The three writes are not atomic: after a power loss during a switch, run it again from Fastboot.
+- Power off Ubuntu before entering Fastboot; do not interrupt a running write.
+
+## Slot attributes
+
+```bash
+fastboot -s <SERIAL> getvar slot-successful:a     # "yes" once marked
+fastboot -s <SERIAL> getvar slot-unbootable:a     # expect "no"
+fastboot -s <SERIAL> getvar slot-retry-count:a    # 7 after a host write, one less after each unmarked boot
+```
+
+| Event | Effect on slot A |
+|---|---|
+| Host write of `boot_a` (also through `piano-switch.py`) | successful cleared, retry count set to 7 |
+| Boot of a slot not yet marked successful | ABL lowers the retry count; at 0 the slot becomes unbootable |
+| Ubuntu boot | `piano-slot-success.service` marks the slot successful after the boot completes |
+| Android boot | Android marks the slot |
+| Switching inside either system | unchanged |
+
+Prefer switching inside a system: it keeps the attributes. `sudo piano-slot-success --check` shows
+the state in Ubuntu without writing.
+
+If Fastboot shows `slot-unbootable:a: yes`, run `fastboot -s <SERIAL> --set-active=a` to reset
+slot A's counter, then switch or `fastboot -s <SERIAL> reboot`. On the test unit this also raised
+slot B's priority; slot B stays unused.
+
+## When the tablet does not respond
+
+1. **Developer mode on** (`sudo piano-devmode on` in Ubuntu): about 22 s after power-on,
+   `python3 tools/piano-devmode-ssh.py --check` should report the link as `ready`. Then
+   `python3 tools/piano-devmode-ssh.py -t <USER> sudo piano-reboot-bootloader`, or switch to Android
+   with `piano-boot-switch to-android --reboot`.
+2. **Otherwise** hold Power + Volume Down until Fastboot appears, then write the Android set with
+   `piano-switch.py`. A boot that hangs before the system starts has no timer and stays hung until
+   you press the keys.
+
+Do not reset the USB device from the host and do not repeat commands against a tablet that does
+not answer.
+
+## Restoring the original layout
+
+Removing Ubuntu and restoring the original partition table has no tool and no verified procedure
+in v0.1. Keep the partition table backups of [INSTALL.md](INSTALL.md#2-back-up) and the full
+partition backup.

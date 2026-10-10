@@ -121,7 +121,8 @@ python3 tools/build-release.py --rootfs-build out/rootfs-<version> \
 
 ## Installing the release
 
-Manual in v0.1. Follow [AGENT-GUIDE.md](AGENT-GUIDE.md) §4 with these changes:
+Manual in v0.1. The owner's step-by-step guide is [INSTALL.md](INSTALL.md); it follows
+[AGENT-GUIDE.md](AGENT-GUIDE.md) §4 with these changes:
 
 1. §4.1–§4.3 unchanged: prerequisites, backup, and your per-unit inputs.
 2. §4.4 is replaced by the release files: no root build on the host. Create the data image for your

@@ -2,8 +2,8 @@
 
 Ubuntu 26.04 LTS with GNOME for the Xiaomi Pad 8 Pro (`piano`, SM8750P), installed next to Android.
 This is a preview: read [Read Before Installing]($repo_url/blob/$integration_commit/README.md#%EF%B8%8F-read-before-installing)
-first. Installation is manual: follow [docs/RELEASE.md]($repo_url/blob/$integration_commit/docs/RELEASE.md#installing-the-release)
-together with [docs/AGENT-GUIDE.md §4]($repo_url/blob/$integration_commit/docs/AGENT-GUIDE.md#4-fresh-install-manual-in-v01).
+first. Installation is manual: follow [docs/INSTALL.md]($repo_url/blob/$integration_commit/docs/INSTALL.md);
+switching and recovery are in [docs/FLASHING.md]($repo_url/blob/$integration_commit/docs/FLASHING.md).
 All Android data is erased.
 
 ## Identity

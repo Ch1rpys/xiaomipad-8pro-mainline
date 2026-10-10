@@ -43,7 +43,7 @@
 
 1. **使用发布版本**：尚未发布，见[最新版本](#最新版本与近期更新)。计划内容与构建流程见 [docs/RELEASE.md](docs/RELEASE.md)（英文）。
 2. **从源码构建**：输入锁定在 [kernel/source.json](kernel/source.json) 与 [kernel/abi.json](kernel/abi.json)（内核提交、配置片段、release）、[mesa/source.json](mesa/source.json)（Mesa 26.2.0 及 A830 补丁）、[ubuntu/](ubuntu/26.04.sources)（官方 26.04 Desktop ARM64 ISO、快照 APT 源）和 `device/*/source.json`。[tools/](tools/) 中的工具无需 root 权限即可构建内核包、Mesa、设备软件包、ext4 根镜像和签名的启动镜像组。触控标定、蓝牙地址、启动配置（boot profile）、原厂 DTB 与 DTBO、AVB 签名密钥取自你自己的平板，从不提交。详见 [docs/build.zh-CN.md](docs/build.zh-CN.md)。
-3. **安装**：按 [docs/AGENT-GUIDE.md](docs/AGENT-GUIDE.md) §4 的手动步骤操作。
+3. **安装**：按 [docs/INSTALL.zh-CN.md](docs/INSTALL.zh-CN.md) 的手动步骤操作；切换、Fastboot 恢复及禁止刷写的分区见 [docs/FLASHING.zh-CN.md](docs/FLASHING.zh-CN.md)。
 
 不要混用不同构建的文件：内核镜像与模块必须来自同一次构建。
 
@@ -104,6 +104,8 @@
 | 实时时钟 | PMK8550 RTC | ❌ 不支持 | 不可写；每次启动后时间错误，需手动设置或联网校时 |
 
 ## 使用与维护
+
+详见 [docs/FLASHING.zh-CN.md](docs/FLASHING.zh-CN.md)（切换、槽属性、恢复）。
 
 **切换系统。** 在 Ubuntu 中运行 `sudo piano-boot-switch to-android --reboot`，会把保存的 Android 镜像组写入 A 槽、读回校验后重启（已真机验证）；应用网格中的 **切换到 Android** 调用同一工具，尚未验证。
 在 Android 中，可用 [device/android/piano-switch-ksu](device/android/piano-switch-ksu/README.md) 的 KernelSU 模块切到 Ubuntu；该模块尚未真机验证，验证前请使用下面的主机方式。
