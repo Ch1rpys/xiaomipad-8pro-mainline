@@ -167,6 +167,10 @@ rm -f "$T"/var/cache/apt/*.bin "$T"/var/cache/apt/archives/*.deb
 # (archive.ubuntu.com), not of the Ports sources installed above; without
 # them the first apt run needs `apt update` instead of finding nothing.
 find "$T/var/lib/apt/lists" -mindepth 1 -maxdepth 1 -type f ! -name lock -delete
+# Discard the free blocks (the purged kernels, dpkg and dracut leftovers keep
+# their old content): the host punches them out of the image file
+# (discard=unmap), and sparse_image.py writes only zero free blocks as DONT_CARE.
+fstrim -v "$T"
 rm -rf "$T"/var/log/journal/*
 
 step report

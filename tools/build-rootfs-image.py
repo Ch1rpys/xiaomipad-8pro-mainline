@@ -436,7 +436,7 @@ def main():
         cmdline = ('console=ttyAMA0 root=/dev/vda rootfstype=squashfs ro rootwait panic=-1 apparmor=0 '
                    'systemd.unit=kernel-command-line.target systemd.run_success_action=poweroff '
                    f'systemd.run_failure_action=poweroff systemd.run="{run}"')
-        drives = [(a.squashfs.resolve(), 'readonly=on'), (image, 'cache=unsafe'),
+        drives = [(a.squashfs.resolve(), 'readonly=on'), (image, 'cache=unsafe,discard=unmap'),
                   (inputs, 'readonly=on'), (result_disk, '')]
         command = [str(a.qemu), '-machine', 'virt', '-cpu', 'max', '-accel', 'tcg,thread=multi',
                    '-smp', str(a.smp), '-m', f'{a.memory_mib}M', '-nodefaults', '-display', 'none',
