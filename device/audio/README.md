@@ -93,6 +93,10 @@ ship one without the other.
 (symlink; driver `sm8750`, card long name `Xiaomi-Pad-8-Pro`) points to
 `Qualcomm/sm8750/Xiaomi-Pad-8-Pro/Xiaomi-Pad-8-Pro.conf`, which loads
 `HiFi.conf`. Install the tree under `/usr/share/alsa/ucm2/` keeping the symlink.
+`Qualcomm/sm8750/Piano-Capture-Diag/` with its own `conf.d` entry keeps the
+capture-only profile of kernels up to 7.2.6-piano5, whose card is still named
+`Piano-Capture-Diag`, so falling back to such a kernel keeps its microphone
+profile; it sets no speaker route.
 The verb enables the `SECONDARY_TDM_RX_0 Audio Mixer MultiMedia1` and
 `MultiMedia3 Mixer VA_CODEC_DMA_TX_0` routes. The `Speaker` device (PCM 0,
 four channels) sets the four amplifier gains to 192 and exposes no hardware
