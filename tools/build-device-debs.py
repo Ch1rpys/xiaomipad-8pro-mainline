@@ -81,9 +81,12 @@ def main():
         if Path(src).resolve().is_relative_to(repo) and not Path(src).resolve().is_relative_to(repo / 'tools/local'):
             licences.setdefault(root, {})[dest] = spdx(Path(src))
 
+    # Bytecode the tests leave next to the packaged scripts (git-ignored) is not part of a package.
+    untracked = shutil.ignore_patterns('__pycache__')
+
     def tree(src, root, dest):
         for p in sorted(src.rglob('*')):
-            if p.is_file() and not p.is_symlink():
+            if p.is_file() and not p.is_symlink() and '__pycache__' not in p.relative_to(src).parts:
                 licences.setdefault(root, {})[str(Path(dest) / p.relative_to(src))] = spdx(p)
 
     def package(name, root, depends, description, postinst=None, recommends=None, third_party=()):
@@ -119,7 +122,7 @@ def main():
         receipts[name] = {'file': deb.name, 'sha256': sha(deb), 'files': owned}
 
     support = stages / 'piano-device-support'
-    shutil.copytree(repo / 'packaging/piano-device-support', support)
+    shutil.copytree(repo / 'packaging/piano-device-support', support, ignore=untracked)
     tree(repo / 'packaging/piano-device-support', support, '.')
     for p in support.rglob('*'):
         if p.is_file() and p.read_bytes().startswith(b'#!'):
@@ -188,7 +191,7 @@ def main():
                           'carry other permissive licences, listed in docs/license.rst of that source.')])
 
     desktop = stages / 'piano-ubuntu-desktop'
-    shutil.copytree(repo / 'packaging/piano-ubuntu-desktop', desktop)
+    shutil.copytree(repo / 'packaging/piano-ubuntu-desktop', desktop, ignore=untracked)
     tree(repo / 'packaging/piano-ubuntu-desktop', desktop, '.')
     # ALSA UCM for the internal-microphone card (device/audio/ucm2, MIT/BSD-3-Clause, see NOTICE);
     # its conf.d entry is a relative symlink, kept as one.
