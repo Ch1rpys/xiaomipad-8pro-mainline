@@ -41,9 +41,12 @@ Steps that use standard commands because no project tool exists yet are marked *
 | The release directory | every file of one release, not mixed with other releases |
 | Free host space | about 40 GB: the backup (16 GB on the test unit), the release (about 9 GB) and the data image |
 
-Check the release before using it:
+Download every `piano-v0.1.0-preview.tar.zst.part*` of the [release](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview) into one directory, restore
+the release directory (about 14 GB of free space) and check it before using it:
 
 ```bash
+sha256sum -c SHA256SUMS.assets                   # the downloaded files
+cat piano-v0.1.0-preview.tar.zst.part* | zstd -d | tar -x
 cd <release> && sha256sum -c SHA256SUMS          # expect every line "OK"
 ```
 

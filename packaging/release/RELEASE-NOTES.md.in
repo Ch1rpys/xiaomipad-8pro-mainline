@@ -6,6 +6,12 @@ first. Installation is manual: follow [docs/INSTALL.md]($repo_url/blob/$integrat
 switching and recovery are in [docs/FLASHING.md]($repo_url/blob/$integration_commit/docs/FLASHING.md).
 All Android data is erased.
 
+Unofficial project based on Ubuntu 26.04 LTS; not affiliated with or endorsed by Canonical, Xiaomi or Qualcomm.
+
+Download every `piano-v0.1.0-preview.tar.zst.part*`, check them with `sha256sum -c SHA256SUMS.assets`,
+restore the release directory with `cat piano-v0.1.0-preview.tar.zst.part* | zstd -d | tar -x` (about 14 GB),
+then run `sha256sum -c SHA256SUMS` inside it.
+
 ## Identity
 
 | Item | Value |
@@ -85,6 +91,17 @@ your own boot profile before writing slot A.
   with the partition-name root and the serial-free command line of an address-free set; `$kernel_release`
   is installed and validated there with the unit's own set.
   $qemu_note
+
+## Source code
+
+- Ubuntu: every Ubuntu binary in the root image is unmodified, from the official 26.04 Desktop ARM64 ISO
+  and the archive snapshot https://snapshot.ubuntu.com/ubuntu/$apt_snapshot/ (packages listed above); the
+  corresponding source is in the Ubuntu archive for the same versions.
+- BusyBox: `piano-device-support` carries the unmodified Ubuntu `busybox-static` 1.36.1-6ubuntu3.1 binary;
+  its source package (`busybox_1.36.1-6ubuntu3.1.dsc`, `busybox_1.36.1.orig.tar.bz2` with `.asc`,
+  `busybox_1.36.1-6ubuntu3.1.debian.tar.xz`) is attached to this release.
+- Kernel: https://github.com/yzddmr6/linux-sm8750-piano tag `v0.1.0-preview` (commit `$kernel_commit`).
+- Mesa 26.2.0 with the A830 patch, device userspace and packaging: this repository at `$integration_commit`.
 
 The firmware package carries unmodified stock files of `$stock_build`; there is no redistribution
 licence for them, and they are removed on request of the rights holder. Integration code is MIT,

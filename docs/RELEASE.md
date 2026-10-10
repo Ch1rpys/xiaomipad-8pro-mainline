@@ -2,7 +2,10 @@
 
 How a release directory (v0.1.0-preview and later) is built from pinned inputs, what it contains,
 what each owner adds, and how it is installed. The tools write local files only: nothing is uploaded,
-no GitHub release is created and no tablet is accessed. No release has been published yet.
+no GitHub release is created and no tablet is accessed. v0.1.0-preview is published at
+https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview: the release directory as `piano-v0.1.0-preview.tar.zst.part*` (restore with
+`cat piano-v0.1.0-preview.tar.zst.part* | zstd -d | tar -x`), the small files as separate assets, `SHA256SUMS.assets` and the Ubuntu
+BusyBox source package.
 
 ## Contents
 
@@ -175,4 +178,11 @@ address, and kernel package updates leave the boot set unchanged. Use the magnet
   serial-free) booted from RAM: NCM link after 4 s, six LUNs, LUN 0's `sgdisk -p`, `sfdisk --json` and
   `sgdisk --verify` matching the installed table, nothing mounted, and the idle timer rebooted it
   into Fastboot by itself. No write was run from it.
+- On the test unit (2026-10-10), the release's `boot/boot-ram-check.img` (7.2.6-piano5, address-free,
+  serial-free) booted from RAM against the installed root: developer-mode SSH after 16 s, root
+  `/dev/sda35` found by `PARTLABEL=linux_rootfs`, `/home` on `linux_data`, no `local-mac-address` or
+  `local-bd-address` in the live devicetree, ath12k "using a random one" for the all-zero MAC, system
+  running with 0 failed units; the acceptance tool (profile debug) passed every criterion except
+  `hci0_up`, expected without a Bluetooth address. It returned to Fastboot with
+  `piano-reboot-bootloader`.
 - The release image as a whole has not been flashed to a tablet.

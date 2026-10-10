@@ -4,7 +4,7 @@
 
 ## 最新版本与近期更新
 
-**v0.1.0-preview** 正在准备中，尚未发布任何版本。发布内容包括 Ubuntu 启动镜像组（`boot`、`init_boot`、`vendor_boot`）、根文件系统镜像、固件包、切换与恢复工具，以及手动安装步骤。自动安装将在后续版本提供。
+**[v0.1.0-preview](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview)**（开发者预览，内核 7.2.6-piano5）：Ubuntu 启动镜像组（`boot`、`init_boot`、`vendor_boot`）、根文件系统镜像、维护用 RAM 镜像、固件与设备包、切换与恢复工具，以及手动安装步骤（[docs/INSTALL.zh-CN.md](docs/INSTALL.zh-CN.md)）。下载全部 `piano-v0.1.0-preview.tar.zst.part*`，用 `cat piano-v0.1.0-preview.tar.zst.part* | zstd -d | tar -x` 还原发布目录（约需 14 GB 空间），再在其中执行 `sha256sum -c SHA256SUMS`。自动安装将在后续版本提供。
 
 近期更新：
 
@@ -41,7 +41,7 @@
 
 ## 🚀 获取与安装
 
-1. **使用发布版本**：尚未发布，见[最新版本](#最新版本与近期更新)。计划内容与构建流程见 [docs/RELEASE.md](docs/RELEASE.md)（英文）。
+1. **使用发布版本**：[v0.1.0-preview](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview)，按[最新版本](#最新版本与近期更新)下载并还原后按 [docs/INSTALL.zh-CN.md](docs/INSTALL.zh-CN.md) 安装。内容与构建流程见 [docs/RELEASE.md](docs/RELEASE.md)（英文）。
 2. **从源码构建**：输入锁定在 [kernel/source.json](kernel/source.json) 与 [kernel/abi.json](kernel/abi.json)（内核提交、配置片段、release）、[mesa/source.json](mesa/source.json)（Mesa 26.2.0 及 A830 补丁）、[ubuntu/](ubuntu/26.04.sources)（官方 26.04 Desktop ARM64 ISO、快照 APT 源）和 `device/*/source.json`。[tools/](tools/) 中的工具无需 root 权限即可构建内核包、Mesa、设备软件包、ext4 根镜像和签名的启动镜像组。触控标定、蓝牙地址、启动配置（boot profile）、原厂 DTB 与 DTBO、AVB 签名密钥取自你自己的平板，从不提交。详见 [docs/build.zh-CN.md](docs/build.zh-CN.md)。
 3. **安装**：按 [docs/INSTALL.zh-CN.md](docs/INSTALL.zh-CN.md) 的手动步骤操作；切换、Fastboot 恢复及禁止刷写的分区见 [docs/FLASHING.zh-CN.md](docs/FLASHING.zh-CN.md)。
 

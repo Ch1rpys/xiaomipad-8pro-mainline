@@ -36,9 +36,11 @@ v0.1 只能手工安装，尚无安装器；写入新分区表（[第 6 步](#6-
 | 发布目录 | 同一版本的全部文件，不与其他版本混用 |
 | 主机可用空间 | 约 40 GB：备份（测试机 16 GB）、发布目录（约 9 GB）与数据镜像 |
 
-使用前先校验发布目录：
+把[发布](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview)的全部 `piano-v0.1.0-preview.tar.zst.part*` 下载到同一目录，还原发布目录（约需 14 GB 空间），使用前先校验：
 
 ```bash
+sha256sum -c SHA256SUMS.assets                   # 下载的附件
+cat piano-v0.1.0-preview.tar.zst.part* | zstd -d | tar -x
 cd <release> && sha256sum -c SHA256SUMS          # 预期每行均为 "OK"
 ```
 
