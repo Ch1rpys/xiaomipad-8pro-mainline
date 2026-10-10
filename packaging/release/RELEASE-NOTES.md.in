@@ -82,8 +82,8 @@ $package_rows
 
 ## What works
 
-Status on the test unit (one 512 GB unit, model 25091RP04C) with `$kernel_release`; see the
-[support matrix]($repo_url/blob/$integration_commit/README.md#support-matrix) for the details and limits.
+Status on the test unit (one 512 GB unit, model 25091RP04C) with 7.2.6-piano5 and 7.2.6-piano6;
+`$kernel_release` has not been booted there yet. See the [support matrix]($repo_url/blob/$integration_commit/README.md#support-matrix) for the details and limits.
 
 - ✅ Working: CPU frequency scaling, boot from slot A (marked successful after each boot), UFS storage,
   GNOME on Wayland at 200 % scaling, Adreno 830 rendering with the bundled Mesa 26.2.0, battery gauges
@@ -135,8 +135,9 @@ your own boot profile before writing slot A.
 - The Android-side KernelSU module (`piano-switch-ksu`) was verified on the test unit with KernelSU-Next (install, `--check`, action to Ubuntu); other root managers are untested.
 - Not flashed to a tablet as a whole: this image was assembled offline from the packages and
   procedure that run on the test unit, and checked offline. On the test unit, 7.2.6-piano4 booted as a RAM boot
-  with the partition-name root and the serial-free command line of an address-free set; `$kernel_release`
-  is installed and validated there with the unit's own set.
+  with the partition-name root and the serial-free command line of an address-free set, and the
+  7.2.6-piano6 build of this release was installed from scratch there; `$kernel_release` has not been booted
+  on a tablet yet.
   $qemu_note
 
 ## Source code

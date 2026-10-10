@@ -217,5 +217,10 @@ address, and kernel package updates leave the boot set unchanged. Use the magnet
 - 2026-10-11, offline: a check build of the root with 7.2.6-piano7, piano-device-support
   0.1+20261010.7 and piano-ubuntu-desktop 0.1+20261010.6 (integration `26b3a8e`) passed every offline
   check (`ROOT_IMAGE_BUILT_OFFLINE_CHECKS_PASS_NOT_BOOTED`); the `fstrim` step (`391ab9c`) was measured
-  on that build's `root.ext4`. No complete build with both has run yet, and none of it has been booted.
+  on that build's `root.ext4`.
+- 2026-10-11, offline: the first complete build of this pipeline with 7.2.6-piano7,
+  piano-device-support 0.1+20261010.7 and piano-ubuntu-desktop 0.1+20261010.7 (root built at
+  integration `e2807ba`) passed every offline check; Fastboot writes 8,752,504,832 B for its
+  `root.sparse.img` (`4dec44ac…`; no FILL and 18.6 MB of RAW on free blocks). It has not been booted,
+  in QEMU or on a tablet.
 - The v0.1.0-preview release artefacts (piano5 root) were installed from scratch on the test unit twice on 2026-10-10 (INSTALL steps 1, 6, 7, 8a, 9, 10, Initial Setup, switching, cold-boot acceptance); the piano7 build above has not been flashed yet.
