@@ -1,0 +1,58 @@
+<!--
+  The internal panel at 200 % in every GNOME session: the GDM greeter, GNOME
+  Initial Setup and accounts without their own ~/.config/monitors.xml.
+  Mutter reads monitors.xml in each XDG system configuration directory as a
+  system configuration; a user's configuration for the same monitors replaces
+  it, and Mutter never copies it into a home directory.  The panel is the
+  firmware framebuffer (simpledrm), which reports no physical size, so Mutter
+  would choose 100 %.  Mutter names its connector None-1 and, without EDID,
+  reports vendor, product and serial as "unknown".  Both layout modes are
+  listed because the configuration key includes the mode.
+  Remove once the native display driver reports the panel's size.
+-->
+<monitors version="2">
+  <configuration>
+    <layoutmode>logical</layoutmode>
+    <logicalmonitor>
+      <x>0</x>
+      <y>0</y>
+      <scale>2</scale>
+      <primary>yes</primary>
+      <monitor>
+        <monitorspec>
+          <connector>None-1</connector>
+          <vendor>unknown</vendor>
+          <product>unknown</product>
+          <serial>unknown</serial>
+        </monitorspec>
+        <mode>
+          <width>3200</width>
+          <height>2136</height>
+          <rate>60.000</rate>
+        </mode>
+      </monitor>
+    </logicalmonitor>
+  </configuration>
+  <configuration>
+    <layoutmode>physical</layoutmode>
+    <logicalmonitor>
+      <x>0</x>
+      <y>0</y>
+      <scale>2</scale>
+      <primary>yes</primary>
+      <monitor>
+        <monitorspec>
+          <connector>None-1</connector>
+          <vendor>unknown</vendor>
+          <product>unknown</product>
+          <serial>unknown</serial>
+        </monitorspec>
+        <mode>
+          <width>3200</width>
+          <height>2136</height>
+          <rate>60.000</rate>
+        </mode>
+      </monitor>
+    </logicalmonitor>
+  </configuration>
+</monitors>

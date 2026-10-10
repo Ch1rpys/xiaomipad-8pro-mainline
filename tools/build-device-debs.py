@@ -201,12 +201,6 @@ def main():
     dropin = desktop / 'etc/systemd/system/gdm.service.d/50-piano-mesa.conf'
     dropin.parent.mkdir(parents=True)
     dropin.write_text('[Service]\n' + ''.join('Environment=' + l + '\n' for l in env.read_text().splitlines()))
-    monitors = '''<monitors version="2"><configuration><logicalmonitor><x>0</x><y>0</y><scale>2</scale><primary>yes</primary><monitor><monitorspec><connector>None-1</connector><vendor>unknown</vendor><product>unknown</product><serial>unknown</serial></monitorspec><mode><width>3200</width><height>2136</height><rate>60</rate></mode></monitor></logicalmonitor></configuration></monitors>\n'''
-    for rel in ('etc/skel/.config/monitors.xml', 'var/lib/gdm3/.config/monitors.xml',
-                'var/lib/gnome-initial-setup/.config/monitors.xml'):
-        f = desktop / rel
-        f.parent.mkdir(parents=True, exist_ok=True)
-        f.write_text(monitors)
     package('piano-ubuntu-desktop', desktop, 'piano-mesa, gdm3, gnome-shell (>= 50)',
             'Piano Ubuntu desktop graphics defaults, GNOME Shell 50 on-screen keyboard guard and microphone UCM',
             third_party=[(('usr/share/alsa/ucm2/*',),
