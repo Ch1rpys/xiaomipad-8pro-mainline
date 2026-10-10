@@ -286,7 +286,7 @@ fastboot -s <SERIAL> getvar partition-size:userdata       # 预期 "3200000000"�
 fastboot -s <SERIAL> getvar partition-size:linux_rootfs   # 预期 "0xF00000000"
 fastboot -s <SERIAL> getvar partition-size:linux_data     # 512 GB 机型为 "0x32517FB000"
 truncate -s $((0x<linux_data 大小>)) data.ext4
-mkfs.ext4 -L linux_data data.ext4 && img2simg data.ext4 data.sparse.img
+mkfs.ext4 -L linux_data data.ext4 && img2simg -s data.ext4 data.sparse.img     # 约 6 MB
 ```
 
 擦除 Android 数据并写入两个文件系统：
@@ -295,12 +295,13 @@ mkfs.ext4 -L linux_data data.ext4 && img2simg data.ext4 data.sparse.img
 fastboot -s <SERIAL> erase userdata
 fastboot -s <SERIAL> erase metadata
 fastboot -s <SERIAL> flash linux_rootfs <release>/rootfs/root.sparse.img   # 约 1 分钟（测试机 USB 3 实测 41 s）
-fastboot -s <SERIAL> flash linux_data data.sparse.img                      # 约 30 分钟（测试机实测 1803 s）
+fastboot -s <SERIAL> flash linux_data data.sparse.img                      # 数秒；平板实际写入约 1 GiB
 # 预期每个 Sending 与 Writing 行均为 "OKAY"，最后 "Finished."
 ```
 
-稀疏镜像传输量小，但平板会写满整个分区：`data.sparse.img` 只有 6 MB 数据和 201 GiB 零填充，`fastboot` 在唯一一行
-`Writing` 期间不显示进度。等每次写入自行结束。已返回 `OKAY` 的写入不要重复。
+稀疏镜像传输量小，但平板会写入其描述的每个块：根镜像覆盖整个 60 GiB（其中约 52 GiB 为零填充）。`img2simg -s`
+不写入 `data.sparse.img` 的未用块（6 MB 数据加 1 GiB 日志填充），平板约写 1 GiB 而不是 201 GiB（测试机 2026-10-10：
+0.2 s 返回 `OKAY`，之后下一次 `fastboot boot` 多用约 30 s；不加 `-s` 时写入用了 1803 s）。等每次写入自行结束。已返回 `OKAY` 的写入不要重复。
 Android 下次启动时重建 `userdata` 与 `metadata`；全部 Android 数据（包括 root 管理器的配置）都会丢失。
 
 ## 8. 可选：不写 A 槽先试启动
@@ -311,6 +312,41 @@ fastboot -s <SERIAL> boot <release>/boot/boot-ram-check.img     # 预期 "Bootin
 
 它从 RAM 启动一次已安装的根，内核、initrd 与命令行与发布镜像组相同，不写任何启动分区。
 这是没有调试控制台的普通启动：用电源 + 音量下回到 Fastboot。
+
+## 8a. 推荐：首次启动前安装本机文件
+
+可以用[第 6 步](#6-写入分区表平板上)的维护镜像，在 Ubuntu 首次启动前把第 3 步的本机文件放进新根并打开开发者模式。
+这样初始设置中触控可用，账户建好后主机即可经 SSH 连接平板。不做本步时，初始设置使用磁吸键盘，并在第 10 步复制文件。
+
+平板处于 Fastboot，主机当前目录里有第 3 步的五个文件：
+
+```bash
+fastboot -s <SERIAL> boot <release>/boot/boot-ram-maintenance.img    # 预期 "Booting OKAY"
+python3 tools/piano-devmode-ssh.py --serial <SERIAL> --check         # 预期 "... ready"
+python3 -m http.server --bind 192.168.88.10 8000 &                    # 空闲端口，同第 6 步
+sha256sum thp-calibration.json bluetooth-address wlan-address boot-profile.json boot-signing.pem
+telnet 192.168.88.2 2323
+```
+
+在 telnet 会话中：
+
+```sh
+disk=/dev/sdX                                       # 登录表中的 LUN 0
+for p in /sys/class/block/${disk##*/}*; do grep -qx PARTNAME=linux_rootfs $p/uevent && root=/dev/${p##*/}; done
+echo $root                                          # LUN 0 的第 35 项，例如 /dev/sda35
+mkdir -p /mnt && mount -t ext4 $root /mnt
+for f in thp-calibration.json bluetooth-address wlan-address boot-profile.json boot-signing.pem; do
+  wget -O /mnt/etc/piano/$f http://192.168.88.10:8000/$f && chmod 600 /mnt/etc/piano/$f
+done
+sha256sum /mnt/etc/piano/*                          # 五个哈希必须与主机一致
+mkdir -p /mnt/etc/systemd/system/usb-gadget.target.wants
+ln -sf /usr/lib/systemd/system/piano-devmode.service /mnt/etc/systemd/system/usb-gadget.target.wants/
+sync; umount /mnt
+piano-maint fastboot
+```
+
+此环境中 `lsblk` 不显示分区标签，上面的循环从 sysfs 读取。该符号链接就是 `piano-devmode on` 所创建的。
+测试机已验证（2026-10-10）：文件以 600 权限和主机哈希写入，无残留挂载，随后发布镜像组的启动中触控按标定运行、开发者模式启动。
 
 ## 9. 写入 A 槽并首次启动
 
@@ -323,20 +359,20 @@ python3 <release>/tools/piano-switch.py --serial <SERIAL> --images <release>/boo
 fastboot -s <SERIAL> reboot
 ```
 
-- **GNOME 初始设置**创建第一个账户。使用磁吸键盘；第 10 步之前触控不可用。跳过网络页面。必须有人在平板旁：
-  从这次启动到第 10 步打开开发者模式之前，主机无法连接平板（开发者模式默认关闭、需要账户且拒绝 root 登录），
-  唯一的退路是电源 + 音量下。
+- **GNOME 初始设置**创建第一个账户。做过[第 8a 步](#8a-推荐首次启动前安装本机文件)时触控可用；否则使用磁吸键盘（第 10 步之前触控不可用）。
+  跳过网络页面。必须有人在平板旁：账户建好且开发者模式打开（第 8a 或 10 步）之前，主机无法连接平板
+  （开发者模式需要账户且拒绝 root 登录），唯一的退路是电源 + 音量下。
 - **每次启动后设置时间**，硬件时钟不可写：`sudo date -s 'YYYY-MM-DD HH:MM'`。
 - 启动完成后该槽被标记为启动成功：`sudo piano-slot-success --check` 应报告 `"state": "already-successful"`。
 
-第 10 步之前：没有触控和蓝牙，Wi-Fi 使用随机 MAC，不能从 Ubuntu 切换，内核更新也不会改写 A 槽。
+第 10 步之前：没有蓝牙，Wi-Fi 使用随机 MAC，不能从 Ubuntu 切换，内核更新也不会改写 A 槽（地址由该步重建的启动镜像组带入）。只有做过第 8a 步，首次启动起触控才可用。
 
 ## 10. 安装本机文件
 
 **把文件复制到平板**，经开发者模式（USB 线上的 SSH；USB 主机与外接存储不支持）。在平板终端（Ctrl+Alt+T）中：
 
 ```bash
-sudo piano-devmode on
+sudo piano-devmode on      # 做过第 8a 步时已打开
 piano-devmode status       # 预期 "developer mode: enabled, active" 与 "SSH socket: active (192.168.88.2 port 22)"
 ```
 
@@ -345,8 +381,10 @@ piano-devmode status       # 预期 "developer mode: enabled, active" 与 "SSH s
 ```bash
 python3 tools/piano-devmode-ssh.py --check     # 预期 "... 192.168.88.10 -> 192.168.88.2 ready"
 scp -r thp-calibration.json bluetooth-address wlan-address boot-profile.json boot-signing.pem \
-  android-set <USER>@192.168.88.2:
+  android-set piano-device-support_<版本>_arm64.deb <USER>@192.168.88.2:
 ```
+
+做过第 8a 步时五个文件已在 `/etc/piano` 中，只需复制 `android-set` 和软件包。
 
 如果主机没有取得 DHCP 地址，`--check` 会打印设置地址的 `ip` 命令。
 
@@ -379,8 +417,9 @@ done
 
 ```bash
 cd ~
+sudo dpkg -i piano-device-support_<版本>_arm64.deb
 sudo install -m 600 bluetooth-address wlan-address thp-calibration.json boot-profile.json \
-  boot-signing.pem boot-partitions.json /etc/piano/
+  boot-signing.pem boot-partitions.json /etc/piano/       # 做过第 8a 步时只装 boot-partitions.json
 sudo piano-boot-switch status          # 预期 "occupant": "ubuntu" 与 "backup_gpt": "valid"
 sudo piano-boot-switch import-android --from ~/android-set     # 预期 "result": "imported"
 sudo piano-boot-update $(uname -r)

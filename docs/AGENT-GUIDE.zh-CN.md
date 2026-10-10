@@ -391,11 +391,11 @@ sudo umount $R/dev/pts $R/dev $R/sys $R/proc $R
 e2fsck -f out/install/root.ext4 && img2simg out/install/root.ext4 out/install/root.sparse.img
 
 truncate -s 216115687424 out/install/data.ext4     # 512 GB 机型的 linux_data 大小（§4.5）
-mkfs.ext4 -U "$DATA_UUID" out/install/data.ext4 && img2simg out/install/data.ext4 out/install/data.sparse.img
+mkfs.ext4 -U "$DATA_UUID" out/install/data.ext4 && img2simg -s out/install/data.ext4 out/install/data.sparse.img
 ```
 
-`img2simg` 把全零块存为 FILL 块，Fastboot 仍会完整写入：根约 55 GB、数据盘约 216 GB（测试机上设备写入分别约
-4 分钟和 26 分钟）。在平板上用 `mkfs.ext4` 创建 `/home` 可省去数据盘写入，该路径尚未验证。
+`img2simg` 把全零块存为 FILL 块，Fastboot 仍会完整写入：根约 55 GB（测试机 41 s）。`-s` 不写入未用块（DONT_CARE），
+数据盘镜像只让平板写约 1 GiB 而不是 216 GB（2026-10-10 已验证；不加 `-s` 时 1803 s）。刷写前核对块类型合计；根镜像保持构建原样（其字节即发布物）。
 
 ### 4.5 新的 LUN 0 GPT（主机，v0.1 手工步骤）
 

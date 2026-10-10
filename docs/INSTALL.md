@@ -317,7 +317,7 @@ fastboot -s <SERIAL> getvar partition-size:userdata       # expect "3200000000" 
 fastboot -s <SERIAL> getvar partition-size:linux_rootfs   # expect "0xF00000000"
 fastboot -s <SERIAL> getvar partition-size:linux_data     # "0x32517FB000" on the 512 GB unit
 truncate -s $((0x<linux_data size>)) data.ext4
-mkfs.ext4 -L linux_data data.ext4 && img2simg data.ext4 data.sparse.img
+mkfs.ext4 -L linux_data data.ext4 && img2simg -s data.ext4 data.sparse.img     # about 6 MB
 ```
 
 Erase Android's data and write both filesystems:
@@ -326,13 +326,15 @@ Erase Android's data and write both filesystems:
 fastboot -s <SERIAL> erase userdata
 fastboot -s <SERIAL> erase metadata
 fastboot -s <SERIAL> flash linux_rootfs <release>/rootfs/root.sparse.img   # about 1 minute (41 s on the test unit, USB 3)
-fastboot -s <SERIAL> flash linux_data data.sparse.img                      # about 30 minutes (1803 s on the test unit)
+fastboot -s <SERIAL> flash linux_data data.sparse.img                      # seconds; the tablet commits about 1 GiB
 # expect "OKAY" on every Sending and Writing line, then "Finished."
 ```
 
-The sparse images are small to transfer, but the tablet writes the full partitions: `data.sparse.img`
-is 6 MB of data and 201 GiB of zero fill, and `fastboot` shows no progress during its single `Writing`
-line. Let each write finish. Do not repeat a write that finished with `OKAY`. Android re-creates `userdata` and `metadata`
+The sparse images are small to transfer, but the tablet writes every block they describe: the root
+image covers the full 60 GiB (about 52 GiB of it zero fill). `img2simg -s` leaves the unused blocks
+of `data.sparse.img` out (6 MB of data, 1 GiB of journal fill), so the tablet writes about 1 GiB
+instead of 201 GiB (2026-10-10 on the test unit: `OKAY` after 0.2 s, the bootloader then needed about
+30 s more before the next `fastboot boot`; without `-s` the write took 1803 s). Let each write finish. Do not repeat a write that finished with `OKAY`. Android re-creates `userdata` and `metadata`
 on its next boot; all Android data, including the root manager's configuration, is gone.
 
 ## 8. Optional: test-boot without writing slot A
@@ -344,6 +346,45 @@ fastboot -s <SERIAL> boot <release>/boot/boot-ram-check.img     # expect "Bootin
 This boots the installed root once from RAM, with the same kernel, initrd and command line as the
 release set, and writes no boot partition. It is a normal boot without a debug console: return to
 Fastboot with Power + Volume Down.
+
+## 8a. Recommended: install your unit's files before the first boot
+
+The maintenance image of [step 6](#6-write-the-partition-table-on-the-tablet) can put your files of
+step 3 into the new root and turn on developer mode before Ubuntu first boots. Touch then works in
+Initial Setup, and the host can reach the tablet over SSH as soon as the account exists. Without this
+step, use the magnetic keyboard in Initial Setup and copy the files in step 10.
+
+In Fastboot, with the five files of step 3 in the current directory on the host:
+
+```bash
+fastboot -s <SERIAL> boot <release>/boot/boot-ram-maintenance.img    # expect "Booting OKAY"
+python3 tools/piano-devmode-ssh.py --serial <SERIAL> --check         # expect "... ready"
+python3 -m http.server --bind 192.168.88.10 8000 &                    # a free port, as in step 6
+sha256sum thp-calibration.json bluetooth-address wlan-address boot-profile.json boot-signing.pem
+telnet 192.168.88.2 2323
+```
+
+In the telnet session:
+
+```sh
+disk=/dev/sdX                                       # LUN 0 from the login table
+for p in /sys/class/block/${disk##*/}*; do grep -qx PARTNAME=linux_rootfs $p/uevent && root=/dev/${p##*/}; done
+echo $root                                          # entry 35 of LUN 0, for example /dev/sda35
+mkdir -p /mnt && mount -t ext4 $root /mnt
+for f in thp-calibration.json bluetooth-address wlan-address boot-profile.json boot-signing.pem; do
+  wget -O /mnt/etc/piano/$f http://192.168.88.10:8000/$f && chmod 600 /mnt/etc/piano/$f
+done
+sha256sum /mnt/etc/piano/*                          # the five hashes must equal the host's
+mkdir -p /mnt/etc/systemd/system/usb-gadget.target.wants
+ln -sf /usr/lib/systemd/system/piano-devmode.service /mnt/etc/systemd/system/usb-gadget.target.wants/
+sync; umount /mnt
+piano-maint fastboot
+```
+
+`lsblk` shows no partition labels in this environment; the loop above reads them from sysfs. The
+symbolic link is what `piano-devmode on` creates. Verified on the test unit (2026-10-10): the files
+landed with mode 600 and the host's hashes, nothing stayed mounted, and the next boot of the release
+set ran touch with the calibration and started developer mode.
 
 ## 9. Write slot A and first boot
 
@@ -357,17 +398,19 @@ python3 <release>/tools/piano-switch.py --serial <SERIAL> --images <release>/boo
 fastboot -s <SERIAL> reboot
 ```
 
-- **GNOME Initial Setup** creates the first account. Use the magnetic keyboard; touch is off until
-  step 10. Skip the network page. Someone must be at the tablet: from this boot until developer mode
-  is on (step 10) the host cannot reach it (developer mode is off, needs an account and refuses root
-  logins), and the only way back is Power + Volume Down.
+- **GNOME Initial Setup** creates the first account. After [step 8a](#8a-recommended-install-your-units-files-before-the-first-boot)
+  touch works; otherwise use the magnetic keyboard (touch is off until step 10). Skip the network
+  page. Someone must be at the tablet: until the account exists and developer mode is on (step 8a or
+  10) the host cannot reach it (developer mode needs an account and refuses root logins), and the only
+  way back is Power + Volume Down.
 - **Set the clock** after every boot; the hardware clock cannot be written:
   `sudo date -s 'YYYY-MM-DD HH:MM'`.
 - The slot is marked as successfully booted after the boot completes:
   `sudo piano-slot-success --check` should report `"state": "already-successful"`.
 
-Until step 10: no touch, no Bluetooth, a random Wi-Fi MAC address, no switching from Ubuntu, and
-kernel updates leave slot A unchanged.
+Until step 10: no Bluetooth, a random Wi-Fi MAC address, no switching from Ubuntu, and kernel
+updates leave slot A unchanged (the addresses are applied by the boot set rebuilt there). Touch works
+from the first boot only after step 8a.
 
 ## 10. Install your unit's files
 
@@ -375,7 +418,7 @@ kernel updates leave slot A unchanged.
 external drives are not supported). In a terminal on the tablet (Ctrl+Alt+T):
 
 ```bash
-sudo piano-devmode on
+sudo piano-devmode on      # already on after step 8a
 piano-devmode status       # expect "developer mode: enabled, active" and "SSH socket: active (192.168.88.2 port 22)"
 ```
 
@@ -384,8 +427,10 @@ On the host, with `<USER>` the account from Initial Setup:
 ```bash
 python3 tools/piano-devmode-ssh.py --check     # expect "... 192.168.88.10 -> 192.168.88.2 ready"
 scp -r thp-calibration.json bluetooth-address wlan-address boot-profile.json boot-signing.pem \
-  android-set <USER>@192.168.88.2:
+  android-set piano-device-support_<version>_arm64.deb <USER>@192.168.88.2:
 ```
+
+After step 8a the five files are already in `/etc/piano`; copy only `android-set` and the package.
 
 If the host did not take the DHCP address, `--check` prints the `ip` command to set it.
 
@@ -420,8 +465,9 @@ Write the values into `~/boot-partitions.json`:
 
 ```bash
 cd ~
+sudo dpkg -i piano-device-support_<version>_arm64.deb
 sudo install -m 600 bluetooth-address wlan-address thp-calibration.json boot-profile.json \
-  boot-signing.pem boot-partitions.json /etc/piano/
+  boot-signing.pem boot-partitions.json /etc/piano/       # after step 8a: boot-partitions.json only
 sudo piano-boot-switch status          # expect "occupant": "ubuntu" and "backup_gpt": "valid"
 sudo piano-boot-switch import-android --from ~/android-set     # expect "result": "imported"
 sudo piano-boot-update $(uname -r)

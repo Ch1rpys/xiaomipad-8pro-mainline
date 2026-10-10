@@ -125,7 +125,7 @@ python3 tools/build-release.py --rootfs-build out/rootfs-<version> \
   Bluetooth and Wi-Fi address in text and binary forms). The files are read, never copied or recorded;
   the scan does not see inside compressed files.
 - `root.sparse.img` stores the zero blocks of the 60 GiB file as FILL chunks, which Fastboot writes in
-  full (about 4 minutes on the test unit). `build-release.py` hard-links it, so the release directory
+  full (41 s on the test unit over USB 3). `build-release.py` hard-links it, so the release directory
   must be on the same filesystem as the build.
 
 ## Installing the release
@@ -138,7 +138,7 @@ Manual in v0.1. The owner's step-by-step guide is [INSTALL.md](INSTALL.md); it f
    `linux_data` size (`fastboot getvar partition-size:linux_data`):
    ```bash
    truncate -s <linux_data bytes> data.ext4
-   mkfs.ext4 -L linux_data data.ext4 && img2simg data.ext4 data.sparse.img
+   mkfs.ext4 -L linux_data data.ext4 && img2simg -s data.ext4 data.sparse.img
    ```
 3. §4.5–§4.6 unchanged (§4.6 in `boot/boot-ram-maintenance.img`), except that the GUIDs of `linux_rootfs` and `linux_data` may be any new
    values: the release finds both partitions by name. The names must be exactly `linux_rootfs` and

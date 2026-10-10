@@ -423,12 +423,13 @@ sudo umount $R/dev/pts $R/dev $R/sys $R/proc $R
 e2fsck -f out/install/root.ext4 && img2simg out/install/root.ext4 out/install/root.sparse.img
 
 truncate -s 216115687424 out/install/data.ext4     # linux_data size on the 512 GB unit (§4.5)
-mkfs.ext4 -U "$DATA_UUID" out/install/data.ext4 && img2simg out/install/data.ext4 out/install/data.sparse.img
+mkfs.ext4 -U "$DATA_UUID" out/install/data.ext4 && img2simg -s out/install/data.ext4 out/install/data.sparse.img
 ```
 
 `img2simg` stores zero blocks as FILL chunks, which Fastboot writes in full: about 55 GB for the root
-and 216 GB for the data image (about 4 and 26 minutes of device writing on the test unit). Creating
-`/home` with `mkfs.ext4` on the tablet avoids the data write; that path is not yet verified.
+(41 s on the test unit). `-s` leaves unused blocks out (DONT_CARE): the data image then makes the
+tablet write about 1 GiB instead of 216 GB (verified 2026-10-10; 1803 s without `-s`). Check the
+chunk totals before flashing; keep the root image as built (its bytes are the release's).
 
 ### 4.5 New LUN 0 GPT (host, manual in v0.1)
 

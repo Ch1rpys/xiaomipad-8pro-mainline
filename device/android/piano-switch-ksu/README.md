@@ -4,10 +4,10 @@ A KernelSU-Next module for stock Android on piano. Its action button writes the
 Ubuntu boot set into the active A slot and reboots. The module holds scripts
 only; the images come from the Ubuntu root filesystem.
 
-Status: the host tests pass. The script has also run on the device, as the
-shell user, against regular files. A read-only `--check` against the real
-partitions and store also passed (see the end of this file). The module has
-not been installed, and it has not written a real partition.
+Status: the host tests pass. On the test unit (2026-10-10) the release module
+`piano-switch-ksu-v0.1.0.zip` was installed with `ksud module install`,
+`--check` reported `CHECK OK`, and the action wrote the Ubuntu set into slot A
+(readbacks ok, slot attributes unchanged) and rebooted into Ubuntu.
 
 ## What the action does
 
@@ -154,4 +154,5 @@ was written to a partition, and the device did not reboot.
   image, while slot A holds the KernelSU init_boot. After the refusal the
   filesystem was unmounted and the lock was released.
 
-Not yet run: the module install, the action button, and a real write.
+The module install, `--check` and the action were then run for real on
+2026-10-10, as described under Status.
