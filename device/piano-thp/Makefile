@@ -4,6 +4,8 @@ OUT ?= build
 CPPFLAGS += -Isrc $(if $(JSON_INCLUDE),-I$(JSON_INCLUDE))
 CXXFLAGS ?= -O2 -std=c++20
 CXXFLAGS += -Wall -Wextra -Werror -MMD -MP
+# Header paths end up in assertion strings; keep the build host's JSON_INCLUDE location out of the binary.
+CXXFLAGS += $(if $(JSON_INCLUDE),-ffile-prefix-map=$(JSON_INCLUDE)=/usr/include)
 CORE := nvt_touch_core nvt_finger_filter frame processor
 SOURCES := $(CORE) calibration replay stream live_pipeline input live
 OBJECTS := $(addprefix $(OUT)/,$(addsuffix .o,$(SOURCES)))
