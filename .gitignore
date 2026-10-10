@@ -39,3 +39,11 @@ wlan-address.txt
 *.b[0-9a-f][0-9a-f]
 *.ntp1
 !/firmware/*/**
+# SSH keys and touch calibration of a unit, wherever they are written.
+id_rsa*
+id_ecdsa*
+id_ed25519*
+authorized_keys
+known_hosts
+ssh_host_*
+*calibration*.json

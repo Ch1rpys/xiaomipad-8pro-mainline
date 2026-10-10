@@ -4,3 +4,29 @@ version = 1
 path = "firmware/*/**"
 SPDX-FileCopyrightText = "Respective rights holders of the stock firmware, such as Xiaomi, Qualcomm, Novatek and Nanosic"
 SPDX-License-Identifier = "LicenseRef-Proprietary-Firmware"
+
+# Patches carry the licence of the upstream files they change (see NOTICE).
+[[annotations]]
+path = "device/sensors/hexagonrpc/patches/0001-*.patch"
+SPDX-FileCopyrightText = "HexagonRPC contributors; The piano mainline project contributors"
+SPDX-License-Identifier = "LGPL-3.0-or-later AND GPL-3.0-or-later"
+
+[[annotations]]
+path = ["device/sensors/hexagonrpc/patches/0002-*.patch", "device/sensors/libssc/patches/*.patch"]
+SPDX-FileCopyrightText = "HexagonRPC and libssc contributors; The piano mainline project contributors"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = "device/sensors/libssc/sensorproxy-patches/0001-*.patch"
+SPDX-FileCopyrightText = "Martin Pitt, Bastien Nocera; The piano mainline project contributors"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = ["device/sensors/libssc/sensorproxy-patches/0003-*.patch", "device/sensors/libssc/sensorproxy-patches/0005-*.patch", "device/sensors/libssc/sensorproxy-patches/0006-*.patch"]
+SPDX-FileCopyrightText = "Bastien Nocera; liuqin mainline project contributors"
+SPDX-License-Identifier = "GPL-3.0-only"
+
+[[annotations]]
+path = "mesa/a830-speedbin.patch"
+SPDX-FileCopyrightText = "Mesa contributors; The piano mainline project contributors"
+SPDX-License-Identifier = "MIT"

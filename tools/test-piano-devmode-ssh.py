@@ -81,11 +81,11 @@ class Devmode(unittest.TestCase):
         self.sys.add('a', NETWORK['host_mac'], serial='piano-one')
         self.sys.add('b', NETWORK['host_mac'], serial='piano-two')
         self.assertEqual(tool.find_interfaces(NETWORK, 'two', self.sys.net), [('b', 'piano-two')])
-        rc, _, err = self.main(['erwin'], routes('a', NETWORK['host_ip']))
+        rc, _, err = self.main(['user'], routes('a', NETWORK['host_ip']))
         self.assertEqual(rc, 1)
         self.assertIn('more than one piano NCM link', err)
-        rc, _, _ = self.main(['--serial', 'two', 'erwin'], routes('b', NETWORK['host_ip']))
-        self.assertEqual((rc, self.exec), (1, [['ssh', 'erwin@192.168.88.2']]))
+        rc, _, _ = self.main(['--serial', 'two', 'user'], routes('b', NETWORK['host_ip']))
+        self.assertEqual((rc, self.exec), (1, [['ssh', 'user@192.168.88.2']]))
 
     def test_route_must_use_the_link_and_host_address(self):
         self.assertTrue(tool.route_ready('usb1', NETWORK, routes('usb1', '192.168.88.10')))
@@ -96,12 +96,12 @@ class Devmode(unittest.TestCase):
     def test_ssh_command_line(self):
         self.sys.add('usb1', NETWORK['host_mac'])
         run = routes('usb1', NETWORK['host_ip'])
-        self.main(['erwin'], run)
-        self.main(['-t', 'erwin', 'sudo', 'piano-reboot-bootloader'], run)
-        self.main(['--wait', '0', 'erwin', '--', 'ls', '-l'], run)
-        self.assertEqual(self.exec, [['ssh', 'erwin@192.168.88.2'],
-                                     ['ssh', '-t', 'erwin@192.168.88.2', 'sudo', 'piano-reboot-bootloader'],
-                                     ['ssh', 'erwin@192.168.88.2', 'ls', '-l']])
+        self.main(['user'], run)
+        self.main(['-t', 'user', 'sudo', 'piano-reboot-bootloader'], run)
+        self.main(['--wait', '0', 'user', '--', 'ls', '-l'], run)
+        self.assertEqual(self.exec, [['ssh', 'user@192.168.88.2'],
+                                     ['ssh', '-t', 'user@192.168.88.2', 'sudo', 'piano-reboot-bootloader'],
+                                     ['ssh', 'user@192.168.88.2', 'ls', '-l']])
         self.assertEqual(run.calls, [])
 
     def test_check_reports_without_ssh(self):
@@ -111,21 +111,21 @@ class Devmode(unittest.TestCase):
         self.assertIn('usb1 piano-abc123 192.168.88.10 -> 192.168.88.2 ready', out)
 
     def test_bad_arguments(self):
-        for argv in ([], ['-oProxyCommand=sh'], ['root@other'], ['--check', 'erwin'], ['--wait', '301', 'erwin'],
-                     ['--wait', '-1', 'erwin'], ['']):
+        for argv in ([], ['-oProxyCommand=sh'], ['root@other'], ['--check', 'user'], ['--wait', '301', 'user'],
+                     ['--wait', '-1', 'user'], ['']):
             with self.subTest(argv=argv), contextlib.redirect_stderr(io.StringIO()):
                 with self.assertRaises(SystemExit) as e:
                     tool.parse_args(argv)
                 self.assertEqual(e.exception.code, 2)
 
     def test_no_link(self):
-        rc, _, err = self.main(['--wait', '3', 'erwin'], routes('usb1', NETWORK['host_ip']))
+        rc, _, err = self.main(['--wait', '3', 'user'], routes('usb1', NETWORK['host_ip']))
         self.assertEqual((rc, self.exec), (1, []))
         self.assertIn('no piano NCM link', err)
 
     def test_missing_dhcp_lease_prints_the_ip_commands(self):
         self.sys.add('enx020000880001', NETWORK['host_mac'])
-        rc, _, err = self.main(['--wait', '2', 'erwin'], routes('enp3s0', '192.168.10.5'))
+        rc, _, err = self.main(['--wait', '2', 'user'], routes('enp3s0', '192.168.10.5'))
         self.assertEqual((rc, self.exec), (2, []))
         self.assertIn('  sudo ip link set dev enx020000880001 up\n'
                       '  sudo ip address replace 192.168.88.10/24 dev enx020000880001\n', err)
@@ -141,10 +141,10 @@ class Devmode(unittest.TestCase):
             if cmd[:2] == ['ip', 'address']:
                 state['configured'] = True
             return base(cmd, **kwargs)
-        rc, _, _ = self.main(['--wait', '0', 'erwin'], run, euid=0)
+        rc, _, _ = self.main(['--wait', '0', 'user'], run, euid=0)
         self.assertEqual(base.calls, [['ip', 'link', 'set', 'dev', 'usb1', 'up'],
                                       ['ip', 'address', 'replace', '192.168.88.10/24', 'dev', 'usb1']])
-        self.assertEqual(self.exec, [['ssh', 'erwin@192.168.88.2']])
+        self.assertEqual(self.exec, [['ssh', 'user@192.168.88.2']])
 
 
 if __name__ == '__main__':
