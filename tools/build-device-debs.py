@@ -204,8 +204,10 @@ def main():
     dropin = desktop / 'etc/systemd/system/gdm.service.d/50-piano-mesa.conf'
     dropin.parent.mkdir(parents=True)
     dropin.write_text('[Service]\n' + ''.join('Environment=' + l + '\n' for l in env.read_text().splitlines()))
-    package('piano-ubuntu-desktop', desktop, 'piano-mesa, gdm3, gnome-shell (>= 50)',
-            'Piano Ubuntu desktop graphics defaults, GNOME Shell 50 on-screen keyboard guard and microphone UCM',
+    # fake-hwclock: the RTC cannot be set (TD-022); it restores the time saved at shutdown or hourly.
+    package('piano-ubuntu-desktop', desktop, 'piano-mesa, gdm3, gnome-shell (>= 50), fake-hwclock',
+            'Piano Ubuntu desktop defaults: graphics, clock without RTC, microphone UCM, '
+            'GNOME Shell 50 on-screen keyboard guard',
             third_party=[(('usr/share/alsa/ucm2/*',),
                           '2026 bluseliu50 and piano mainline contributors; '
                           '2019 Advanced Linux Sound Architecture (ALSA) project', 'MIT AND BSD-3-Clause',
