@@ -10,9 +10,14 @@ kernel and initrd keep matching the installed modules; Android in slot A is
 left alone.  Anywhere else (an image-building chroot, QEMU, a RAM root) only
 the store changes and no disk is inspected.
 
-The set needs this unit's boot profile and signing key in /etc/piano.  A
-release root filesystem ships without them and with a prepared set; until the
-owner installs them, kernel hooks leave the store unchanged and succeed.  The
+The set needs this unit's boot profile and signing key in /etc/piano, and on a
+running persistent piano boot also its partition map (boot-partitions.json),
+without which piano-boot-switch cannot write slot A.  A release root
+filesystem ships without them and with a prepared set; until the owner
+installs them, kernel hooks leave the store and slot A unchanged and succeed.
+A missing map must not rotate the store either: the new set could not be
+written, slot A would then hold ubuntu.prev, and the next rotation (the
+documented piano-boot-update after installing the map) would delete it.  The
 root is /etc/piano/layout.json's root_partlabel (a release root) or
 root_partuuid; the Bluetooth and WLAN addresses are optional.
 
@@ -96,10 +101,13 @@ def main(argv, root=Path('/'), run=subprocess.run):
         root_option = ['--root-partlabel', layout['root_partlabel']]
     else:
         root_option = ['--root-partuuid', layout['root_partuuid']]
-    missing = [n for n in ('boot-profile.json', 'boot-signing.pem') if not (config / n).is_file()]
+    persistent = on_persistent_piano(root)
+    needed = ('boot-profile.json', 'boot-signing.pem') + (('boot-partitions.json',) if persistent else ())
+    missing = [n for n in needed if not (config / n).is_file()]
     if missing:
         print(f'Boot image set not rebuilt for {release}: /etc/piano/{" and /etc/piano/".join(missing)} '
-              'of this unit not installed; the store is unchanged')
+              'of this unit not installed; the store and slot A are unchanged. Install '
+              f'{"them" if len(missing) > 1 else "it"}, then run: piano-boot-update {release}')
         return 0
     store = root / 'var/lib/piano/switch'
     store.mkdir(parents=True, exist_ok=True)
@@ -130,7 +138,7 @@ def main(argv, root=Path('/'), run=subprocess.run):
                 (store / 'ubuntu').rename(store / 'ubuntu.prev')
             output.rename(store / 'ubuntu')
     print(f'Piano boot image set prepared for {release}')
-    if not on_persistent_piano(root):
+    if not persistent:
         print('Slot A not inspected: not a running persistent piano boot')
         return 0
     # The store lock is released: the switch takes it together with the device lock.

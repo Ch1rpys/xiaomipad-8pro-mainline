@@ -31,7 +31,7 @@ class Update(unittest.TestCase):
         self.root = Path(self.tmp.name)
         (self.root / 'etc/piano').mkdir(parents=True)
         (self.root / 'etc/piano/layout.json').write_text(json.dumps({'root_partuuid': fp.ROOT_UUID}))
-        for name in ('boot-profile.json', 'boot-signing.pem', 'bluetooth-address'):
+        for name in ('boot-profile.json', 'boot-signing.pem', 'bluetooth-address', 'boot-partitions.json'):
             (self.root / 'etc/piano' / name).write_text(name + '\n')
         for name in ('ubuntu', 'ubuntu.prev'):
             d = self.root / 'var/lib/piano/switch' / name
@@ -118,6 +118,24 @@ class Update(unittest.TestCase):
             self.assertEqual(self.calls, [])
             self.assertEqual((self.store('ubuntu'), self.store('ubuntu.prev')), ('ubuntu\n', 'ubuntu.prev\n'))
 
+    def test_persistent_boot_without_partition_map_keeps_the_store(self):
+        (self.root / 'etc/piano/boot-partitions.json').unlink()
+        out = io.StringIO()
+        (self.root / 'proc/cmdline').write_text(fp.UBUNTU_CMDLINE + '\n')
+        (self.root / 'sys/firmware/devicetree/base/compatible').write_bytes(b'xiaomi,piano\0qcom,sm8750\0')
+        with contextlib.redirect_stdout(out):
+            rc = self.tool.main(['piano-boot-update', RELEASE], root=self.root, run=self.run_fake)
+        self.assertEqual((rc, self.calls), (0, []))
+        self.assertIn('/etc/piano/boot-partitions.json', out.getvalue())
+        self.assertIn(f'piano-boot-update {RELEASE}', out.getvalue())
+        self.assertEqual((self.store('ubuntu'), self.store('ubuntu.prev')), ('ubuntu\n', 'ubuntu.prev\n'))
+
+    def test_partition_map_is_needed_only_where_slot_a_is_written(self):
+        (self.root / 'etc/piano/boot-partitions.json').unlink()
+        self.assertEqual(self.update(fp.ABL_APPEND, b'xiaomi,piano\0'), 0)  # RAM root: store only
+        self.assertEqual(len(self.calls), 1, self.calls)
+        self.assertEqual((self.store('ubuntu'), self.store('ubuntu.prev')), ('new\n', 'ubuntu\n'))
+
     def test_other_environments_only_update_the_store(self):
         for cmdline, compatible in ((fp.ABL_APPEND, b'xiaomi,piano\0'),          # RAM root
                                     (fp.UBUNTU_CMDLINE, b'linux,dummy-virt\0'),  # QEMU
@@ -193,6 +211,90 @@ class Update(unittest.TestCase):
         with self.assertRaises(SystemExit):
             self.tool.main(['piano-boot-update', '7.0.0-14-generic'], root=self.root, run=self.run_fake)
         self.assertEqual(self.calls, [])
+
+
+class UpdateWithSwitch(unittest.TestCase):
+    """The kernel/initrd hook path on a synthetic piano with the real piano-boot-switch.
+
+    Initial Setup's keyboard page reruns update-initramfs, whose post-update hook
+    execs piano-boot-update; its exit status is the hook's, and a failure leaves
+    dracut half-configured."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.p = fp.FakePiano(self.tmp.name)  # persistent piano boot, slot A holds store/ubuntu
+        self.root = self.p.root
+        (self.root / 'etc/piano/boot-signing.pem').write_text('key\n')
+        self.map = self.root / 'etc/piano/boot-partitions.json'
+        self.switch = fp.load_tool('piano-boot-switch')
+        self.tool = load()
+        self.new = fp.image_set('ubuntu', 'u2')
+        self.calls = []
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def run_fake(self, argv, check=False, **kw):
+        self.calls.append(argv)
+        if argv[0] == 'python3':  # the image builder: a valid Ubuntu set of partition size
+            out = Path(argv[argv.index('--output') + 1])
+            self.p.image_dir(out, self.new)
+            (out / 'manifest.json').write_text(json.dumps({'kernel_release': RELEASE}))
+            return subprocess.CompletedProcess(argv, 0)
+        self.assertEqual(argv[0], str(self.root / 'usr/sbin/piano-boot-switch'))
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            return subprocess.CompletedProcess(argv, self.switch.main(argv[1:], host=self.p.host))
+
+    def hook(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+            rc = self.tool.main(['piano-boot-update', RELEASE], root=self.root, run=self.run_fake)
+        return rc, out.getvalue()
+
+    def status(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+            rc = self.switch.main(['status'], host=self.p.host)
+        return rc, json.loads(out.getvalue())
+
+    def store(self):
+        base = self.root / 'var/lib/piano/switch'
+        return {str(f.relative_to(base)): f.read_bytes() for f in sorted(base.rglob('*')) if f.is_file()}
+
+    def sums(self, images):
+        return ''.join(f'{fp.sha(images[n])}  {n}.img\n' for n in sorted(images))
+
+    def test_without_partition_map_the_hook_succeeds_and_nothing_changes(self):
+        saved = self.map.read_text()
+        self.map.unlink()
+        before = self.store()
+        rc, out = self.hook()
+        self.assertEqual((rc, self.calls), (0, []), out)
+        self.assertIn('/etc/piano/boot-partitions.json', out)
+        self.assertEqual(self.store(), before)
+        self.assertEqual(self.p.slot_content(), self.p.sets['ubuntu'])
+        # INSTALL step 10: with the map installed, status names the slot occupant...
+        self.map.write_text(saved)
+        rc, report = self.status()
+        self.assertEqual((rc, report['occupant'], report['store']['ubuntu']['equals_slot']), (0, 'ubuntu', True))
+        # ...and the documented piano-boot-update rotates and writes slot A.
+        rc, out = self.hook()
+        self.assertEqual(rc, 0, out)
+        self.assertEqual(self.p.slot_content(), self.new)
+        self.assertEqual(self.status()[1]['occupant'], 'ubuntu')
+
+    def test_with_every_input_the_hook_rotates_and_writes_slot_a(self):
+        android = {k: v for k, v in self.store().items() if k.startswith('android/')}
+        rc, out = self.hook()
+        self.assertEqual(rc, 0, out)
+        self.assertEqual(self.calls[-1][1:], ['to-ubuntu', '--only-if-ubuntu'])
+        store = self.root / 'var/lib/piano/switch'
+        self.assertEqual((store / 'ubuntu/SHA256SUMS').read_text(), self.sums(self.new))
+        self.assertEqual((store / 'ubuntu.prev/SHA256SUMS').read_text(), self.sums(self.p.sets['ubuntu']))
+        self.assertEqual(self.p.slot_content(), self.new)
+        rc, report = self.status()
+        self.assertEqual((rc, report['occupant'], report['store']['ubuntu']['equals_slot']), (0, 'ubuntu', True))
+        self.assertEqual({k: v for k, v in self.store().items() if k.startswith('android/')}, android)
 
 
 if __name__ == '__main__':
