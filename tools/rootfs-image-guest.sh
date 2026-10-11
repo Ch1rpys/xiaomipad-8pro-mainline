@@ -97,6 +97,15 @@ audit=$(chroot "$T" dpkg --audit)
 [ -z "$audit" ] || fail "dpkg --audit: $audit"
 rm -r "$T/var/cache/piano-install"
 
+step system locale
+# Set the system/greeter default only. Ubuntu GDM's PAM stack reads the
+# user's ~/.pam_environment (written by AccountsService/Initial Setup) later.
+# Do not force LANGUAGE or LC_ALL in GDM or the user environment.
+chroot "$T" locale-gen --keep-existing zh_CN.UTF-8 en_US.UTF-8
+chroot "$T" update-locale --reset LANG=zh_CN.UTF-8
+chroot "$T" locale -a >"$OUT/locales.txt"
+cp "$T/etc/locale.conf" "$OUT/locale.conf"
+
 step distribution kernels
 # Only the piano kernel boots this tablet.  The base's generic HWE kernel and
 # kdump (no crashkernel) would make every update download, rebuild initrds
