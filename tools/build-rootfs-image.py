@@ -7,9 +7,9 @@ mke2fs -d (libarchive), creating the ext4 at the full partition size.  A
 disposable QEMU ARM64 guest, whose own root is that SquashFS mounted
 read-only, then runs rootfs-image-guest.sh as root: the steps of
 docs/AGENT-GUIDE.md section 4.4 in a chroot of the target (policy-rc.d,
-SYSTEMD_OFFLINE=1 dpkg --install, distribution kernel hooks and dracut), the
-purge of the base's generic kernels and kdump, and the release boot image
-set.  The target never boots.
+SYSTEMD_OFFLINE=1 dpkg --install). Userspace packages are installed first,
+then the base's generic kernels and kdump are purged before the piano kernel
+runs dracut. Finally the guest prepares the release boot image set.  The target never boots.
 
 The image is for any unit: fstab and /etc/piano/layout.json name the fixed
 GPT partitions linux_rootfs and linux_data; the boot set is built with
@@ -20,6 +20,7 @@ no package indexes and no per-unit file in /etc/piano; the hostnames name the
 device model.  Outputs: root.ext4 (sparse),
 root.sparse.img (sparse_image.py encode-ext4: only used blocks are written,
 free blocks are DONT_CARE), SHA256SUMS, manifest.json, verification.json.
+The sparse image SHA-256 is the root identity; the raw image records size only.
 """
 import argparse
 import hashlib
@@ -28,6 +29,7 @@ import json
 import os
 from pathlib import Path
 import re
+import selectors
 import shutil
 import subprocess
 import tarfile
@@ -65,6 +67,52 @@ SERIALS = ('piano-helper', 'piano-target', 'piano-inputs', 'piano-result')
 # Ubuntu's package enables /dev/zram0 by default; without CONFIG_ZRAM the boot waits for
 # that device, so it goes with exactly the kernels that have zram.
 ZRAM_GENERATOR = 'systemd-zram-generator'
+
+
+def run_guest(command, out, timeout):
+    """Keep the original console and timestamp milestones with the host monotonic clock.
+
+    Package configuration and trigger messages expose the nested dpkg/dracut
+    work without changing the transaction or the installed maintainer scripts.
+    """
+    started = time.monotonic()
+    events = []
+    pending = b''
+    with (out / 'console.log').open('wb') as log, (out / 'guest-profile.jsonl').open('w') as profile:
+        with subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT) as proc, selectors.DefaultSelector() as selector:
+            selector.register(proc.stdout, selectors.EVENT_READ)
+            try:
+                while selector.get_map():
+                    if time.monotonic() - started > timeout:
+                        raise subprocess.TimeoutExpired(command, timeout)
+                    for key, _ in selector.select(timeout=1):
+                        buf = os.read(key.fd, 65536)
+                        if not buf:
+                            selector.unregister(key.fileobj)
+                            continue
+                        log.write(buf)
+                        log.flush()
+                        pending += buf
+                        while b'\n' in pending:
+                            line, pending = pending.split(b'\n', 1)
+                            line = line.decode(errors='replace').strip('\r')
+                            if re.match(r'(PIANO_ROOTFS_|Preparing to unpack |Unpacking |'
+                                        r'Setting up |Processing triggers for |/etc/kernel/postinst.d/|'
+                                        r'update-initramfs:|dracut(?:\[.*?\])?:)', line):
+                                event = {'elapsed_s': round(time.monotonic() - started, 3),
+                                         'utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+                                         'message': line}
+                                events.append(event)
+                                profile.write(json.dumps(event) + '\n')
+                                profile.flush()
+                                if line.startswith('PIANO_ROOTFS_STEP'):
+                                    print(f'{event["utc"]} guest +{event["elapsed_s"]}s {line}', flush=True)
+                return proc.wait(), events
+            finally:
+                if proc.poll() is None:
+                    proc.kill()
+                    proc.wait()
 
 
 def sha(path):
@@ -317,6 +365,7 @@ def main():
     env = dict(os.environ, MKE2FS_CONFIG=str(a.mke2fs_config.resolve()), LC_ALL='C.UTF-8', LANGUAGE='C')
     result = {'state': 'BUILDING', 'release_name': a.release_name, 'tool_sha256': sha(Path(__file__)),
               'guest_script_sha256': sha(Path(__file__).with_name('rootfs-image-guest.sh')),
+              'sparse_encoder_sha256': sha(Path(sparse_image.__file__)),
               'scope': ('Root filesystem image for any piano unit, built offline; not booted on a tablet by this tool'),
               'system_locale': {'LANG': 'zh_CN.UTF-8', 'generated': ['zh_CN.UTF-8', 'en_US.UTF-8']},
               'timings_seconds': {}}
@@ -326,6 +375,8 @@ def main():
 
     def lap(name, since):
         result['timings_seconds'][name] = round(time.monotonic() - since, 1)
+        print(f'{time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())} '
+              f'host {name}: {result["timings_seconds"][name]} s', flush=True)
         save()
         return time.monotonic()
 
@@ -385,9 +436,6 @@ def main():
                       packages=[d for _, d in debs],
                       tools={n: sha(getattr(a, n)) for n in ('sqfs2tar', 'mke2fs', 'mke2fs_config', 'e2fsck',
                                                              'debugfs', 'dumpe2fs', 'qemu')},
-                      img2simg_version=subprocess.run(['dpkg-query', '-W', '-f', '${Version}',
-                                                       'android-sdk-libsparse-utils'],
-                                                      capture_output=True, text=True).stdout or None,
                       root_partlabel=ROOT_PARTLABEL, data_partlabel=DATA_PARTLABEL, fstab=FSTAB, layout=LAYOUT)
         save()
 
@@ -448,8 +496,9 @@ def main():
                     tar.addfile(info, io.BytesIO(data))
             for name, data in epoch_files.items():
                 add(name, data)
-            for path, _ in debs:
-                add('debs/' + path.name.replace('%3a', '_'), path=path)
+            for path, entry in debs:
+                directory = 'kernel/' if entry['package'] == kernel['Package'] else 'debs/'
+                add(directory + path.name.replace('%3a', '_'), path=path)
         result_disk = out / 'result.raw'
         with result_disk.open('xb') as f:
             f.truncate(1 << 30)
@@ -474,10 +523,7 @@ def main():
         print(f'Installing the packages in a QEMU guest (budget {a.timeout} s); progress in {out}/console.log',
               flush=True)
         try:
-            with (out / 'console.log').open('wb') as log:
-                proc = subprocess.run(command, stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
-                                      timeout=a.timeout)
-            result['guest_returncode'] = proc.returncode
+            result['guest_returncode'], result['guest_profile'] = run_guest(command, out, a.timeout)
         except subprocess.TimeoutExpired:
             result.update(guest_returncode=None, guest_timed_out=True)
         finally:
@@ -542,10 +588,11 @@ def main():
         if found:
             raise RuntimeError(f'Sparse image check failed: {found}')
         t = lap('img2simg', t)
-        outputs = {n: {'bytes': (out / n).stat().st_size, 'sha256': sha(out / n)}
-                   for n in ('root.ext4', 'root.sparse.img')}
-        outputs['root.ext4']['allocated_bytes'] = final.stat().st_blocks * 512
-        (out / 'SHA256SUMS').write_text(''.join(f'{v["sha256"]}  {n}\n' for n, v in outputs.items()))
+        outputs = {
+            'root.ext4': {'bytes': final.stat().st_size, 'allocated_bytes': final.stat().st_blocks * 512},
+            'root.sparse.img': {'bytes': (out / 'root.sparse.img').stat().st_size,
+                                'sha256': sha(out / 'root.sparse.img')}}
+        (out / 'SHA256SUMS').write_text(f'{outputs["root.sparse.img"]["sha256"]}  root.sparse.img\n')
         t = lap('hash', t)
         result.update(state='ROOT_IMAGE_BUILT_OFFLINE_CHECKS_PASS_NOT_BOOTED', outputs=outputs,
                       verification_sha256=sha(out / 'verification.json'),

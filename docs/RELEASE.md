@@ -31,7 +31,10 @@ The `linux_data` (`/home`) filesystem is not shipped; it is created at install t
 - The piano packages above, `openssh-server` for developer mode, and the updated `dracut`, all
   installed by `dpkg --install` in a chroot with `policy-rc.d` and `SYSTEMD_OFFLINE=1`
   ([AGENT-GUIDE.md](AGENT-GUIDE.md) §4.4). The kernel postinst runs Ubuntu's dracut hook
-  (initrd with the `99piano` module) and the piano hook.
+  (initrd with the `99piano` module) and the piano hook. Userspace packages are installed first,
+  the generic kernels/kdump and their hooks are then purged, and the piano kernel is installed last.
+  The existing temporary `update_initramfs=no` suppresses the dracut upgrade trigger; the kernel
+  postinst generates exactly one initrd. `guest/install.log` and `guest/dpkg.log` record the transaction.
 - `/etc/fstab` and `/etc/piano/layout.json` naming the fixed GPT partitions, so the image fits any unit:
   ```
   PARTLABEL=linux_rootfs / ext4 defaults,noatime 0 1
@@ -98,7 +101,7 @@ python3 tools/prepare-ubuntu-apt.py --rootfs out/ubuntu-desktop-pristine/ubuntu-
   --snapshot 20261001T000000Z --output out/apt-release --mozilla-firefox \
   --download dracut device-tree-compiler openssh-server fake-hwclock systemd-zram-generator
 # 2. The piano packages (AGENT-GUIDE.md §3.4, §3.5)
-# 3. The root image and the boot set; about 35 minutes, most of it in the QEMU guest
+# 3. The root image and the boot set; measured stage times are recorded below
 python3 tools/build-rootfs-image.py \
   --squashfs out/ubuntu-desktop-pristine/ubuntu-desktop.squashfs --squashfs-sha256 <sha256> \
   --sqfs2tar <sqfs2tar> --mke2fs <mke2fs> --mke2fs-config <mke2fs.conf> --e2fsck <e2fsck> --debugfs <debugfs> \
@@ -137,15 +140,20 @@ python3 tools/build-release.py --rootfs-build out/rootfs-<version> \
   `zram_generator_matches_kernel`, `device_hostnames`, `fake_hwclock_data`, `apt_lists_empty` and the
   fake-hwclock units; the guest itself fails if another kernel package, `/boot` file or modules tree
   remains or `apt autoremove` would still remove a package), and writes `root.sparse.img`,
-  `SHA256SUMS` and `manifest.json`. The image is not byte-reproducible: dpkg and dracut record times,
+  `SHA256SUMS` and `manifest.json`. Root identity is the SHA-256 of `root.sparse.img`;
+  `outputs["root.ext4"]` records only raw size and allocated bytes, and `SHA256SUMS` lists only
+  the sparse image. The optional QEMU receipt uses `rootfs_sparse_sha256`, which release assembly
+  compares with `outputs["root.sparse.img"]["sha256"]`; old raw-hash receipts must be regenerated.
+  The image is not byte-reproducible: dpkg and dracut record times,
   and dracut initrds differ between runs.
 - `--forbid-file` makes `build-release.py` scan every output for identifiers of your unit (serial,
   Bluetooth and Wi-Fi address in text and binary forms). The files are read, never copied or recorded;
   the scan does not see inside compressed files.
 - `root.sparse.img` comes from [tools/sparse_image.py](../tools/sparse_image.py) `encode-ext4`: the
   holes of `root.ext4` are made exactly its zero free blocks (zeros are written into holes of used
-  blocks such as the inode tables and journal, which ext4 trusts to be zero), then `img2simg -s`
-  stores the holes as DONT_CARE; the bytes of `root.ext4` do not change. Fastboot writes RAW and FILL
+  blocks such as the inode tables and journal, which ext4 trusts to be zero). The encoder reads
+  8 MiB at a time and writes the same RAW/FILL/DONT_CARE bytes as `img2simg -s`, merging runs
+  across read boundaries and filling in chunk headers after streaming their payload; the bytes of `root.ext4` do not change. Fastboot writes RAW and FILL
   blocks only, so the tablet writes the used blocks (about 9.4 GiB for v0.1.0-preview) instead of
   60 GiB. Blocks freed in the guest keep their old content and would be RAW, so the guest ends with
   `fstrim` on the target, which QEMU opens with `discard=unmap`: on the root of a 7.2.6-piano7 check

@@ -5,9 +5,9 @@
 # docs/AGENT-GUIDE.md section 4.4 to the target ext4 on a second disk: image
 # policy, /etc/piano/layout.json and fstab, then dpkg --install in a chroot
 # with policy-rc.d and SYSTEMD_OFFLINE=1, so the distribution kernel hooks run
-# dracut and the piano hooks inside the target, and purges the base's generic
-# kernels and kdump.  It then builds the release boot image set into the
-# store and removes per-machine state and the base's package indexes.  The target
+# dracut and the piano hooks inside the target. The base's generic kernels
+# and kdump are purged before the piano kernel is installed. It then builds
+# the release boot image set into the store and removes per-machine state and the base's package indexes.  The target
 # never boots.  Inputs are a tar on the third disk, results a tar on the fourth.
 set -eu
 IN=/run/piano-inputs
@@ -31,7 +31,7 @@ finish() {
 	sync
 	exit "$status"
 }
-step() { echo "PIANO_ROOTFS_STEP $*"; }
+step() { echo "PIANO_ROOTFS_STEP $(date -u +%Y-%m-%dT%H:%M:%SZ) $*"; }
 fail() { echo "PIANO_ROOTFS_FAIL $*"; exit 1; }
 
 # Fail closed on the disk order before anything is written.
@@ -85,7 +85,7 @@ mount --bind /dev/pts "$T/dev/pts"; mounted="$T/dev/pts $mounted"
 mount -t tmpfs -o mode=755 tmpfs "$T/run"; mounted="$T/run $mounted"
 mount -t tmpfs -o mode=1777 tmpfs "$T/tmp"; mounted="$T/tmp $mounted"
 
-step install packages
+step package policy
 [ ! -e "$T/usr/sbin/policy-rc.d" ] || fail 'the base already has policy-rc.d'
 printf '#!/bin/sh\nexit 101\n' >"$T/usr/sbin/policy-rc.d"
 chmod 755 "$T/usr/sbin/policy-rc.d"
@@ -94,22 +94,18 @@ chmod 755 "$T/usr/sbin/policy-rc.d"
 # setting, present only while the packages are installed.
 [ ! -e "$T/etc/initramfs-tools/update-initramfs.conf" ] || fail 'update-initramfs.conf already exists'
 printf 'update_initramfs=no\n' >"$T/etc/initramfs-tools/update-initramfs.conf"
+# Install the userspace packages first: piano-device-support retains the base's
+# automatic device-tree-compiler/libfdt1 dependency during autoremove. The
+# dracut upgrade trigger is suppressed above; the kernel is in a separate TAR
+# directory so its postinst cannot run until the generic/kdump hooks are gone.
+step install userspace packages
 install -d "$T/var/cache/piano-install"
 cp "$IN"/debs/*.deb "$T/var/cache/piano-install/"
 chroot "$T" /usr/bin/env SYSTEMD_OFFLINE=1 DEBIAN_FRONTEND=noninteractive \
 	/bin/sh -c 'dpkg --install /var/cache/piano-install/*.deb' </dev/null
 audit=$(chroot "$T" dpkg --audit)
 [ -z "$audit" ] || fail "dpkg --audit: $audit"
-rm -r "$T/var/cache/piano-install"
-
-step system locale
-# Set the system/greeter default only. Ubuntu GDM's PAM stack reads the
-# user's ~/.pam_environment (written by AccountsService/Initial Setup) later.
-# Do not force LANGUAGE or LC_ALL in GDM or the user environment.
-chroot "$T" locale-gen --keep-existing zh_CN.UTF-8 en_US.UTF-8
-chroot "$T" update-locale --reset LANG=zh_CN.UTF-8
-chroot "$T" locale -a >"$OUT/locales.txt"
-cp "$T/etc/locale.conf" "$OUT/locale.conf"
+rm "$T"/var/cache/piano-install/*.deb
 
 step distribution kernels
 # Only the piano kernel boots this tablet.  The base's generic HWE kernel and
@@ -134,6 +130,24 @@ chroot "$T" /usr/bin/env SYSTEMD_OFFLINE=1 DEBIAN_FRONTEND=noninteractive \
 df -B1 --output=used "$T" | tail -1 >"$OUT/used-bytes-after-purge.txt"
 audit=$(chroot "$T" dpkg --audit)
 [ -z "$audit" ] || fail "dpkg --audit after the purge: $audit"
+
+step install piano kernel
+cp "$IN"/kernel/*.deb "$T/var/cache/piano-install/"
+chroot "$T" /usr/bin/env SYSTEMD_OFFLINE=1 DEBIAN_FRONTEND=noninteractive \
+	/bin/sh -c 'dpkg --install /var/cache/piano-install/*.deb' </dev/null
+audit=$(chroot "$T" dpkg --audit)
+[ -z "$audit" ] || fail "dpkg --audit after the kernel: $audit"
+rm -r "$T/var/cache/piano-install"
+
+step system locale
+# Set the system/greeter default only. Ubuntu GDM's PAM stack reads the
+# user's ~/.pam_environment (written by AccountsService/Initial Setup) later.
+# Do not force LANGUAGE or LC_ALL in GDM or the user environment.
+chroot "$T" locale-gen --keep-existing zh_CN.UTF-8 en_US.UTF-8
+chroot "$T" update-locale --reset LANG=zh_CN.UTF-8
+chroot "$T" locale -a >"$OUT/locales.txt"
+cp "$T/etc/locale.conf" "$OUT/locale.conf"
+
 left=$(chroot "$T" dpkg-query -W -f '${db:Status-Abbrev} ${Package}\n' 'linux-image-*' 'linux-modules-*' \
 	'linux-headers-*' 'kdump-tools' 2>/dev/null | awk 'substr($1, 2, 1) != "n" && $2 != "linux-image-'"$RELEASE"'" { print $2 }')
 [ -z "$left" ] || fail "kernel packages left besides linux-image-$RELEASE: $left"
@@ -149,6 +163,8 @@ for link in vmlinuz vmlinuz.old initrd.img initrd.img.old; do
 done
 [ "$(ls "$T/usr/lib/modules")" = "$RELEASE" ] || fail "/usr/lib/modules has another kernel: $(ls "$T/usr/lib/modules")"
 rm "$T/usr/sbin/policy-rc.d" "$T/etc/initramfs-tools/update-initramfs.conf"
+[ "$(grep -c '^dracut: Generating ' "$OUT/install.log")" = 1 ] || fail 'expected exactly one dracut generation'
+grep -Fx "dracut: Generating /boot/initrd.img-$RELEASE" "$OUT/install.log" >/dev/null || fail 'wrong dracut kernel'
 [ -f "$T/boot/initrd.img-$RELEASE" ] || fail "no initrd for $RELEASE"
 
 step services
@@ -184,10 +200,12 @@ find "$T/var/lib/apt/lists" -mindepth 1 -maxdepth 1 -type f ! -name lock -delete
 # Discard the free blocks (the purged kernels, dpkg and dracut leftovers keep
 # their old content): the host punches them out of the image file
 # (discard=unmap), and sparse_image.py writes only zero free blocks as DONT_CARE.
+step fstrim
 fstrim -v "$T"
 rm -rf "$T"/var/log/journal/*
 
 step report
+cp "$T/var/log/dpkg.log" "$OUT/dpkg.log"
 chroot "$T" dpkg-query -W -f '${db:Status-Abbrev}|${Package}|${Version}|${Architecture}\n' >"$OUT/dpkg-query.txt"
 for u in piano-devmode.service piano-devmode-ssh.socket ssh.socket ssh.service piano-slot-success.service \
 		piano-debug.service piano-debug-timeout.service gdm.service; do

@@ -59,7 +59,7 @@ def main():
     out.mkdir(parents=True, exist_ok=False)
     image = build / 'root.ext4'
     result = {'state': 'RUNNING', 'tool_sha256': sha(Path(__file__)), 'rootfs_manifest_sha256': sha(build / 'manifest.json'),
-              'rootfs_sha256': manifest['outputs']['root.ext4']['sha256'],
+              'rootfs_sparse_sha256': manifest['outputs']['root.sparse.img']['sha256'],
               'scope': 'QEMU virt with the image kernel, initrd and fstab; not piano hardware'}
 
     def save():

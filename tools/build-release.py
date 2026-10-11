@@ -215,7 +215,7 @@ def main():
                  'QEMU boot (no piano hardware): see `rootfs/qemu-boot-check.json`.')
     if a.boot_check:
         check = json.loads(a.boot_check.read_text())
-        if check.get('rootfs_sha256') != rootfs['outputs']['root.ext4']['sha256']:
+        if check.get('rootfs_sparse_sha256') != rootfs['outputs']['root.sparse.img']['sha256']:
             raise SystemExit('The QEMU boot check belongs to another image')
         shutil.copy2(a.boot_check, out / 'rootfs/qemu-boot-check.json')
     local = json.loads((build / 'inputs-local.json').read_text())
