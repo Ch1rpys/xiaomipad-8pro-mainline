@@ -203,6 +203,16 @@ The boot profile is reduced to the stock-build fields before use. The image has 
 machine ID, no SSH host keys and no file of any unit; it is not byte-reproducible because dpkg and
 dracut record times.
 
+### Building the root on GitHub Actions
+
+The native ARM64 workflow is not implemented yet. Its input preflight on 2026-10-11 found no
+download URL lock for the pristine merged Desktop SquashFS
+(`35f9b475e79de3ba87da4bbe957778d6d5f9637ce27d9267ed6b98d48b6fb0bc`). The documented
+Ubuntu URL supplies the original ISO; the SquashFS above is the output of the two-layer merge in
+step 7. It is not an asset of `v0.1.0-preview`. A published URL for that exact input is required
+before the requested download-based workflow can be run. No Actions build, native chroot build,
+root verification or timing result is claimed by this preflight.
+
 ## 8. Release directory
 
 Optionally boot the image in QEMU with `check-rootfs-boot.py`, then assemble the release:
