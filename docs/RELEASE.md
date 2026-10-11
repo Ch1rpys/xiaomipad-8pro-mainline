@@ -95,7 +95,7 @@ QEMU `qemu-system-aarch64` (TCG), squashfs-tools-ng 1.2 `sqfs2tar`, and e2fsprog
 #    piano-ubuntu-desktop 0.1+20261010.6, systemd-zram-generator only for a kernel with CONFIG_ZRAM
 #    (7.2.6-piano7 and later; build-rootfs-image.py refuses a mismatch)
 python3 tools/prepare-ubuntu-apt.py --rootfs out/ubuntu-desktop-pristine/ubuntu-desktop.squashfs \
-  --snapshot 20261001T000000Z --output out/apt-release \
+  --snapshot 20261001T000000Z --output out/apt-release --mozilla-firefox \
   --download dracut device-tree-compiler openssh-server fake-hwclock systemd-zram-generator
 # 2. The piano packages (AGENT-GUIDE.md §3.4, §3.5)
 # 3. The root image and the boot set; about 35 minutes, most of it in the QEMU guest

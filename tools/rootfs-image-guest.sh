@@ -55,6 +55,11 @@ step image policy
 install -m 644 "$IN/files/etc/apt/sources.list.d/ubuntu.sources" "$T/etc/apt/sources.list.d/ubuntu.sources"
 [ -f "$T/etc/apt/sources.list.d/cdrom.sources" ] || fail 'no CD-ROM source to remove'
 rm "$T/etc/apt/sources.list.d/cdrom.sources"
+install -D -m 644 "$IN/firefox/mozilla.sources" "$T/etc/apt/sources.list.d/mozilla.sources"
+install -D -m 644 "$IN/firefox/mozilla.pref" "$T/etc/apt/preferences.d/mozilla"
+install -D -m 644 "$IN/firefox/packages.mozilla.org.asc" "$T/etc/apt/keyrings/packages.mozilla.org.asc"
+# Keep the official preseed and installed snap state intact. The desktop
+# package's oneshot removes Firefox only after snapd.seeded on the first boot.
 : >"$T/etc/cloud/cloud-init.disabled"
 chmod 644 "$T/etc/cloud/cloud-init.disabled"
 # A device name instead of the base's localhost.localdomain.  GNOME Initial
@@ -122,7 +127,7 @@ kernels=$(chroot "$T" dpkg-query -W -f '${db:Status-Abbrev} ${Package}\n' | awk 
 [ -n "$kernels" ] || fail 'no distribution kernel packages found'
 echo "purging:" $kernels
 df -B1 --output=used "$T" | tail -1 >"$OUT/used-bytes-before-purge.txt"
-chroot "$T" apt-mark manual linux-firmware
+chroot "$T" apt-mark manual linux-firmware firefox
 # shellcheck disable=SC2086 # one word per package name
 chroot "$T" /usr/bin/env SYSTEMD_OFFLINE=1 DEBIAN_FRONTEND=noninteractive \
 	apt-get --yes --purge --autoremove remove $kernels </dev/null

@@ -177,20 +177,20 @@ the result offline and writes `root.sparse.img`; it takes about 35 minutes. The 
 ```bash
 python3 tools/prepare-ubuntu-apt.py --rootfs out/ubuntu-desktop-pristine/ubuntu-desktop.squashfs \
   --snapshot <YYYYMMDDTHHMMSSZ> --output out/apt-release \
-  --download dracut device-tree-compiler openssh-server fake-hwclock systemd-zram-generator
+  --mozilla-firefox --download dracut device-tree-compiler openssh-server fake-hwclock systemd-zram-generator
 python3 tools/build-rootfs-image.py --squashfs out/ubuntu-desktop-pristine/ubuntu-desktop.squashfs ... \
   --boot-profile <boot-profile.json> --boot-key <release signing key> --output out/rootfs-<version>
 # expect "state": "ROOT_IMAGE_BUILT_OFFLINE_CHECKS_PASS_NOT_BOOTED"
 ```
 
-Firefox APT inputs are prepared in [ubuntu/firefox/source.json](../ubuntu/firefox/source.json)
-for the unmodified ARM64 deb from [Mozilla](https://support.mozilla.org/en-US/kb/install-firefox-linux),
-so a future image can use its own Mesa stack instead of the snap graphics runtime.
-`prepare-ubuntu-apt.py --mozilla-firefox` verifies the pinned key, archived signed index and package
-hashes with priority 1000. **This is not enabled in the image builder:** the frozen Desktop base is
-already snap-preseeded, with Firefox 8105 registered in `state.json`, an installed snap and pending
-hooks. Editing only `seed.yaml` and its payloads cannot remove that installed snap; the seed-only
-migration stopped before building an image. No Firefox GPU or device result is claimed.
+Firefox is the unmodified ARM64 deb from [Mozilla's APT repository](https://support.mozilla.org/en-US/kb/install-firefox-linux),
+so it can use the image's Mesa stack. `--mozilla-firefox` authenticates the key, archived signed index
+and exact package version/hash in [ubuntu/firefox/source.json](../ubuntu/firefox/source.json); the image
+retains the Mozilla source and priority 1000 for updates. The official preseeded Firefox snap and
+snapd state remain untouched during construction. After first-boot seeding, the desktop package's
+`piano-firefox-snap-remove.service` removes only Firefox with `snap remove --purge`, marks success
+and has a five-minute timeout. It does not delay the display manager. The dock uses `firefox.desktop`;
+Thunderbird remains a snap. Snap removal and Firefox GPU rendering require a device test.
 
 `fake-hwclock` is a dependency of piano-ubuntu-desktop 0.1+20261010.6. Download
 `systemd-zram-generator` only for a kernel with `CONFIG_ZRAM` (7.2.6-piano7 and later): without the

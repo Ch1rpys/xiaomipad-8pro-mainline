@@ -38,7 +38,7 @@
       "ubuntu/firefox/source.json",
       "tools/prepare-ubuntu-apt.py"
     ],
-    "changes": "Only the input lock and isolated APT resolution are retained, with archived signed indexes. The seed-only image migration is blocked by the already-preseeded Desktop base."
+    "changes": "Archive signed ARM64 indexes for reproducible APT resolution. The image installs the deb; the desktop package supplies a bounded first-boot snap removal and native Firefox dock launcher."
   },
-  "image_integration_status": "BLOCKED: frozen Desktop SquashFS has preseeded=true and an active registered Firefox 8105; seed-only editing does not remove installed snap state."
+  "image_integration_status": "Install the locked Mozilla deb during image construction; preserve all preseeded snap state. piano-firefox-snap-remove.service removes the Firefox snap after snapd.seeded on first boot."
 }

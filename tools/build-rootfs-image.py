@@ -57,6 +57,7 @@ PROFILE_FIELDS = {
 }
 PIANO_PACKAGES = ('piano-device-support', 'piano-local-firmware', 'piano-mesa', 'piano-ubuntu-desktop')
 UNITS_ENABLED = {'piano-slot-success.service': 'enabled', 'piano-devmode.service': 'disabled',
+                 'piano-firefox-snap-remove.service': 'enabled',
                  'ssh.socket': 'disabled', 'ssh.service': 'disabled',
                  'fake-hwclock-load.service': 'enabled', 'fake-hwclock-save.service': 'enabled',
                  'fake-hwclock-save.timer': 'enabled'}
@@ -243,12 +244,18 @@ def verify(fs, scratch, expected_packages, release, caps, set_hashes, boot_hashe
     checks['apt_policy'] = (fs.cat('/etc/apt/sources.list.d/ubuntu.sources') == (REPO / 'ubuntu/26.04.sources').read_bytes()
                             and not fs.exists('/etc/apt/sources.list.d/cdrom.sources')
                             and fs.exists('/etc/cloud/cloud-init.disabled'))
+    checks['mozilla_policy'] = all(fs.cat(dest) == (REPO / 'ubuntu/firefox' / source).read_bytes()
+        for source, dest in [('mozilla.sources', '/etc/apt/sources.list.d/mozilla.sources'),
+                             ('mozilla.pref', '/etc/apt/preferences.d/mozilla'),
+                             ('packages.mozilla.org.asc', '/etc/apt/keyrings/packages.mozilla.org.asc')])
+    checks['firefox_removal_pending_first_boot'] = not fs.exists('/var/lib/piano/firefox-snap-removed')
     checks['apt_caches_clean'] = not [n for n in fs.names('/var/cache/apt/archives') or [] if n.endswith('.deb')] and not any(
         fs.exists('/var/cache/apt/' + n) for n in ('pkgcache.bin', 'srcpkgcache.bin'))
     checks['apt_lists_empty'] = set(fs.names('/var/lib/apt/lists') or []) <= {'auxfiles', 'lock', 'partial'}
     journal = fs.names('/var/log/journal')
     checks['journal_empty'] = journal in (None, [])
     wants = {
+        'piano-firefox-snap-remove.service': '/etc/systemd/system/multi-user.target.wants/piano-firefox-snap-remove.service',
         'piano-slot-success.service': '/etc/systemd/system/multi-user.target.wants/piano-slot-success.service',
         'piano-devmode.service': '/etc/systemd/system/usb-gadget.target.wants/piano-devmode.service',
         'ssh.socket': '/etc/systemd/system/sockets.target.wants/ssh.socket',
@@ -333,6 +340,11 @@ def main():
         apt = json.loads(a.apt_manifest.read_text())
         if apt['state'] != 'DOWNLOADED_NOT_INSTALLED' or apt['rootfs_sha256'] != a.squashfs_sha256:
             raise ValueError('APT manifest must be a download resolved against this SquashFS')
+        firefox = json.loads((REPO / 'ubuntu/firefox/source.json').read_text())
+        browser = [d for d in apt['debs'] if d['package'] == 'firefox']
+        if len(browser) != 1 or any(browser[0][k] != firefox[k]
+                                    for k in ('version', 'architecture', 'sha256', 'bytes')):
+            raise ValueError('APT manifest needs --mozilla-firefox with the locked Mozilla package')
         debs = []
         for entry in apt['debs']:
             path = a.apt_manifest.parent / entry['file']
@@ -340,7 +352,7 @@ def main():
                 raise ValueError(f'APT package changed after download: {path.name}')
             debs.append((path, {'package': entry['package'], 'version': entry['version'],
                                 'architecture': entry['architecture'], 'file': path.name, 'sha256': entry['sha256'],
-                                'source': f'Ubuntu snapshot {apt["snapshot"]}'}))
+                                'source': entry.get('source', f'Ubuntu snapshot {apt["snapshot"]}')}))
         kernel = deb_fields(a.kernel_deb)
         match = re.fullmatch(r'linux-image-(.+-piano[0-9]+)', kernel['Package'])
         if not match:
@@ -365,6 +377,7 @@ def main():
             raise ValueError(f'Need exactly one of each package and all of {PIANO_PACKAGES}')
         result.update(kernel_release=release, kernel_config_zram=kernel_zram, squashfs_sha256=a.squashfs_sha256,
                       apt_manifest_sha256=sha(a.apt_manifest), apt_snapshot=apt['snapshot'],
+                      mozilla_firefox=firefox,
                       boot_profile_sha256=sha(out / 'boot-profile.json'),
                       boot_key_public_sha256=hashlib.sha256(subprocess.check_output(
                           ['openssl', 'pkey', '-in', str(a.boot_key), '-pubout', '-outform', 'DER'])).hexdigest(),
@@ -420,6 +433,8 @@ def main():
             'release/boot-profile.json': (out / 'boot-profile.json').read_bytes(),
             'release/boot-signing.pem': a.boot_key.read_bytes(),
         }
+        for name in ('mozilla.sources', 'mozilla.pref', 'packages.mozilla.org.asc'):
+            epoch_files['firefox/' + name] = (REPO / 'ubuntu/firefox' / name).read_bytes()
         with tarfile.open(inputs, 'w', format=tarfile.PAX_FORMAT) as tar:
             def add(name, data=None, path=None):
                 info = tarfile.TarInfo(name)

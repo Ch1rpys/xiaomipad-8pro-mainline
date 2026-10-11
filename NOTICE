@@ -377,7 +377,7 @@ packaging/piano-device-support/usr/share/polkit-1/actions/io.github.piano.switch
   polkit-1/actions/io.github.liuqin.switch.policy of the same liuqin commit
   (MIT). Changes: piano program path and texts, auth_admin_keep.
 
-Mozilla Firefox APT inputs (not enabled in the root image builder):
+Mozilla Firefox in generated root images:
   ubuntu/firefox/source.json records the official Mozilla APT repository,
   upstream version/source URL, package and signing-key hashes, and provenance
   of the integration policy (MIT). InRelease and Packages are the unmodified

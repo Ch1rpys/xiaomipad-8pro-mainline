@@ -127,6 +127,9 @@ This release supports stock $stock_build on slot A only. Do not install its preb
 
 ## Known limitations
 
+- Firefox is the Mozilla deb. Its preseeded snap is removed after first-boot seeding;
+  removal and the Firefox Adreno rendering path still require device validation.
+
 - Volume keys are not yet working.
 - The console-setup unit fails after Initial Setup (text console only).
 - The clock is behind until the tablet is online.
