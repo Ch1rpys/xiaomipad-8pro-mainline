@@ -232,3 +232,61 @@ address, and kernel package updates leave the boot set unchanged. Use the magnet
   `root.sparse.img` (`4dec44ac…`; no FILL and 18.6 MB of RAW on free blocks). It has not been booted,
   in QEMU or on a tablet.
 - The v0.1.0-preview release artefacts (piano5 root) were installed from scratch on the test unit twice on 2026-10-10 (INSTALL steps 1, 6, 7, 8a, 9, 10, Initial Setup, switching, cold-boot acceptance); the piano7 build above has not been flashed yet.
+
+## Measured root build time (2026-10-11)
+
+The SPEED2 build used the same preview-5 inputs: Desktop SquashFS `35f9b475e79de3ba…`,
+APT snapshot `20261001T000000Z` (manifest `b62fc78752154a7e…`), kernel 7.2.6-piano7,
+support 0.1+20261010.8, desktop 0.1+20261010.7, firmware 0.4+os3.0.303.0, and Mesa
+0.1+20261010.4. Input hashes and the complete 1,717-row dpkg inventory matched.
+The host used ARM64 full-system TCG, eight virtual CPUs and 4096 MiB guest RAM.
+Other host jobs and changing disk load make this an observed comparison, not an isolated benchmark.
+Only one complete SPEED2 build was run; there is no distro cache layer.
+
+The builder prints host laps and guest milestones. `guest-profile.jsonl` uses the host monotonic
+clock for package/trigger/dracut boundaries; `manifest.json` retains the stage times.
+
+| Stage | Prior instrumented build (s) | SPEED2 (s) |
+|---|---:|---:|
+| Base scan | 21.4 | 23.2 |
+| Populate ext4 | 415.1 | 116.8 |
+| Guest, including input preparation/startup/shutdown | 1864.5 | 2315.6 |
+| e2fsck | 1.1 | 1.4 |
+| Root checks | 1.2 | 1.9 |
+| Sparse conversion | 173.1 | 155.6 |
+| Image hashes | 175.4 | 25.3 |
+| Total | 2662.4 | 2650.9 |
+
+**The 25-minute target was missed:** 44 min 10.9 s, only 11.5 s less than the prior build.
+The total includes input verification outside the listed laps. The guest took 451.1 s longer;
+its purge stage was 509.5 s (previously about 414.5 s), and its one dracut generation took
+979.1 s (the previous kernel trigger including dracut took about 850 s).
+Reordering did not remove that cost. Both builds generated one piano7 initrd; the new build
+proves that all 47 removed packages reached `not-installed` before the piano kernel installation.
+`dpkg.log` has no separate `purge` action for packages without remaining conffiles.
+
+The root now hashes only `root.sparse.img`: the hash lap fell from 175.4 s to 25.3 s.
+A separate full-image encoder comparison on the same expanded preview-5 `root.ext4` took
+402.324 s with `git show main:tools/sparse_image.py` and 355.745 s with the new encoder
+(excluding the subsequent SHA comparison). Both outputs were 7,580,046,304 bytes with SHA-256
+`09726cacf654666b02aaa9510f349df01e2bae35ac3f3d740c219aaa9d71eea7`.
+The encoder preserves libsparse's 64 MiB RAW/FILL chunk limit as well as its block classification.
+The finished SPEED2 root passed all 31 checks (the original 29 plus main's two locale checks),
+with zero FILL bytes on free blocks and zero DONT_CARE bytes on used blocks.
+
+The performance reference predates main's Chinese locale default (`c0c17fb`). SPEED2 retains
+that default; it cannot be described as differing from preview-5 only in console-setup's random
+tmpkbd filename. The full filesystem comparison also found the two empty kernel-trigger directories
+left by installing the piano kernel last, plus build logs/time data and generated boot files.
+The initrd lost ten non-tmpkbd members formerly supplied by purged packages: `kexec`, `fsck.ubifs`,
+`liblzo2` and development-library links, and the generic-kernel blacklist; its `ld.so.cache` changed.
+The requested strict content identity gate therefore did not pass.
+
+Cold QEMU boot with each image's own kernel/initrd and GPT partition labels was tested before
+and after the change, using the isolated `kernel-command-line.target`. The preview-5 control
+passed in 323.9 s. The first SPEED2 boot mounted root and enabled zram, but timed out waiting
+for `linux_data` and entered emergency mode. A single replay with the same immutable disks
+and identical QEMU settings passed in 286.9 s, with root/home mounted, zero failed units and a
+clean poweroff. The first failure remains evidence; repeatability and its cause are unresolved.
+Neither full GNOME/multi-user startup nor any tablet behavior was verified in this task.
+No release was published, and the performance/content gates are not declared accepted.
