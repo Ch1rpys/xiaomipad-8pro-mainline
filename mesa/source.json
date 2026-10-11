@@ -4,5 +4,10 @@
   "commit": "9f0a761020bca92f2b07156a0621e5360cb8eca5",
   "patch": "mesa/a830-speedbin.patch",
   "prefix": "/opt/piano/mesa-26.2.0",
-  "scope": "Isolated ARM64 diagnostic userspace; not the default Ubuntu graphics stack or a hardware support claim"
+  "scope": "Isolated ARM64 diagnostic userspace; not the default Ubuntu graphics stack or a hardware support claim",
+  "version": "26.2.0",
+  "archive": "mesa-26.2.0.tar",
+  "archive_sha256": "944a85a89e5b05566cf4b2eb56d9917148a25d51261f75b5edaaed8d5fea738e",
+  "patch_sha256": "20747400dd76d2b1177d74f70961c1379ab8af866636032df0082365c84a5398",
+  "archive_note": "git archive --format=tar --prefix=mesa-26.2.0/ of the pinned commit; gpu-2404 uses the same source and patch as the desktop deb."
 }

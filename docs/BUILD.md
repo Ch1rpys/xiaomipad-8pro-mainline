@@ -246,3 +246,47 @@ python3 tools/build-release.py --rootfs-build out/rootfs-<version> \
 `--forbid-file` scans every output for identifiers of your unit. The release must be on the same
 filesystem as the root image build. Layout, contents and installation: [RELEASE.md](RELEASE.md) and
 [INSTALL.md](INSTALL.md).
+
+## Graphics for core24 snaps
+
+`piano-snap-graphics` supplies one `piano-mesa-2404` content provider for installed
+`gpu-2404` consumers. This gives those strict snaps the A830 Mesa without replacing
+each application with a deb. The existing Mozilla Firefox deb policy is unchanged;
+`mesa-2404` stays installed for rollback. The provider uses the desktop's exact
+`mesa/source.json` commit and patch, compiled against the separately locked
+`mesa/snap/core24-sdk.json` ABI. Imported tooling provenance and its GPL-2.0-only
+licence are recorded in `mesa/snap/provenance.json`.
+
+```bash
+python3 tools/build-mesa-root.py --target gpu-2404 --native-nir \
+  --mesa-source <Mesa Git checkout> --cache out/gpu-snap-inputs \
+  --work out/gpu-snap-build --output out/gpu-snap-package --jobs 6
+python3 tools/validate-mesa-snap.py --build out/gpu-snap-package \
+  --sdk-root out/gpu-snap-build/root \
+  --base out/gpu-snap-inputs/ubuntu-base-24.04.4-base-arm64.tar.gz \
+  --output out/gpu-snap-validation --core24 <frozen-core24-arm64.snap>
+python3 tools/build-device-debs.py --snap-graphics-only \
+  --snap-graphics-build out/gpu-snap-package --output out/gpu-snap-deb \
+  --version 0.1+<YYYYMMDD>.<n>
+```
+
+The build needs qemu-user ARM64 binfmt and unprivileged user namespaces; native
+NIR generation needs the SDK Python minor version (3.12), Mako, MarkupSafe and
+Ninja on the host (`--ninja /path/to/ninja` if it is not on PATH). Target compilation stays in the pinned ARM64 SDK. `--resume`
+continues that attempt's frozen recipe, without changing its inputs. The offline
+pixel check explicitly requires softpipe and is not a GPU or sandbox test.
+
+Pass the resulting deb as one additional `--deb` to `build-rootfs-image.py` along
+with the existing device packages. Its postinst only enables the unit. On the
+first boot, `piano-snap-graphics.service` waits for `snapd.seeded.service`, installs
+the local snap with `--dangerous`, then connects all installed `gpu-2404` plugs. After each new connection succeeds,
+it disconnects that plug from its previous slots: content connections are additive,
+and leaving both providers attached can move the new mount to `gpu-2404-2`, which
+the consumer wrapper does not use. The previous provider snaps stay installed.
+It records completion only after success, has a five-minute bound and no retries.
+After installing a new snap, run `sudo piano-snap-graphics-connect`, then close
+and reopen that application. Consumer refreshes retain manual connections;
+new consumers are not automatically intercepted. When consumers move to
+`gpu-2604`/core26, rebuild a provider for that ABI/interface before connecting them;
+this core24 provider does not serve `gpu-2604`. Retire it when the distribution
+provider supports A830 and passes the same hardware/confinement checks.

@@ -64,15 +64,19 @@ def main():
     ap.add_argument('--output', type=Path, required=True)
     for name in ('thp-live', 'mesa-build', 'busybox', 'avbtool'):
         ap.add_argument('--' + name, type=Path)
+    ap.add_argument('--snap-graphics-build', type=Path, help='Verified build-mesa-root.py output')
     ap.add_argument('--version', required=True)
     select = ap.add_mutually_exclusive_group()
     select.add_argument('--support-only', action='store_true', help='Rebuild only the small device integration package')
     select.add_argument('--desktop-only', action='store_true', help='Build desktop policy without rebuilding locked support/Mesa inputs')
+    select.add_argument('--snap-graphics-only', action='store_true', help='Build only piano-snap-graphics')
     a = ap.parse_args()
-    if not a.desktop_only:
+    if a.snap_graphics_only and not a.snap_graphics_build:
+        ap.error('--snap-graphics-only requires --snap-graphics-build')
+    if not (a.desktop_only or a.snap_graphics_only):
         for name in ('thp_live', 'mesa_build', 'busybox', 'avbtool'):
             if getattr(a, name) is None:
-                ap.error('--' + name.replace('_', '-') + ' is required unless --desktop-only')
+                ap.error('--' + name.replace('_', '-') + ' is required unless --desktop-only or --snap-graphics-only')
     repo = Path(__file__).resolve().parents[1]
     a.output.mkdir(parents=True, exist_ok=False)
     stages = a.output / 'stages'
@@ -96,7 +100,8 @@ def main():
             if p.is_file() and not p.is_symlink() and '__pycache__' not in p.relative_to(src).parts:
                 licences.setdefault(root, {})[str(Path(dest) / p.relative_to(src))] = spdx(p)
 
-    def package(name, root, depends, description, postinst=None, recommends=None, third_party=()):
+    def package(name, root, depends, description, postinst=None, recommends=None, third_party=(),
+                prerm=None, postrm=None):
         """third_party: (files, copyright, licence, comment) paragraphs for files not from this repository;
         every other regular file is attributed to this repository under its SPDX header or MIT."""
         docs = root / 'usr/share/doc' / name
@@ -119,14 +124,60 @@ def main():
             'Maintainer: Piano local build <piano@localhost>\n'
             f'Depends: {depends}\n' + (f'Recommends: {recommends}\n' if recommends else '') +
             f'Description: {description}\n')
-        if postinst:
-            (control / 'postinst').write_text(postinst)
-            (control / 'postinst').chmod(0o755)
+        for name_script, body in (('postinst', postinst), ('prerm', prerm), ('postrm', postrm)):
+            if body:
+                (control / name_script).write_text(body)
+                (control / name_script).chmod(0o755)
         owned = {str(p.relative_to(root)): sha(p) for p in root.rglob('*')
                  if p.is_file() and not p.is_symlink() and not p.is_relative_to(control)}
         deb = a.output / f'{name}_{a.version}_arm64.deb'
         subprocess.run(['dpkg-deb', '--root-owner-group', '-Zxz', '-z1', '--build', str(root), str(deb)], check=True)
         receipts[name] = {'file': deb.name, 'sha256': sha(deb), 'files': owned}
+
+    if a.snap_graphics_build:
+        build = a.snap_graphics_build
+        manifest = json.loads((build / 'manifest.json').read_text())
+        source = json.loads((repo / 'mesa/source.json').read_text())
+        if manifest['source'] != source or manifest['build']['profile'] != 'gpu-2404':
+            raise ValueError('snap provider does not match the piano Mesa source lock/profile')
+        snap = build / manifest['package']['file']
+        if snap.name != manifest['package']['file'] or sha(snap) != manifest['package']['sha256']:
+            raise ValueError('snap provider hash/path mismatch')
+        metadata = json.loads(subprocess.check_output(['unsquashfs', '-cat', str(snap), 'meta/snap.yaml']))
+        if (metadata['name'] != 'piano-mesa-2404' or metadata['base'] != 'core24'
+                or metadata['architectures'] != ['arm64'] or metadata['version'] != manifest['version']
+                or metadata['slots'] != {'gpu-2404': {'interface': 'content', 'content': 'gpu-2404', 'read': ['$SNAP']}}):
+            raise ValueError('incompatible snap provider metadata')
+        graphics = stages / 'piano-snap-graphics'
+        shutil.copytree(repo / 'packaging/piano-snap-graphics', graphics, ignore=untracked)
+        tree(repo / 'packaging/piano-snap-graphics', graphics, '.')
+        payload = 'usr/share/piano/snaps/'
+        copy(snap, graphics, payload + 'piano-mesa-2404.snap')
+        (graphics / payload / 'provider.json').write_text(json.dumps(
+            {'name': metadata['name'], 'version': metadata['version'], 'sha256': sha(snap)}, indent=2) + '\n')
+        copy(build / 'manifest.json', graphics, 'usr/share/doc/piano-snap-graphics/provider-build.json')
+        package('piano-snap-graphics', graphics, 'python3, snapd, init-system-helpers',
+                'Adreno 830 Mesa content provider for core24 gpu-2404 snaps',
+                '#!/bin/sh\nset -e\nif [ "$1" = configure ]; then\n'
+                ' rm -f /var/lib/piano/snap-graphics-configured\n'
+                ' deb-systemd-helper enable piano-snap-graphics.service >/dev/null\nfi\n',
+                third_party=[((payload + 'piano-mesa-2404.snap',),
+                              'Mesa, GLVND, Vulkan, Ubuntu runtime and provider-tool contributors',
+                              'GPL-2.0-only', 'This is an aggregate, not a relicensing of Mesa/runtime libraries.\n'
+                              'The provider wrapper is GPL-2.0-only; each runtime retains its own licence.\n'
+                              'Full upstream notices and source/build provenance are inside the snap at\n'
+                              '/usr/share/doc/piano-mesa-2404/; see provider-build.json beside this file.')],
+                prerm='#!/bin/sh\nset -e\nif [ "$1" = remove ]; then\n'
+                      ' deb-systemd-invoke stop piano-snap-graphics.service >/dev/null || true\n'
+                      ' deb-systemd-helper disable piano-snap-graphics.service >/dev/null\nfi\n',
+                postrm='#!/bin/sh\nset -e\nif [ "$1" = purge ]; then\n'
+                       ' deb-systemd-helper purge piano-snap-graphics.service >/dev/null\n'
+                       ' rm -f /var/lib/piano/snap-graphics-configured\nfi\n'
+                       'if [ -d /run/systemd/system ]; then\n'
+                       ' systemctl --system daemon-reload >/dev/null || true\nfi\n')
+        if a.snap_graphics_only:
+            (a.output / 'manifest.json').write_text(json.dumps(receipts, indent=2) + '\n')
+            return
 
     if not a.desktop_only:
         support = stages / 'piano-device-support'

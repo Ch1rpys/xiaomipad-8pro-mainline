@@ -432,3 +432,10 @@ Third-party files placed in locally generated packages (tools/build-device-debs.
   of this NOTICE. The BusyBox binary is unmodified Ubuntu busybox-static; its
   corresponding source is the Ubuntu busybox source package of the same version.
   Packages built before this change lack these files.
+
+Mesa core24 provider build tools and wrapper
+------------------------------------------
+Adapted from onepluspad-2pro-mainline commit 70588c971d260b0d0955242f226791725664c8b1,
+author yzddmr6. The imported files retain GPL-2.0-only (not this repository MIT);
+see mesa/snap/provenance.json and LICENSES/oneplus-mesa-tools-GPL-2.0-only.txt.
+Mesa source and A830 patch are shared with the desktop lock in mesa/source.json.
