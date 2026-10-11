@@ -86,6 +86,8 @@ def main():
                         'a set that is not bound to one unit')
     p.add_argument('--debug', action='store_true')
     p.add_argument('--debug-timeout', type=int, default=0)
+    p.add_argument('--native-display', action='store_true',
+                   help='RAM display experiment: require the complete matching debug initrd and 600 s timeout')
     p.add_argument('--module-blacklist', help='Explicit comma-separated module control for a debug boot')
     p.add_argument('--modprobe-blacklist',
                    help='Debug boot only: kmod modprobe.blacklist= (stops alias autoload; an explicit insmod still loads)')
@@ -115,6 +117,47 @@ def main():
         p.error('Kernel has no Linux version banner; expected an uncompressed arm64 Image')
     if a.kernel_release and a.kernel_release != release:
         p.error(f'Kernel banner is {release}, not {a.kernel_release}')
+    if a.native_display:
+        if not a.debug or a.debug_timeout != 600 or a.module_blacklist or a.modprobe_blacklist:
+            p.error('--native-display requires --debug --debug-timeout 600 and no module blacklist')
+        entries = read_newc(subprocess.check_output(['zstd', '-dc', str(a.initrd)]))
+        info = json.loads(regular_file(entries, 'etc/piano-native-display/manifest.json'))
+        config = regular_file(entries, 'etc/piano-native-display/kernel.config')
+        if (info['kernel_release'] != release or info['kernel_sha256'] != sha(a.kernel) or
+                info['config_sha256'] != hashlib.sha256(config).hexdigest() or
+                info['modules'].get('selection') != 'all'):
+            p.error('Native display initrd/kernel/config/complete-module identity mismatch')
+        for option in ('RD_ZSTD', 'DRM_MSM', 'DRM_MSM_DPU', 'DRM_MSM_DSI', 'SM_DISPCC_8750', 'DRM_PANEL_NOVATEK_NT36532',
+                       'BACKLIGHT_KTZ8866', 'BACKLIGHT_CLASS_DEVICE'):
+            if f'CONFIG_{option}=y'.encode() not in config.splitlines():
+                p.error(f'Native display requires built-in {option}')
+        for name, digest in info['modules']['files'].items():
+            if hashlib.sha256(regular_file(entries, 'usr/' + name)).hexdigest() != digest:
+                p.error(f'Native display packed module mismatch: {name}')
+        checks = ''.join(f'{digest}  {name.removeprefix("lib/modules/")}\n'
+                         for name, digest in sorted(info['modules']['files'].items())).encode()
+        if regular_file(entries, 'etc/piano-native-display/modules.sha256') != checks:
+            p.error('Native display runtime module checks differ from the packed payload')
+        for row in info['firmware']:
+            data = regular_file(entries, 'usr/lib/firmware/' + row['path'])
+            if len(data) != row['bytes'] or hashlib.sha256(data).hexdigest() != row['sha256']:
+                p.error(f'Native display packed firmware mismatch: {row["path"]}')
+        for name, digest in info['runtime_units'].items():
+            if hashlib.sha256(regular_file(entries, 'etc/piano-native-display/systemd/' + name)).hexdigest() != digest:
+                p.error(f'Native display runtime unit mismatch: {name}')
+        hook = regular_file(entries, 'var/lib/dracut/hooks/pre-pivot/50-piano-native-display.sh')
+        if hashlib.sha256(hook).hexdigest() != info['pre_pivot_sha256']:
+            p.error('Native display handoff hook differs from its manifest')
+        mdss = '/soc@0/display-subsystem@ae00000'
+        for node in (mdss, mdss + '/display-controller@ae01000', mdss + '/dsi@ae94000', mdss + '/dsi@ae96000',
+                     mdss + '/phy@ae95000', mdss + '/phy@ae97000'):
+            status = subprocess.check_output(['fdtget', '-t', 's', str(a.dtb), node, 'status'], text=True).strip()
+            if status != 'okay':
+                p.error(f'Native display node is not enabled: {node}')
+        compatible = subprocess.check_output(['fdtget', '-t', 's', str(a.dtb),
+                                              mdss + '/dsi@ae94000/panel@0', 'compatible'], text=True).strip()
+        if compatible != 'xiaomi,piano-boe-nt36532 novatek,nt36532':
+            p.error('Native display candidate must use the selected P81 42-02-0a profile')
     profile = json.loads(a.profile.read_text())
     for name in ('boot', 'init_boot', 'vendor_boot'):
         if profile[name]['header_version'] != 4 or profile[name]['capacity'] <= 0:
@@ -153,9 +196,12 @@ def main():
         subprocess.run(['fdtput', '-t', 'bx', str(dtb), node, 'local-mac-address',
                         *[f'{b:02x}' for b in raw]], check=True)
     console = DEBUG_BOOT_TRACE if a.debug_boot_trace else 'console=ttyMSM0,115200n8'
+    gpu_kms = 0 if a.native_display else 1
     cmdline = (f'root={root_spec} rootfstype=ext4 rw rootwait '
                f'{console} log_buf_len=2M panic=15 '
-               'msm.separate_gpu_kms=1 piano.boot=persistent systemd.gpt_auto=0 bootconfig')
+               f'msm.separate_gpu_kms={gpu_kms} piano.boot=persistent systemd.gpt_auto=0 bootconfig')
+    if a.native_display:
+        cmdline += ' piano.native_display=1'
     # V4 may expose the firmware serial only in bootconfig. Keep the explicit
     # development gadget bound to the locally verified installation profile.
     # ABL also appends androidboot.serialno to the kernel command line it
@@ -224,6 +270,10 @@ def main():
                 'scope': 'Image construction only; cold boot and recovery must be verified on piano'}
     if a.debug_boot_trace:
         manifest['debug_boot_trace'] = DEBUG_BOOT_TRACE
+    if a.native_display:
+        manifest['native_display'] = True
+        manifest['scope'] = ('RAM display candidate only; do not install the generated triplet. '
+                             'Native KMS/GPU/DPMS and recovery are unverified on this unit.')
     if a.modprobe_blacklist:
         manifest['modprobe_blacklist'] = a.modprobe_blacklist
     (out / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
@@ -235,7 +285,7 @@ def maintenance(p, a):
     """boot-ram-maintenance.img: kernel, DTB and maintenance initramfs; the kernel stays in the initramfs."""
     unit = [n for n in ('root_partuuid', 'root_partlabel', 'bt_address_file', 'wlan_address_file',
                         'module_blacklist', 'modprobe_blacklist', 'avbtool', 'key') if getattr(a, n) is not None]
-    if unit or a.debug or a.debug_timeout or a.debug_boot_trace:
+    if unit or a.debug or a.debug_timeout or a.debug_boot_trace or a.native_display:
         p.error('--maintenance takes no root, address, AVB or debug option')
     if not 30 <= a.maintenance_idle <= 3600:
         p.error('--maintenance-idle must be 30-3600 seconds')

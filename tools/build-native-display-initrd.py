@@ -1,0 +1,158 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-only
+"""Repack an explicitly hash-pinned piano dracut initrd for one RAM display boot.
+
+MODULES_DIR (or --modules-dir) must be stage-kernel-modules.py --all output.
+No package, root image or device is changed. The existing dracut/debug flow is
+retained, with a pre-pivot hook carrying matching modules into the disk root.
+"""
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import shutil
+import stat
+import subprocess
+
+import firmware_payload
+from initramfs_archive import read_newc, regular_file
+from kernel_modules import sha, verified_subset, verified_modules
+
+REPO = Path(__file__).resolve().parents[1]
+SUPPORT = REPO / 'packaging/piano-device-support'
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument('--base-initrd', type=Path, required=True)
+    ap.add_argument('--base-sha256', required=True)
+    ap.add_argument('--kernel-out', type=Path, required=True)
+    ap.add_argument('--modules-dir', type=Path, default=os.environ.get('MODULES_DIR'))
+    ap.add_argument('--gen-init-cpio', type=Path, required=True)
+    ap.add_argument('--output', type=Path, required=True)
+    a = ap.parse_args()
+    if sha(a.base_initrd) != a.base_sha256:
+        ap.error('Base initrd hash differs from the explicit input')
+    if a.modules_dir is None:
+        ap.error('MODULES_DIR or --modules-dir is required')
+    modules = verified_subset(a.modules_dir)
+    kout = a.kernel_out.resolve()
+    build = json.loads((kout / 'build-result.json').read_text())
+    release = build['kernel_release']
+    full = verified_modules(kout, build, release)
+    if (modules.get('selection') != 'all' or modules['kernel_release'] != release or
+            modules['build_result_sha256'] != sha(kout / 'build-result.json') or
+            modules['module_count'] != build['modules']['count']):
+        ap.error('Require the complete matching module staging, not a subset')
+    for name in ('arch/arm64/boot/Image', '.config'):
+        if sha(kout / name) != build['files'][name]:
+            ap.error(f'Changed kernel artifact: {name}')
+    for name, path in full.items():
+        if '.ko' in name and sha(a.modules_dir / f'lib/modules/{release}' / name) != sha(path):
+            ap.error(f'Changed or missing staged module: {name}')
+    a.output.mkdir(parents=True, exist_ok=False)
+    out = a.output.resolve()
+    stage = out / 'root'
+    stage.mkdir()
+    # These are the five device nodes in the pinned dracut input. gen_init_cpio
+    # restores them without requiring host root or mknod privileges.
+    nodes = {'console': (5, 1), 'kmsg': (1, 11), 'null': (1, 3),
+             'random': (1, 8), 'urandom': (1, 9)}
+    raw = subprocess.check_output(['zstd', '-dc', str(a.base_initrd)])
+    subprocess.run(['cpio', '-idm', '--quiet', '--no-absolute-filenames', '--no-preserve-owner',
+                    '--nonmatching', *[f'dev/{n}' for n in nodes]], input=raw, cwd=stage, check=True)
+    old_files = {str(p.relative_to(stage)): sha(p) for p in stage.rglob('*')
+                 if p.is_file() and not p.is_symlink()}
+    shutil.rmtree(stage / 'usr/lib/modules')
+    shutil.copytree(a.modules_dir / 'lib/modules', stage / 'usr/lib/modules')
+    # The kernel can open the GPU before the root exists during native KMS
+    # takeover. Use the same locked local firmware that the package carries.
+    rows = firmware_payload.load_tree()
+    fwstage = out / 'firmware'
+    firmware_payload.stage_tree(rows, REPO / 'firmware', fwstage)
+    shutil.copytree(fwstage, stage / 'usr/lib/firmware', dirs_exist_ok=True)
+    target = stage / 'etc/piano-native-display'
+    target.mkdir()
+    (target / 'release').write_text(release + '\n')
+    shutil.copyfile(kout / '.config', target / 'kernel.config')
+    (target / 'modules.sha256').write_text(''.join(
+        f'{digest}  {name.removeprefix("lib/modules/")}\n'
+        for name, digest in sorted(modules['files'].items())))
+    units = target / 'systemd'
+    units.mkdir()
+    # Reuse the developer SSH listener/authentication, with ownership assigned
+    # to the existing debug service for this boot. No persistent enablement.
+    for name in ('piano-devmode-ssh.socket', 'piano-devmode-ssh@.service'):
+        text = (SUPPORT / 'usr/lib/systemd/system' / name).read_text()
+        dependency = 'BindsTo' if name.endswith('.socket') else 'PartOf'
+        old = f'{dependency}=piano-devmode.service'
+        if text.count(old) != 1:
+            raise ValueError(f'Unexpected SSH unit dependency: {name}')
+        # Dependency directives cannot be cleared by an empty drop-in. These
+        # complete /run unit copies override the installed unit for this boot.
+        (units / name).write_text(text.replace(old, 'PartOf=piano-debug.service'))
+    for name, body in {
+        'piano-debug.service.d/native-display.conf': '[Unit]\nWants=piano-devmode-ssh.socket\n',
+    }.items():
+        p = units / name
+        p.parent.mkdir(parents=True)
+        p.write_text(body)
+    hook = stage / 'var/lib/dracut/hooks/pre-pivot/50-piano-native-display.sh'
+    shutil.copyfile(REPO / 'device/native-display/pre-pivot.sh', hook)
+    hook.chmod(0o755)
+    receipt = {'state': 'OFFLINE_NATIVE_DISPLAY_INITRD_NOT_DEVICE_TESTED',
+               'base_initrd_sha256': a.base_sha256, 'kernel_commit': build['kernel_commit'],
+               'kernel_release': release, 'kernel_sha256': build['files']['arch/arm64/boot/Image'],
+               'config_sha256': build['files']['.config'], 'modules': modules, 'firmware': rows,
+               'pre_pivot_sha256': sha(hook),
+               'runtime_units': {str(p.relative_to(units)): sha(p)
+                                 for p in sorted(units.rglob('*')) if p.is_file()}}
+    (target / 'manifest.json').write_text(json.dumps(receipt, indent=2) + '\n')
+    lines = ['dir / 0755 0 0']
+    for p in sorted(stage.rglob('*')):
+        name = '/' + str(p.relative_to(stage))
+        if any(c.isspace() for c in str(p)):
+            raise ValueError('gen_init_cpio input path contains whitespace')
+        mode = stat.S_IMODE(p.lstat().st_mode)
+        if p.is_symlink():
+            lines.append(f'slink {name} {os.readlink(p)} {mode:04o} 0 0')
+        elif p.is_dir():
+            lines.append(f'dir {name} {mode:04o} 0 0')
+        elif p.is_file():
+            lines.append(f'file {name} {p} {mode:04o} 0 0')
+        else:
+            raise ValueError(f'Unexpected special file: {p}')
+    lines += [f'nod /dev/{n} 0644 0 0 c {major} {minor}' for n, (major, minor) in nodes.items()]
+    spec = out / 'initrd.list'
+    spec.write_text('\n'.join(lines) + '\n')
+    archive = subprocess.check_output([str(a.gen_init_cpio.resolve()), '-t', '0', str(spec)])
+    entries = read_newc(archive)
+    for name, digest in modules['files'].items():
+        if hashlib.sha256(regular_file(entries, 'usr/' + name)).hexdigest() != digest:
+            raise ValueError(f'Packed module identity differs: {name}')
+    # Preserve all original non-module bytes, except the explicitly locked
+    # firmware update (including the newer topology required by the root).
+    changes = [n for n, h in old_files.items()
+               if n not in entries or hashlib.sha256(entries[n][1]).hexdigest() != h]
+    if any(not n.startswith(('usr/lib/modules/', 'usr/lib/firmware/')) for n in changes):
+        raise ValueError(f'Unexpected base initrd changes: {changes}')
+    # As in the source dracut image, use the kernel's Zstd initrd decoder.
+    # gen_init_cpio emits independent copies of the base's hard-linked files;
+    # a 128 MiB window (the decoder's supported maximum) also deduplicates
+    # these copies without extending the strict single-newc archive reader.
+    image = out / 'initrd.cpio.zst'
+    with image.open('wb') as stream:
+        subprocess.run(['zstd', '-15', '--long=27', '-T2', '--check', '-q', '-c'],
+                       input=archive, stdout=stream, check=True)
+    if subprocess.check_output(['zstd', '-dc', str(image)]) != archive:
+        raise ValueError('Compressed initrd does not round-trip')
+    receipt.update(initrd_sha256=sha(image), initrd_bytes=image.stat().st_size,
+                   changed_base_files=changes, entries=len(entries),
+                   compression='zstd -15 --long=27 -T2 --check', uncompressed_bytes=len(archive))
+    (out / 'manifest.json').write_text(json.dumps(receipt, indent=2) + '\n')
+    print(json.dumps({k: receipt[k] for k in ('state', 'kernel_release', 'initrd_sha256', 'initrd_bytes')}))
+
+
+if __name__ == '__main__':
+    main()

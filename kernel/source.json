@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "purpose": "piano kernel pin for the RAM bring-up variants and the installed first-release Ubuntu system (persistent boot images, full module tree); hardware status is in docs/STATUS.md, not implied by this pin",
+  "purpose": "Offline native-display RAM candidate pin, not a packaged ABI or device result",
   "upstream_url": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git",
   "upstream_tag": "v7.2.6",
   "upstream_commit": "500df175a7f9e6bc1a9c328590ca5150f84f9ff0",
   "url": "https://github.com/yzddmr6/linux-sm8750-piano",
-  "commit": "8cac9ef5ae447ca5ad46ff4d871043d50f27e789",
-  "branch": "piano/dev",
+  "commit": "182452c8a012d51e3c0a3653514cea40d82e4224",
+  "branch": "piano/native-display-20261011",
   "config": "arch/arm64/configs/piano-diagnostic.config",
   "release_config_fragments": [
     "arch/arm64/configs/piano-diagnostic.config",
     "arch/arm64/configs/piano-desktop-diag.config",
     "arch/arm64/configs/piano-persistent.config",
-    "arch/arm64/configs/piano-release.config"
+    "arch/arm64/configs/piano-native-display.config"
   ],
-  "note": "'config' is the base fragment read by tools/build-kernel.sh; the installed release merges the remaining release_config_fragments in that order via CONFIG_FRAGMENT_EXTRA (space separated). piano-release.config is last and sets the unique release 7.2.6-piano<ABI>; kernel/abi.json records which commit and .config each packaged release was built from."
+  "note": "Build all listed fragments in order using the existing build-kernel.sh flow. This branch uses a distinct RAM-only release and complete matching modules in the debug initrd. It allocates no installable ABI; do not build a kernel deb or install its generated persistent triplet."
 }
