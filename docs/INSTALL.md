@@ -374,7 +374,7 @@ before Ubuntu first boots. Touch then works in Initial Setup, and the host can r
 SSH as soon as the account exists. Without this step, use the magnetic keyboard in Initial Setup and
 copy the files in step 10.
 
-Keep boot-profile.json and boot-signing.pem on the host until step 10 so boot-set regeneration happens after the Android recovery set is ready. This release already contains piano-device-support 0.1+20261010.8; the earlier serial-mismatch failure is fixed.
+Keep boot-profile.json and boot-signing.pem on the host until step 10 so boot-set regeneration happens after the Android recovery set is ready. This release already contains piano-device-support 0.1+20261010.9; the earlier serial-mismatch failure is fixed.
 
 In Fastboot, with the files of step 3 in the current directory on the host:
 
@@ -504,7 +504,7 @@ python3 "$REPO/tools/extract-boot-partitions.py" --input boot-lun.json --profile
 This route replaces the hand-written map of earlier versions of this guide and has not yet run on
 the tablet.
 
-This release already contains piano-device-support 0.1+20261010.8. A fresh installation requires no support-package build, copy or installation: the scp command below omits the package, and no dpkg command is needed. Keep boot-profile.json and boot-signing.pem on the host until step 10 so boot-set regeneration happens after the Android recovery set is ready. The serial-mismatch failure affected earlier images containing 0.1+20261010.3 and is fixed in this release.
+This release already contains piano-device-support 0.1+20261010.9. A fresh installation requires no support-package build, copy or installation: the scp command below omits the package, and no dpkg command is needed. Keep boot-profile.json and boot-signing.pem on the host until step 10 so boot-set regeneration happens after the Android recovery set is ready. The serial-mismatch failure affected earlier images containing 0.1+20261010.3 and is fixed in this release.
 
 **Copy the files:**
 
@@ -546,7 +546,7 @@ piano-devmode status       # expect "developer mode: disabled, inactive"
 
 `sudo piano-devmode on` turns it on again when you need the host connection. While on, it accepts
 every local account with a password over the USB cable; see [device/devmode](../device/devmode/README.md)
-to restrict it to SSH keys. From piano-device-support 0.1+20261010.8 its SSH socket listens on
+to restrict it to SSH keys. From piano-device-support 0.1+20261010.9 its SSH socket listens on
 `192.168.88.2:22` with `FreeBind=yes`, so it can start before the USB interface and address exist.
 It does not listen on the Wi-Fi address. This address binding does not filter incoming interfaces:
 a Wi-Fi peer with a route to `192.168.88.2` can still reach it.

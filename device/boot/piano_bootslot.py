@@ -26,6 +26,7 @@ import os
 from pathlib import Path
 import re
 import signal
+import shutil
 import stat
 import struct
 import subprocess
@@ -502,22 +503,70 @@ def occupant(slot_hashes, sums):
 
 def check_set(host, name, parts, kind):
     """Full check of a store set: digests, sizes == partition sizes, header kind."""
-    directory = store(host) / name
+    return check_images(store(host) / name, kind, {n: parts[n].size for n in NAMES})
+
+
+def check_images(directory, kind, sizes=None):
+    """Verify stored bytes before either rotating a set or writing it to a slot."""
     sums = read_sums(directory)
     heads = {}
     for n in NAMES:
         image = directory / (n + '.img')
         if not image.is_file():
             raise Refusal('set-missing', f'{image} is missing')
-        if image.stat().st_size != parts[n].size:
-            raise Refusal('set-size', f'{image} is {image.stat().st_size} B, partition is {parts[n].size} B')
-        if digest(image, parts[n].size) != sums[n + '.img']:
+        size = image.stat().st_size
+        if sizes is not None and size != sizes[n]:
+            raise Refusal('set-size', f'{image} is {size} B, partition is {sizes[n]} B')
+        if digest(image, size) != sums[n + '.img']:
             raise Refusal('set-digest', f'{image} does not match SHA256SUMS')
         heads[n] = read_head(image)
     found = heads_kind(heads)
     if found != kind:
         raise Refusal('set-kind', f'{directory} holds {found or "non-boot"} images, expected {kind}')
     return sums
+
+
+def rotate_ubuntu(host, output, status=None):
+    """Caller holds the store lock; preserve the actual slot occupant on every rename."""
+    base = store(host)
+    current = status['occupant'] if status is not None else None
+    if status is not None:
+        if current not in SETS or not isinstance(status['slot'], str):
+            raise Refusal('occupant-unknown', 'Slot A is not a known, selected store set; store unchanged')
+        saved = check_images(base / current, 'android' if current == 'android' else 'ubuntu')
+        if saved != status['slot_sha256']:
+            raise Refusal('set-digest', 'The occupant store copy differs from slot A; store unchanged')
+    check_images(output, 'ubuntu')
+    # Flush the verified store copy before making it a write source. Directory
+    # renames are synced in order so even an interrupted rotation keeps the old
+    # occupant under a name understood by status and by the existing rollback.
+    for path in output.iterdir():
+        if path.is_file():
+            with path.open('rb') as f:
+                os.fsync(f.fileno())
+    sync_directory(output)
+    with signals_blocked():
+        previous = base / 'ubuntu.prev'
+        latest = base / 'ubuntu'
+        if current == 'ubuntu.prev':
+            if latest.exists():
+                shutil.rmtree(latest)
+        else:
+            if previous.exists():
+                shutil.rmtree(previous)
+            if latest.exists():
+                latest.rename(previous)
+        sync_directory(base)
+        output.rename(latest)
+        sync_directory(base)
+
+
+def sync_directory(path):
+    fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
 
 
 def slot_hashes(parts):

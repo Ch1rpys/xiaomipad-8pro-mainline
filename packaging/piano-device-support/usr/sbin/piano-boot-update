@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
 """Build and retain a coherent boot image set after the distro initrd hook.
 
-The new set becomes /var/lib/piano/switch/ubuntu and the previous one
-ubuntu.prev.  On a running persistent piano boot (devicetree xiaomi,piano and
+The new set becomes /var/lib/piano/switch/ubuntu. The actual slot occupant is
+retained as ubuntu.prev even when an earlier update failed to write slot A.
+On a running persistent piano boot (devicetree xiaomi,piano and
 piano.boot=persistent) `piano-boot-switch to-ubuntu --only-if-ubuntu` then
 rewrites slot A in place when it holds an Ubuntu store set, so the booted
 kernel and initrd keep matching the installed modules; Android in slot A is
@@ -34,6 +35,9 @@ import shutil
 import subprocess
 import sys
 import tempfile
+
+sys.path.insert(0, '/usr/lib/piano/boot')
+import piano_bootslot as slot  # noqa: E402
 
 
 BANNER = re.compile(rb'Linux version ([0-9][A-Za-z0-9.+-]*) \(')
@@ -75,6 +79,9 @@ def removed(release, root, run):
     with (store / '.lock').open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         if (store / 'ubuntu.prev').is_dir() and set_release(store / 'ubuntu.prev') == release:
+            if on_persistent_piano(root) and slot_status(root, run)['occupant'] == 'ubuntu.prev':
+                print(f'Keeping removed kernel {release}\'s set: it still occupies slot A', file=sys.stderr)
+                return 0
             shutil.rmtree(store / 'ubuntu.prev')
             print(f'Dropped the rollback set of removed kernel {release}')
     return 0
@@ -85,6 +92,16 @@ def on_persistent_piano(root):
     cmdline = root / 'proc/cmdline'
     return (compatible.is_file() and b'xiaomi,piano' in compatible.read_bytes().split(b'\0') and
             cmdline.is_file() and 'piano.boot=persistent' in cmdline.read_text().split())
+
+
+def slot_status(root, run):
+    result = run([str(root / 'usr/sbin/piano-boot-switch'), 'status'],
+                 capture_output=True, text=True, check=True)
+    report = json.loads(result.stdout)
+    if report['occupant'] not in slot.SETS or not isinstance(report['slot'], str):
+        raise SystemExit('Slot A is not a known, selected store set; store unchanged; '
+                         'see `piano-boot-switch status`')
+    return report
 
 
 def main(argv, root=Path('/'), run=subprocess.run):
@@ -132,11 +149,11 @@ def main(argv, root=Path('/'), run=subprocess.run):
                 '--key', str(config / 'boot-signing.pem'), '--output', str(output)
             ] + (['--bt-address-file', str(bt)] if bt.is_file() else [])
               + (['--wlan-address-file', str(wlan)] if wlan.is_file() else []), check=True)
-            if (store / 'ubuntu.prev').exists():
-                shutil.rmtree(store / 'ubuntu.prev')
-            if (store / 'ubuntu').exists():
-                (store / 'ubuntu').rename(store / 'ubuntu.prev')
-            output.rename(store / 'ubuntu')
+            # Every slot writer also holds this store lock. Status therefore
+            # describes the occupant at rotation time, not the running kernel
+            # or the outcome of the previous invocation.
+            status = slot_status(root, run) if persistent else None
+            slot.rotate_ubuntu(slot.Host(root), output, status)
     print(f'Piano boot image set prepared for {release}')
     if not persistent:
         print('Slot A not inspected: not a running persistent piano boot')
