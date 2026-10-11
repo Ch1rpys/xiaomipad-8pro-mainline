@@ -125,6 +125,14 @@ key and rewrites slot A. Your stock Android set goes into the store with
 
 This release supports stock $stock_build on slot A only. Do not install its prebuilt images on another stock build. Porting another build requires preparing the effective boot DTB from that build’s stock DTB and DTBO, rebuilding the kernel package and boot set with the matching boot profile, and validating the result; changing boot-profile.json alone is insufficient.
 
+## Known limitations
+
+- Volume keys are not yet working.
+- The console-setup unit fails after Initial Setup (text console only).
+- The clock is behind until the tablet is online.
+- Classic Bluetooth pairing and external accessories have not yet been tested.
+- Developer mode SSH is reachable over the USB address only when enabled.
+
 ## Known issues
 
 - No charging under Linux: keep at least 40 % and charge in Android.
@@ -148,7 +156,7 @@ This release supports stock $stock_build on slot A only. Do not install its preb
 - BusyBox: `piano-device-support` carries the unmodified Ubuntu `busybox-static` 1.36.1-6ubuntu3.1 binary;
   its source package (`busybox_1.36.1-6ubuntu3.1.dsc`, `busybox_1.36.1.orig.tar.bz2` with `.asc`,
   `busybox_1.36.1-6ubuntu3.1.debian.tar.xz`) is attached to this release.
-- Kernel: [linux-sm8750-piano at commit $kernel_commit](https://github.com/yzddmr6/linux-sm8750-piano/tree/$kernel_commit), the source of $kernel_release. The tag `v0.1.0-preview` will be moved to that commit at publication.
+- Kernel: [linux-sm8750-piano at commit $kernel_commit](https://github.com/yzddmr6/linux-sm8750-piano/tree/$kernel_commit), the source of $kernel_release. The tag `v0.1.0-preview` points at commit `667263fd4496` (`7.2.6-piano7`).
 - Mesa 26.2.0 with the A830 patch, device userspace and packaging: this repository at `$integration_commit`.
 
 The firmware package carries unmodified stock files of `$stock_build`; there is no redistribution
