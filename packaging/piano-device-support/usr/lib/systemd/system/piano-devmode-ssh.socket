@@ -1,13 +1,14 @@
 # SPDX-License-Identifier: MIT
 # SSH listener of the developer mode on the USB NCM device address only
 # (device_ip of initramfs/network.json).  FreeBind lets it listen before
-# systemd-networkd has configured that address.  BindToDevice restricts it to
-# the NCM interface, the first gadget Ethernet device, usb0: the address alone
-# would also accept connections that reach it over Wi-Fi, as Linux accepts a
-# local address on any interface.  systemd starts the socket once usb0
-# exists.  Started and stopped with piano-devmode.service; it has no
-# [Install] section of its own.  It cannot bind while the system ssh.socket
-# or ssh.service listens on every address.
+# systemd-networkd has configured that address, without waiting for usb0.
+# BindToDevice would order this socket after usb0.device, but the gadget
+# service creates usb0 after basic.target, which waits for sockets.target.
+# FreeBind does not change the destination address or open a wildcard listener;
+# an address bind alone does not filter the interface of incoming traffic.
+# Started and stopped with piano-devmode.service; it has no [Install] section
+# of its own. It cannot bind while the system ssh.socket or ssh.service
+# listens on every address.
 [Unit]
 Description=Piano developer mode SSH socket (USB network only)
 BindsTo=piano-devmode.service
@@ -15,5 +16,4 @@ BindsTo=piano-devmode.service
 [Socket]
 ListenStream=192.168.88.2:22
 FreeBind=yes
-BindToDevice=usb0
 Accept=yes

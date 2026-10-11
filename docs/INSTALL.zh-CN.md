@@ -336,7 +336,7 @@ fastboot -s <SERIAL> boot "$RELEASE/boot/boot-ram-check.img"     # 预期 "Booti
 可以用[第 6 步](#6-写入分区表平板上)的维护镜像，在 Ubuntu 首次启动前生成分区映射，把它与触控标定、地址一起放进新根，并打开开发者模式。
 这样初始设置中触控可用，账户建好后主机即可经 SSH 连接平板。不做本步时，初始设置使用磁吸键盘，并在第 10 步复制文件。
 
-boot-profile.json 与 boot-signing.pem 留在主机上，到第 10 步再安装，以便在 Android 恢复镜像组准备好之后重建启动镜像组。本发布版已包含 piano-device-support 0.1+20261010.7，早期的 serial-mismatch 故障已经修复。
+boot-profile.json 与 boot-signing.pem 留在主机上，到第 10 步再安装，以便在 Android 恢复镜像组准备好之后重建启动镜像组。本发布版已包含 piano-device-support 0.1+20261010.8，早期的 serial-mismatch 故障已经修复。
 
 平板处于 Fastboot，主机当前目录里有第 3 步的文件：
 
@@ -449,7 +449,7 @@ python3 "$REPO/tools/extract-boot-partitions.py" --input boot-lun.json --profile
 
 此方式取代本指南旧版的手写映射，尚未在平板上运行。
 
-本发布版已包含 piano-device-support 0.1+20261010.7。全新安装无需构建、复制或安装支持包：下面的 scp 命令已移除该软件包，也无需执行 dpkg 命令。boot-profile.json 与 boot-signing.pem 留在主机上，到第 10 步再安装，以便在 Android 恢复镜像组准备好之后重建启动镜像组。serial-mismatch 故障影响包含 0.1+20261010.3 的早期镜像，本发布版已经修复。
+本发布版已包含 piano-device-support 0.1+20261010.8。全新安装无需构建、复制或安装支持包：下面的 scp 命令已移除该软件包，也无需执行 dpkg 命令。boot-profile.json 与 boot-signing.pem 留在主机上，到第 10 步再安装，以便在 Android 恢复镜像组准备好之后重建启动镜像组。serial-mismatch 故障影响包含 0.1+20261010.3 的早期镜像，本发布版已经修复。
 
 **复制文件：**
 
@@ -487,9 +487,9 @@ piano-devmode status       # 预期 "developer mode: disabled, inactive"
 ```
 
 需要主机连接时用 `sudo piano-devmode on` 再次打开。开启期间它经 USB 线接受所有设有密码的本地账户，如需仅允许 SSH 密钥，见
-[device/devmode](../device/devmode/README.md)。自 piano-device-support 0.1+20261010.7 起，其 SSH 套接字只接受 USB 网络接口
-`usb0` 上的连接，不接受经 Wi-Fi 的连接。若平板上 `ip -brief link` 显示 USB 链路是别的名字，该套接字不会启动，主机无法登录；
-请使用平板自己的终端。
+[device/devmode](../device/devmode/README.md)。自 piano-device-support 0.1+20261010.8 起，其 SSH 套接字通过
+`FreeBind=yes` 监听 `192.168.88.2:22`，可在 USB 接口和地址出现之前启动。
+它不监听 Wi-Fi 地址，但地址绑定不会过滤入站接口：有到 `192.168.88.2` 路由的 Wi-Fi 对端仍能访问。
 
 如果重建的镜像组无法启动：按电源 + 音量下，从主机写回发布目录的 `boot/` 镜像组（[FLASHING.zh-CN.md](FLASHING.zh-CN.md#从主机piano-switchpy)）。
 
