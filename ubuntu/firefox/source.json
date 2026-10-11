@@ -1,0 +1,44 @@
+{
+  "repository": "https://packages.mozilla.org/apt",
+  "suite": "mozilla",
+  "component": "main",
+  "documentation": "https://support.mozilla.org/en-US/kb/install-firefox-linux",
+  "key_url": "https://packages.mozilla.org/apt/repo-signing-key.gpg",
+  "key_fingerprint": "35BAA0B33E9EB396F59CA838C0BA5CE6DC6315A3",
+  "key_sha256": "3ecc63922b7795eb23fdc449ff9396f9114cb3cf186d6f5b53ad4cc3ebfbb11f",
+  "inrelease_sha256": "6a727e743748662cebe0ae98a79c65b2c6a576fd50cd540b2adf13cd302d071f",
+  "arm64_packages_sha256": "fb688116059a6e72d3f075578277e97e504713e2942fee3a594ae0247abb12d8",
+  "package": "firefox",
+  "version": "157.0.1~build1",
+  "architecture": "arm64",
+  "url": "https://packages.mozilla.org/apt/pool/mozilla/firefox_157.0.1~build1_arm64_b60f3ca510708be59e370fca2851a4f5.deb",
+  "sha256": "04072d2f8d4a61840c07b6b5f1da41a420ad075dbe5eca76dbf6acafb7f10894",
+  "bytes": 79230256,
+  "licence": "MPL-2.0 (and bundled third-party licences in the upstream package)",
+  "author": "Mozilla and contributors",
+  "source": "https://archive.mozilla.org/pub/firefox/releases/157.0.1/source/",
+  "scope": "Build input lock; installed APT policy permits subsequent Mozilla security updates. No Thunderbird source or package changes.",
+  "documentation_verified": "2026-10-11",
+  "pin_priority": 1000,
+  "ubuntu_firefox_pin_priority": -1,
+  "index_urls": {
+    "InRelease": "https://packages.mozilla.org/apt/dists/mozilla/InRelease",
+    "Packages": "https://packages.mozilla.org/apt/dists/mozilla/main/binary-arm64/Packages"
+  },
+  "index_storage": "InRelease and Packages are archived beside this lock; verified with the pinned key before APT resolution. The live index is not a build input.",
+  "integration_provenance": {
+    "repository": "https://github.com/yzddmr6/xiaomipad-8pro-mainline",
+    "commit": "3f2f1e06b9a8e445000f467b59c6159c3d04b6f4",
+    "author": "yzddmr6",
+    "licence": "MIT",
+    "files": [
+      "ubuntu/firefox/mozilla.sources",
+      "ubuntu/firefox/mozilla.pref",
+      "ubuntu/firefox/packages.mozilla.org.asc",
+      "ubuntu/firefox/source.json",
+      "tools/prepare-ubuntu-apt.py"
+    ],
+    "changes": "Only the input lock and isolated APT resolution are retained, with archived signed indexes. The seed-only image migration is blocked by the already-preseeded Desktop base."
+  },
+  "image_integration_status": "BLOCKED: frozen Desktop SquashFS has preseeded=true and an active registered Firefox 8105; seed-only editing does not remove installed snap state."
+}

@@ -377,6 +377,14 @@ packaging/piano-device-support/usr/share/polkit-1/actions/io.github.piano.switch
   polkit-1/actions/io.github.liuqin.switch.policy of the same liuqin commit
   (MIT). Changes: piano program path and texts, auth_admin_keep.
 
+Mozilla Firefox APT inputs (not enabled in the root image builder):
+  ubuntu/firefox/source.json records the official Mozilla APT repository,
+  upstream version/source URL, package and signing-key hashes, and provenance
+  of the integration policy (MIT). InRelease and Packages are the unmodified
+  signed repository metadata authenticated by that key. The downloaded Firefox
+  binary is unmodified, by Mozilla and contributors, under MPL-2.0 and the
+  bundled third-party licences; see the package's copyright notices.
+
 Third-party files placed in locally generated packages (tools/build-device-debs.py):
   piano-device-support copies tools that this repository does not contain:
   - mkbootimg.py and gki/ (tests excluded) from the AOSP checkout fetched by

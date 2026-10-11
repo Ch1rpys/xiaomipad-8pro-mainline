@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import re
 import shlex
+import shutil
 import subprocess
 
 import apt_pkg
@@ -30,6 +31,8 @@ def main():
     parser.add_argument('--snapshot', required=True, help='Ubuntu snapshot UTC timestamp, YYYYMMDDTHHMMSSZ')
     parser.add_argument('--output', required=True, type=Path, help='New isolated APT directory')
     parser.add_argument('--download', action='store_true', help='Download only; never invoke dpkg installation')
+    parser.add_argument('--mozilla-firefox', action='store_true',
+                        help='Include the locked Mozilla Firefox deb and its signed repository policy')
     parser.add_argument('packages', nargs='+', help='Package names or name=version selections')
     args = parser.parse_args()
     try:
@@ -67,6 +70,46 @@ def main():
         source['URIs'] = f'https://snapshot.ubuntu.com/ubuntu/{args.snapshot}/'
     (out / 'etc/apt/sources.list.d/ubuntu.sources').write_text('\n'.join(p.dump() for p in sources))
 
+    firefox = None
+    if args.mozilla_firefox:
+        firefox_dir = repo / 'ubuntu/firefox'
+        firefox = json.loads((firefox_dir / 'source.json').read_text())
+        mozilla_key = out / 'etc/apt/packages.mozilla.org.asc'
+        mozilla_key.write_bytes((firefox_dir / mozilla_key.name).read_bytes())
+        if sha(mozilla_key) != firefox['key_sha256']:
+            raise ValueError('Mozilla signing key differs from the input lock')
+        fingerprints = subprocess.check_output(
+            ['gpg', '--batch', '--show-keys', '--with-colons', str(mozilla_key)], text=True)
+        if 'fpr:::::::::' + firefox['key_fingerprint'] + ':' not in fingerprints:
+            raise ValueError('Mozilla signing key fingerprint differs from the input lock')
+        for name, field in [('InRelease', 'inrelease_sha256'), ('Packages', 'arm64_packages_sha256')]:
+            if sha(firefox_dir / name) != firefox[field]:
+                raise ValueError(f'Mozilla {name} differs from the input lock')
+        # Mozilla has no timestamped snapshot endpoint. Archive and authenticate
+        # the small arm64 index so a later live-index update cannot change this build.
+        keyring = out / 'etc/apt/mozilla.gpg'
+        subprocess.run(['gpg', '--batch', '--dearmor', '--output', str(keyring), str(mozilla_key)], check=True)
+        release = out / 'mozilla.Release'
+        subprocess.run(['gpgv', '--keyring', str(keyring), '--output', str(release),
+                        str(firefox_dir / 'InRelease')], check=True)
+        index = firefox_dir / 'Packages'
+        if not re.search(r'^ ' + firefox['arm64_packages_sha256'] + ' ' + str(index.stat().st_size)
+                         + r' main/binary-arm64/Packages$', release.read_text(), re.M):
+            raise ValueError('Mozilla Packages not covered by the signed Release')
+        browser = [p for p in Deb822.iter_paragraphs(index.read_text())
+                   if p.get('Package') == 'firefox' and p.get('Version') == firefox['version']]
+        if len(browser) != 1 or any(browser[0].get(k) != str(firefox[v]) for k, v in
+                                   [('Architecture', 'architecture'), ('SHA256', 'sha256'), ('Size', 'bytes')]):
+            raise ValueError('Firefox package lock differs from the signed index')
+        if firefox['repository'] + '/' + browser[0]['Filename'] != firefox['url']:
+            raise ValueError('Firefox URL differs from the signed index')
+        source = Deb822((firefox_dir / 'mozilla.sources').read_text())
+        source['Signed-By'] = str(mozilla_key)
+        (out / 'etc/apt/sources.list.d/mozilla.sources').write_text(source.dump())
+        (out / 'etc/apt/preferences.d/mozilla').write_bytes((firefox_dir / 'mozilla.pref').read_bytes())
+        args.packages = [p for p in args.packages if p.split('=')[0] != 'firefox']
+        args.packages.append('firefox=' + firefox['version'])
+
     config = apt_pkg.Configuration()
     for name, value in {
         'Dir::Etc': str(out / 'etc/apt'), 'Dir::Etc::main': '/dev/null',
@@ -88,7 +131,7 @@ def main():
               'dpkg_status_sha256': hashlib.sha256(status).hexdigest(), 'keyring_sha256': sha(key),
               'profile_sha256': sha(profile), 'tool_sha256': sha(Path(__file__)),
               'apt_version': subprocess.check_output(['apt-get', '--version'], text=True).splitlines()[0],
-              'requested': args.packages, 'commands': [], 'debs': []}
+              'requested': args.packages, 'commands': [], 'debs': [], 'mozilla_firefox': firefox}
 
     def save():
         (out / 'manifest.json').write_text(json.dumps(result, indent=2) + '\n')
@@ -106,20 +149,35 @@ def main():
 
     save()
     try:
-        apt('update', ['update'])
+        # Update only the immutable Ubuntu snapshot. Mozilla lists below are
+        # authenticated above and deliberately never fetched from the live index.
+        apt('update', ['-o', 'Dir::Etc::sourcelist=' + str(out / 'etc/apt/sources.list.d/ubuntu.sources'),
+                       '-o', 'Dir::Etc::sourceparts=-', 'update'] if firefox else ['update'])
+        if firefox:
+            prefix = out / 'state/lists/packages.mozilla.org_apt_dists_mozilla_'
+            for name, suffix in [('InRelease', 'InRelease'), ('Packages', 'main_binary-arm64_Packages')]:
+                shutil.copyfile(firefox_dir / name, str(prefix) + suffix)
         apt('plan', ['--simulate', '--no-remove', 'install', *args.packages])
-        apt('uris', ['--print-uris', '--download-only', '--assume-yes', '--no-remove', 'install', *args.packages])
+        downgrade = ['--allow-downgrades'] if firefox else []
+        apt('uris', ['--print-uris', '--download-only', *downgrade, '--assume-yes', '--no-remove', 'install', *args.packages])
         result['index_sha256'] = {p.name: sha(p) for p in sorted((out / 'state/lists').iterdir())
                                   if p.is_file() and p.name != 'lock'}
         if args.download:
-            apt('download', ['--download-only', '--assume-yes', '--no-remove', 'install', *args.packages])
+            apt('download', ['--download-only', *downgrade, '--assume-yes', '--no-remove', 'install', *args.packages])
             for path in sorted((out / 'cache/archives').glob('*.deb')):
                 fields = Deb822(subprocess.check_output(['dpkg-deb', '--field', str(path)], text=True))
                 if fields['Architecture'] not in ('all', 'arm64'):
                     raise RuntimeError(f'Unexpected downloaded architecture: {path.name}')
                 result['debs'].append({'file': str(path.relative_to(out)), 'package': fields['Package'],
                                        'version': fields['Version'], 'architecture': fields['Architecture'],
-                                       'bytes': path.stat().st_size, 'sha256': sha(path)})
+                                       'bytes': path.stat().st_size, 'sha256': sha(path),
+                                       'source': firefox['repository'] if firefox and fields['Package'] == 'firefox'
+                                       else f'Ubuntu snapshot {args.snapshot}'})
+        if firefox and args.download:
+            browser = [d for d in result['debs'] if d['package'] == 'firefox']
+            if len(browser) != 1 or any(browser[0][key] != firefox[key]
+                                        for key in ('version', 'architecture', 'sha256', 'bytes')):
+                raise ValueError('Downloaded Firefox differs from ubuntu/firefox/source.json')
         result['state'] = 'DOWNLOADED_NOT_INSTALLED' if args.download else 'RESOLVED_NOT_INSTALLED'
     except Exception as exc:
         result['state'] = 'FAILED'

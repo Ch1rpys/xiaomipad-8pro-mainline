@@ -1,0 +1,32 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA256
+
+Origin: namespaces/moz-fx-productdelivery-pr-38b5/repositories/mozilla
+Label: namespaces/moz-fx-productdelivery-pr-38b5/repositories/mozilla
+Suite: mozilla
+Codename: mozilla
+Date: Sat, 10 Oct 2026 22:18:01 UTC
+Architectures: all amd64 arm64 i386
+Components: main
+Description: Productdelivery Debian Packages
+MD5Sum:
+ d3d66be7afcc6fa5df0a2369ce0d7720 5737107 main/binary-all/Packages
+ 3bad38c324cffe68ddbeef37c69c1bbd 118779 main/binary-amd64/Packages
+ a9a62f854abdc3e1025592d087cf30b9 103400 main/binary-arm64/Packages
+ 59e42cb4a479fdd17586ad1cbc51b1bd 2153 main/binary-i386/Packages
+SHA256:
+ 4b82d0220c07f43495e2acad198ac433fba36b7c7847185d8811d7201bc2b9e5 5737107 main/binary-all/Packages
+ ecbfa457c5b265372df1c46e8480dbd40677a4a964165af764b942475c8202c1 118779 main/binary-amd64/Packages
+ fb688116059a6e72d3f075578277e97e504713e2942fee3a594ae0247abb12d8 103400 main/binary-arm64/Packages
+ e2f624fc2580837d77317f5bfa0b963d24acaa477b95df29027215277c17d0f0 2153 main/binary-i386/Packages
+-----BEGIN PGP SIGNATURE-----
+
+wsBzBAEBCAAnBQJqyrmZCZDAulzm3GMVoxYhBDW6oLM+nrOW9ZyoOMC6XObcYxWj
+AABjbgf/TXBq7xa5PCioqPaBc50ixJhaXh0XWEOcl0ep9crh5aEsOxdA8T5JbDLk
+L4QkVH/sh/BcncLs+x5yt8WQgDG82+7UKfjvqdTxWL5aFulMGROlIjlkkto/segx
+5J3q3KbcgbowtOxWqZOHJrohWtZZ4hmGBtu72tNiKQ24tGvgsSHVrBXI4gqvDwHD
+xEB+bR4+jw64Rv7qsw0aGYvJLvBiYcppOVglw/pA9CBE0fVoKSZQR995UbsRcNRo
+J22mcSPBcRX/9OsoBm48ceidbytT7MPu62tK+CQMLyisB9JYfE1HghI2mhfUnOKW
+m4n0TOpXBs36rezYJoN1Skjek5gnsg==
+=Oj07
+-----END PGP SIGNATURE-----

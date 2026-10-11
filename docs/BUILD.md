@@ -183,6 +183,15 @@ python3 tools/build-rootfs-image.py --squashfs out/ubuntu-desktop-pristine/ubunt
 # expect "state": "ROOT_IMAGE_BUILT_OFFLINE_CHECKS_PASS_NOT_BOOTED"
 ```
 
+Firefox APT inputs are prepared in [ubuntu/firefox/source.json](../ubuntu/firefox/source.json)
+for the unmodified ARM64 deb from [Mozilla](https://support.mozilla.org/en-US/kb/install-firefox-linux),
+so a future image can use its own Mesa stack instead of the snap graphics runtime.
+`prepare-ubuntu-apt.py --mozilla-firefox` verifies the pinned key, archived signed index and package
+hashes with priority 1000. **This is not enabled in the image builder:** the frozen Desktop base is
+already snap-preseeded, with Firefox 8105 registered in `state.json`, an installed snap and pending
+hooks. Editing only `seed.yaml` and its payloads cannot remove that installed snap; the seed-only
+migration stopped before building an image. No Firefox GPU or device result is claimed.
+
 `fake-hwclock` is a dependency of piano-ubuntu-desktop 0.1+20261010.6. Download
 `systemd-zram-generator` only for a kernel with `CONFIG_ZRAM` (7.2.6-piano7 and later): without the
 module the boot waits 90 s for `/dev/zram0` (QEMU, 7.2.6-piano6), and `build-rootfs-image.py`
