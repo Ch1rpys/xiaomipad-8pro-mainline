@@ -18,6 +18,11 @@ Bind every command to your tablet (`adb -s <SERIAL>`, `fastboot -s <SERIAL>`,
 `piano-switch.py --serial <SERIAL>`) and run one tool against it at a time. Leave Android with at
 least 40 % battery; Linux does not charge.
 
+For host commands, set REPO, RELEASE and WORK as in [INSTALL.md](INSTALL.md#what-you-need):
+REPO is the absolute path to the checkout at the release's recorded integration commit, RELEASE is
+the extracted release directory, and WORK is your private installation directory outside the checkout.
+Run host commands from WORK; source tools use `"$REPO/tools/NAME"` and release files use `"$RELEASE/PATH"`.
+
 ## Fastboot
 
 Hold **Power + Volume Down** until Fastboot appears; this works from any state, including a hang.
@@ -34,12 +39,13 @@ fastboot -s <SERIAL> getvar battery-soc-ok        # expect "battery-soc-ok: yes"
 
 `boot/boot-ram-maintenance.img` of the release is a RAM-only Linux for work on the UFS disks that
 must not run from a mounted system, such as the partition table write of
-[INSTALL.md step 6](INSTALL.md#6-write-the-partition-table-on-the-tablet). It writes no partition and
-does not change slot A.
+[INSTALL.md step 6](INSTALL.md#6-write-the-partition-table-on-the-tablet). It mounts no UFS partition and writes nothing automatically; slot A is unchanged.
+[INSTALL.md step 8a](INSTALL.md#8a-recommended-install-your-units-files-before-the-first-boot)
+explicitly mounts the new root to install your unit’s files.
 
 ```bash
-fastboot -s <SERIAL> boot <release>/boot/boot-ram-maintenance.img    # expect "Booting OKAY"
-python3 tools/piano-devmode-ssh.py --serial <SERIAL> --check         # expect "... 192.168.88.10 -> 192.168.88.2 ready"
+fastboot -s <SERIAL> boot "$RELEASE/boot/boot-ram-maintenance.img"    # expect "Booting OKAY"
+python3 "$REPO/tools/piano-devmode-ssh.py" --serial <SERIAL> --check         # expect "... 192.168.88.10 -> 192.168.88.2 ready"
 telnet 192.168.88.2 2323                                              # root shell, no password
 ```
 
@@ -56,9 +62,9 @@ With no open session for 10 minutes the tablet reboots into Fastboot by itself; 
 only while the cable is connected. `fastboot -s <SERIAL> reboot` then starts slot A. Tools:
 `sgdisk`, `sfdisk`, `lsblk`, `partx`, `blockdev` (Ubuntu 26.04 binaries), BusyBox `dd`,
 `sha256sum` and `wget`. Every command runs as root: `dd`, `sgdisk` and `sfdisk` write the disk
-when you tell them to. Verified on the test unit: boot, the link, the LUN table, the idle
-reboot into Fastboot, `piano-maint fastboot`, and the [INSTALL.md step 6](INSTALL.md#6-write-the-partition-table-on-the-tablet)
-write path rewriting the current table over itself (2026-10-10).
+when you tell them to.
+
+These device results were obtained with earlier maintenance and release builds on 2026-10-10: USB connection, LUN inspection, rewriting the existing GPT without changes, timed return to Fastboot, and preinstalling unit files. They do not validate the maintenance or boot images bundled here, which use 7.2.6-piano7 and have not yet been booted on a tablet. Generating the partition map in INSTALL.md step 8a has only been checked offline.
 
 ## Image sets
 
@@ -72,14 +78,25 @@ partition size) and a `SHA256SUMS` file listing the three.
 
 On the tablet the store `/var/lib/piano/switch/` holds `android/`, `ubuntu/` and `ubuntu.prev/`
 (the Ubuntu set before the current one). Keep host copies of the Android set and of the current
-Ubuntu set. After each kernel update, copy the new Ubuntu set to the host:
+Ubuntu set. After each update, enable developer mode and choose a new SET_NAME, using the same name on the tablet and host. Do not reuse an existing destination.
 
 ```bash
-# on the tablet
-sudo cp -r /var/lib/piano/switch/ubuntu ~/ubuntu-set && sudo chown -R $USER: ~/ubuntu-set
-# on the host
-scp -r <USER>@192.168.88.2:ubuntu-set ubuntu-set-current
-(cd ubuntu-set-current && sha256sum -c SHA256SUMS)       # expect three "OK" lines
+# Tablet: choose a new name for each update.
+SET_NAME=ubuntu-set-update-001
+sudo piano-devmode on
+test ! -e "$HOME/$SET_NAME" &&
+  sudo cp -a /var/lib/piano/switch/ubuntu "$HOME/$SET_NAME" &&
+  sudo chown -R "$USER:" "$HOME/$SET_NAME"
+
+# Host: use the same name.
+SET_NAME=ubuntu-set-update-001
+python3 "$REPO/tools/piano-devmode-ssh.py" --serial <SERIAL> --check
+test ! -e "$SET_NAME" &&
+  scp -r <USER>@192.168.88.2:"$SET_NAME" . &&
+  (cd "$SET_NAME" && sha256sum -c SHA256SUMS)
+
+# Tablet, after successful transfer and verification:
+sudo piano-devmode off
 ```
 
 When the Android root patch in slot A changes (for example Magisk to KernelSU), the stored
@@ -99,9 +116,8 @@ Android set from the current slot A images and store it with
 | `sudo piano-boot-switch import-android --from DIR` | store | `"result": "imported"`; replaces `android/` |
 | `sudo piano-boot-switch import-ubuntu [--from DIR]` | store | `imported`; the old `ubuntu/` becomes `ubuntu.prev/` |
 
-- It needs piano-device-support 0.1+20261010.6 or later on a v0.1.0-preview install, as installed in
-  [INSTALL.md step 10](INSTALL.md#10-install-your-units-files) (0.1+20261010.3 refuses every command
-  with `serial-mismatch`).
+- The required fixes are included in this release’s piano-device-support 0.1+20261010.7. Complete
+  [INSTALL.md step 10](INSTALL.md#10-install-your-units-files) to install your unit’s files.
 - It needs your `boot-profile.json` and `boot-partitions.json` in `/etc/piano/`, and writes only
   when slot A holds a known set, which serves as the rollback. Each partition is written and read
   back in full; on a failure the previous set is written back.
@@ -112,14 +128,14 @@ Android set from the current slot A images and store it with
 
 ## From Android: KernelSU module
 
-Verified on the test unit (2026-10-10): install, `--check`, the action (slot A written with `dd`,
-attributes kept, Ubuntu reachable over developer mode 30 s later). The module
-`tools/piano-switch-ksu-<version>.zip` of the release needs KernelSU-Next with shell root, a stored
+The Android-side module is unverified in the [support matrix](../README.md#support-matrix);
+use the host path below until it is verified. The module
+`tools/piano-switch-ksu-v0.1.0.zip` of the release needs KernelSU-Next with shell root, a stored
 `android/` set equal to slot A and a clean Ubuntu shutdown.
 
 ```bash
-adb -s <SERIAL> push piano-switch-ksu-<version>.zip /data/local/tmp/
-adb -s <SERIAL> shell su -c '/data/adb/ksud module install /data/local/tmp/piano-switch-ksu-<version>.zip'
+adb -s <SERIAL> push "$RELEASE/tools/piano-switch-ksu-v0.1.0.zip" /data/local/tmp/
+adb -s <SERIAL> shell su -c '/data/adb/ksud module install /data/local/tmp/piano-switch-ksu-v0.1.0.zip'
 adb -s <SERIAL> reboot
 adb -s <SERIAL> shell su -c 'sh /data/adb/modules/piano-switch/piano-switch.sh --check'
 # expect "CHECK OK: slot A holds the android set and the ubuntu set is ready; nothing written"
@@ -135,10 +151,10 @@ Verified on the test unit in both directions. In Fastboot:
 
 ```bash
 # to Android
-python3 tools/piano-switch.py --serial <SERIAL> --images <android-set> --rollback <ubuntu-set>
+python3 "$REPO/tools/piano-switch.py" --serial <SERIAL> --images <android-set> --rollback <ubuntu-set>
 fastboot -s <SERIAL> reboot
 # to Ubuntu
-python3 tools/piano-switch.py --serial <SERIAL> --images <ubuntu-set> --rollback <android-set>
+python3 "$REPO/tools/piano-switch.py" --serial <SERIAL> --images <ubuntu-set> --rollback <android-set>
 fastboot -s <SERIAL> reboot
 # expect "Active A boot triplet written; remain in Fastboot for a RAM readback before reboot."
 ```
@@ -175,8 +191,8 @@ slot B's priority; slot B stays unused.
 ## When the tablet does not respond
 
 1. **Developer mode on** (`sudo piano-devmode on` in Ubuntu): about 22 s after power-on,
-   `python3 tools/piano-devmode-ssh.py --check` should report the link as `ready`. Then
-   `python3 tools/piano-devmode-ssh.py -t <USER> sudo piano-reboot-bootloader`, or switch to Android
+   `python3 "$REPO/tools/piano-devmode-ssh.py" --serial <SERIAL> --check` should report the link as `ready`. Then
+   `python3 "$REPO/tools/piano-devmode-ssh.py" --serial <SERIAL> -t <USER> sudo piano-reboot-bootloader`, or switch to Android
    with `piano-boot-switch to-android --reboot`.
 2. **Otherwise** hold Power + Volume Down until Fastboot appears, then write the Android set with
    `piano-switch.py`. A boot that hangs before the system starts has no timer and stays hung until

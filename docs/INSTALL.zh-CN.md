@@ -30,18 +30,31 @@ v0.1 只能手工安装，尚无安装器；写入新分区表（[第 6 步](#6-
 | 小米平板 8 Pro，原厂 `OS3.0.303.0.WPYCNXM`，A 槽活动 | Android 中可用 `adb` |
 | Android root | 用 Magisk 或 KernelSU-Next 修补 `init_boot_a`，用于读取分区（*手工*，按该项目的说明操作） |
 | 小米磁吸键盘 | 安装本机触控标定之前唯一的输入方式（[第 10 步](#10-安装本机文件)） |
-| Linux x86_64 主机 | Android platform-tools（`adb`、`fastboot`）、Python 3、`openssl`、`uuidgen`、`sgdisk`、`sfdisk`、`losetup`、`mkfs.ext4`、`img2simg`、`sha256sum`、`telnet`、`nc`（OpenBSD netcat） |
+| Linux x86_64 主机 | Android platform-tools（`adb`、`fastboot`）、Python 3.11 或更高版本、Git、`tar`、`zstd`、`openssl`、`uuidgen`、`sgdisk`、`sfdisk`、`losetup`、`mkfs.ext4`、`img2simg`、`sha256sum`、`ip`（iproute2）、包含 `scp` 的 OpenSSH 客户端、`telnet` 和 `nc`（OpenBSD netcat） |
 | AOSP `avbtool.py` | 来自 AOSP `external/avb`（尚无获取脚本） |
-| 本仓库 | 检出到发布版 `RELEASE-NOTES.md` 中的集成提交，然后执行 `sh tools/fetch-aosp-mkbootimg.sh` |
+| 本仓库 | 检出到发布版 `RELEASE-NOTES.md` 中的集成提交；在下方设置 REPO 后获取 AOSP mkbootimg |
 | 发布目录 | 同一版本的全部文件，不与其他版本混用 |
 | 主机可用空间 | 约 40 GB：备份（测试机 16 GB）、发布目录（约 9 GB）与数据镜像 |
 
-把[发布](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview)的全部 `piano-v0.1.0-preview.tar.zst.part*` 下载到同一目录，还原发布目录（约需 14 GB 空间），使用前先校验：
+从同一发布版本把 SHA256SUMS.assets 及其中列出的全部附件下载到同一目录。在该目录执行 `sha256sum -c SHA256SUMS.assets`，全部条目通过后再解压分卷。
+附件见[发布页](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview)，解压约需 14 GB 空间。
 
 ```bash
-sha256sum -c SHA256SUMS.assets                   # 下载的附件
+sha256sum -c SHA256SUMS.assets                   # 下载的全部附件必须通过
 cat piano-v0.1.0-preview.tar.zst.part* | zstd -d | tar -x
-cd <release> && sha256sum -c SHA256SUMS          # 预期每行均为 "OK"
+```
+
+REPO 为发布记录提交的集成仓检出目录的绝对路径，RELEASE 为解压后的发布目录，WORK 为仓库之外的私有安装工作目录。后续主机命令均在 WORK 中执行；源码工具使用 `"$REPO/tools/NAME"`，发布文件使用 `"$RELEASE/PATH"`。
+每个使用的主机终端都需设置这些路径。上面的下载附件位于 RELEASE 之外；下一次校验检查解压后的文件。
+
+```bash
+REPO=/absolute/path/to/xiaomipad-8pro-mainline
+RELEASE=/absolute/path/to/extracted-release
+WORK=/absolute/path/to/private-install-work
+mkdir -p "$WORK"
+cd "$WORK"
+sh "$REPO/tools/fetch-aosp-mkbootimg.sh"
+(cd "$RELEASE" && sha256sum -c SHA256SUMS)
 ```
 
 发布目录包含 `boot/`（A 槽的 Ubuntu 启动镜像组、`boot-ram-check.img` 和 `boot-ram-maintenance.img`）、`rootfs/root.sparse.img`（60 GiB 根）、
@@ -120,7 +133,7 @@ cp backup/vendor_boot_a.img android-set/vendor_boot.img
 ```bash
 adb -s <SERIAL> shell su -c 'find /odm -name "piano_nova_*_thp_config.ini"'
 adb -s <SERIAL> exec-out su -c 'cat <ini 路径>' > thp.ini
-python3 tools/extract-thp-calibration.py --input thp.ini --output thp-calibration.json
+python3 "$REPO/tools/extract-thp-calibration.py" --input thp.ini --output thp-calibration.json
 ```
 
 **蓝牙地址。**
@@ -159,7 +172,7 @@ openssl genrsa -out boot-signing.pem 4096
 ```
 
 ```bash
-python3 tools/local/aosp-mkbootimg/unpack_bootimg.py --boot_img backup/vendor_boot_a.img --out /tmp/vb
+python3 "$REPO/tools/local/aosp-mkbootimg/unpack_bootimg.py" --boot_img backup/vendor_boot_a.img --out /tmp/vb
 # 头版本、页大小、kernel/ramdisk/tags 加载地址、dtb 地址
 python3 <avbtool.py> info_image --image backup/boot_a.img
 # "Rollback Index:" 与所有 "Prop: com.android.build.boot.*" 行；init_boot_a、vendor_boot_a 同样处理
@@ -234,8 +247,8 @@ A 槽仍为 Android。10 分钟内没有打开的会话（拔线后同样计时�
 在主机上，平板处于 Fastboot，当前目录里有第 5 步的 `new-primary.bin` 和 `new-backup.bin`：
 
 ```bash
-fastboot -s <SERIAL> boot <release>/boot/boot-ram-maintenance.img    # 预期 "Booting OKAY"
-python3 tools/piano-devmode-ssh.py --serial <SERIAL> --check         # 预期 "... 192.168.88.10 -> 192.168.88.2 ready"（约 5 s）
+fastboot -s <SERIAL> boot "$RELEASE/boot/boot-ram-maintenance.img"    # 预期 "Booting OKAY"
+python3 "$REPO/tools/piano-devmode-ssh.py" --serial <SERIAL> --check         # 预期 "... 192.168.88.10 -> 192.168.88.2 ready"（约 5 s）
 python3 -m http.server --bind 192.168.88.10 8000 &                    # 向平板提供这两个文件
 telnet 192.168.88.2 2323
 ```
@@ -272,10 +285,8 @@ piano-maint fastboot                                    # 重启进入 Fastboot
 - `piano-maint status` 显示空闲计数；`piano-maint keepalive` 重新计数，`piano-maint idle SECONDS`（30–3600）修改时限。
   打开的 telnet 会话只在连着线时才阻止计时。
 - 如果 `piano-maint fastboot` 提示 `nvmem-reboot-mode is not bound`，它不会重启；请按电源 + 音量下。
-- 测试机已验证（2026-10-10）：启动、约 4 s 后链路就绪、LUN 表、LUN 0 的 `sgdisk -p`、`sfdisk --json` 与 `sgdisk --verify`
-  与 2026-10-07 写入的分区表一致、无挂载，以及空闲后自动重启进入 Fastboot。上面的写入命令于 2026-10-07 在更早的
-  RAM 环境中写入了该分区表；2026-10-10 在本镜像中以同一分区表原样重写：写前写后区域哈希均等于保存的文件，两次读回一致，
-  `sgdisk --verify` 无问题，`piano-maint fastboot` 回到 Fastboot；尚未在本镜像中写入变更后的分区表。
+
+这些真机结果来自 2026-10-10 的早期维护与发布构建：USB 连接、LUN 检查、原样重写既有 GPT、定时返回 Fastboot，以及预置本机文件。它们不代表本发布目录中的维护或启动镜像已经验证；这里的镜像使用 7.2.6-piano7，尚未在平板上启动。第 8a 步生成分区映射仅经过离线检查。
 
 ## 7. 写入文件系统（Fastboot）
 
@@ -294,8 +305,8 @@ mkfs.ext4 -L linux_data data.ext4 && img2simg -s data.ext4 data.sparse.img     #
 ```bash
 fastboot -s <SERIAL> erase userdata
 fastboot -s <SERIAL> erase metadata
-python3 tools/sparse_image.py summary <release>/rootfs/root.sparse.img data.sparse.img   # 平板将写入的量
-fastboot -s <SERIAL> flash linux_rootfs <release>/rootfs/root.sparse.img   # 数分钟；写入 8.7 至 10.1 GB
+python3 "$REPO/tools/sparse_image.py" summary "$RELEASE/rootfs/root.sparse.img" data.sparse.img   # 平板将写入的量
+fastboot -s <SERIAL> flash linux_rootfs "$RELEASE/rootfs/root.sparse.img"   # 数分钟；写入 8.7 至 10.1 GB
 fastboot -s <SERIAL> flash linux_data data.sparse.img                      # 数秒
 # 预期每个 Sending 与 Writing 行均为 "OKAY"，最后 "Finished."
 ```
@@ -314,7 +325,7 @@ Android 下次启动时重建 `userdata` 与 `metadata`；全部 Android 数据�
 ## 8. 可选：不写 A 槽先试启动
 
 ```bash
-fastboot -s <SERIAL> boot <release>/boot/boot-ram-check.img     # 预期 "Booting OKAY"
+fastboot -s <SERIAL> boot "$RELEASE/boot/boot-ram-check.img"     # 预期 "Booting OKAY"
 ```
 
 它从 RAM 启动一次已安装的根，内核、initrd 与命令行与发布镜像组相同，不写任何启动分区。
@@ -325,15 +336,13 @@ fastboot -s <SERIAL> boot <release>/boot/boot-ram-check.img     # 预期 "Bootin
 可以用[第 6 步](#6-写入分区表平板上)的维护镜像，在 Ubuntu 首次启动前生成分区映射，把它与触控标定、地址一起放进新根，并打开开发者模式。
 这样初始设置中触控可用，账户建好后主机即可经 SSH 连接平板。不做本步时，初始设置使用磁吸键盘，并在第 10 步复制文件。
 
-`boot-profile.json` 与 `boot-signing.pem` 留在主机上，到第 10 步再装。初始设置的键盘页会重建 initrd；根中有这两个文件时，
-启动钩子会重建启动镜像组并写入 A 槽，而 v0.1.0-preview 根中的 `piano-boot-switch`（0.1+20261010.3）拒绝写入（见第 10 步），
-软件包配置随之失败，`dracut` 停在半配置状态。
+boot-profile.json 与 boot-signing.pem 留在主机上，到第 10 步再安装，以便在 Android 恢复镜像组准备好之后重建启动镜像组。本发布版已包含 piano-device-support 0.1+20261010.7，早期的 serial-mismatch 故障已经修复。
 
 平板处于 Fastboot，主机当前目录里有第 3 步的文件：
 
 ```bash
-fastboot -s <SERIAL> boot <release>/boot/boot-ram-maintenance.img    # 预期 "Booting OKAY"
-python3 tools/piano-devmode-ssh.py --serial <SERIAL> --check         # 预期 "... ready"
+fastboot -s <SERIAL> boot "$RELEASE/boot/boot-ram-maintenance.img"    # 预期 "Booting OKAY"
+python3 "$REPO/tools/piano-devmode-ssh.py" --serial <SERIAL> --check         # 预期 "... ready"
 python3 -m http.server --bind 192.168.88.10 8000 &                    # 空闲端口，同第 6 步
 telnet 192.168.88.2 2323
 ```
@@ -341,7 +350,7 @@ telnet 192.168.88.2 2323
 在主机的第二个终端中（同一目录）等待启动 LUN 的分区表：
 
 ```bash
-nc -l 192.168.88.10 8001 | python3 tools/extract-boot-partitions.py --input - \
+nc -l 192.168.88.10 8001 | python3 "$REPO/tools/extract-boot-partitions.py" --input - \
   --profile boot-profile.json --output boot-partitions.json
 ```
 
@@ -376,8 +385,9 @@ piano-maint fastboot
 ```
 
 此环境中 `lsblk` 不显示分区标签，上面的循环从 sysfs 读取。该符号链接就是 `piano-devmode on` 所创建的。
-测试机已验证（2026-10-10，用本步旧版的五个文件）：文件以 600 权限和主机哈希写入，无残留挂载，随后发布镜像组的启动中触控按标定运行、开发者模式启动。
-在此生成映射尚未在平板上运行；离线时，发布版 BusyBox 的 `nc` 在分区表结束时关闭连接，主机的 `nc -l` 随即退出，工具从测试机 LUN 4 的 GPT 重建出其映射。
+
+这些真机结果来自 2026-10-10 的早期维护与发布构建：USB 连接、LUN 检查、原样重写既有 GPT、定时返回 Fastboot，以及预置本机文件。它们不代表本发布目录中的维护或启动镜像已经验证；这里的镜像使用 7.2.6-piano7，尚未在平板上启动。第 8a 步生成分区映射仅经过离线检查。
+离线时，发布版 BusyBox 的 `nc` 在分区表结束时关闭连接，主机的 `nc -l` 随即退出，工具从测试机 LUN 4 的 GPT 重建出其映射。
 
 ## 9. 写入 A 槽并首次启动
 
@@ -385,7 +395,7 @@ piano-maint fastboot
 
 ```bash
 fastboot -s <SERIAL> getvar battery-soc-ok         # 预期 "battery-soc-ok: yes"
-python3 <release>/tools/piano-switch.py --serial <SERIAL> --images <release>/boot --rollback android-set
+python3 "$REPO/tools/piano-switch.py" --serial <SERIAL> --images "$RELEASE/boot" --rollback android-set
 # 预期 "Active A boot triplet written; remain in Fastboot for a RAM readback before reboot."
 fastboot -s <SERIAL> reboot
 ```
@@ -395,11 +405,10 @@ fastboot -s <SERIAL> reboot
   （开发者模式需要账户且拒绝 root 登录），唯一的退路是电源 + 音量下。
 - **计算机名。**账户页的“计算机”栏默认填入你的用户名，初始设置把它设为主机名，替换镜像的 `xiaomipad-8pro`（7.2.6-piano7 构建）；
   需要别的名字时修改该栏，或之后运行 `sudo hostnamectl hostname --static <名字>`。蓝牙显示的友好名称“Xiaomi Pad 8 Pro”保持不变。
-- **时钟。**硬件时钟不可写。piano-ubuntu-desktop 0.1+20261010.6 及以后（7.2.6-piano7 构建）每次启动从上次关机或每小时保存的时间开始
-  （`fake-hwclock`），因此慢了平板关机或停留在 Android 的时长；更早的构建每次启动都从 systemd 内置日期 2026-04-15 开始。
-  联网后 chrony 会校时。路由器自己应答所有 NTP 请求时（测试网络即如此）收不到经 NTS 认证的应答；自 piano-ubuntu-desktop
-  0.1+20261010.7 起 chrony 这时采用未认证的时间（`authselectmode ignore`，尚未实测），代价是 NTS 不可用时失去其防篡改保护。
-  更早的版本在这种网络下时钟保持错误，需手动设置：`sudo date -s 'YYYY-MM-DD HH:MM'`。
+- **时钟。**硬件时钟不可写。本发布版的 piano-ubuntu-desktop 0.1+20261010.7 配置为恢复上次关机或每小时保存的时间
+  （`fake-hwclock`），因此慢了平板关机或停留在 Android 的时长。没有该措施的镜像从 systemd 内置日期 2026-04-15 开始。
+  chrony 配置为联网后校时，包括路由器自己应答 NTP 的情况，代价是 NTS 不可用时接受未认证的时间（`authselectmode ignore`）。
+  这些时钟措施尚未在平板上验证。其他情况请手动设置：`sudo date -s 'YYYY-MM-DD HH:MM'`。
 - 启动完成后该槽被标记为启动成功：`sudo piano-slot-success --check` 应报告 `"state": "already-successful"`。
 
 第 10 步之前：没有蓝牙，Wi-Fi 使用随机 MAC，不能从 Ubuntu 切换，内核更新也不会改写 A 槽（地址由该步重建的启动镜像组带入）。只有做过第 8a 步，首次启动起触控才可用。
@@ -417,7 +426,7 @@ piano-devmode status       # 预期 "developer mode: enabled, active" 与 "SSH s
 在主机上（`<USER>` 为初始设置中创建的账户）：
 
 ```bash
-python3 tools/piano-devmode-ssh.py --check     # 预期 "... 192.168.88.10 -> 192.168.88.2 ready"
+python3 "$REPO/tools/piano-devmode-ssh.py" --serial <SERIAL> --check     # 预期 "... 192.168.88.10 -> 192.168.88.2 ready"
 ```
 
 如果主机没有取得 DHCP 地址，`--check` 会打印设置地址的 `ip` 命令。
@@ -434,34 +443,27 @@ sudo sfdisk --json /dev/$d > ~/boot-lun.json
 
 ```bash
 scp <USER>@192.168.88.2:boot-lun.json .
-python3 tools/extract-boot-partitions.py --input boot-lun.json --profile boot-profile.json --output boot-partitions.json
+python3 "$REPO/tools/extract-boot-partitions.py" --input boot-lun.json --profile boot-profile.json --output boot-partitions.json
 # 预期 init_boot_a 8388608 B，vendor_boot_a 与 boot_a 各 100663296 B
 ```
 
 此方式取代本指南旧版的手写映射，尚未在平板上运行。
 
+本发布版已包含 piano-device-support 0.1+20261010.7。全新安装无需构建、复制或安装支持包：下面的 scp 命令已移除该软件包，也无需执行 dpkg 命令。boot-profile.json 与 boot-signing.pem 留在主机上，到第 10 步再安装，以便在 Android 恢复镜像组准备好之后重建启动镜像组。serial-mismatch 故障影响包含 0.1+20261010.3 的早期镜像，本发布版已经修复。
+
 **复制文件：**
 
 ```bash
 scp -r thp-calibration.json bluetooth-address wlan-address boot-partitions.json boot-profile.json \
-  boot-signing.pem android-set piano-device-support_<版本>_arm64.deb <USER>@192.168.88.2:
+  boot-signing.pem android-set <USER>@192.168.88.2:
 ```
 
-做过第 8a 步时其中四个文件已在 `/etc/piano` 中，只需复制 `boot-profile.json`、`boot-signing.pem`、`android-set` 和软件包。
-
-> **本步需要 piano-device-support 0.1+20261010.6 或更高版本。** v0.1.0-preview 根自带 0.1+20261010.3，其
-> `piano-boot-switch` 在发布启动镜像组上以 `"code": "serial-mismatch"` 拒绝所有命令：发布版命令行不含
-> `androidboot.serialno`，引导程序只在 `/proc/bootconfig` 中传入它，而 0.1+20261010.3 只读 `/proc/cmdline`（0.1+20261010.5 修正）。
-> 自 0.1+20261010.6 起，持久启动中缺 `boot-partitions.json` 时，内核与 initrd 更新不改动启动镜像组和 A 槽，而不是失败。
-> 按 [BUILD](build.zh-CN.md) 构建该包，与文件一起复制到平板并先安装：`sudo dpkg -i piano-device-support_<版本>_arm64.deb`。
-> 根中已是 0.1+20261010.6 或更高版本时（`dpkg-query -W piano-device-support`；7.2.6-piano7 构建为 0.1+20261010.7），
-> 不需要该包，也不需要下面的 `dpkg -i`。
+做过第 8a 步时其中四个文件已在 `/etc/piano` 中，只需复制 `boot-profile.json`、`boot-signing.pem` 和 `android-set`。
 
 **安装文件、存入 Android 镜像组并重建启动镜像组：**
 
 ```bash
 cd ~
-sudo dpkg -i piano-device-support_<版本>_arm64.deb
 sudo install -m 600 bluetooth-address wlan-address thp-calibration.json boot-profile.json \
   boot-signing.pem boot-partitions.json /etc/piano/       # 做过第 8a 步时只装 boot-profile.json boot-signing.pem
 sudo piano-boot-switch status          # 预期 "occupant": "ubuntu" 与 "backup_gpt": "valid"
@@ -470,12 +472,6 @@ sudo piano-boot-update $(uname -r)
 # 预期 "Piano boot image set prepared for <release>" 与 "Slot A now holds store/ubuntu"
 sudo systemctl reboot
 ```
-
-如果初始设置运行时 `/etc/piano` 中已有 `boot-profile.json` 与 `boot-signing.pem`（本指南旧版的第 8a 步），
-`sudo dpkg --audit` 报告 `dracut` 半配置，`status` 报告 `"occupant": "ubuntu.prev"`：A 槽仍是发布镜像组（现为 `ubuntu.prev`），
-`ubuntu/` 中是未写入的镜像组。装好软件包和文件后，先运行 `sudo piano-boot-switch to-ubuntu`（预期 `"result": "written"`），
-再运行 `piano-boot-update` 或 `sudo dpkg --configure -a`，否则二者会删除 A 槽中的镜像组。然后继续上面的命令，
-最后运行 `sudo dpkg --configure -a`（`sudo dpkg --audit` 无输出）。测试机于 2026-10-10 按此恢复。
 
 新镜像组带有你的地址、序列号和密钥；发布镜像组保留为 `ubuntu.prev`。重启后：
 

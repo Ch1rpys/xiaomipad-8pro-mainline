@@ -35,19 +35,31 @@ Steps that use standard commands because no project tool exists yet are marked *
 | Xiaomi Pad 8 Pro on stock `OS3.0.303.0.WPYCNXM`, slot A active | `adb` reachable in Android |
 | Root in Android | Magisk or KernelSU-Next in a patched `init_boot_a`, to read partitions (*manual*, follow that project's instructions) |
 | Xiaomi magnetic keyboard | the only input until your touch calibration is installed ([step 10](#10-install-your-units-files)) |
-| Linux x86_64 host | Android platform-tools (`adb`, `fastboot`), Python 3, `openssl`, `uuidgen`, `sgdisk`, `sfdisk`, `losetup`, `mkfs.ext4`, `img2simg`, `sha256sum`, `telnet`, `nc` (OpenBSD netcat) |
+| Linux x86_64 host | Android platform-tools (`adb`, `fastboot`), Python 3.11 or later, Git, `tar`, `zstd`, `openssl`, `uuidgen`, `sgdisk`, `sfdisk`, `losetup`, `mkfs.ext4`, `img2simg`, `sha256sum`, `ip` (iproute2), an OpenSSH client including `scp`, `telnet`, and `nc` (OpenBSD netcat) |
 | AOSP `avbtool.py` | from AOSP `external/avb` (no fetch script yet) |
-| This repository | checked out at the integration commit in the release's `RELEASE-NOTES.md`; then `sh tools/fetch-aosp-mkbootimg.sh` |
+| This repository | checked out at the integration commit in the release's `RELEASE-NOTES.md`; fetch AOSP mkbootimg after setting REPO below |
 | The release directory | every file of one release, not mixed with other releases |
 | Free host space | about 40 GB: the backup (16 GB on the test unit), the release (about 9 GB) and the data image |
 
-Download every `piano-v0.1.0-preview.tar.zst.part*` of the [release](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview) into one directory, restore
-the release directory (about 14 GB of free space) and check it before using it:
+Download SHA256SUMS.assets and every asset listed in it from the same release into one directory. Run `sha256sum -c SHA256SUMS.assets` there and require every entry to pass before extracting the archive parts.
+The assets are on the [release page](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview); extraction needs about 14 GB of free space.
 
 ```bash
-sha256sum -c SHA256SUMS.assets                   # the downloaded files
+sha256sum -c SHA256SUMS.assets                   # require every downloaded asset to pass
 cat piano-v0.1.0-preview.tar.zst.part* | zstd -d | tar -x
-cd <release> && sha256sum -c SHA256SUMS          # expect every line "OK"
+```
+
+REPO is the absolute path to the integration checkout at the release’s recorded commit. RELEASE is the extracted release directory. WORK is a private installation directory outside the checkout. Run subsequent host commands from WORK; use `"$REPO/tools/NAME"` for source tools and `"$RELEASE/PATH"` for release files.
+Set these paths in each host terminal you use. The download assets above are outside RELEASE; the next check validates the extracted files.
+
+```bash
+REPO=/absolute/path/to/xiaomipad-8pro-mainline
+RELEASE=/absolute/path/to/extracted-release
+WORK=/absolute/path/to/private-install-work
+mkdir -p "$WORK"
+cd "$WORK"
+sh "$REPO/tools/fetch-aosp-mkbootimg.sh"
+(cd "$RELEASE" && sha256sum -c SHA256SUMS)
 ```
 
 The release contains `boot/` (the Ubuntu boot set for slot A, `boot-ram-check.img` and
@@ -134,7 +146,7 @@ test unit the stock kernel log names the CSOT file.
 ```bash
 adb -s <SERIAL> shell su -c 'find /odm -name "piano_nova_*_thp_config.ini"'
 adb -s <SERIAL> exec-out su -c 'cat <path to the ini>' > thp.ini
-python3 tools/extract-thp-calibration.py --input thp.ini --output thp-calibration.json
+python3 "$REPO/tools/extract-thp-calibration.py" --input thp.ini --output thp-calibration.json
 ```
 
 **Bluetooth address.**
@@ -175,7 +187,7 @@ values of your stock images:
 ```
 
 ```bash
-python3 tools/local/aosp-mkbootimg/unpack_bootimg.py --boot_img backup/vendor_boot_a.img --out /tmp/vb
+python3 "$REPO/tools/local/aosp-mkbootimg/unpack_bootimg.py" --boot_img backup/vendor_boot_a.img --out /tmp/vb
 # header version, page size, kernel, ramdisk and tags load addresses, dtb address
 python3 <avbtool.py> info_image --image backup/boot_a.img
 # "Rollback Index:" and every "Prop: com.android.build.boot.*" line; repeat for init_boot_a and vendor_boot_a
@@ -256,8 +268,8 @@ On the host, with the tablet in Fastboot and `new-primary.bin` and `new-backup.b
 the current directory:
 
 ```bash
-fastboot -s <SERIAL> boot <release>/boot/boot-ram-maintenance.img    # expect "Booting OKAY"
-python3 tools/piano-devmode-ssh.py --serial <SERIAL> --check         # expect "... 192.168.88.10 -> 192.168.88.2 ready" (about 5 s)
+fastboot -s <SERIAL> boot "$RELEASE/boot/boot-ram-maintenance.img"    # expect "Booting OKAY"
+python3 "$REPO/tools/piano-devmode-ssh.py" --serial <SERIAL> --check         # expect "... 192.168.88.10 -> 192.168.88.2 ready" (about 5 s)
 python3 -m http.server --bind 192.168.88.10 8000 &                    # serves the two files to the tablet
 telnet 192.168.88.2 2323
 ```
@@ -300,13 +312,8 @@ session. Stop the host's `http.server` afterwards.
   timer only while the cable is connected.
 - If `piano-maint fastboot` says `nvmem-reboot-mode is not bound`, it does not reboot; use
   Power + Volume Down.
-- Verified on the test unit (2026-10-10): boot, link after about 4 s, LUN table, `sgdisk -p`,
-  `sfdisk --json` and `sgdisk --verify` of LUN 0 matching the table written on 2026-10-07, nothing
-  mounted, and the idle reboot into Fastboot. The write commands above wrote that table on
-  2026-10-07 from an earlier RAM environment. From this image (2026-10-10) they rewrote the same
-  table over itself: the region hashes before and after equal the stored files, both readbacks
-  matched, `sgdisk --verify` found no problems and `piano-maint fastboot` returned to Fastboot; a
-  changed table has not yet been written from this image.
+
+These device results were obtained with earlier maintenance and release builds on 2026-10-10: USB connection, LUN inspection, rewriting the existing GPT without changes, timed return to Fastboot, and preinstalling unit files. They do not validate the maintenance or boot images bundled here, which use 7.2.6-piano7 and have not yet been booted on a tablet. Generating the partition map in step 8a has only been checked offline.
 
 ## 7. Write the filesystems (Fastboot)
 
@@ -325,8 +332,8 @@ Erase Android's data and write both filesystems:
 ```bash
 fastboot -s <SERIAL> erase userdata
 fastboot -s <SERIAL> erase metadata
-python3 tools/sparse_image.py summary <release>/rootfs/root.sparse.img data.sparse.img   # what the tablet will write
-fastboot -s <SERIAL> flash linux_rootfs <release>/rootfs/root.sparse.img   # a few minutes; 8.7 to 10.1 GB written
+python3 "$REPO/tools/sparse_image.py" summary "$RELEASE/rootfs/root.sparse.img" data.sparse.img   # what the tablet will write
+fastboot -s <SERIAL> flash linux_rootfs "$RELEASE/rootfs/root.sparse.img"   # a few minutes; 8.7 to 10.1 GB written
 fastboot -s <SERIAL> flash linux_data data.sparse.img                      # seconds
 # expect "OKAY" on every Sending and Writing line, then "Finished."
 ```
@@ -352,7 +359,7 @@ configuration, is gone.
 ## 8. Optional: test-boot without writing slot A
 
 ```bash
-fastboot -s <SERIAL> boot <release>/boot/boot-ram-check.img     # expect "Booting OKAY"
+fastboot -s <SERIAL> boot "$RELEASE/boot/boot-ram-check.img"     # expect "Booting OKAY"
 ```
 
 This boots the installed root once from RAM, with the same kernel, initrd and command line as the
@@ -367,16 +374,13 @@ before Ubuntu first boots. Touch then works in Initial Setup, and the host can r
 SSH as soon as the account exists. Without this step, use the magnetic keyboard in Initial Setup and
 copy the files in step 10.
 
-Keep `boot-profile.json` and `boot-signing.pem` on the host until step 10. Initial Setup's keyboard
-page rebuilds the initrd; with these two files in the root, the boot hook rebuilds the boot set and
-writes slot A, which the v0.1.0-preview root's `piano-boot-switch` (0.1+20261010.3) refuses (step
-10). The package configuration then fails and `dracut` stays half-configured.
+Keep boot-profile.json and boot-signing.pem on the host until step 10 so boot-set regeneration happens after the Android recovery set is ready. This release already contains piano-device-support 0.1+20261010.7; the earlier serial-mismatch failure is fixed.
 
 In Fastboot, with the files of step 3 in the current directory on the host:
 
 ```bash
-fastboot -s <SERIAL> boot <release>/boot/boot-ram-maintenance.img    # expect "Booting OKAY"
-python3 tools/piano-devmode-ssh.py --serial <SERIAL> --check         # expect "... ready"
+fastboot -s <SERIAL> boot "$RELEASE/boot/boot-ram-maintenance.img"    # expect "Booting OKAY"
+python3 "$REPO/tools/piano-devmode-ssh.py" --serial <SERIAL> --check         # expect "... ready"
 python3 -m http.server --bind 192.168.88.10 8000 &                    # a free port, as in step 6
 telnet 192.168.88.2 2323
 ```
@@ -384,7 +388,7 @@ telnet 192.168.88.2 2323
 In a second terminal on the host, in the same directory, wait for the boot LUN's partition table:
 
 ```bash
-nc -l 192.168.88.10 8001 | python3 tools/extract-boot-partitions.py --input - \
+nc -l 192.168.88.10 8001 | python3 "$REPO/tools/extract-boot-partitions.py" --input - \
   --profile boot-profile.json --output boot-partitions.json
 ```
 
@@ -421,12 +425,11 @@ piano-maint fastboot
 ```
 
 `lsblk` shows no partition labels in this environment; the loop above reads them from sysfs. The
-symbolic link is what `piano-devmode on` creates. Verified on the test unit (2026-10-10) with the
-five files of an earlier version of this step: the files landed with mode 600 and the host's hashes,
-nothing stayed mounted, and the next boot of the release set ran touch with the calibration and
-started developer mode. Making the map here has not yet run on the tablet; offline, the release's
-BusyBox `nc` closed the connection at the end of the table, the host's `nc -l` then exited, and the
-tool rebuilt the test unit's map from its LUN 4 GPT.
+symbolic link is what `piano-devmode on` creates.
+
+These device results were obtained with earlier maintenance and release builds on 2026-10-10: USB connection, LUN inspection, rewriting the existing GPT without changes, timed return to Fastboot, and preinstalling unit files. They do not validate the maintenance or boot images bundled here, which use 7.2.6-piano7 and have not yet been booted on a tablet. Generating the partition map in step 8a has only been checked offline.
+Offline, the release's BusyBox `nc` closed the connection at the end of the table, the host's
+`nc -l` then exited, and the tool rebuilt the test unit's map from its LUN 4 GPT.
 
 ## 9. Write slot A and first boot
 
@@ -435,7 +438,7 @@ both sets first, and writes the Android set back if a write fails:
 
 ```bash
 fastboot -s <SERIAL> getvar battery-soc-ok         # expect "battery-soc-ok: yes"
-python3 <release>/tools/piano-switch.py --serial <SERIAL> --images <release>/boot --rollback android-set
+python3 "$REPO/tools/piano-switch.py" --serial <SERIAL> --images "$RELEASE/boot" --rollback android-set
 # expect "Active A boot triplet written; remain in Fastboot for a RAM readback before reboot."
 fastboot -s <SERIAL> reboot
 ```
@@ -449,14 +452,13 @@ fastboot -s <SERIAL> reboot
   the hostname, replacing the image's `xiaomipad-8pro` (7.2.6-piano7 build); edit the field for
   another name, or later run `sudo hostnamectl hostname --static <name>`. The pretty name
   "Xiaomi Pad 8 Pro", which Bluetooth shows, stays.
-- **Clock.** The hardware clock cannot be written. With piano-ubuntu-desktop 0.1+20261010.6 or later
-  (the 7.2.6-piano7 build) a boot starts from the time saved at the last shutdown or hourly
-  (`fake-hwclock`), so the clock is behind by the time the tablet was off or in Android; earlier builds
-  start every boot at systemd's built-in date, 2026-04-15. chrony corrects it once online. Behind a
-  router that answers every NTP request itself (as on the test network) no NTS-authenticated reply
-  arrives; from piano-ubuntu-desktop 0.1+20261010.7 chrony then uses the unauthenticated time
-  (`authselectmode ignore`; not yet tested), which gives up NTS protection when NTS is unavailable.
-  With earlier versions the clock stays wrong there: set it by hand, `sudo date -s 'YYYY-MM-DD HH:MM'`.
+- **Clock.** The hardware clock cannot be written. This release’s piano-ubuntu-desktop
+  0.1+20261010.7 is configured to restore the time saved at the last shutdown or hourly
+  (`fake-hwclock`), so it is behind by the time the tablet was off or in Android. Images without
+  this measure start at systemd's built-in date, 2026-04-15. chrony is configured to correct it once
+  online, including behind a router that answers NTP itself, by accepting unauthenticated time
+  when NTS is unavailable (`authselectmode ignore`). These clock measures are not yet verified on
+  the tablet. Otherwise set it by hand: `sudo date -s 'YYYY-MM-DD HH:MM'`.
 - The slot is marked as successfully booted after the boot completes:
   `sudo piano-slot-success --check` should report `"state": "already-successful"`.
 
@@ -478,7 +480,7 @@ piano-devmode status       # expect "developer mode: enabled, active" and "SSH s
 On the host, with `<USER>` the account from Initial Setup:
 
 ```bash
-python3 tools/piano-devmode-ssh.py --check     # expect "... 192.168.88.10 -> 192.168.88.2 ready"
+python3 "$REPO/tools/piano-devmode-ssh.py" --serial <SERIAL> --check     # expect "... 192.168.88.10 -> 192.168.88.2 ready"
 ```
 
 If the host did not take the DHCP address, `--check` prints the `ip` command to set it.
@@ -495,39 +497,29 @@ On the host:
 
 ```bash
 scp <USER>@192.168.88.2:boot-lun.json .
-python3 tools/extract-boot-partitions.py --input boot-lun.json --profile boot-profile.json --output boot-partitions.json
+python3 "$REPO/tools/extract-boot-partitions.py" --input boot-lun.json --profile boot-profile.json --output boot-partitions.json
 # expect init_boot_a 8388608 B, vendor_boot_a and boot_a 100663296 B each
 ```
 
 This route replaces the hand-written map of earlier versions of this guide and has not yet run on
 the tablet.
 
+This release already contains piano-device-support 0.1+20261010.7. A fresh installation requires no support-package build, copy or installation: the scp command below omits the package, and no dpkg command is needed. Keep boot-profile.json and boot-signing.pem on the host until step 10 so boot-set regeneration happens after the Android recovery set is ready. The serial-mismatch failure affected earlier images containing 0.1+20261010.3 and is fixed in this release.
+
 **Copy the files:**
 
 ```bash
 scp -r thp-calibration.json bluetooth-address wlan-address boot-partitions.json boot-profile.json \
-  boot-signing.pem android-set piano-device-support_<version>_arm64.deb <USER>@192.168.88.2:
+  boot-signing.pem android-set <USER>@192.168.88.2:
 ```
 
 After step 8a four of the files are already in `/etc/piano`; copy only `boot-profile.json`,
-`boot-signing.pem`, `android-set` and the package.
-
-> **piano-device-support 0.1+20261010.6 or later is required for this step.** The v0.1.0-preview root
-> ships 0.1+20261010.3, whose `piano-boot-switch` refuses every command on the release boot set with
-> `"code": "serial-mismatch"`: the release command line carries no `androidboot.serialno`, the
-> bootloader passes it only in `/proc/bootconfig`, and 0.1+20261010.3 read `/proc/cmdline` only
-> (fixed in 0.1+20261010.5). From 0.1+20261010.6, kernel and initrd updates on a running persistent
-> boot without `boot-partitions.json` leave the boot set and slot A unchanged instead of failing.
-> Build the package ([BUILD.md](BUILD.md)), copy it with the files and install it first:
-> `sudo dpkg -i piano-device-support_<version>_arm64.deb`. A root that already has 0.1+20261010.6 or
-> later (`dpkg-query -W piano-device-support`; the 7.2.6-piano7 build has 0.1+20261010.7) needs
-> neither the package nor the `dpkg -i` below.
+`boot-signing.pem` and `android-set`.
 
 **Install the files, store the Android set and rebuild the boot set:**
 
 ```bash
 cd ~
-sudo dpkg -i piano-device-support_<version>_arm64.deb
 sudo install -m 600 bluetooth-address wlan-address thp-calibration.json boot-profile.json \
   boot-signing.pem boot-partitions.json /etc/piano/       # after step 8a: boot-profile.json boot-signing.pem
 sudo piano-boot-switch status          # expect "occupant": "ubuntu" and "backup_gpt": "valid"
@@ -536,15 +528,6 @@ sudo piano-boot-update $(uname -r)
 # expect "Piano boot image set prepared for <release>" and "Slot A now holds store/ubuntu"
 sudo systemctl reboot
 ```
-
-If Initial Setup ran with `boot-profile.json` and `boot-signing.pem` already in `/etc/piano` (step 8a
-of earlier versions of this guide), `sudo dpkg --audit` reports `dracut` half-configured and `status`
-reports `"occupant": "ubuntu.prev"`: slot A still holds the release set, now `ubuntu.prev`, and
-`ubuntu/` holds a set that was not written. After installing the package and the files, run
-`sudo piano-boot-switch to-ubuntu` (expect `"result": "written"`) before `piano-boot-update` or
-`sudo dpkg --configure -a`, either of which would otherwise delete the set in slot A. Then continue
-with the commands above and finish with `sudo dpkg --configure -a` (`sudo dpkg --audit` prints
-nothing). The test unit was recovered this way on 2026-10-10.
 
 The new set carries your addresses, serial and key; the release set is kept as `ubuntu.prev`. After
 the reboot:

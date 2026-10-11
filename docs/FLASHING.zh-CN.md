@@ -15,6 +15,10 @@ Android 和 Ubuntu 都从 A 槽启动。切换就是把另一个系统的镜像�
 每条命令都绑定到你的平板（`adb -s <SERIAL>`、`fastboot -s <SERIAL>`、`piano-switch.py --serial <SERIAL>`），
 同一时间只用一个工具操作。离开 Android 时电量至少 40%，Linux 下不能充电。
 
+主机命令使用 [INSTALL.zh-CN.md](INSTALL.zh-CN.md#准备) 中的 REPO、RELEASE 和 WORK 设置：
+REPO 为发布记录提交的集成仓检出目录绝对路径，RELEASE 为解压后的发布目录，WORK 为仓库之外的私有安装工作目录。
+主机命令在 WORK 中执行；源码工具使用 `"$REPO/tools/NAME"`，发布文件使用 `"$RELEASE/PATH"`。
+
 ## Fastboot
 
 长按**电源 + 音量下**直到出现 Fastboot；任何状态（包括卡死）都有效。系统运行时也可以在 Android 中执行
@@ -29,11 +33,12 @@ fastboot -s <SERIAL> getvar battery-soc-ok        # 预期 "battery-soc-ok: yes"
 ## 维护 RAM 镜像
 
 发布目录的 `boot/boot-ram-maintenance.img` 是只在 RAM 中运行的 Linux，用于不能在已挂载系统中进行的 UFS 盘操作，
-例如 [INSTALL.zh-CN.md 第 6 步](INSTALL.zh-CN.md#6-写入分区表平板上)的分区表写入。它不写任何分区，也不改变 A 槽。
+例如 [INSTALL.zh-CN.md 第 6 步](INSTALL.zh-CN.md#6-写入分区表平板上)的分区表写入。它不自动挂载 UFS 分区或写入任何内容，A 槽保持不变。
+[INSTALL.zh-CN.md 第 8a 步](INSTALL.zh-CN.md#8a-推荐首次启动前安装本机文件)会显式挂载新根以安装本机文件。
 
 ```bash
-fastboot -s <SERIAL> boot <release>/boot/boot-ram-maintenance.img    # 预期 "Booting OKAY"
-python3 tools/piano-devmode-ssh.py --serial <SERIAL> --check         # 预期 "... 192.168.88.10 -> 192.168.88.2 ready"
+fastboot -s <SERIAL> boot "$RELEASE/boot/boot-ram-maintenance.img"    # 预期 "Booting OKAY"
+python3 "$REPO/tools/piano-devmode-ssh.py" --serial <SERIAL> --check         # 预期 "... 192.168.88.10 -> 192.168.88.2 ready"
 telnet 192.168.88.2 2323                                              # root shell，无密码
 ```
 
@@ -48,7 +53,9 @@ telnet 192.168.88.2 2323                                              # root she
 
 10 分钟内没有打开的会话时，平板自行重启进入 Fastboot；会话只在连着线时计入。之后 `fastboot -s <SERIAL> reboot` 启动 A 槽。
 工具：`sgdisk`、`sfdisk`、`lsblk`、`partx`、`blockdev`（Ubuntu 26.04 二进制）、BusyBox `dd`、`sha256sum` 和 `wget`。
-所有命令以 root 运行：你让 `dd`、`sgdisk`、`sfdisk` 写盘时它们就会写盘。测试机已验证：启动、链路、LUN 表、空闲后自动重启进入 Fastboot、`piano-maint fastboot`，以及 [INSTALL 第 6 步](INSTALL.zh-CN.md#6-写入分区表平板上)的写入流程以当前分区表原样重写（2026-10-10）。
+所有命令以 root 运行：你让 `dd`、`sgdisk`、`sfdisk` 写盘时它们就会写盘。
+
+这些真机结果来自 2026-10-10 的早期维护与发布构建：USB 连接、LUN 检查、原样重写既有 GPT、定时返回 Fastboot，以及预置本机文件。它们不代表本发布目录中的维护或启动镜像已经验证；这里的镜像使用 7.2.6-piano7，尚未在平板上启动。INSTALL.zh-CN.md 第 8a 步生成分区映射仅经过离线检查。
 
 ## 镜像组
 
@@ -60,14 +67,25 @@ telnet 192.168.88.2 2323                                              # root she
 | Ubuntu | 发布目录的 `boot/`；运行 `piano-boot-update` 之后为存储中的 `ubuntu/` |
 
 平板上的存储目录 `/var/lib/piano/switch/` 保存 `android/`、`ubuntu/` 和 `ubuntu.prev/`（当前之前的 Ubuntu 镜像组）。
-主机上保留 Android 镜像组和当前 Ubuntu 镜像组的副本。每次内核更新后，把新的 Ubuntu 镜像组复制到主机：
+主机上保留 Android 镜像组和当前 Ubuntu 镜像组的副本。每次更新后打开开发者模式，选择一个新的 SET_NAME，在平板与主机上使用同一名称。不要复用已有目标目录。
 
 ```bash
-# 平板上
-sudo cp -r /var/lib/piano/switch/ubuntu ~/ubuntu-set && sudo chown -R $USER: ~/ubuntu-set
-# 主机上
-scp -r <USER>@192.168.88.2:ubuntu-set ubuntu-set-current
-(cd ubuntu-set-current && sha256sum -c SHA256SUMS)       # 预期三行 "OK"
+# 平板：每次更新选择一个新名称。
+SET_NAME=ubuntu-set-update-001
+sudo piano-devmode on
+test ! -e "$HOME/$SET_NAME" &&
+  sudo cp -a /var/lib/piano/switch/ubuntu "$HOME/$SET_NAME" &&
+  sudo chown -R "$USER:" "$HOME/$SET_NAME"
+
+# 主机：使用相同的名称。
+SET_NAME=ubuntu-set-update-001
+python3 "$REPO/tools/piano-devmode-ssh.py" --serial <SERIAL> --check
+test ! -e "$SET_NAME" &&
+  scp -r <USER>@192.168.88.2:"$SET_NAME" . &&
+  (cd "$SET_NAME" && sha256sum -c SHA256SUMS)
+
+# 平板：传输与校验成功后：
+sudo piano-devmode off
 ```
 
 A 槽的 Android root 补丁变化后（例如从 Magisk 换成 KernelSU），存储的 `android/` 不再一致，`to-android`
@@ -86,8 +104,7 @@ A 槽的 Android root 补丁变化后（例如从 Magisk 换成 KernelSU），�
 | `sudo piano-boot-switch import-android --from DIR` | 存储 | `"result": "imported"`；替换 `android/` |
 | `sudo piano-boot-switch import-ubuntu [--from DIR]` | 存储 | `imported`；原 `ubuntu/` 变为 `ubuntu.prev/` |
 
-- v0.1.0-preview 安装需要 piano-device-support 0.1+20261010.6 或更高版本，即 [INSTALL 第 10 步](INSTALL.zh-CN.md#10-安装本机文件)
-  所装版本（0.1+20261010.3 对所有命令报 `serial-mismatch`）。
+- 本发布版的 piano-device-support 0.1+20261010.7 已包含所需修复。请完成 [INSTALL.zh-CN.md 第 10 步](INSTALL.zh-CN.md#10-安装本机文件)，安装本机文件。
 - 需要 `/etc/piano/` 中有本机的 `boot-profile.json` 和 `boot-partitions.json`；只在 A 槽为已知镜像组时写入，
   该镜像组同时作为回滚。每个分区都完整写入并读回；失败时写回原镜像组。
 - `"result": "refused"` 表示什么都没写，`code` 与 `message` 说明原因。
@@ -97,12 +114,13 @@ A 槽的 Android root 补丁变化后（例如从 Magisk 换成 KernelSU），�
 
 ## 在 Android 中：KernelSU 模块
 
-测试机已验证（2026-10-10）：安装、`--check`、执行动作（以 `dd` 写入 A 槽、槽属性保持，30 s 后经开发者模式连上 Ubuntu）。发布目录中的 `tools/piano-switch-ksu-<version>.zip` 需要
-带 shell root 的 KernelSU-Next、与 A 槽一致的已存储 `android/` 镜像组，以及 Ubuntu 正常关机。
+[硬件支持表](../README.zh-CN.md#硬件支持)中 Android 侧模块仍为未验证；验证前请使用下面的主机方式。
+发布目录中的 `tools/piano-switch-ksu-v0.1.0.zip` 需要带 shell root 的 KernelSU-Next、与 A 槽一致的已存储
+`android/` 镜像组，以及 Ubuntu 正常关机。
 
 ```bash
-adb -s <SERIAL> push piano-switch-ksu-<version>.zip /data/local/tmp/
-adb -s <SERIAL> shell su -c '/data/adb/ksud module install /data/local/tmp/piano-switch-ksu-<version>.zip'
+adb -s <SERIAL> push "$RELEASE/tools/piano-switch-ksu-v0.1.0.zip" /data/local/tmp/
+adb -s <SERIAL> shell su -c '/data/adb/ksud module install /data/local/tmp/piano-switch-ksu-v0.1.0.zip'
 adb -s <SERIAL> reboot
 adb -s <SERIAL> shell su -c 'sh /data/adb/modules/piano-switch/piano-switch.sh --check'
 # 预期 "CHECK OK: slot A holds the android set and the ubuntu set is ready; nothing written"
@@ -118,10 +136,10 @@ adb -s <SERIAL> shell su -c 'ksud module action piano-switch'   # 写入 A 槽�
 
 ```bash
 # 切到 Android
-python3 tools/piano-switch.py --serial <SERIAL> --images <android-set> --rollback <ubuntu-set>
+python3 "$REPO/tools/piano-switch.py" --serial <SERIAL> --images <android-set> --rollback <ubuntu-set>
 fastboot -s <SERIAL> reboot
 # 切到 Ubuntu
-python3 tools/piano-switch.py --serial <SERIAL> --images <ubuntu-set> --rollback <android-set>
+python3 "$REPO/tools/piano-switch.py" --serial <SERIAL> --images <ubuntu-set> --rollback <android-set>
 fastboot -s <SERIAL> reboot
 # 预期 "Active A boot triplet written; remain in Fastboot for a RAM readback before reboot."
 ```
@@ -155,8 +173,8 @@ fastboot -s <SERIAL> getvar slot-retry-count:a    # 主机写入后为 7，每�
 ## 平板无响应时
 
 1. **已开启开发者模式**（在 Ubuntu 中 `sudo piano-devmode on`）：开机约 22 秒后，
-   `python3 tools/piano-devmode-ssh.py --check` 应报告连接 `ready`。然后执行
-   `python3 tools/piano-devmode-ssh.py -t <USER> sudo piano-reboot-bootloader`，或用
+   `python3 "$REPO/tools/piano-devmode-ssh.py" --serial <SERIAL> --check` 应报告连接 `ready`。然后执行
+   `python3 "$REPO/tools/piano-devmode-ssh.py" --serial <SERIAL> -t <USER> sudo piano-reboot-bootloader`，或用
    `piano-boot-switch to-android --reboot` 切到 Android。
 2. **否则**长按电源 + 音量下直到出现 Fastboot，再用 `piano-switch.py` 写入 Android 镜像组。
    在系统启动前卡住的启动没有计时器，会一直停在那里，直到按下组合键。

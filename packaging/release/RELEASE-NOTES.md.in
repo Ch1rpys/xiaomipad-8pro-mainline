@@ -8,8 +8,8 @@ All Android data is erased.
 
 Unofficial project based on Ubuntu 26.04 LTS; not affiliated with or endorsed by Canonical, Xiaomi or Qualcomm.
 
-Download every `piano-v0.1.0-preview.tar.zst.part*`, check them with `sha256sum -c SHA256SUMS.assets`,
-restore the release directory with `cat piano-v0.1.0-preview.tar.zst.part* | zstd -d | tar -x` (about 14 GB),
+Download SHA256SUMS.assets and every asset listed in it from the same release into one directory. Run `sha256sum -c SHA256SUMS.assets` there and require every entry to pass before extracting the archive parts.
+Restore the release directory with `cat piano-v0.1.0-preview.tar.zst.part* | zstd -d | tar -x` (about 14 GB),
 then run `sha256sum -c SHA256SUMS` inside it.
 
 ## Identity
@@ -40,17 +40,16 @@ $package_rows
 ## Changes since the first upload (7.2.6-piano5)
 
 - Kernel `7.2.6-piano7`:
-  - Wi-Fi: ath12k applies the vendor SAR TX power limit to the WCN7860, as stock Android does, so
-    5 GHz 80 MHz links no longer drop about 12 s after association. Verified on the test unit with the
-    two changed modules on 7.2.6-piano6 (80 MHz HE for 120 s, 50 MB at 74.7 Mbit/s down and 100 Mbit/s
-    up, 2.4 GHz unchanged), not yet with this kernel package.
+  - Wi-Fi: ath12k applies the vendor SAR TX power limit to the WCN7860, as stock Android does,
+    to address 5 GHz 80 MHz links dropping about 12 s after association. This kernel package has not
+    been tested on the device; the support matrix remains limited to firmware, MAC address and scanning.
   - Volume keys (PM8550 GPIO6 and the PMK8550 resin, as in the stock devicetree) and the PM8550
     temperature-alarm thermal zone; not yet tested on the device.
   - Configuration that Ubuntu's generic kernel has: PSI (for systemd-oomd), zram, uhid and hidraw
     (Bluetooth LE input devices), nftables and the common xtables modules, WireGuard, the Yama and
     Landlock security modules, NTFS3, CIFS, ISO 9660, UDF, dm-crypt and binfmt_misc. Not tested on the
     device; no BTF type information (built without pahole).
-  - Since 7.2.6-piano6: the four speakers (see below).
+  - Since 7.2.6-piano6: experimental FS19xx/TDM speaker code; playback remains unsupported in the support matrix.
 - Speakers: stereo streams are up-mixed to the bottom pair at -3 dB (`channelmix.upmix-method = simple`);
   with PipeWire's default method `none` the bottom pair stayed silent. Checked in QEMU, not yet heard
   on the tablet.
@@ -88,19 +87,23 @@ Status on the test unit (one 512 GB unit, model 25091RP04C) with 7.2.6-piano5 an
 - ✅ Working: CPU frequency scaling, boot from slot A (marked successful after each boot), UFS storage,
   GNOME on Wayland at 200 % scaling, Adreno 830 rendering with the bundled Mesa 26.2.0, battery gauges
   and thermal zones, SSH over USB in developer mode.
-- 🟡 Partial: display (firmware framebuffer, 3200×2136 at 120 Hz, brightness only through sysfs, no screen-off),
-  touchscreen (single finger, needs your calibration), magnetic keyboard (keys), Wi-Fi (association, DHCP
-  and data on 2.4 GHz and 5 GHz verified with 7.2.6-piano6, 80 MHz with this kernel's fix loaded as
-  modules; not yet with this kernel package), Bluetooth (discovery, needs your
-  address), internal microphones (capture verified acoustically: a 1 kHz test tone was recorded by all four
-  microphones; speech quality and noise processing unverified), speakers (four amplifiers through the
-  TDM path at a fixed gain under a kernel cap; a 1 kHz test tone played by them was recorded by the
-  internal microphones; no speaker protection, listening tests and channel mapping pending), switching
-  between Ubuntu and Android, battery and charger reporting (read-only; no charge control), power key
-  (volume keys described from the stock devicetree, untested).
-- ❌ Unsupported: charging (the battery discharges under Linux, also on USB), cameras, sensors,
-  video decoding, USB host and external display, suspend, writing the real-time clock (the clock resumes
-  from the last shutdown and is behind after every boot), fingerprint, stylus.
+- 🟡 Partial: display (firmware framebuffer, 3200×2136 at 120 Hz, fixed brightness, no screen-off or wake;
+  occasional flicker with touch active), touchscreen (single finger, correct orientation, needs your
+  calibration; no long press, lock-screen on-screen keyboard fails; multi-touch, edges and power
+  management unverified), magnetic keyboard (keys; reattach and power management unverified; the
+  tested keyboard has no touchpad), Wi-Fi (firmware load, MAC address and 2.4/5 GHz scanning verified;
+  association unverified in the support matrix), Bluetooth (discovery, needs your address; pairing,
+  audio and Wi-Fi coexistence unverified), internal microphones (a 1 kHz test tone was recorded by all
+  four microphones; speech quality and noise processing unverified), switching (from Ubuntu verified;
+  the app-grid button and Android-side module unverified), charger reporting (read-only; no charge
+  control), power key (no screen-off or wake; volume keys unverified).
+- ❌ Unsupported: speaker playback (no speaker protection; listening tests and channel mapping unverified),
+  charging (the battery discharges under Linux, also on USB), cameras, sensors, video decoding, USB host
+  and external display, suspend, hibernation (no swap partition), writing the real-time clock, fingerprint,
+  stylus. The clock measures described above are not yet verified on the tablet.
+
+The GNOME desktop's 200 % scaling was verified on earlier builds; this release's login-screen and
+Initial Setup scaling are unverified. The README support matrix is authoritative for these statuses.
 
 ## Per-unit data you must add
 
@@ -113,14 +116,13 @@ address, touch calibration, boot profile, partition map or signing key of yours.
 | `wlan-address` | Wi-Fi uses a random MAC address on every boot: this unit's WCN7860 reports an all-zero address, and ath12k falls back to a random one unless the boot DTB carries the address, which `piano-boot-update` writes from this file |
 | `bluetooth-address` | the Bluetooth controller stays unconfigured |
 | `boot-profile.json`, `boot-signing.pem` | `piano-boot-update` cannot rebuild the boot set, so the addresses above are not applied and kernel updates leave the set unchanged |
-| `boot-partitions.json` | `piano-boot-switch` (switching from Ubuntu, the app-grid button) refuses; with piano-device-support 0.1+20261010.6 or later, kernel and initrd updates then leave the boot set and slot A unchanged |
+| `boot-partitions.json` | `piano-boot-switch` (switching from Ubuntu, the app-grid button) refuses; with this release’s piano-device-support 0.1+20261010.7, kernel and initrd updates then leave the boot set and slot A unchanged |
 
 After adding them run `sudo piano-boot-update $kernel_release`; it rebuilds the set with your addresses and
 key and rewrites slot A. Your stock Android set goes into the store with
 `sudo piano-boot-switch import-android --from <directory>`.
 
-The prebuilt boot set fits stock `$stock_build` only. With another stock build, rebuild the set from
-your own boot profile before writing slot A.
+This release supports stock $stock_build on slot A only. Do not install its prebuilt images on another stock build. Porting another build requires preparing the effective boot DTB from that build’s stock DTB and DTBO, rebuilding the kernel package and boot set with the matching boot profile, and validating the result; changing boot-profile.json alone is insufficient.
 
 ## Known issues
 
@@ -128,11 +130,8 @@ your own boot profile before writing slot A.
 - Release boots have no debug console. Developer mode (SSH over USB) is installed but off;
   enable it with `sudo piano-devmode on` before relying on remote access.
 - With no picture or no response, hold Power + Volume Down for Fastboot and switch with `piano-switch.py`.
-- `boot/boot-ram-maintenance.img` is for writing the partition table (INSTALL.md step 6) only: started with
-  `fastboot boot`, it gives an unauthenticated root shell over the USB cable (telnet 192.168.88.2:2323) with the
-  partition tools, mounts no UFS partition, writes nothing by itself and reboots into Fastboot after 10 minutes
-  without a session. It is never written to a partition.
-- The Android-side KernelSU module (`piano-switch-ksu`) was verified on the test unit with KernelSU-Next (install, `--check`, action to Ubuntu); other root managers are untested.
+- boot/boot-ram-maintenance.img is the RAM environment for INSTALL.md steps 6 and 8a. Started with fastboot boot, it provides an unauthenticated root shell over USB at 192.168.88.2:2323. It mounts no UFS partition and writes nothing automatically; step 8a explicitly mounts the new root to install your files. The idle timer counts when no session is open or the cable is disconnected, and expires after 10 minutes. Never flash this image to a partition.
+- The Android-side KernelSU module (`piano-switch-ksu`) is unverified in the support matrix; use the host switching path until it is verified. Other root managers are untested.
 - Not flashed to a tablet as a whole: this image was assembled offline from the packages and
   procedure that run on the test unit, and checked offline. On the test unit, 7.2.6-piano4 booted as a RAM boot
   with the partition-name root and the serial-free command line of an address-free set, and the
@@ -148,7 +147,7 @@ your own boot profile before writing slot A.
 - BusyBox: `piano-device-support` carries the unmodified Ubuntu `busybox-static` 1.36.1-6ubuntu3.1 binary;
   its source package (`busybox_1.36.1-6ubuntu3.1.dsc`, `busybox_1.36.1.orig.tar.bz2` with `.asc`,
   `busybox_1.36.1-6ubuntu3.1.debian.tar.xz`) is attached to this release.
-- Kernel: https://github.com/yzddmr6/linux-sm8750-piano tag `v0.1.0-preview` (commit `$kernel_commit`).
+- Kernel: [linux-sm8750-piano at commit $kernel_commit](https://github.com/yzddmr6/linux-sm8750-piano/tree/$kernel_commit), the source of $kernel_release. The tag `v0.1.0-preview` will be moved to that commit at publication.
 - Mesa 26.2.0 with the A830 patch, device userspace and packaging: this repository at `$integration_commit`.
 
 The firmware package carries unmodified stock files of `$stock_build`; there is no redistribution

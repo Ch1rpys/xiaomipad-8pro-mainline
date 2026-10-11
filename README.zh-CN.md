@@ -27,7 +27,7 @@
 
 ## 🚀 获取与安装
 
-1. **使用发布版本**：[v0.1.0-preview](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview)：下载全部 `piano-v0.1.0-preview.tar.zst.part*`，用 `cat piano-v0.1.0-preview.tar.zst.part* | zstd -d | tar -x` 还原（约需 14 GB 空间），在目录内执行 `sha256sum -c SHA256SUMS`，然后按 [docs/INSTALL.zh-CN.md](docs/INSTALL.zh-CN.md) 安装。内容与构建流程见 [docs/RELEASE.md](docs/RELEASE.md)（英文）。
+1. **使用发布版本**：[v0.1.0-preview](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview)。从同一发布版本把 SHA256SUMS.assets 及其中列出的全部附件下载到同一目录。在该目录执行 `sha256sum -c SHA256SUMS.assets`，全部条目通过后再解压分卷。用 `cat piano-v0.1.0-preview.tar.zst.part* | zstd -d | tar -x` 还原（约需 14 GB 空间），在解压目录内执行 `sha256sum -c SHA256SUMS`，然后按 [docs/INSTALL.zh-CN.md](docs/INSTALL.zh-CN.md) 安装。内容与构建流程见 [docs/RELEASE.md](docs/RELEASE.md)（英文）。
 2. **从源码构建**：输入锁定在 [kernel/source.json](kernel/source.json) 与 [kernel/abi.json](kernel/abi.json)（内核提交、配置片段、release）、[mesa/source.json](mesa/source.json)（Mesa 26.2.0 及 A830 补丁）、[ubuntu/](ubuntu/26.04.sources)（官方 26.04 Desktop ARM64 ISO、快照 APT 源）和 `device/*/source.json`。[tools/](tools/) 中的工具无需 root 权限即可构建内核包、Mesa、设备软件包、ext4 根镜像和签名的启动镜像组。触控标定、蓝牙地址、启动配置（boot profile）、原厂 DTB 与 DTBO、AVB 签名密钥取自你自己的平板，从不提交。详见 [docs/build.zh-CN.md](docs/build.zh-CN.md)。
 3. **安装**：按 [docs/INSTALL.zh-CN.md](docs/INSTALL.zh-CN.md) 的手动步骤操作；切换、Fastboot 恢复及禁止刷写的分区见 [docs/FLASHING.zh-CN.md](docs/FLASHING.zh-CN.md)。
 
@@ -35,12 +35,12 @@
 
 ## 硬件支持
 
-以下为测试机使用内核 7.2.6-piano5、截至 2026-10-10 的状态；不代表其他版本或配件均已验证。
+本发布版提供 7.2.6-piano7。下表真机结果来自测试机上的 7.2.6-piano5、7.2.6-piano6 或明确注明的测试构建；完整 piano7 发布版尚未在平板上启动。其他版本和配件未测试。
 测试配置、已知问题与路线图见 [docs/STATUS.md](docs/STATUS.md)（英文）。
 
 ✅ 可用 · 🟡 部分支持 · ❌ 不支持 · 🧪 未验证
 
-✅ 只用于真机验证过的结果。“测试构建”指诊断启动中取得、尚未进入 7.2.6-piano5 的结果。
+✅ 只用于上述早期构建中真机验证过的结果。本表是支持状态的权威来源，发布说明必须保持相同的状态与限制。
 
 ### 平台、显示与输入
 
@@ -51,7 +51,7 @@
 | 双系统切换 | `piano-boot-switch`，A 槽镜像组 | 🟡 部分支持 | 从 Ubuntu 切换已验证；应用网格按钮与 Android 侧模块未验证 |
 | 内置存储 | 铠侠 UFS / ext4 | ✅ 可用 | 60 GiB 根分区与约 201 GiB `/home` |
 | 内置显示 | 引导程序帧缓冲 / simpledrm | 🟡 部分支持 | 3200×2136，120 Hz；没有原生驱动，亮度固定，不能关屏或唤醒；触控运行时偶有闪屏 |
-| GNOME 桌面 | Ubuntu 26.04 GNOME / Wayland / GDM | ✅ 可用 | GPU 合成，200 % 缩放 |
+| GNOME 桌面 | Ubuntu 26.04 GNOME / Wayland / GDM | ✅ 可用 | 早期构建的桌面已验证 GPU 合成与 200 % 缩放；本发布版的登录界面与初始设置缩放未验证 |
 | GPU | Adreno 830 / msm / Mesa 26.2.0 加补丁（`piano-mesa`） | ✅ 可用 | OpenGL ES；Ubuntu 自带的 Mesa 26.0.3 不支持 A830；Vulkan、持续负载与 GPU 电源管理未验证 |
 | 触摸屏 | Novatek NT36532E / SPI / `piano-thp` | 🟡 部分支持 | 单指输入、方向正确；长按无效；锁屏屏幕键盘失效；多指、边缘与电源管理未验证 |
 | 手写笔 | Novatek NT36532E 笔扫描 | ❌ 不支持 | 触控启动时关闭笔扫描 |
@@ -72,7 +72,7 @@
 
 | 功能 | 器件 / 实现 | 状态 | 范围与限制 |
 |---|---|---|---|
-| 扬声器 | 4 × FS19xx 系列功放 | ❌ 不支持 | 没有主线驱动，没有播放设备 |
+| 扬声器 | 4 × FS19xx 系列功放 | ❌ 不支持 | 本预览不支持播放；无扬声器保护；听感与声道映射未验证 |
 | 麦克风 | 内置 DMIC / ADSP / AudioReach | 🟡 部分支持 | 经 VA 通路与 UCM 录音；1 kHz 测试音被四颗麦克风录到；语音质量与降噪未验证 |
 | 视频解码 | 高通 Iris（VPU35） | ❌ 不支持 | 已编译为模块，未启用 |
 | 摄像头 | 后摄 S5KJN1SQ03、前摄 OV32D40 | ❌ 不支持 | 主线缺少 SM8750 CAMSS 支持 |
@@ -92,6 +92,8 @@
 ## 使用与维护
 
 详见 [docs/FLASHING.zh-CN.md](docs/FLASHING.zh-CN.md)（切换、槽属性、恢复）。
+主机命令按 [INSTALL.zh-CN.md](docs/INSTALL.zh-CN.md#准备) 设置 REPO、RELEASE 和 WORK，并在 WORK 中执行。
+源码工具使用 `"$REPO/tools/NAME"`，发布文件使用 `"$RELEASE/PATH"`。
 
 **切换系统。** 在 Ubuntu 中运行 `sudo piano-boot-switch to-android --reboot`，会把保存的 Android 镜像组写入 A 槽、读回校验后重启（已真机验证）；应用网格中的 **切换到 Android** 调用同一工具，尚未验证。
 在 Android 中，可用 [device/android/piano-switch-ksu](device/android/piano-switch-ksu/README.md) 的 KernelSU 模块切到 Ubuntu；该模块尚未真机验证，验证前请使用下面的主机方式。
@@ -100,17 +102,17 @@
 **从主机恢复。** 在 Fastboot（电源 + 音量下）中，`tools/piano-switch.py` 先核对设备与两组镜像，再写入 A 槽，任一步写入失败即恢复原镜像组：
 
 ```sh
-python3 tools/piano-switch.py --serial <serial> --images <android-set> --rollback <ubuntu-set>
+python3 "$REPO/tools/piano-switch.py" --serial <serial> --images <android-set> --rollback <ubuntu-set>
 fastboot -s <serial> reboot
 ```
 
 主机写入会重置 A 槽的重试计数，下一次 Ubuntu 启动后由 `piano-slot-success` 重新标记。若 Fastboot 显示 `slot-unbootable:a` 为 `yes`，执行 `fastboot -s <serial> --set-active=a` 即可重置；B 槽仍不可用。详见 [device/boot](device/boot/README.md)。
 
-**更新内核。** `sudo dpkg -i linux-image-<release>_*.deb` 会运行 dracut 和 `piano-boot-update`：它重建 Ubuntu 镜像组，A 槽为 Ubuntu 时原位重写该槽（设备上约 12.5 分钟），重启后生效。A 槽不是 Ubuntu 时，用 `sudo piano-boot-switch to-ubuntu` 写入新镜像组。
+**更新内核。** `sudo dpkg -i linux-image-<release>_*.deb` 会运行 dracut 和 `piano-boot-update`：它重建 Ubuntu 镜像组，A 槽为 Ubuntu 时原位重写该槽，重启后生效。A 槽不是 Ubuntu 时，用 `sudo piano-boot-switch to-ubuntu` 写入新镜像组。
 
-**开发者模式。** `sudo piano-devmode on` 开启经 USB 线的 SSH（USB NCM，平板地址 192.168.88.2）；默认关闭，需要安装 `openssh-server`。启动约 22 秒后，可在主机上用 `python3 tools/piano-devmode-ssh.py USER` 连接。安装过程会打开它，装完后用 `sudo piano-devmode off` 关闭（[INSTALL](docs/INSTALL.zh-CN.md) 第 10 步）。详见 [device/devmode](device/devmode/README.md)。
+**开发者模式。** `sudo piano-devmode on` 开启经 USB 线的 SSH（USB NCM，平板地址 192.168.88.2）；默认关闭，需要安装 `openssh-server`。启动约 22 秒后，可在主机上用 `python3 "$REPO/tools/piano-devmode-ssh.py" --serial <SERIAL> USER` 连接。安装过程会打开它，装完后用 `sudo piano-devmode off` 关闭（[INSTALL](docs/INSTALL.zh-CN.md) 第 10 步）。详见 [device/devmode](device/devmode/README.md)。
 
-**启动后的时间。** PMIC RTC 不可写。自 piano-ubuntu-desktop 0.1+20261010.6 起，每次启动从上次关机时保存的时间开始，慢了平板关机或停留在 Android 的时长；联网后 chrony 会自动校时；自 0.1+20261010.7 起，路由器自己应答 NTP 时也会校时，代价是 NTS 不可用时接受未认证的时间（`authselectmode ignore`，尚未实测）。其他情况请手动设置（例如 `sudo date -s '2026-10-09 18:00'`）。
+**启动后的时间。** PMIC RTC 不可写。本发布版的 piano-ubuntu-desktop 0.1+20261010.7 配置为恢复上次关机时保存的时间，慢了平板关机或停留在 Android 的时长。chrony 配置为联网后校时，包括路由器自己应答 NTP 的情况，代价是 NTS 不可用时接受未认证的时间（`authselectmode ignore`）。这些时钟措施尚未在平板上验证。其他情况请手动设置（例如 `sudo date -s '2026-10-09 18:00'`）。
 
 **初始设置之后。** 初始设置会把用户名设为主机名，除非你修改其中的“计算机”栏；之后可用 `sudo hostnamectl hostname --static <名字>` 修改。第一次 `apt install` 之前先运行 `sudo apt update`：镜像不带当前的软件包索引。
 
@@ -121,7 +123,7 @@ fastboot -s <serial> reboot
 | xiaomipad-8pro-mainline | 设备用户态、Ubuntu 集成、构建/打包/切换工具、固件、文档 |
 | [linux-sm8750-piano](https://github.com/yzddmr6/linux-sm8750-piano) | Linux 内核：在上游 v7.2.6 stable 历史之上维护驱动、设备树与配置，分支 `piano/dev` |
 
-[kernel/source.json](kernel/source.json) 锁定内核提交与配置片段；[kernel/abi.json](kernel/abi.json) 为每次打包构建分配唯一 release（当前为 `7.2.6-piano5`）。
+[kernel/source.json](kernel/source.json) 锁定内核提交与配置片段；[kernel/abi.json](kernel/abi.json) 为每次打包构建分配唯一 release（本发布版打包的是 `7.2.6-piano7`）。
 本机输入（标定、蓝牙地址、启动配置、签名密钥、备份）归各设备所有者所有，从不提交。
 调试镜像组（`tools/build-persistent-boot.py --debug`）另带一个供 `fastboot boot` 使用的检查镜像，经 USB 提供无认证的 root shell，仅用于诊断。
 

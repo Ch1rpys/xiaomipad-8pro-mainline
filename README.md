@@ -27,7 +27,7 @@ Calibration data and the Bluetooth address must come from your own tablet; never
 
 ## 🚀 Getting Started
 
-1. **Use a release**: [v0.1.0-preview](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview): download every `piano-v0.1.0-preview.tar.zst.part*`, restore with `cat piano-v0.1.0-preview.tar.zst.part* | zstd -d | tar -x` (about 14 GB free space), run `sha256sum -c SHA256SUMS` inside the directory, then follow [docs/INSTALL.md](docs/INSTALL.md). Its contents and the pipeline that builds them are in [docs/RELEASE.md](docs/RELEASE.md).
+1. **Use a release**: [v0.1.0-preview](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview). Download SHA256SUMS.assets and every asset listed in it from the same release into one directory. Run `sha256sum -c SHA256SUMS.assets` there and require every entry to pass before extracting the archive parts. Restore with `cat piano-v0.1.0-preview.tar.zst.part* | zstd -d | tar -x` (about 14 GB free space), run `sha256sum -c SHA256SUMS` inside the extracted directory, then follow [docs/INSTALL.md](docs/INSTALL.md). Its contents and the pipeline that builds them are in [docs/RELEASE.md](docs/RELEASE.md).
 2. **Build from source**: inputs are pinned in [kernel/source.json](kernel/source.json) and [kernel/abi.json](kernel/abi.json) (kernel commit, configuration fragments, release), [mesa/source.json](mesa/source.json) (Mesa 26.2.0 and its A830 patch), [ubuntu/](ubuntu/26.04.sources) (official 26.04 Desktop ARM64 ISO, snapshot APT sources) and `device/*/source.json`. The tools in [tools/](tools/) build the kernel package, Mesa, the device packages, the ext4 root image and the signed boot image set without root privileges. Touch calibration, Bluetooth address, boot profile, stock DTB and DTBO and an AVB signing key come from your own tablet and are never committed. Details: [docs/BUILD.md](docs/BUILD.md).
 3. **Install**: follow the manual steps in [docs/INSTALL.md](docs/INSTALL.md); switching, Fastboot recovery and what never to flash are in [docs/FLASHING.md](docs/FLASHING.md).
 
@@ -37,12 +37,12 @@ Do not mix files from different builds: the kernel image and its modules must co
 
 ## Hardware Support
 
-Status on the test unit with kernel 7.2.6-piano5, as of 2026-10-10; other variants and accessories are not implied tested.
+This release ships 7.2.6-piano7. Hardware results below were obtained on the test unit with 7.2.6-piano5, 7.2.6-piano6 or explicitly identified test builds; the complete piano7 release has not yet been booted on the tablet. Other variants and accessories are untested.
 Test configuration, known issues and roadmap: [docs/STATUS.md](docs/STATUS.md).
 
 ✅ Working · 🟡 Partial · ❌ Unsupported · 🧪 Unverified
 
-✅ marks results verified on the device. *Test build* marks results from diagnostic boots that are not yet in 7.2.6-piano5.
+✅ marks results verified on the device with those earlier builds. This table is authoritative for support status; the release notes must use the same status and limits.
 
 ### Platform, Display and Input
 
@@ -53,7 +53,7 @@ Test configuration, known issues and roadmap: [docs/STATUS.md](docs/STATUS.md).
 | Dual-boot switching | `piano-boot-switch`, slot A image sets | 🟡 Partial | Switching from Ubuntu verified; app-grid button and Android-side module unverified |
 | Internal storage | KIOXIA UFS / ext4 | ✅ Working | 60 GiB root and about 201 GiB `/home` |
 | Display | Bootloader framebuffer / simpledrm | 🟡 Partial | 3200×2136 at 120 Hz; no native driver, so fixed brightness and no screen-off or wake; occasional flicker with touch active |
-| GNOME desktop | Ubuntu 26.04 GNOME / Wayland / GDM | ✅ Working | GPU-composited, 200 % scaling |
+| GNOME desktop | Ubuntu 26.04 GNOME / Wayland / GDM | ✅ Working | GPU-composited desktop at 200 % on earlier builds; this release’s login-screen and Initial Setup scaling are unverified |
 | GPU | Adreno 830 / msm / Mesa 26.2.0 + patch (`piano-mesa`) | ✅ Working | OpenGL ES; Ubuntu's Mesa 26.0.3 lacks A830 support; Vulkan, sustained load and GPU power management unverified |
 | Touchscreen | Novatek NT36532E / SPI / `piano-thp` | 🟡 Partial | Single-finger input, correct orientation; no long press; lock-screen on-screen keyboard fails; multi-touch, edges and power management unverified |
 | Stylus | Novatek NT36532E pen scanning | ❌ Unsupported | Pen scanning is turned off when touch starts |
@@ -74,7 +74,7 @@ Test configuration, known issues and roadmap: [docs/STATUS.md](docs/STATUS.md).
 
 | Feature | Component / Implementation | Status | Scope and Limitations |
 |---|---|---|---|
-| Speakers | 4 × FS19xx-family amplifiers | ❌ Unsupported | No mainline driver; no playback device |
+| Speakers | 4 × FS19xx-family amplifiers | ❌ Unsupported | Playback unsupported in this preview; no speaker protection; listening tests and channel mapping unverified |
 | Microphone | Internal DMIC / ADSP / AudioReach | 🟡 Partial | Records through the VA path with a UCM profile; a 1 kHz test tone was picked up by all four microphones; speech quality and noise processing unverified |
 | Video decoding | Qualcomm Iris (VPU35) | ❌ Unsupported | Built as modules, not enabled |
 | Cameras | S5KJN1SQ03 rear, OV32D40 front | ❌ Unsupported | Mainline lacks SM8750 CAMSS support |
@@ -94,6 +94,8 @@ Test configuration, known issues and roadmap: [docs/STATUS.md](docs/STATUS.md).
 ## Usage and Maintenance
 
 Details: [docs/FLASHING.md](docs/FLASHING.md) (switching, slot attributes, recovery).
+For host commands, set REPO, RELEASE and WORK as in [INSTALL.md](docs/INSTALL.md#what-you-need)
+and run them from WORK. Source tools use `"$REPO/tools/NAME"`; release files use `"$RELEASE/PATH"`.
 
 **Switching systems.** In Ubuntu, `sudo piano-boot-switch to-android --reboot` writes the stored Android set to slot A, reads it back and restarts (verified on the device); the **Switch to Android** app-grid entry runs the same tool but is not yet verified.
 From Android, the KernelSU module in [device/android/piano-switch-ksu](device/android/piano-switch-ksu/README.md) switches to Ubuntu; it is not yet verified on the device, so use the host path below until it is.
@@ -102,17 +104,17 @@ Switching inside either system keeps the slot attributes.
 **Recovery from the host.** In Fastboot (Power + Volume Down), `tools/piano-switch.py` checks the device and both image sets, writes slot A and restores the previous set if a write fails:
 
 ```sh
-python3 tools/piano-switch.py --serial <serial> --images <android-set> --rollback <ubuntu-set>
+python3 "$REPO/tools/piano-switch.py" --serial <serial> --images <android-set> --rollback <ubuntu-set>
 fastboot -s <serial> reboot
 ```
 
 A host write resets slot A's retry counter, and `piano-slot-success` marks the slot again after the next Ubuntu boot. If Fastboot shows `slot-unbootable:a` = `yes`, `fastboot -s <serial> --set-active=a` resets it; slot B stays unusable. See [device/boot](device/boot/README.md).
 
-**Updating the kernel.** `sudo dpkg -i linux-image-<release>_*.deb` runs dracut and `piano-boot-update`, which rebuilds the Ubuntu image set and rewrites slot A in place when it holds Ubuntu (about 12.5 minutes on the device); reboot to use it. Otherwise `sudo piano-boot-switch to-ubuntu` writes the new set.
+**Updating the kernel.** `sudo dpkg -i linux-image-<release>_*.deb` runs dracut and `piano-boot-update`, which rebuilds the Ubuntu image set and rewrites slot A in place when it holds Ubuntu; reboot to use it. Otherwise `sudo piano-boot-switch to-ubuntu` writes the new set.
 
-**Developer mode.** `sudo piano-devmode on` adds SSH over the USB cable (USB NCM, tablet at 192.168.88.2); it is off by default and needs `openssh-server`. From the host, `python3 tools/piano-devmode-ssh.py USER` connects about 22 s after boot. The installation turns it on; turn it off afterwards with `sudo piano-devmode off` ([INSTALL.md](docs/INSTALL.md) step 10). See [device/devmode](device/devmode/README.md).
+**Developer mode.** `sudo piano-devmode on` adds SSH over the USB cable (USB NCM, tablet at 192.168.88.2); it is off by default and needs `openssh-server`. From the host, `python3 "$REPO/tools/piano-devmode-ssh.py" --serial <SERIAL> USER` connects about 22 s after boot. The installation turns it on; turn it off afterwards with `sudo piano-devmode off` ([INSTALL.md](docs/INSTALL.md) step 10). See [device/devmode](device/devmode/README.md).
 
-**Time after boot.** The PMIC RTC cannot be written. From piano-ubuntu-desktop 0.1+20261010.6 a boot starts from the time saved at the last shutdown, which is behind by the time the tablet was off or in Android. chrony corrects it once online, from 0.1+20261010.7 also behind a router that answers NTP itself, by accepting unauthenticated time when NTS is unavailable (`authselectmode ignore`, not yet tested). Otherwise set it manually, for example `sudo date -s '2026-10-09 18:00'`.
+**Time after boot.** The PMIC RTC cannot be written. This release’s piano-ubuntu-desktop 0.1+20261010.7 is configured to restore the time saved at the last shutdown, which is behind by the time the tablet was off or in Android. chrony is configured to correct it once online, including behind a router that answers NTP itself, by accepting unauthenticated time when NTS is unavailable (`authselectmode ignore`). These clock measures are not yet verified on the tablet. Otherwise set it manually, for example `sudo date -s '2026-10-09 18:00'`.
 
 **After Initial Setup.** Initial Setup makes the user name the hostname unless you edit its *Computer* field; change it later with `sudo hostnamectl hostname --static <name>`. Run `sudo apt update` before the first `apt install`: the image has no current package indexes.
 
@@ -123,7 +125,7 @@ A host write resets slot A's retry counter, and `piano-slot-success` marks the s
 | xiaomipad-8pro-mainline | Device userspace, Ubuntu integration, build, packaging and switching tools, firmware, documentation |
 | [linux-sm8750-piano](https://github.com/yzddmr6/linux-sm8750-piano) | Linux kernel: drivers, device trees and configuration on the upstream v7.2.6 stable history, branch `piano/dev` |
 
-[kernel/source.json](kernel/source.json) pins the kernel commit and configuration fragments; [kernel/abi.json](kernel/abi.json) gives every packaged build a unique release (`7.2.6-piano5` is current).
+[kernel/source.json](kernel/source.json) pins the kernel commit and configuration fragments; [kernel/abi.json](kernel/abi.json) gives every packaged build a unique release (this release packages `7.2.6-piano7`).
 Device-specific inputs (calibration, Bluetooth address, boot profile, signing key, backups) belong to each owner and are never committed.
 Debug image sets (`tools/build-persistent-boot.py --debug`) add a `fastboot boot` check image with an unauthenticated root shell over USB, for diagnostics only.
 
