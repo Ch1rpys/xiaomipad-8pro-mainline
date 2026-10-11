@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+# Stock piano buck limits at 5 V. xiaomi_mca validates the current firmware
+# type again on every write. No FCC, voltage negotiation or thermal policy.
+# Match add (charger present at boot) and change (the MCA state poll).
+ACTION=="add|change", SUBSYSTEM=="power_supply", KERNEL=="xiaomi-mca-usb", ENV{POWER_SUPPLY_ONLINE}=="1", ENV{POWER_SUPPLY_USB_TYPE}=="*[[]SDP[]]*", ATTR{input_current_limit}!="500000", ATTR{input_current_limit}="500000"
+ACTION=="add|change", SUBSYSTEM=="power_supply", KERNEL=="xiaomi-mca-usb", ENV{POWER_SUPPLY_ONLINE}=="1", ENV{POWER_SUPPLY_USB_TYPE}=="*[[]CDP[]]*", ATTR{input_current_limit}!="900000", ATTR{input_current_limit}="900000"
+ACTION=="add|change", SUBSYSTEM=="power_supply", KERNEL=="xiaomi-mca-usb", ENV{POWER_SUPPLY_ONLINE}=="1", ENV{POWER_SUPPLY_USB_TYPE}=="*[[]DCP[]]*|*[[]C[]]*|*[[]PD[]]*|*[[]PD_PPS[]]*", ATTR{input_current_limit}!="1500000", ATTR{input_current_limit}="1500000"
