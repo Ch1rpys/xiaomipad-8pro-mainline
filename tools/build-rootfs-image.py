@@ -2,14 +2,15 @@
 # SPDX-License-Identifier: MIT
 """Build the release root filesystem image from the pinned Desktop base and the piano packages.
 
-No host root: sqfs2tar streams the pristine Desktop SquashFS into upstream
+sqfs2tar streams the pristine Desktop SquashFS into upstream
 mke2fs -d (libarchive), creating the ext4 at the full partition size.  A
 disposable QEMU ARM64 guest, whose own root is that SquashFS mounted
 read-only, then runs rootfs-image-guest.sh as root: the steps of
 docs/AGENT-GUIDE.md section 4.4 in a chroot of the target (policy-rc.d,
 SYSTEMD_OFFLINE=1 dpkg --install). Userspace packages are installed first,
 then the base's generic kernels and kdump are purged before the piano kernel
-runs dracut. Finally the guest prepares the release boot image set.  The target never boots.
+runs dracut. On a native aarch64 host as root, the same steps run in a loop-mounted
+chroot with no emulation. Other hosts default to the QEMU guest. The target never boots.
 
 The image is for any unit: fstab and /etc/piano/layout.json name the fixed
 GPT partitions linux_rootfs and linux_data; the boot set is built with
@@ -30,6 +31,7 @@ import os
 from pathlib import Path
 import re
 import selectors
+import signal
 import shutil
 import subprocess
 import tarfile
@@ -80,7 +82,7 @@ def run_guest(command, out, timeout):
     pending = b''
     with (out / 'console.log').open('wb') as log, (out / 'guest-profile.jsonl').open('w') as profile:
         with subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                              stderr=subprocess.STDOUT) as proc, selectors.DefaultSelector() as selector:
+                              stderr=subprocess.STDOUT, start_new_session=True) as proc, selectors.DefaultSelector() as selector:
             selector.register(proc.stdout, selectors.EVENT_READ)
             try:
                 while selector.get_map():
@@ -111,8 +113,13 @@ def run_guest(command, out, timeout):
                 return proc.wait(), events
             finally:
                 if proc.poll() is None:
-                    proc.kill()
-                    proc.wait()
+                    # Allow the native helper's EXIT trap to unmount on timeout.
+                    os.killpg(proc.pid, signal.SIGTERM)
+                    try:
+                        proc.wait(timeout=30)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(proc.pid, signal.SIGKILL)
+                        proc.wait()
 
 
 def sha(path):
@@ -340,7 +347,7 @@ def main():
     ap.add_argument('--e2fsck', type=Path, required=True)
     ap.add_argument('--debugfs', type=Path, required=True)
     ap.add_argument('--dumpe2fs', type=Path, required=True)
-    ap.add_argument('--qemu', type=Path, required=True, help='qemu-system-aarch64')
+    ap.add_argument('--qemu', type=Path, help='qemu-system-aarch64 (guest backend only)')
     ap.add_argument('--kernel-deb', type=Path, required=True)
     ap.add_argument('--deb', type=Path, action='append', required=True,
                     help='piano-device-support, piano-local-firmware, piano-mesa, piano-ubuntu-desktop')
@@ -353,8 +360,18 @@ def main():
     ap.add_argument('--smp', type=int, default=8)
     ap.add_argument('--memory-mib', type=int, default=4096)
     ap.add_argument('--timeout', type=int, default=5400, help='Host budget for the QEMU guest in seconds')
+    ap.add_argument('--backend', choices=('guest', 'chroot'),
+                    help='Default: chroot for native aarch64 root, guest otherwise')
     ap.add_argument('--output', type=Path, required=True, help='New output directory')
     a = ap.parse_args()
+    native_root = os.uname().machine == 'aarch64' and os.geteuid() == 0
+    a.backend = a.backend or ('chroot' if native_root else 'guest')
+    if a.backend == 'chroot' and not native_root:
+        ap.error('--backend chroot requires euid 0 on a native aarch64 host')
+    if a.backend == 'guest' and a.qemu is None:
+        ap.error('--qemu is required for the guest backend')
+    if a.timeout <= 0:
+        ap.error('--timeout must be positive')
     if not re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+(-[a-z0-9.]+)?', a.release_name):
         ap.error('Release names look like v0.1.0-preview')
     if a.size_mib < 16384:
@@ -363,8 +380,9 @@ def main():
     out = a.output.resolve()
     out.mkdir(parents=True, exist_ok=False)
     env = dict(os.environ, MKE2FS_CONFIG=str(a.mke2fs_config.resolve()), LC_ALL='C.UTF-8', LANGUAGE='C')
-    result = {'state': 'BUILDING', 'release_name': a.release_name, 'tool_sha256': sha(Path(__file__)),
+    result = {'state': 'BUILDING', 'backend': a.backend, 'release_name': a.release_name, 'tool_sha256': sha(Path(__file__)),
               'guest_script_sha256': sha(Path(__file__).with_name('rootfs-image-guest.sh')),
+              'steps_script_sha256': sha(Path(__file__).with_name('rootfs-image-steps.sh')),
               'sparse_encoder_sha256': sha(Path(sparse_image.__file__)),
               'scope': ('Root filesystem image for any piano unit, built offline; not booted on a tablet by this tool'),
               'system_locale': {'LANG': 'zh_CN.UTF-8', 'generated': ['zh_CN.UTF-8', 'en_US.UTF-8']},
@@ -432,12 +450,20 @@ def main():
                       boot_profile_sha256=sha(out / 'boot-profile.json'),
                       boot_key_public_sha256=hashlib.sha256(subprocess.check_output(
                           ['openssl', 'pkey', '-in', str(a.boot_key), '-pubout', '-outform', 'DER'])).hexdigest(),
-                      qemu_version=subprocess.check_output([str(a.qemu), '--version'], text=True).splitlines()[0],
                       packages=[d for _, d in debs],
                       tools={n: sha(getattr(a, n)) for n in ('sqfs2tar', 'mke2fs', 'mke2fs_config', 'e2fsck',
-                                                             'debugfs', 'dumpe2fs', 'qemu')},
+                                                             'debugfs', 'dumpe2fs')},
                       root_partlabel=ROOT_PARTLABEL, data_partlabel=DATA_PARTLABEL, fstab=FSTAB, layout=LAYOUT)
         save()
+
+        if a.backend == 'guest':
+            result['qemu_version'] = subprocess.check_output([str(a.qemu), '--version'], text=True).splitlines()[0]
+            result['tools']['qemu'] = sha(a.qemu)
+        else:
+            result['chroot_host'] = {'machine': os.uname().machine, 'kernel': os.uname().release,
+                                    'euid': os.geteuid(), 'emulation': False}
+            for name in ('rootfs-native-chroot.sh', 'rootfs-image-chroot.sh'):
+                result['tools'][name] = sha(Path(__file__).with_name(name))
 
         # The base ext4 at the full partition size, from the SquashFS TAR stream.
         t = time.monotonic()
@@ -468,11 +494,14 @@ def main():
         t = lap('mke2fs', t)
 
         # Guest inputs: one TAR on a read-only disk.  It holds the release key and is deleted afterwards.
-        guest_kernel = extract_member(a.kernel_deb, f'boot/vmlinuz-{release}', out / f'vmlinuz-{release}')
+        guest_kernel = (extract_member(a.kernel_deb, f'boot/vmlinuz-{release}', out / f'vmlinuz-{release}')
+                        if a.backend == 'guest' else None)
         inputs = out / 'inputs.tar'
         epoch_files = {
             'params.sh': f'RELEASE={release}\nROOT_PARTLABEL={ROOT_PARTLABEL}\n'.encode(),
             'guest.sh': Path(__file__).with_name('rootfs-image-guest.sh').read_bytes(),
+            'steps.sh': Path(__file__).with_name('rootfs-image-steps.sh').read_bytes(),
+            'chroot.sh': Path(__file__).with_name('rootfs-image-chroot.sh').read_bytes(),
             'files/etc/apt/sources.list.d/ubuntu.sources': (REPO / 'ubuntu/26.04.sources').read_bytes(),
             'files/etc/piano/layout.json': (json.dumps(LAYOUT, indent=2) + '\n').encode(),
             'files/etc/fstab': FSTAB.encode(),
@@ -483,6 +512,7 @@ def main():
         }
         for name in ('mozilla.sources', 'mozilla.pref', 'packages.mozilla.org.asc'):
             epoch_files['firefox/' + name] = (REPO / 'ubuntu/firefox' / name).read_bytes()
+        inputs.touch(mode=0o600, exist_ok=False)
         with tarfile.open(inputs, 'w', format=tarfile.PAX_FORMAT) as tar:
             def add(name, data=None, path=None):
                 info = tarfile.TarInfo(name)
@@ -499,41 +529,48 @@ def main():
             for path, entry in debs:
                 directory = 'kernel/' if entry['package'] == kernel['Package'] else 'debs/'
                 add(directory + path.name.replace('%3a', '_'), path=path)
-        result_disk = out / 'result.raw'
-        with result_disk.open('xb') as f:
-            f.truncate(1 << 30)
-        run = ("/bin/sh -c 'mkdir -p /run/piano-inputs && tar -xf /dev/vdc -C /run/piano-inputs "
-               "&& exec /bin/sh /run/piano-inputs/guest.sh'")
-        # The helper skips AppArmor: compiling the Desktop profiles under TCG takes many minutes, and
-        # nothing in the chroot steps depends on it.  The target's own policy is untouched.
-        cmdline = ('console=ttyAMA0 root=/dev/vda rootfstype=squashfs ro rootwait panic=-1 apparmor=0 '
-                   'systemd.unit=kernel-command-line.target systemd.run_success_action=poweroff '
-                   f'systemd.run_failure_action=poweroff systemd.run="{run}"')
-        drives = [(a.squashfs.resolve(), 'readonly=on'), (image, 'cache=unsafe,discard=unmap'),
-                  (inputs, 'readonly=on'), (result_disk, '')]
-        command = [str(a.qemu), '-machine', 'virt', '-cpu', 'max', '-accel', 'tcg,thread=multi',
-                   '-smp', str(a.smp), '-m', f'{a.memory_mib}M', '-nodefaults', '-display', 'none',
-                   '-monitor', 'none', '-serial', 'stdio', '-nic', 'none', '-no-reboot',
-                   '-kernel', str(guest_kernel), '-append', cmdline]
-        for index, ((path, options), serial) in enumerate(zip(drives, SERIALS)):
-            command += ['-drive', f'file={path},format=raw,if=none,id=d{index}' + (',' + options if options else ''),
-                        '-device', f'virtio-blk-device,bus=virtio-mmio-bus.{index},drive=d{index},serial={serial}']
+        if a.backend == 'guest':
+            result_disk = out / 'result.raw'
+            with result_disk.open('xb') as f:
+                f.truncate(1 << 30)
+            run = ("/bin/sh -c 'mkdir -p /run/piano-inputs && tar -xf /dev/vdc -C /run/piano-inputs "
+                   "&& exec /bin/sh /run/piano-inputs/guest.sh'")
+            # The helper skips AppArmor: compiling the Desktop profiles under TCG takes many minutes, and
+            # nothing in the chroot steps depends on it.  The target's own policy is untouched.
+            cmdline = ('console=ttyAMA0 root=/dev/vda rootfstype=squashfs ro rootwait panic=-1 apparmor=0 '
+                       'systemd.unit=kernel-command-line.target systemd.run_success_action=poweroff '
+                       f'systemd.run_failure_action=poweroff systemd.run="{run}"')
+            drives = [(a.squashfs.resolve(), 'readonly=on'), (image, 'cache=unsafe,discard=unmap'),
+                      (inputs, 'readonly=on'), (result_disk, '')]
+            command = [str(a.qemu), '-machine', 'virt', '-cpu', 'max', '-accel', 'tcg,thread=multi',
+                       '-smp', str(a.smp), '-m', f'{a.memory_mib}M', '-nodefaults', '-display', 'none',
+                       '-monitor', 'none', '-serial', 'stdio', '-nic', 'none', '-no-reboot',
+                       '-kernel', str(guest_kernel), '-append', cmdline]
+            for index, ((path, options), serial) in enumerate(zip(drives, SERIALS)):
+                command += ['-drive', f'file={path},format=raw,if=none,id=d{index}' + (',' + options if options else ''),
+                            '-device', f'virtio-blk-device,bus=virtio-mmio-bus.{index},drive=d{index},serial={serial}']
+        else:
+            command = ['unshare', '--mount', '--net', '--propagation', 'private', '/bin/bash',
+                       str(Path(__file__).with_name('rootfs-native-chroot.sh')), str(image), str(inputs), str(out)]
         result.update(guest_command=[portable(w, out) for w in command], guest_timeout_seconds=a.timeout)
         save()
-        print(f'Installing the packages in a QEMU guest (budget {a.timeout} s); progress in {out}/console.log',
-              flush=True)
+        print(f'Installing packages with {a.backend} (budget {a.timeout} s); progress in {out}/console.log', flush=True)
         try:
             result['guest_returncode'], result['guest_profile'] = run_guest(command, out, a.timeout)
         except subprocess.TimeoutExpired:
             result.update(guest_returncode=None, guest_timed_out=True)
         finally:
             inputs.unlink()
-            guest_kernel.unlink()
-        t = lap('guest', t)
+            if guest_kernel is not None:
+                guest_kernel.unlink()
+        t = lap(a.backend, t)
         guest_dir = out / 'guest'
-        with tarfile.open(result_disk) as tar:
-            tar.extractall(guest_dir, filter='data')
-        result_disk.unlink()
+        if a.backend == 'guest':
+            with tarfile.open(result_disk) as tar:
+                tar.extractall(guest_dir, filter='data')
+            result_disk.unlink()
+        if result['guest_returncode'] != 0:
+            raise RuntimeError(f'{a.backend} failed; see console.log and guest/install.log')
         log = (guest_dir / 'install.log').read_text(errors='replace')
         if 'PIANO_ROOTFS_GUEST_DONE' not in log or 'PIANO_ROOTFS_EXIT status=0' not in log:
             raise RuntimeError('The guest did not complete; see guest/install.log and console.log')

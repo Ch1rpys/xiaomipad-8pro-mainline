@@ -61,11 +61,18 @@ def copyright_file(repo, paragraphs):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    for name in ('output', 'thp-live', 'mesa-build', 'busybox', 'avbtool'):
-        ap.add_argument('--' + name, type=Path, required=True)
+    ap.add_argument('--output', type=Path, required=True)
+    for name in ('thp-live', 'mesa-build', 'busybox', 'avbtool'):
+        ap.add_argument('--' + name, type=Path)
     ap.add_argument('--version', required=True)
-    ap.add_argument('--support-only', action='store_true', help='Rebuild only the small device integration package')
+    select = ap.add_mutually_exclusive_group()
+    select.add_argument('--support-only', action='store_true', help='Rebuild only the small device integration package')
+    select.add_argument('--desktop-only', action='store_true', help='Build desktop policy without rebuilding locked support/Mesa inputs')
     a = ap.parse_args()
+    if not a.desktop_only:
+        for name in ('thp_live', 'mesa_build', 'busybox', 'avbtool'):
+            if getattr(a, name) is None:
+                ap.error('--' + name.replace('_', '-') + ' is required unless --desktop-only')
     repo = Path(__file__).resolve().parents[1]
     a.output.mkdir(parents=True, exist_ok=False)
     stages = a.output / 'stages'
@@ -121,74 +128,75 @@ def main():
         subprocess.run(['dpkg-deb', '--root-owner-group', '-Zxz', '-z1', '--build', str(root), str(deb)], check=True)
         receipts[name] = {'file': deb.name, 'sha256': sha(deb), 'files': owned}
 
-    support = stages / 'piano-device-support'
-    shutil.copytree(repo / 'packaging/piano-device-support', support, ignore=untracked)
-    tree(repo / 'packaging/piano-device-support', support, '.')
-    for p in support.rglob('*'):
-        if p.is_file() and p.read_bytes().startswith(b'#!'):
-            p.chmod(0o755)
-    copy(repo / 'device/boot/piano-boot-switch', support, 'usr/sbin/piano-boot-switch', 0o755)
-    copy(repo / 'device/boot/piano-slot-success', support, 'usr/sbin/piano-slot-success', 0o755)
-    copy(repo / 'device/boot/piano_bootslot.py', support, 'usr/lib/piano/boot/piano_bootslot.py', 0o644)
-    copy(a.thp_live, support, 'usr/libexec/piano/piano-thp-live', 0o755)
-    copy(a.busybox, support, 'usr/libexec/piano/busybox', 0o755)
-    copy(repo / 'device/platform/piano-physical-platform', support, 'usr/libexec/piano/piano-physical-platform', 0o755)
-    copy(repo / 'initramfs/usb-diag', support, 'usr/libexec/piano/usb-diag', 0o755)
-    network = json.loads((repo / 'initramfs/network.json').read_text())
-    (support / 'etc/piano-network').write_text(''.join(f'PIANO_{k.upper()}={v}\n' for k, v in network.items()))
-    # build-persistent-boot.py imports initramfs_archive from its own directory.
-    for source, name in [(repo / 'tools/build-persistent-boot.py', 'build-persistent-boot.py'),
-                         (repo / 'tools/initramfs_archive.py', 'initramfs_archive.py'),
-                         (repo / 'tools/local/aosp-mkbootimg/mkbootimg.py', 'mkbootimg.py'),
-                         (a.avbtool, 'avbtool.py')]:
-        copy(source, support, 'usr/lib/piano/boot/' + name, 0o755)
-    shutil.copytree(repo / 'tools/local/aosp-mkbootimg/gki', support / 'usr/lib/piano/boot/gki',
-                    ignore=shutil.ignore_patterns('__pycache__', '*test*'))
-    # piano-boot-update runs the packaged copy: it must import from the package alone.
-    subprocess.run(['python3', '-E', '-s', '-B', str((support / 'usr/lib/piano/boot/build-persistent-boot.py').resolve()), '--help'],
-                   check=True, stdout=subprocess.DEVNULL, cwd='/')
-    busybox = re.search(r'^package=busybox-static_(\S+)_arm64\.deb$',
-                        (repo / 'tools/fetch-busybox-arm64.sh').read_text(), re.M).group(1)
-    support_third_party = [
-        (('usr/lib/piano/boot/mkbootimg.py', 'usr/lib/piano/boot/gki/*'), 'The Android Open Source Project',
-         'Apache-2.0', 'AOSP platform/system/tools/mkbootimg, the checkout pinned by tools/fetch-aosp-mkbootimg.sh;\n'
-         'unmodified, tests excluded.'),
-        (('usr/lib/piano/boot/avbtool.py',), 'The Android Open Source Project', 'MIT',
-         'AOSP platform/external/avb avbtool.py, unmodified; its MIT notice is in the file header.'),
-        (('usr/libexec/piano/busybox',),
-         'Erik Andersen, Rob Landley, Denys Vlasenko and other BusyBox contributors', 'GPL-2.0-only',
-         f'The busybox-static {busybox} arm64 binary from Ubuntu, unmodified (pinned by\n'
-         'tools/fetch-busybox-arm64.sh). Its corresponding source is the Ubuntu source package\n'
-         f'busybox {busybox}: https://launchpad.net/ubuntu/+source/busybox/{busybox}'),
-        (('usr/libexec/piano/piano-thp-live',), 'ianchb; Niels Lohmann; ' + PROJECT,
-         'Apache-2.0 AND MIT', 'Built from device/piano-thp: files adapted from ianchb/xiaomi-sheng-thp are\n'
-         'Apache-2.0, the rest MIT (see NOTICE); it includes the MIT nlohmann JSON headers.'),
-    ]
-    package('piano-device-support', support,
-            'python3, openssl, device-tree-compiler, dracut, kmod, init-system-helpers',
-            'Piano platform, touchscreen and persistent boot integration',
-            '#!/bin/sh\nset -e\nif [ "$1" = configure ]; then\n'
-            # piano-thp.service is udev-activated only; remove the multi-user.target link
-            # and deb-systemd-helper state left by versions that enabled it.
-            ' deb-systemd-helper purge piano-thp.service >/dev/null\n'
-            ' deb-systemd-helper enable piano-slot-success.service piano-debug.service '
-            'piano-debug-timeout.service >/dev/null\nfi\n',
-            recommends='openssh-server',  # developer mode only; piano-devmode refuses without sshd
-            third_party=support_third_party)
-    if a.support_only:
-        (a.output / 'manifest.json').write_text(json.dumps(receipts, indent=2) + '\n')
-        return
+    if not a.desktop_only:
+        support = stages / 'piano-device-support'
+        shutil.copytree(repo / 'packaging/piano-device-support', support, ignore=untracked)
+        tree(repo / 'packaging/piano-device-support', support, '.')
+        for p in support.rglob('*'):
+            if p.is_file() and p.read_bytes().startswith(b'#!'):
+                p.chmod(0o755)
+        copy(repo / 'device/boot/piano-boot-switch', support, 'usr/sbin/piano-boot-switch', 0o755)
+        copy(repo / 'device/boot/piano-slot-success', support, 'usr/sbin/piano-slot-success', 0o755)
+        copy(repo / 'device/boot/piano_bootslot.py', support, 'usr/lib/piano/boot/piano_bootslot.py', 0o644)
+        copy(a.thp_live, support, 'usr/libexec/piano/piano-thp-live', 0o755)
+        copy(a.busybox, support, 'usr/libexec/piano/busybox', 0o755)
+        copy(repo / 'device/platform/piano-physical-platform', support, 'usr/libexec/piano/piano-physical-platform', 0o755)
+        copy(repo / 'initramfs/usb-diag', support, 'usr/libexec/piano/usb-diag', 0o755)
+        network = json.loads((repo / 'initramfs/network.json').read_text())
+        (support / 'etc/piano-network').write_text(''.join(f'PIANO_{k.upper()}={v}\n' for k, v in network.items()))
+        # build-persistent-boot.py imports initramfs_archive from its own directory.
+        for source, name in [(repo / 'tools/build-persistent-boot.py', 'build-persistent-boot.py'),
+                             (repo / 'tools/initramfs_archive.py', 'initramfs_archive.py'),
+                             (repo / 'tools/local/aosp-mkbootimg/mkbootimg.py', 'mkbootimg.py'),
+                             (a.avbtool, 'avbtool.py')]:
+            copy(source, support, 'usr/lib/piano/boot/' + name, 0o755)
+        shutil.copytree(repo / 'tools/local/aosp-mkbootimg/gki', support / 'usr/lib/piano/boot/gki',
+                        ignore=shutil.ignore_patterns('__pycache__', '*test*'))
+        # piano-boot-update runs the packaged copy: it must import from the package alone.
+        subprocess.run(['python3', '-E', '-s', '-B', str((support / 'usr/lib/piano/boot/build-persistent-boot.py').resolve()), '--help'],
+                       check=True, stdout=subprocess.DEVNULL, cwd='/')
+        busybox = re.search(r'^package=busybox-static_(\S+)_arm64\.deb$',
+                            (repo / 'tools/fetch-busybox-arm64.sh').read_text(), re.M).group(1)
+        support_third_party = [
+            (('usr/lib/piano/boot/mkbootimg.py', 'usr/lib/piano/boot/gki/*'), 'The Android Open Source Project',
+             'Apache-2.0', 'AOSP platform/system/tools/mkbootimg, the checkout pinned by tools/fetch-aosp-mkbootimg.sh;\n'
+             'unmodified, tests excluded.'),
+            (('usr/lib/piano/boot/avbtool.py',), 'The Android Open Source Project', 'MIT',
+             'AOSP platform/external/avb avbtool.py, unmodified; its MIT notice is in the file header.'),
+            (('usr/libexec/piano/busybox',),
+             'Erik Andersen, Rob Landley, Denys Vlasenko and other BusyBox contributors', 'GPL-2.0-only',
+             f'The busybox-static {busybox} arm64 binary from Ubuntu, unmodified (pinned by\n'
+             'tools/fetch-busybox-arm64.sh). Its corresponding source is the Ubuntu source package\n'
+             f'busybox {busybox}: https://launchpad.net/ubuntu/+source/busybox/{busybox}'),
+            (('usr/libexec/piano/piano-thp-live',), 'ianchb; Niels Lohmann; ' + PROJECT,
+             'Apache-2.0 AND MIT', 'Built from device/piano-thp: files adapted from ianchb/xiaomi-sheng-thp are\n'
+             'Apache-2.0, the rest MIT (see NOTICE); it includes the MIT nlohmann JSON headers.'),
+        ]
+        package('piano-device-support', support,
+                'python3, openssl, device-tree-compiler, dracut, kmod, init-system-helpers',
+                'Piano platform, touchscreen and persistent boot integration',
+                '#!/bin/sh\nset -e\nif [ "$1" = configure ]; then\n'
+                # piano-thp.service is udev-activated only; remove the multi-user.target link
+                # and deb-systemd-helper state left by versions that enabled it.
+                ' deb-systemd-helper purge piano-thp.service >/dev/null\n'
+                ' deb-systemd-helper enable piano-slot-success.service piano-debug.service '
+                'piano-debug-timeout.service >/dev/null\nfi\n',
+                recommends='openssh-server',  # developer mode only; piano-devmode refuses without sshd
+                third_party=support_third_party)
+        if a.support_only:
+            (a.output / 'manifest.json').write_text(json.dumps(receipts, indent=2) + '\n')
+            return
 
-    mesa = stages / 'piano-mesa'
-    subprocess.run(['python3', str(repo / 'tools/prepare-mesa-initramfs.py'), '--mesa-build', str(a.mesa_build),
-                    '--stage', str(mesa)], stdout=subprocess.DEVNULL, check=True)
-    mesa_source = json.loads((repo / 'mesa/source.json').read_text())
-    package('piano-mesa', mesa, 'libc6, libdrm2, libexpat1, libzstd1, zlib1g',
-            'Isolated Mesa 26.2 with piano A830 input lock',
-            third_party=[((mesa_source['prefix'].lstrip('/') + '/*',), 'Mesa contributors (per-file notices)',
-                          'MIT', f'Mesa {mesa_source["tag"]} ({mesa_source["url"]}, commit {mesa_source["commit"]})\n'
-                          f'with {mesa_source["patch"]} from this repository. Most of Mesa is MIT; some files\n'
-                          'carry other permissive licences, listed in docs/license.rst of that source.')])
+        mesa = stages / 'piano-mesa'
+        subprocess.run(['python3', str(repo / 'tools/prepare-mesa-initramfs.py'), '--mesa-build', str(a.mesa_build),
+                        '--stage', str(mesa)], stdout=subprocess.DEVNULL, check=True)
+        mesa_source = json.loads((repo / 'mesa/source.json').read_text())
+        package('piano-mesa', mesa, 'libc6, libdrm2, libexpat1, libzstd1, zlib1g',
+                'Isolated Mesa 26.2 with piano A830 input lock',
+                third_party=[((mesa_source['prefix'].lstrip('/') + '/*',), 'Mesa contributors (per-file notices)',
+                              'MIT', f'Mesa {mesa_source["tag"]} ({mesa_source["url"]}, commit {mesa_source["commit"]})\n'
+                              f'with {mesa_source["patch"]} from this repository. Most of Mesa is MIT; some files\n'
+                              'carry other permissive licences, listed in docs/license.rst of that source.')])
 
     desktop = stages / 'piano-ubuntu-desktop'
     shutil.copytree(repo / 'packaging/piano-ubuntu-desktop', desktop, ignore=untracked)

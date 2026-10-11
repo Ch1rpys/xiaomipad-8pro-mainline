@@ -1,0 +1,26 @@
+{
+  "scope": "Verified original Ubuntu Desktop layers, not an installed piano system",
+  "release": "26.04 LTS",
+  "architecture": "arm64",
+  "url": "https://cdimage.ubuntu.com/ubuntu/releases/26.04/release/ubuntu-26.04-desktop-arm64.iso",
+  "iso_sha256": "c2afd538d66fdd77377d03f1ed2ac76a34f1c116baecc9a8170d68f833121f57",
+  "layer_order": [
+    "minimal.squashfs",
+    "minimal.standard.squashfs"
+  ],
+  "files": {
+    "minimal.squashfs": "82613d06f973778f6d49c817d7eb764a7fd812016a30a7f8006e8f61d718b393",
+    "minimal.standard.squashfs": "fce0e2440cdbb6ebaf03efe3dd844c0e1a3b5facaca913e18f312e30a8f9fdaf"
+  },
+  "merged_tar_sha256": "bbab4b646901de91a96e65958ed519ee5a74e453ca434698fa10137945ac71e9",
+  "merged_squashfs_sha256": "35f9b475e79de3ba87da4bbe957778d6d5f9637ce27d9267ed6b98d48b6fb0bc",
+  "tar_sha256": {
+    "base_tar": "f8ba750bdc4f2a950f31331d869ba59ea0637bc50987bf655d6247f9ea63d830",
+    "desktop_tar": "312d1aa5b3b0a1f9c147c89957d6a46789f65c84d650582eef8c79dba63c17dd"
+  },
+  "tools": {
+    "sqfs2tar": "1.2.0",
+    "sqfstar": "4.6.1",
+    "libzstd": "1.5.5"
+  }
+}

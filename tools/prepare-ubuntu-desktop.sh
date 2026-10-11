@@ -9,9 +9,14 @@ fi
 [[ $# == 0 ]] || exit 2
 iso=${UBUNTU_ISO:?set UBUNTU_ISO to the original Ubuntu 26.04 Desktop ARM64 ISO}
 out=${OUT_DIR:?set OUT_DIR to a casper layer output directory}
-iso_hash=c2afd538d66fdd77377d03f1ed2ac76a34f1c116baecc9a8170d68f833121f57
-base_hash=82613d06f973778f6d49c817d7eb764a7fd812016a30a7f8006e8f61d718b393
-desktop_hash=fce0e2440cdbb6ebaf03efe3dd844c0e1a3b5facaca913e18f312e30a8f9fdaf
+repo=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+pins=$(python3 - "$repo/ubuntu/desktop-layers.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+print(d['iso_sha256'], d['files']['minimal.squashfs'], d['files']['minimal.standard.squashfs'])
+PY
+)
+read -r iso_hash base_hash desktop_hash <<<"$pins"
 printf '%s  %s\n' "$iso_hash" "$iso" | sha256sum --check --status
 command -v 7z >/dev/null
 mkdir -p "$out"

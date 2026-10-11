@@ -1,0 +1,128 @@
+{
+  "scope": "CI root input lock; the desktop package is built from the workflow revision",
+  "apt_snapshot": "20261001T000000Z",
+  "apt_packages": [
+    "dracut",
+    "device-tree-compiler",
+    "openssh-server",
+    "fake-hwclock",
+    "systemd-zram-generator"
+  ],
+  "apt_debs": [
+    {
+      "package": "dracut-core",
+      "version": "110-11ubuntu0.1",
+      "architecture": "arm64",
+      "sha256": "754b4f8c3dd31a2dd05234e6514736a0ffb02596c291f859cc8a578a4f376add"
+    },
+    {
+      "package": "dracut-install",
+      "version": "110-11ubuntu0.1",
+      "architecture": "arm64",
+      "sha256": "f3d0c0c3ff6c0d89d814cd5dfe730cca93f60a223011787586209ecc027556c7"
+    },
+    {
+      "package": "dracut",
+      "version": "110-11ubuntu0.1",
+      "architecture": "all",
+      "sha256": "5c889098b7cf533851be933feea66587dd637c2f5de8b1b9009f824d1fc732da"
+    },
+    {
+      "package": "fake-hwclock",
+      "version": "0.14build1",
+      "architecture": "all",
+      "sha256": "5dbf471138df15e35eb8c67ba574b82f352f70b426d8f19dd027b0b52f6e8931"
+    },
+    {
+      "package": "ncurses-term",
+      "version": "6.6+20251231-1",
+      "architecture": "all",
+      "sha256": "23b67d85b6c8857fd40aded8554f59751460c8d35f0a0573562021480acbca62"
+    },
+    {
+      "package": "openssh-client",
+      "version": "1:10.2p1-2ubuntu3.6",
+      "architecture": "arm64",
+      "sha256": "a45915ace6a172e1247e3f2413d7bffc981622eb5da4b49f079e4b6625525f81"
+    },
+    {
+      "package": "openssh-server",
+      "version": "1:10.2p1-2ubuntu3.6",
+      "architecture": "arm64",
+      "sha256": "e44145352d528765fdfd5ef5b94f833b6604b39d44ef3e422e34497dd4ccdcd5"
+    },
+    {
+      "package": "openssh-sftp-server",
+      "version": "1:10.2p1-2ubuntu3.6",
+      "architecture": "arm64",
+      "sha256": "a6203e0d82c9395e96d96788fb66a5b9e7279b163260bfa721e62aacb9e056f6"
+    },
+    {
+      "package": "ssh-import-id",
+      "version": "5.11-0ubuntu4",
+      "architecture": "all",
+      "sha256": "901e1f40654bf083c1eabb7b09baec0fcc3fe23bcc6cdc07f7af99015d254029"
+    },
+    {
+      "package": "systemd-zram-generator",
+      "version": "1.2.1-2",
+      "architecture": "arm64",
+      "sha256": "5e000cc69ef861d73bcf104395a50a3463a2f774430c25c00430a0d6709e8847"
+    }
+  ],
+  "release_debs": [
+    {
+      "package": "linux-image-7.2.6-piano7",
+      "version": "7.2.6-7.1",
+      "architecture": "arm64",
+      "file": "linux-image-7.2.6-piano7_7.2.6-7.1_arm64.deb",
+      "sha256": "e5d8cd250e0f92ae543242ff9cc4cbbdf20d5fb9acb1cb377c39bb7e7037126e",
+      "url": "https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/download/v0.1.0-preview/linux-image-7.2.6-piano7_7.2.6-7.1_arm64.deb"
+    },
+    {
+      "package": "piano-device-support",
+      "version": "0.1+20261010.8",
+      "architecture": "arm64",
+      "file": "piano-device-support_0.1+20261010.8_arm64.deb",
+      "sha256": "0a76012c9fd6a6405e828ec76904c50f74573cd7476d17246eebf90e92877155",
+      "url": "https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/download/v0.1.0-preview/piano-device-support_0.1%2B20261010.8_arm64.deb"
+    },
+    {
+      "package": "piano-local-firmware",
+      "version": "0.4+os3.0.303.0",
+      "architecture": "all",
+      "file": "piano-local-firmware_0.4+os3.0.303.0_all.deb",
+      "sha256": "5e2d24f050f5b66555130f1f632470def3bff1448da1d080410de8bb520605bd",
+      "url": "https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/download/v0.1.0-preview/piano-local-firmware_0.4%2Bos3.0.303.0_all.deb"
+    },
+    {
+      "package": "piano-mesa",
+      "version": "0.1+20261010.4",
+      "architecture": "arm64",
+      "file": "piano-mesa_0.1+20261010.4_arm64.deb",
+      "sha256": "826aedd1f3b284e8ad732c39071a8be019410408a69409cacd3c69a6de67e048",
+      "url": "https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/download/v0.1.0-preview/piano-mesa_0.1%2B20261010.4_arm64.deb"
+    }
+  ],
+  "desktop_version": "0.1+20261010.8",
+  "e2fsprogs": {
+    "url": "https://git.kernel.org/pub/scm/fs/ext2/e2fsprogs.git",
+    "commit": "7ee1d505ef3b37831215f490411f346fe57e9053",
+    "tag": "v1.47.4",
+    "mke2fs_config_sha256": "c998d64f9b58c2235186f8ee75ba602d1fdb2991d94695fd687ab0e8096b6727"
+  },
+  "baseline": {
+    "name": "SPEED2",
+    "seconds": 2650.9,
+    "timings_seconds": {
+      "scan_base": 23.2,
+      "mke2fs": 116.8,
+      "guest": 2315.6,
+      "e2fsck": 1.4,
+      "verify": 1.9,
+      "img2simg": 155.6,
+      "hash": 25.3
+    },
+    "root_sparse_sha256": "d43bdc7fd74f68594240d94993bcf1e51798343bb1f4a63d947edc2a44ab7f1a"
+  }
+}

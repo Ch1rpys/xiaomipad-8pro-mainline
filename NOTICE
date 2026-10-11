@@ -385,6 +385,32 @@ Mozilla Firefox in generated root images:
   binary is unmodified, by Mozilla and contributors, under MPL-2.0 and the
   bundled third-party licences; see the package's copyright notices.
 
+Native ARM64 root-image CI:
+  .github/workflows/root-image.yml follows the native ubuntu-24.04-arm runner,
+  cache and sparse-only artifact pattern of blu-sharky/debian-piano:
+  https://github.com/blu-sharky/debian-piano, revision
+  a75f8c5d5fa099d65c171ac839c2e3bb6c63ec45, .github/workflows/build.yml
+  (last changed in fd6266d73f3442b23362260c3aa0c86782e0b52c), MIT,
+  bluseliu50 <265648257+bluseliu50@users.noreply.github.com>.
+  Changes: this repository's pinned Ubuntu inputs, packages and checks;
+  no kernel compilation, account creation, access keys or companion refs.
+  tools/rootfs-image-steps.sh, rootfs-image-guest.sh and rootfs-image-chroot.sh
+  reuse this repository's codex/usermode working files, by yzddmr6, MIT,
+  based on f0e82aff08774c6aea709b9446fa15f86e6795ba. These were uncommitted;
+  their original SHA-256 hashes, respectively, are:
+    07c9817af3ef50c388eef8d614488460cd4d51b46b1ef9f4ebcca36fcc7f7c64
+    4d9fff1cfe4ab74a5595fc2394e786e57b36e7a2d06f5f2cf5d16206038a18d4
+    4c5cd76c4d374fe9edf0c9e38a667144b42ac945b10c0aec94b8cfbd6abc9b62
+  tools/rootfs-native-chroot.sh adapts its mount/private-bind/unmount order
+  from rootfs-chroot-helper.sh of that working tree (MIT, yzddmr6), SHA-256
+  01df6ec1a2145dac0e7117b6713e8719b59f864b15cbe0903ca90816a89c92d2.
+  Changes: native ARM64 root only, private namespaces, no host-specific sudo
+  grant or qemu-user, one invocation owns and cleans all mounts; chroot output
+  uses a waited tee pipeline so no log follower retains dev/pts on exit.
+  ubuntu/desktop-layers.json records the official Ubuntu inputs and original
+  merge hashes; ubuntu/boot-profile.json is the address-free stock-build
+  profile already included in the v0.1.0-preview release, with no unit data.
+
 Third-party files placed in locally generated packages (tools/build-device-debs.py):
   piano-device-support copies tools that this repository does not contain:
   - mkbootimg.py and gki/ (tests excluded) from the AOSP checkout fetched by

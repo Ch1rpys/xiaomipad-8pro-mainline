@@ -3,13 +3,14 @@
 [中文](build.zh-CN.md) | [Project overview](../README.md) | [Release artefacts](RELEASE.md)
 
 How the release is built from pinned inputs: kernel → ABI entry → kernel package → device and
-firmware packages → boot image set → root image → release directory. None of the tools needs root
-or accesses a tablet. A successful build is not a hardware result. Each step's expected output and
+firmware packages → boot image set → root image → release directory. The native root-image chroot
+requires root; the other tools run unprivileged. No build tool accesses a tablet. A successful build is not a hardware result. Each step's expected output and
 the identities to record are in [AGENT-GUIDE.md](AGENT-GUIDE.md) §3.
 
 ## Host
 
-Linux x86_64. Commands run from the root of this repository.
+Linux x86_64 for the guest backend, or native AArch64 as root for the chroot backend.
+Commands run from the root of this repository.
 
 | Stage | Tools |
 |---|---|
@@ -205,13 +206,30 @@ dracut record times.
 
 ### Building the root on GitHub Actions
 
-The native ARM64 workflow is not implemented yet. Its input preflight on 2026-10-11 found no
-download URL lock for the pristine merged Desktop SquashFS
-(`35f9b475e79de3ba87da4bbe957778d6d5f9637ce27d9267ed6b98d48b6fb0bc`). The documented
-Ubuntu URL supplies the original ISO; the SquashFS above is the output of the two-layer merge in
-step 7. It is not an asset of `v0.1.0-preview`. A published URL for that exact input is required
-before the requested download-based workflow can be run. No Actions build, native chroot build,
-root verification or timing result is claimed by this preflight.
+[root-image.yml](../.github/workflows/root-image.yml) runs on `ubuntu-24.04-arm`, on pushes to
+`ci/root-image-arm64` or a manual dispatch of that branch. It downloads the official ISO from
+[desktop-layers.json](../ubuntu/desktop-layers.json), verifies the ISO and both layer hashes,
+reproduces the TAR/SquashFS merge above and verifies the final `35f9b475…` hash. Only that pristine
+SquashFS is cached, keyed by the ISO and recipe. It builds e2fsprogs 1.47.4 with libarchive/NLS
+and checks the filesystem configuration hash; host package versions and tool hashes accompany
+the result. [root-image.json](../ubuntu/root-image.json) locks the APT snapshot and release debs;
+desktop policy is built from the workflow revision as 0.1+20261010.8. Firefox uses its own lock.
+
+The job invokes `sudo …build-rootfs-image.py --backend chroot`. This backend accepts only native
+`aarch64` with EUID 0 and runs the shared package steps in a loop-mounted ext4, with private
+proc/sys/dev/pts binds and temporary run/tmp. Mount and network namespaces keep build activity
+separate from the host; an exit trap unmounts in reverse order. Omitting `--backend` selects
+chroot for native ARM64 root and guest otherwise; `--backend guest --qemu …` keeps the previous
+path available. The native backend has no QEMU or binfmt dependency.
+
+The 60 GiB raw ext4 remains a sparse host file. Intermediate ISO/layers/TARs and the raw inspection
+image are deleted as their stages complete. Artifacts contain the Android sparse root (1900 MiB
+parts when needed), its matching boot set, manifests, root verification, inventories, stage times
+and disk measurements. Join parts with `cat root.sparse.img.part* > root.sparse.img`, then check
+`sha256sum -c SHA256SUMS.root`; `SHA256SUMS` checks individual artifact files. CI uses a fresh,
+ephemeral AVB key and deletes the private key; it does not use the release owner's key. These are
+test build artifacts, not a device installation or hardware acceptance result. No workflow writes
+release assets or tags.
 
 ## 8. Release directory
 
