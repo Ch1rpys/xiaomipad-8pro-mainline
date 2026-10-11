@@ -27,7 +27,7 @@
 
 ## 🚀 获取与安装
 
-1. **使用发布版本**：[v0.1.0-preview](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview)。从同一发布版本把 SHA256SUMS.assets 及其中列出的全部附件下载到同一目录。在该目录执行 `sha256sum -c SHA256SUMS.assets`，全部条目通过后再解压分卷。用 `cat piano-v0.1.0-preview.tar.zst.part* | zstd -d | tar -x` 还原（约需 14 GB 空间），在解压目录内执行 `sha256sum -c SHA256SUMS`，然后按 [docs/INSTALL.zh-CN.md](docs/INSTALL.zh-CN.md) 安装。内容与构建流程见 [docs/RELEASE.md](docs/RELEASE.md)（英文）。
+1. **使用发布版本**：[v0.1.0-preview](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview)。从同一发布版本把 SHA256SUMS.assets 及其中列出的全部附件下载到一个空目录。本版归档只有两片：`piano-v0.1.0-preview.tar.zst.part0` 和 `piano-v0.1.0-preview.tar.zst.part1`。在该目录执行 `sha256sum -c SHA256SUMS.assets`，全部条目通过后再解压分卷。用 `cat piano-v0.1.0-preview.tar.zst.part* | zstd -d | tar -x` 还原（约需 14 GB 空间），在解压目录内执行 `sha256sum -c SHA256SUMS`，然后按 [docs/INSTALL.zh-CN.md](docs/INSTALL.zh-CN.md) 安装。内容与构建流程见 [docs/RELEASE.md](docs/RELEASE.md)（英文）。
 2. **从源码构建**：输入锁定在 [kernel/source.json](kernel/source.json) 与 [kernel/abi.json](kernel/abi.json)（内核提交、配置片段、release）、[mesa/source.json](mesa/source.json)（Mesa 26.2.0 及 A830 补丁）、[ubuntu/](ubuntu/26.04.sources)（官方 26.04 Desktop ARM64 ISO、快照 APT 源）和 `device/*/source.json`。[tools/](tools/) 中的工具无需 root 权限即可构建内核包、Mesa、设备软件包、ext4 根镜像和签名的启动镜像组。触控标定、蓝牙地址、启动配置（boot profile）、原厂 DTB 与 DTBO、AVB 签名密钥取自你自己的平板，从不提交。详见 [docs/build.zh-CN.md](docs/build.zh-CN.md)。
 3. **安装**：按 [docs/INSTALL.zh-CN.md](docs/INSTALL.zh-CN.md) 的手动步骤操作；切换、Fastboot 恢复及禁止刷写的分区见 [docs/FLASHING.zh-CN.md](docs/FLASHING.zh-CN.md)。
 

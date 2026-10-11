@@ -36,7 +36,7 @@ v0.1 只能手工安装，尚无安装器；写入新分区表（[第 6 步](#6-
 | 发布目录 | 同一版本的全部文件，不与其他版本混用 |
 | 主机可用空间 | 约 40 GB：备份（测试机 16 GB）、发布目录（约 9 GB）与数据镜像 |
 
-从同一发布版本把 SHA256SUMS.assets 及其中列出的全部附件下载到同一目录。在该目录执行 `sha256sum -c SHA256SUMS.assets`，全部条目通过后再解压分卷。
+从同一发布版本把 SHA256SUMS.assets 及其中列出的全部附件下载到一个空目录。本版归档只有两片：`piano-v0.1.0-preview.tar.zst.part0` 和 `piano-v0.1.0-preview.tar.zst.part1`。在该目录执行 `sha256sum -c SHA256SUMS.assets`，全部条目通过后再解压分卷。
 附件见[发布页](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview)，解压约需 14 GB 空间。
 
 ```bash

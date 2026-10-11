@@ -41,7 +41,7 @@ Steps that use standard commands because no project tool exists yet are marked *
 | The release directory | every file of one release, not mixed with other releases |
 | Free host space | about 40 GB: the backup (16 GB on the test unit), the release (about 9 GB) and the data image |
 
-Download SHA256SUMS.assets and every asset listed in it from the same release into one directory. Run `sha256sum -c SHA256SUMS.assets` there and require every entry to pass before extracting the archive parts.
+Download SHA256SUMS.assets and every asset listed in it from the same release into an empty directory. This release has two archive parts, `piano-v0.1.0-preview.tar.zst.part0` and `piano-v0.1.0-preview.tar.zst.part1`. Run `sha256sum -c SHA256SUMS.assets` there and require every entry to pass before extracting the archive parts.
 The assets are on the [release page](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview); extraction needs about 14 GB of free space.
 
 ```bash
