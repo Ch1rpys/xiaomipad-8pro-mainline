@@ -60,8 +60,9 @@ $package_rows
   itself (not yet tested); unauthenticated time is then accepted when NTS is unavailable. These are
   interim measures until the clock offset can be stored on the PMIC.
 - Developer mode stays off in the image; the installation guide turns it on for the installation and
-  off at the end of step 10. Its SSH socket accepts connections on the USB interface `usb0` only, not
-  over Wi-Fi.
+  off at the end of step 10. With piano-device-support 0.1+20261010.8, its SSH socket listens on
+  `192.168.88.2:22` with `FreeBind=yes`, without `BindToDevice`, so startup does not wait for `usb0`.
+  This binds the destination address; it does not filter the incoming interface.
 - Only the piano kernel is installed: Ubuntu's generic HWE kernel, its headers, tools and zfs modules
   and `kdump-tools` are removed (47 packages, including `libc6-dev`: install `build-essential` before
   compiling), so updates no longer download kernels that cannot boot and build initrds for them.
@@ -116,7 +117,7 @@ address, touch calibration, boot profile, partition map or signing key of yours.
 | `wlan-address` | Wi-Fi uses a random MAC address on every boot: this unit's WCN7860 reports an all-zero address, and ath12k falls back to a random one unless the boot DTB carries the address, which `piano-boot-update` writes from this file |
 | `bluetooth-address` | the Bluetooth controller stays unconfigured |
 | `boot-profile.json`, `boot-signing.pem` | `piano-boot-update` cannot rebuild the boot set, so the addresses above are not applied and kernel updates leave the set unchanged |
-| `boot-partitions.json` | `piano-boot-switch` (switching from Ubuntu, the app-grid button) refuses; with this release’s piano-device-support 0.1+20261010.7, kernel and initrd updates then leave the boot set and slot A unchanged |
+| `boot-partitions.json` | `piano-boot-switch` (switching from Ubuntu, the app-grid button) refuses; with this release’s piano-device-support 0.1+20261010.8, kernel and initrd updates then leave the boot set and slot A unchanged |
 
 After adding them run `sudo piano-boot-update $kernel_release`; it rebuilds the set with your addresses and
 key and rewrites slot A. Your stock Android set goes into the store with
