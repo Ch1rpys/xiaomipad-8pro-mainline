@@ -29,8 +29,9 @@ def sha(path):
 
 
 def check(path, digest):
-    if sha(path) != digest:
-        raise ValueError(f'SHA-256 mismatch: {path}')
+    actual = sha(path)
+    if actual != digest:
+        raise ValueError(f'SHA-256 mismatch: {path}: expected {digest}, got {actual}')
 
 
 def run(*args, **kwargs):

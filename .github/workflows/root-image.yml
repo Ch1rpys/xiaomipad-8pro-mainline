@@ -43,18 +43,25 @@ jobs:
       # Runner label, sparse-only artifacts and cache/retention pattern follow
       # blu-sharky/debian-piano's MIT workflow; exact provenance is in NOTICE.
       - name: Restore pristine Desktop cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        id: pristine
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: out/ci-arm64-cache
           key: pristine-arm64-c2afd538d66fdd77377d03f1ed2ac76a34f1c116baecc9a8170d68f833121f57-${{ hashFiles('ubuntu/desktop-layers.json', 'tools/merge-desktop-tars.py') }}
       - name: Reproduce the locked pristine SquashFS
         run: python3 tools/ci-root-image.py base
+      - name: Save the verified pristine Desktop cache
+        if: steps.pristine.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: out/ci-arm64-cache
+          key: ${{ steps.pristine.outputs.cache-primary-key }}
       - name: Download locked packages and build desktop policy
         run: python3 tools/ci-root-image.py inputs
       - name: Native chroot build and root/sparse checks
         run: sudo python3 tools/ci-root-image.py build
       - name: Collect sparse image, inventories and stage table
-        run: sudo python3 tools/ci-root-image.py artifacts
+        run: sudo --preserve-env=GITHUB_REPOSITORY,GITHUB_RUN_ID,GITHUB_STEP_SUMMARY python3 tools/ci-root-image.py artifacts
       - name: Upload sparse root and matching boot set
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -78,5 +85,9 @@ jobs:
             out/ci-arm64-build/guest/
             out/ci-arm64-inputs/apt/*.log
             out/ci-arm64-inputs/apt/manifest.json
+            out/ci-arm64-cache/manifest.json
+            out/ci-arm64-cache/ubuntu-desktop.log
+            out/ci-arm64-artifacts/*-stage.json
+            out/ci-arm64-artifacts/disk-before.txt
           if-no-files-found: warn
           retention-days: 7
