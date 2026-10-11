@@ -1,0 +1,47 @@
+#!/usr/bin/python3
+# SPDX-License-Identifier: MIT
+"""Drop IBus's 'default' sentinel from the XKB list written by Initial Setup.
+
+Ubuntu 26.04 gnome-initial-setup-set-debian-keyboard passes IBus layouts to
+keyboard-configuration unchanged. 'default' means use the existing keyboard,
+not /usr/share/X11/xkb/symbols/default. Remove this workaround when GIS handles
+that sentinel before invoking its Debian keyboard helper.
+"""
+import os
+from pathlib import Path
+import shlex
+import stat
+import tempfile
+
+path = Path('/etc/default/keyboard')
+if path.exists():
+    text = path.read_text()
+    values = {}
+    for line in text.splitlines():
+        key, sep, value = line.partition('=')
+        if sep and key in ('XKBLAYOUT', 'XKBVARIANT'):
+            words = shlex.split(value, comments=True)
+            values[key] = words[0] if words else ''
+    layouts = values.get('XKBLAYOUT', '').split(',')
+    if 'default' in layouts:
+        variants = values.get('XKBVARIANT', '').split(',')
+        pairs = [(layout, variants[i] if i < len(variants) else '')
+                 for i, layout in enumerate(layouts) if layout != 'default']
+        # No concrete layout survived: use the image's standard US default.
+        pairs = pairs or [('us', '')]
+        replacements = {'XKBLAYOUT': ','.join(p[0] for p in pairs),
+                        'XKBVARIANT': ','.join(p[1] for p in pairs)}
+        lines = [line for line in text.splitlines()
+                 if line.partition('=')[0] not in replacements]
+        lines += [f'{key}="{value}"' for key, value in replacements.items()]
+        metadata = path.stat()
+        fd, temporary = tempfile.mkstemp(prefix='.piano-keyboard-', dir=path.parent)
+        try:
+            with os.fdopen(fd, 'w') as stream:
+                os.fchmod(stream.fileno(), stat.S_IMODE(metadata.st_mode))
+                os.fchown(stream.fileno(), metadata.st_uid, metadata.st_gid)
+                stream.write('\n'.join(lines) + '\n')
+            os.replace(temporary, path)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
