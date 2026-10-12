@@ -21,6 +21,22 @@ from kernel_modules import sha, verified_subset, verified_modules
 
 REPO = Path(__file__).resolve().parents[1]
 SUPPORT = REPO / 'packaging/piano-device-support'
+RETURN_FILES = ('usr/libexec/piano/debug-timeout',
+                'usr/lib/systemd/system/piano-debug-timeout.service')
+
+
+def stage_return(stage, units):
+    """Use the current helper before and after pivot, even with an old base/root."""
+    for name in RETURN_FILES:
+        dest = stage / name
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(SUPPORT / name, dest)
+        dest.chmod(0o755 if '/libexec/' in name else 0o644)
+    for name in RETURN_FILES[1:]:
+        dest = units / Path(name).name
+        # /run survives pivot; the installed root is deliberately untouched.
+        dest.write_text((SUPPORT / name).read_text().replace(
+            '/usr/libexec/piano/debug-timeout', '/run/piano-native-display/debug-timeout'))
 
 
 def main():
@@ -90,6 +106,7 @@ def main():
             f'{iris[0]["sha256"]}  {iris[0]["path"]}\n')
     units = target / 'systemd'
     units.mkdir()
+    stage_return(stage, units)
     # Reuse the developer SSH listener/authentication, with ownership assigned
     # to the existing debug service for this boot. No persistent enablement.
     for name in ('piano-devmode-ssh.socket', 'piano-devmode-ssh@.service'):
@@ -116,6 +133,7 @@ def main():
                'kernel_release': release, 'kernel_sha256': build['files']['arch/arm64/boot/Image'],
                'config_sha256': build['files']['.config'], 'modules': modules, 'firmware': rows,
                'pre_pivot_sha256': sha(hook),
+               'return_files': {name: sha(stage / name) for name in RETURN_FILES},
                'runtime_units': {str(p.relative_to(units)): sha(p)
                                  for p in sorted(units.rglob('*')) if p.is_file()}}
     (target / 'manifest.json').write_text(json.dumps(receipt, indent=2) + '\n')
@@ -142,10 +160,11 @@ def main():
         if hashlib.sha256(regular_file(entries, 'usr/' + name)).hexdigest() != digest:
             raise ValueError(f'Packed module identity differs: {name}')
     # Preserve all original non-module bytes, except the explicitly locked
-    # firmware update (including the newer topology required by the root).
+    # firmware update and the current bounded-return helper/units.
     changes = [n for n, h in old_files.items()
                if n not in entries or hashlib.sha256(entries[n][1]).hexdigest() != h]
-    if any(not n.startswith(('usr/lib/modules/', 'usr/lib/firmware/')) for n in changes):
+    if any(n not in RETURN_FILES and not n.startswith(('usr/lib/modules/', 'usr/lib/firmware/'))
+           for n in changes):
         raise ValueError(f'Unexpected base initrd changes: {changes}')
     # Keep the complete module/firmware payload, but compress it enough for the
     # v2 RAM image to stay below the boot partition size. CRC32 is supported by

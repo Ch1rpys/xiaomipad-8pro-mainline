@@ -1,6 +1,10 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-only
 set -eu
+force_return() {
+    exec systemctl --force --force --reboot-argument=bootloader reboot
+}
+
 limit=0
 for arg in $(cat /proc/cmdline); do
     case "$arg" in piano.debug_timeout=*) limit=${arg#*=};; esac
@@ -10,7 +14,30 @@ case "$limit" in ''|*[!0-9]*) exit 0;; esac
 read uptime rest </proc/uptime
 left=$((limit - ${uptime%%.*}))
 [ "$left" -le 0 ] || sleep "$left"
+echo 'PIANO_DEBUG_RETURN clean reboot requested'
+# Fork before any blocking work; no PID1/DBus round trip is needed to arm it.
+# The unit survives both the shutdown transaction and the final kill pass.
+# An explicit stop of piano-debug-timeout still kills the whole control group.
+(
+    sleep 45
+    # journald may already be gone in the final shutdown phase.
+    echo 'PIANO_DEBUG_RETURN forced after 45 seconds' >/dev/console || :
+    force_return
+) &
+
+# Load the same reboot-reason providers as before. A missing provider must
+# not prevent shutdown (the initrd may already have loaded/built it in).
+modprobe nvmem_qcom-spmi-sdam || :
+modprobe nvmem-reboot-mode || :
+if [ ! -e /etc/initrd-release ]; then
+    systemctl stop display-manager.service || :
+    systemctl stop user.slice || :
+fi
 sync
-modprobe nvmem_qcom-spmi-sdam
-modprobe nvmem-reboot-mode
-exec systemctl --force --force --reboot-argument=bootloader reboot
+# Do not use --force here: PID1 must stop services and systemd-shutdown must
+# unmount (or remount read-only) the ext4 root, including after switch-root.
+# An unattended, explicitly bounded diagnostic cannot wait for inhibitors.
+systemctl --no-ask-password --check-inhibitors=no --reboot-argument=bootloader reboot || :
+# Also called synchronously by the pre-pivot rejection path: never let it
+# fall through into switch-root while the reboot transaction is pending.
+sleep infinity
