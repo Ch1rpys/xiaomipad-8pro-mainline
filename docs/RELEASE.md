@@ -153,7 +153,7 @@ assets by `tools/package-release-assets.py`:
 
 ```bash
 python3 tools/package-release-assets.py --release out/release-<version> --output out/release-<version>-assets
-python3 tools/package-release-assets.py verify --assets out/release-<version>-assets   # restores and checks the directory
+python3 tools/package-release-assets.py verify --assets out/release-<version>-assets --output out/release-<version>-verify   # restores and checks the directory
 git tag -a <version> -m "<version>"; git push origin <version>
 gh release create <version> --title "Ubuntu for Xiaomi Pad 8 Pro <version>" \
   --notes-file out/release-<version>/RELEASE-NOTES.md out/release-<version>-assets/*

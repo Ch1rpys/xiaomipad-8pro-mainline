@@ -16,7 +16,7 @@ variants or accessories.
 | Kernel | Linux 7.2.6 with the piano patches; the exact commit and configuration are pinned in [kernel/source.json](../kernel/source.json) and recorded in the release notes |
 | Userspace | Ubuntu 26.04 Desktop ARM64; Mesa 26.2 as a deb and as a snap `gpu-2404` provider; GStreamer good/bad plugins |
 | Sensors | `piano-sensors` (hexagonrpcd) and `piano-iio-sensor-proxy` (libssc-backed SensorProxy) with the default calibration seed |
-| Installation | Fresh installation of the v0.2.0 images following `docs/INSTALL.md`, then GNOME Initial Setup |
+| Installation | Fresh installation of the v0.2.0 images following `docs/INSTALL.md`; the cold-boot acceptance ran on an account created for the test before the first boot |
 
 ## Cold-boot acceptance
 
@@ -25,16 +25,17 @@ installed system against fixed budgets. The v0.2.0 fresh installation passed:
 
 | Check | Budget | Result |
 |---|---|---|
-| First light (firmware framebuffer) | < 1 s | 0.21 s |
-| Switch to the root filesystem | ≤ 10 s | 7.0 s |
-| GDM login screen | ≤ 20 s | 13.4 s |
-| GPU firmware (GMU) loaded | ≤ 20 s | 0.9 s |
+| First light (firmware framebuffer) | < 1 s | 0.16 s |
+| Switch to the root filesystem | ≤ 10 s | 5.9 s |
+| GDM login screen | ≤ 20 s | 12.3 s |
+| GPU firmware (GMU) loaded | ≤ 20 s | 0.7 s |
 | Native scanout | dual INTF at 144 Hz | pass |
 | Clock / DSI / GPU errors over 200 s | 0 | 0 |
 | Failed systemd units | 0 | 0 |
 
 The firmware framebuffer is only the initial display path; native DSI KMS (`msm_dpu`) drives
-3200×2136 at 144 Hz. Backlight control and screen off/on through Mutter are verified. This is not
+3200×2136 at 144 Hz. Backlight control and screen off/on through Mutter are verified, and touch
+input resumes after the screen is turned back on. This is not
 suspend/resume acceptance: suspend is disabled.
 
 ## Verification scope
