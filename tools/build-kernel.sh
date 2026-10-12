@@ -57,6 +57,14 @@ head=$(git -C "$src" rev-parse HEAD)
 expected=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["commit"])' "$repo/kernel/source.json")
 [[ "$head" == "$expected" ]] || { echo "Kernel HEAD does not match kernel/source.json" >&2; exit 1; }
 base=$(python3 "$repo/tools/kernel_tag.py" "$src" HEAD)
+# Packaging may allocate a new ABI without changing the pinned kernel commit.
+# Only the release name is overridden; board configuration stays in the kernel.
+release=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("kernel_release", ""))' "$repo/kernel/source.json")
+if [[ -n $release ]]; then
+	[[ $release =~ ^${base#v}-piano[1-9][0-9]*$ && $release == "${base#v}-piano"* ]] || {
+		echo 'kernel/source.json kernel_release must match the pinned upstream version and piano ABI.' >&2; exit 1;
+	}
+fi
 [[ -z $(git -C "$src" status --porcelain --untracked-files=no) ]] || {
 	echo 'Commit or snapshot tracked kernel changes before building.' >&2
 	exit 1
@@ -74,7 +82,7 @@ fi
 # An empty LOCALVERSION stops Kbuild appending "+" for an untagged tree, so the
 # release is exactly the version plus CONFIG_LOCALVERSION (piano-release.config).
 args=(-C "$src" O="$out" "CC=$cc" LOCALVERSION=)
-recipe=$(cat "$src/arch/arm64/configs/defconfig" "${fragments[@]}" | sha256sum | cut -d' ' -f1)
+recipe=$({ cat "$src/arch/arm64/configs/defconfig" "${fragments[@]}"; printf '\n%s\n' "$release"; } | sha256sum | cut -d' ' -f1)
 toolchain=$("${cross}gcc" --version | head -1)
 identity=$(printf '%s\n' "$src" "$base" "$toolchain" "$cross" "$KCFLAGS" "$KAFLAGS" | sha256sum | cut -d' ' -f1)
 if [[ -f $out/.build-input && $(cat "$out/.build-input") != "$identity" ]]; then
@@ -86,6 +94,10 @@ if [[ ! -f $out/.config || ! -f $out/.recipe || $(cat "$out/.recipe") != "$recip
 	make "${args[@]}" defconfig >"$out/configure.log" 2>&1
 	"$src/scripts/kconfig/merge_config.sh" -m -O "$out" "$out/.config" "${fragments[@]}" >>"$out/configure.log" 2>&1
 	printf '%s\n' "$recipe" >"$out/.recipe"
+fi
+# Apply only after the kernel fragments, before olddefconfig and all targets.
+if [[ -n $release ]]; then
+	"$src/scripts/config" --file "$out/.config" --set-str LOCALVERSION "-${release#*-}" --disable LOCALVERSION_AUTO
 fi
 # Source updates can add Kconfig symbols without changing the board fragment.
 make "${args[@]}" olddefconfig >>"$out/configure.log" 2>&1
@@ -109,6 +121,9 @@ fi
 make "${args[@]}" -j"$jobs" Image qcom/sm8750-xiaomi-piano.dtb \
 	qcom/sm8750-xiaomi-piano-desktop.dtb \
 	"${module_target[@]}" 2>&1 | tee "$out/build.log"
+if [[ -n $release && $(cat "$out/include/config/kernel.release") != "$release" ]]; then
+	echo 'Built kernel release differs from kernel/source.json.' >&2; exit 1
+fi
 if [[ $modules == 1 ]]; then
 	make "${args[@]}" INSTALL_MOD_PATH="$out/modules-root" INSTALL_MOD_STRIP=1 \
 		DEPMOD="$(command -v depmod)" modules_install 2>&1 | tee "$out/modules-install.log"

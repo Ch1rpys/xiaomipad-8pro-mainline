@@ -28,7 +28,8 @@ PACKAGE = 'piano-local-firmware'
 # 0.4: adds the card topology of device/audio/card.json (Xiaomi-Pad-8-Pro: speakers and microphones, kernel
 # 7.2.6-piano6 and later) and, through firmware/piano-audio.json, the FS19xx preset; the capture-only
 # topology stays for kernels whose card is still Piano-Capture-Diag.
-VERSION = '0.4+os3.0.303.0'
+# 0.5: includes the signed VPU35 Iris firmware from firmware/piano-iris.json.
+VERSION = '0.5+os3.0.303.0'
 SOURCE_DATE_EPOCH = 0
 
 
@@ -101,7 +102,7 @@ def main():
                          'Installed-Size': str(installed_kib),
                          'Maintainer': args.maintainer, 'Section': 'non-free/kernel', 'Priority': 'optional',
                          'Description': 'Xiaomi Pad 8 Pro stock firmware\n'
-                                        ' Unmodified ADSP, GPU, Bluetooth, Wi-Fi, touch and keyboard-bridge\n'
+                                        ' Unmodified ADSP, GPU, Iris, Bluetooth, Wi-Fi, touch and keyboard-bridge\n'
                                         ' firmware and the FS19xx amplifier preset from stock build\n'
                                         ' OS3.0.303.0.WPYCNXM, and the audio topologies built from device/audio.\n'
                                         ' No firmware license is granted.'})

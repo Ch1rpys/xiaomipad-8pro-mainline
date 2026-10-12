@@ -33,6 +33,26 @@ def row(verdict, name):
 
 
 class JudgeTests(unittest.TestCase):
+    def test_piano9_requires_the_requested_release_in_both_captures(self):
+        early = GOOD.replace('7.2.6-piano8', '7.2.6-piano9')
+        late = SYNTHETIC_LATE.replace('7.2.6-piano8', '7.2.6-piano9')
+        self.assertEqual(cold.judge(early, late, '7.2.6-piano9')['verdict'], 'PASS')
+        self.assertEqual(row(cold.judge(early, late), 'piano8_controls')['status'], 'FAIL')
+        self.assertEqual(row(cold.judge(GOOD, SYNTHETIC_LATE, '7.2.6-piano9'),
+                             'piano8_controls')['status'], 'FAIL')
+        self.assertEqual(row(cold.judge(early, SYNTHETIC_LATE, '7.2.6-piano9'),
+                             'capture_identity')['status'], 'FAIL')
+
+    def test_piano9_cli_selects_the_release(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            early, late = Path(tmp) / 'early', Path(tmp) / 'late'
+            early.write_text(GOOD.replace('7.2.6-piano8', '7.2.6-piano9'))
+            late.write_text(SYNTHETIC_LATE.replace('7.2.6-piano8', '7.2.6-piano9'))
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                self.assertEqual(cold.main(['judge', str(early), str(late),
+                                           '--kernel-release', '7.2.6-piano9']), 0)
+            self.assertIn('"expected_release": "7.2.6-piano9"', output.getvalue())
+
     def test_cold01_failed_units_only_failure(self):
         verdict = cold.judge(EARLY, LATE)
         self.assertEqual(verdict['verdict'], 'FAIL')
@@ -146,9 +166,11 @@ class RunTests(unittest.TestCase):
             self.assertNotIn(password.strip().decode(), ' '.join(argv))
             self.assertNotIn('PIANO_SUDO_PASSWORD_FILE', kwargs['env'])
             self.assertEqual(kwargs['input'], password)
-            return subprocess.CompletedProcess(argv, 0, (GOOD if len(calls) == 1 else SYNTHETIC_LATE).encode(), b'')
+            text = (GOOD if len(calls) == 1 else SYNTHETIC_LATE).replace('7.2.6-piano8', '7.2.6-piano9')
+            return subprocess.CompletedProcess(argv, 0, text.encode(), b'')
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stderr(io.StringIO()):
-            args = argparse.Namespace(out=Path(tmp) / 'captures', serial='TEST-SERIAL', user='tester', late_seconds=200)
+            args = argparse.Namespace(out=Path(tmp) / 'captures', serial='TEST-SERIAL', user='tester', late_seconds=200,
+                                      kernel_release='7.2.6-piano9')
             self.assertEqual(cold.run_captures(args, password, run=ssh)['verdict'], 'PASS')
             self.assertEqual(len(calls), 2)
             self.assertIn('time.sleep(max(0, 200', calls[1][0][-1])
@@ -168,7 +190,8 @@ class RunTests(unittest.TestCase):
                         raise subprocess.TimeoutExpired(argv, 120, output=GOOD.encode(), stderr=b'test-secret')
                     return subprocess.CompletedProcess(argv, 1, GOOD.encode(), b'test-secret')
                 mocked = mock.Mock(side_effect=ssh)
-                args = argparse.Namespace(out=Path(tmp) / 'captures', serial='TEST', user='tester', late_seconds=200)
+                args = argparse.Namespace(out=Path(tmp) / 'captures', serial='TEST', user='tester', late_seconds=200,
+                                          kernel_release='7.2.6-piano8')
                 verdict = cold.run_captures(args, b'test-secret\n', run=mocked)
                 self.assertEqual(mocked.call_count, 1)
                 self.assertIn('capture_transport', verdict['failed'])
@@ -199,7 +222,8 @@ class RunTests(unittest.TestCase):
         compile(cold.native.NATIVE_SCANOUT, '<native-scanout>', 'exec')
 
     def test_invalid_window_and_identity_do_not_read_password_or_connect(self):
-        for extra in [('--late-seconds', '199'), ('--late-seconds', 'nan'), ('--serial', '-bad'), ('--user', 'x@y')]:
+        for extra in [('--late-seconds', '199'), ('--late-seconds', 'nan'), ('--serial', '-bad'), ('--user', 'x@y'),
+                      ('--kernel-release', '7.2.6-piano0'), ('--kernel-release', '7.2.6-generic')]:
             with self.subTest(extra=extra), mock.patch.object(cold, 'password_from_input') as secret, contextlib.redirect_stderr(io.StringIO()):
                 with self.assertRaises(SystemExit):
                     cold.main(['run', '--serial', 'TEST', '--user', 'tester', '--out', 'unused', *extra])

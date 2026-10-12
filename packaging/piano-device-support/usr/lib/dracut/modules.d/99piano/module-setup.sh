@@ -25,6 +25,8 @@ install() {
     inst_simple /usr/lib/firmware/qcom/gen80000_aqe.fw
     inst_simple /usr/lib/firmware/qcom/gen80000_sqe.fw
     inst_simple /usr/lib/firmware/qcom/sm8750/xiaomi/piano/gen80000_zap.mbn
+    # Iris uses the board firmware-name, not the driver's generic default.
+    inst_simple /usr/lib/firmware/qcom/sm8750/vpu35_4v.mbn
     # PAS and input consumers probe before the persistent root exists.
     inst_simple /usr/lib/firmware/nanosic/piano/MCU_Upgrade.bin
     for f in /usr/lib/firmware/qca/gngbtfw20.mbn /usr/lib/firmware/qca/gngbtnv20.*; do

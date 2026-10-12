@@ -253,7 +253,8 @@ def main():
              'Apache-2.0, the rest MIT (see NOTICE); it includes the MIT nlohmann JSON headers.'),
         ]
         package('piano-device-support', support,
-                'python3, openssl, device-tree-compiler, dracut, kmod, init-system-helpers, piano-mipps-auth',
+                'python3, openssl, device-tree-compiler, dracut, kmod, init-system-helpers, piano-mipps-auth, '
+                'piano-local-firmware (>= 0.5+os3.0.303.0)',
                 'Piano platform, touchscreen and persistent boot integration',
                 '#!/bin/sh\nset -e\nif [ "$1" = configure ]; then\n'
                 # piano-thp.service is udev-activated only; remove the multi-user.target link
@@ -299,7 +300,7 @@ def main():
     copy(repo / 'packaging/piano-ubuntu-desktop' / upmix, desktop,
          'usr/share/pipewire/client.conf.d/50-piano-speaker-upmix.conf')
     # fake-hwclock: the RTC cannot be set (TD-022); it restores the time saved at shutdown or hourly.
-    package('piano-ubuntu-desktop', desktop, 'piano-mesa, gdm3, gnome-shell (>= 50), fake-hwclock, python3, console-setup, snapd, init-system-helpers',
+    package('piano-ubuntu-desktop', desktop, 'piano-mesa, gdm3, gnome-shell (>= 50), fake-hwclock, python3, console-setup, snapd, init-system-helpers, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad',
             'Piano Ubuntu desktop defaults: graphics, clock without RTC, speaker up-mix and UCM, '
             'GNOME Shell 50 on-screen keyboard guard',
             '#!/bin/sh\nset -e\nif [ "$1" = configure ]; then\n'
