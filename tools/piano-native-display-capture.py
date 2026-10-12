@@ -25,7 +25,7 @@ result = {'uptime': float(Path('/proc/uptime').read_text().split()[0]),
 for p in glob.glob('/sys/class/drm/card*-DSI-*'):
     result['connectors'][Path(p).name] = {k: read(p + '/' + k) for k in ('status', 'enabled', 'modes')}
 for p in glob.glob('/sys/class/drm/card[0-9]*'):
-    if not re.fullmatch(r'cardd+', Path(p).name): continue
+    if not re.fullmatch(r'card\d+', Path(p).name): continue
     if Path(os.path.realpath(p + '/device/driver')).name != 'msm_dpu': continue
     try:
         fd = os.open('/dev/dri/' + Path(p).name, os.O_RDONLY)
@@ -35,7 +35,12 @@ for p in glob.glob('/sys/class/drm/card[0-9]*'):
             if not 0 < count <= 16: raise ValueError('unexpected CRTC count')
             ids = ctypes.create_string_buffer(count * 4)
             struct.pack_into('<Q', res, 8, ctypes.addressof(ids))
+            # Only the CRTC array has storage; do not pass nonzero counts for
+            # the NULL FB/connector/encoder arrays returned by the first call.
+            struct.pack_into('<4I', res, 32, 0, count, 0, 0)
             fcntl.ioctl(fd, ioctl(0xa0, 64), res)
+            if struct.unpack_from('<I', res, 36)[0] != count:
+                raise ValueError('CRTC list changed during query')
             for cid in struct.unpack('<' + 'I' * count, ids.raw):
                 c = bytearray(104); struct.pack_into('<I', c, 12, cid)
                 fcntl.ioctl(fd, ioctl(0xa1, 104), c)

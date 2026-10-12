@@ -47,9 +47,11 @@ class EmptyRamdisk(unittest.TestCase):
         self.assertEqual(len(raw) % 4, 0)
 
 
-def fake_inputs(d, serial=None):
+def fake_inputs(d, serial=None, native=False):
     (d / 'Image').write_bytes(b'\0' * 4096 + b'Linux version 7.2.6-piano9 (test@host) (gcc)\0' + b'\0' * 4096)
-    (d / 'dtb').write_bytes(b'\xd0\x0d\xfe\xed' + b'\0' * 60)
+    subprocess.run(['dtc', '-q', '-I', 'dts', '-O', 'dtb', '-o', str(d / 'dtb')],
+                   input=('/dts-v1/; / { soc@0 { display-subsystem@ae00000 { status = "' +
+                          ('okay' if native else 'disabled') + '"; }; }; };').encode(), check=True)
     (d / 'initrd').write_bytes(b'070701' + b'\0' * 1024)
     image = {'header_version': 4, 'capacity': 4 << 20, 'rollback_index': 0, 'avb_properties': {}}
     profile = {'boot': dict(image, avb_properties={'com.android.build.boot.os_version': '15',
@@ -71,6 +73,19 @@ def build(d, *options, output='out'):
 
 
 class RootAndSerial(unittest.TestCase):
+    @unittest.skipUnless(MKBOOTIMG.is_file() and AVBTOOL, 'needs tools/local/aosp-mkbootimg and AVBTOOL')
+    def test_persistent_native_display_uses_the_same_drm_device(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            fake_inputs(d, native=True)
+            done = build(d, '--root-partlabel', 'linux_rootfs', '--no-serial')
+            self.assertEqual(done.returncode, 0, done.stderr)
+            manifest = json.loads((d / 'out/manifest.json').read_text())
+            self.assertTrue(manifest['native_kms'])
+            self.assertIn('msm.separate_gpu_kms=0', manifest['cmdline'])
+            self.assertFalse(manifest['debug'])
+            self.assertNotIn('piano.native_display=1', manifest['cmdline'])
+
     def test_keyboard_requires_bounded_debug_before_output(self):
         with tempfile.TemporaryDirectory() as tmp:
             d = Path(tmp)
@@ -132,6 +147,8 @@ class RootAndSerial(unittest.TestCase):
             manifest = json.loads((d / 'set/manifest.json').read_text())
             self.assertTrue(manifest['cmdline'].startswith('root=PARTLABEL=linux_rootfs rootfstype=ext4 '))
             self.assertNotIn('androidboot.serialno', manifest['cmdline'])
+            self.assertFalse(manifest['native_kms'])
+            self.assertIn('msm.separate_gpu_kms=1', manifest['cmdline'])
             self.assertEqual((manifest['root'], manifest['root_partuuid'], manifest['serial_in_cmdline']),
                              ('PARTLABEL=linux_rootfs', None, False))
             header = (d / 'set/boot.img').read_bytes()[:4096]

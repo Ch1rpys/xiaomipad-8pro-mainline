@@ -1,7 +1,9 @@
 # One-boot charging candidate (piano8)
 
 This is an offline candidate. No device result is claimed. Use the exact debs
-and SHA256SUMS from the charging3 bundle. Keep the installed piano7 kernel and
+and SHA256SUMS from the merged piano8 bundle. The earlier charging-only
+`d03669c9a273` / `879164d18e78` package is superseded; do not install it as
+the merged candidate. See [piano8 integration](PIANO8.md). Keep the installed piano7 kernel and
 its verified boot set. Do not mix piano7 modules with the piano8 Image.
 
 The candidate ports the community charging group into `xiaomi_mca`, preserving

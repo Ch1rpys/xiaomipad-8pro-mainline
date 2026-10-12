@@ -50,6 +50,19 @@ def kernel_release(path):
     return match[1].decode() if match else None
 
 
+def native_kms_enabled(dtb):
+    """The board DT, including when called by the distro update hook, owns KMS."""
+    nodes = subprocess.check_output(['fdtget', '-l', str(dtb), '/soc@0'], text=True).split()
+    if 'display-subsystem@ae00000' not in nodes:
+        return False
+    node = '/soc@0/display-subsystem@ae00000'
+    props = subprocess.check_output(['fdtget', '-p', str(dtb), node], text=True).split()
+    if 'status' not in props:
+        return True  # Device tree's default status is available.
+    status = subprocess.check_output(['fdtget', '-t', 's', str(dtb), node, 'status'], text=True).strip()
+    return status in ('okay', 'ok')
+
+
 def ram_image_size(kernel, initrd, dtb, profile):
     """V2 header and three page-aligned payloads, with no second stage."""
     page = profile['vendor_boot']['page_size']
@@ -245,7 +258,8 @@ def main():
         subprocess.run(['fdtput', '-t', 'bx', str(dtb), node, 'local-mac-address',
                         *[f'{b:02x}' for b in raw]], check=True)
     console = DEBUG_BOOT_TRACE if a.debug_boot_trace else 'console=ttyMSM0,115200n8'
-    gpu_kms = 0 if a.native_display else 1
+    native_kms = native_kms_enabled(dtb)
+    gpu_kms = 0 if native_kms else 1
     cmdline = (f'root={root_spec} rootfstype=ext4 rw rootwait '
                f'{console} log_buf_len=2M panic=15 '
                f'msm.separate_gpu_kms={gpu_kms} piano.boot=persistent systemd.gpt_auto=0 bootconfig')
@@ -312,7 +326,7 @@ def main():
                     '--cmdline', cmdline, '--output', str(ram)], check=True)
     if ram.stat().st_size != ram_bytes:
         raise ValueError('RAM image size differs from its admitted v2 layout')
-    manifest = {'kind': 'piano-persistent-v4', 'kernel_release': release,
+    manifest = {'kind': 'piano-persistent-v4', 'kernel_release': release, 'native_kms': native_kms,
                 'cmdline': cmdline, 'root': root_spec,
                 'root_partuuid': str(a.root_partuuid) if a.root_partuuid is not None else None,
                 'serial_in_cmdline': not a.no_serial,

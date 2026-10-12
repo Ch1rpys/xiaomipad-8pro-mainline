@@ -2,11 +2,45 @@
 # SPDX-License-Identifier: MIT
 """Reject false native PASS using saved firmware-only evidence and explicit synthetic DRM readings."""
 import importlib.util,json,shutil,tempfile,unittest
+import contextlib, ctypes, io, struct
+from unittest import mock
 from pathlib import Path
 T=Path(__file__).resolve().parent
 s=importlib.util.spec_from_file_location('native_capture',T/'piano-native-display-capture.py')
 m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
 F=T/'fixtures/boot-acceptance/fast-piano2-20261009'
+
+class NativeQuery(unittest.TestCase):
+    def test_real_emitted_query_with_nonempty_unrequested_arrays(self):
+        calls = []
+        def ioctl(fd, command, data):
+            calls.append(command & 255)
+            if command & 255 == 0xa0:
+                pointer = struct.unpack_from('<Q', data, 8)[0]
+                if pointer:
+                    self.assertEqual(struct.unpack_from('<4I', data, 32), (0, 1, 0, 0))
+                    ctypes.memmove(pointer, struct.pack('<I', 103), 4)
+                else:
+                    struct.pack_into('<4I', data, 32, 1, 1, 2, 2)
+            else:
+                self.assertEqual(command & 255, 0xa1)
+                struct.pack_into('<I', data, 32, 1)
+                struct.pack_into('<H', data, 40, 3200)
+                struct.pack_into('<H', data, 50, 2136)
+                struct.pack_into('<I', data, 60, 144)
+        def glob(pattern):
+            return ['/sys/class/drm/card0'] if pattern == '/sys/class/drm/card[0-9]*' else []
+        output = io.StringIO()
+        with mock.patch('glob.glob', side_effect=glob), mock.patch('os.open', return_value=3), \
+             mock.patch('os.close'), mock.patch('os.path.realpath', return_value='/drivers/msm_dpu'), \
+             mock.patch.object(Path, 'read_text', return_value='20.0 0.0'), \
+             mock.patch('fcntl.ioctl', side_effect=ioctl), contextlib.redirect_stdout(output):
+            exec(m.NATIVE, {})
+        state = json.loads(output.getvalue().split('NATIVE_JSON=', 1)[1])
+        self.assertEqual(calls, [0xa0, 0xa0, 0xa1])
+        self.assertEqual(state['errors'], [])
+        self.assertEqual(state['crtcs'], [{'id': 103, 'card': 'card0', 'width': 3200,
+                                         'height': 2136, 'hz': 144}])
 
 class NativeVerdicts(unittest.TestCase):
     def setUp(self):
