@@ -4,6 +4,8 @@ Run Ubuntu 26.04 LTS with GNOME on the Xiaomi Pad 8 Pro (`piano`, SM8750P) along
 
 **Latest kernel/package release: 7.2.6-piano9 (ABI 9), device-verified on 2026-10-12.** See the [piano9 upgrade and acceptance record](docs/PIANO9.md).
 
+The local v0.2.0 fresh-install candidate is described in [INSTALL](docs/INSTALL.md); publication and full fresh-install acceptance are pending. It ships only the sensor default seed; stage your own registry before first boot with `tools/stage-sensor-registry.py`.
+
 ## 📮 Follow & Discuss
 
 Progress updates, usage tips and AI discussions (primarily in Chinese) are published here first — issue feedback is welcome.

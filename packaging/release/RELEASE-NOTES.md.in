@@ -1,167 +1,98 @@
 # Ubuntu for Xiaomi Pad 8 Pro — $release_name
 
-Ubuntu 26.04 LTS with GNOME for the Xiaomi Pad 8 Pro (`piano`, SM8750P), installed next to Android.
-This is a preview: read [Read Before Installing]($repo_url/blob/$integration_commit/README.md#%EF%B8%8F-read-before-installing)
-first. Installation is manual: follow [docs/INSTALL.md]($repo_url/blob/$integration_commit/docs/INSTALL.md);
-switching and recovery are in [docs/FLASHING.md]($repo_url/blob/$integration_commit/docs/FLASHING.md).
-All Android data is erased.
+Ubuntu 26.04 LTS GNOME with Linux $kernel_release for Xiaomi Pad 8 Pro (`piano`, SM8750P), alongside Android.
+This directory was assembled and checked on the host. **Full fresh-install acceptance of these exact images is pending**; component device results below come from earlier tests on the same tablet. No device was accessed, no tag created and nothing pushed by this release task.
 
-Unofficial project based on Ubuntu 26.04 LTS; not affiliated with or endorsed by Canonical, Xiaomi or Qualcomm.
+Follow `docs/INSTALL.md` or `docs/INSTALL.zh-CN.md` in the integration checkout at the commit below. Installation erases Android data. Use only stock `$stock_build` on slot A, preserve your backup and recovery set, and charge in Android. Verify every file with `sha256sum -c SHA256SUMS` before use. This is a local release directory; no downloadable archive parts are claimed.
 
-Download SHA256SUMS.assets and every asset listed in it from the same release into one directory. Run `sha256sum -c SHA256SUMS.assets` there and require every entry to pass before extracting the archive parts.
-Restore the release directory with `cat piano-v0.1.0-preview.tar.zst.part* | zstd -d | tar -x` (about 14 GB),
-then run `sha256sum -c SHA256SUMS` inside it.
+## Pinned identity
 
-## Identity
-
-| Item | Value |
+| Input | Identity |
 |---|---|
-| Kernel | `$kernel_release` (kernel commit `$kernel_commit`) |
-| Integration repository | commit `$integration_commit` |
-| Ubuntu base | 26.04 Desktop ARM64 ISO, SHA-256 `$iso_sha256`; Ubuntu packages added from snapshot `$apt_snapshot` |
-| Stock Android build | `$stock_build` on slot A (boot header fields, rollback indices, AVB properties and boot DTB) |
+| Release | `$release_name` |
+| Integration | `$integration_commit`, release branch based on `4c15551` |
+| Kernel | `$kernel_release`, `$kernel_commit`; existing device-verified deb, no kernel rebuild |
+| Ubuntu ISO | 26.04 Desktop ARM64, `$iso_sha256` |
+| Pristine merged SquashFS | `35f9b475e79de3ba87da4bbe957778d6d5f9637ce27d9267ed6b98d48b6fb0bc` |
+| APT | Signed Ubuntu snapshot `$apt_snapshot`; locked signed Mozilla Firefox input |
+| Stock build | `$stock_build`, slot A |
 | Boot command line | `$boot_cmdline` |
-| AVB signing key of the boot set | public key SHA-256 `$boot_key_public_sha256` (a release key; rebuilt sets use your own) |
+| AVB release public key | SHA256 `$boot_key_public_sha256` |
 
-## Files
+The preview-5 root manifest records the merged SquashFS hash, not a download URL. `ubuntu/desktop-layers.json` pins its official ISO URL, ISO/layer/TAR hashes and merge tools; the same pristine image was reconstructed and its final hash checked. The preview-5 manifest contains the Mesa deb but **no snap provider or first-boot connect package**. This release retains its Mesa deb and adds the requested provider/service from the later verified GPU work.
 
-| File | Size (bytes) | SHA-256 | Purpose |
-|---|---:|---|---|
-$artefact_rows
+The original `piano-snap-graphics 0.1+20261012.3` deb was absent after cleanup. It was repacked from the recorded `c14de88` source (contained in `4c15551`) and the unchanged provider snap. The original recorded deb SHA256 is `85b5562a465688eae69919d0ec6a3b4b39146b08caf32b1733e8aaf9c19a24ba`; this repack is `a4d24a119663084b445233dbe2f412208a5743190958518a5ba4407c2ec5dd97`. All seven payload files were checked against that build receipt and source; provider, helper and service bytes are unchanged. This archive has host packaging verification, not a new device-install claim. All five piano9 debs, both sensor debs and the preview-5 Mesa deb are reused byte-for-byte.
 
-`SHA256SUMS` lists every file; `release-manifest.json` records every input hash and package version.
+## Changes since v0.1.0-preview-5
 
-## Packages in the root image
+Each line states the verification level of the component, not acceptance of this new installation image.
+
+**Display and graphics**
+
+- Native DSI display — device-verified at 3200×2136 / 144 Hz, with DPMS off/on checks; replaces firmware-only simpledrm display.
+- Adreno 830 — device-verified Mesa 26.2.0 deb rendering and `piano-mesa-2404` snap provider; `piano-snap-graphics` installs/connects gpu-2404 consumers after first-boot seeding, with stale namespace handling.
+- Desktop monitor defaults — offline-verified DSI-1 200% / 144 Hz defaults, retaining simpledrm layouts; Initial Setup in this fresh image awaits acceptance.
+- Iris H.264 — device-verified on installed piano9: 150/150 decoded 1080p frames match the software reference; firmware 0.5 and GStreamer good/bad plugins are included. Browser/player automatic hardware-decoder selection is unverified.
+
+**Connectivity, audio and input**
+
+- Wi-Fi 80 MHz — device-verified HE80 automatic association and ≥120 s connection without disconnects after the SAR TX-power fix; wide-area throughput is not a radio benchmark.
+- Internal microphones — device-verified default PipeWire source recording of a 1 kHz tone on both channels; speech quality/noise processing unverified.
+- SSC sensors — device-verified acceleration/gyro/light/proximity samples and packaged SensorProxy orientation/ambient-light reporting with the owner's registry; the image ships only the empty default seed.
+- WN8030 magnetic keyboard — device-verified keyboard transport and tablet-mode switch reporting; physical reattach/rotation and every key combination remain separate checks.
+- Bluetooth — device-verified controller power and discovery scan; pairing and Bluetooth audio unverified.
+
+**Boot, power and desktop integration**
+
+- MiPPS/charging — device-verified read-only charger/battery reporting and non-failing MiPPS cleanup on a non-Xiaomi charger; charging control and net charging are not verified.
+- Clean RAM return — device-verified clean return in the piano9 RAM test and subsequent KernelSU check; the bounded diagnostic path does not replace fresh-install acceptance.
+- Cold-boot acceptance tool — host tests passed and installed piano9 verdict passed (switch-root 6.04 s, GDM 12.7 s); native RAM criteria use hardware evidence and retain unavailable results when evidence is absent.
+- Switch inhibitor fix — offline tests passed: shutdown blockers and errors are reported, the next boot target remains explicit, and the desktop switch uses the deliberate force path; fresh-install UI acceptance pending.
+- Initial Setup keyboard sentinel — already included in the reused desktop deb via main's `dc92b55`, equivalent to `eccb457`; no `.piano9.1` rebuild was needed. Full fresh Initial Setup regression remains pending.
+- Mozilla Firefox deb and first-boot removal of its preseeded snap are retained from main; Thunderbird and other snap seed state remain. The zh-CN default-language policy is excluded from this release branch.
+
+## Packages installed in the image
 
 | Package | Version | Origin |
 |---|---|---|
 $package_rows
 
-## Changes since the first upload (7.2.6-piano5)
+## Per-unit data and installation
 
-- Kernel `7.2.6-piano7`:
-  - Wi-Fi: ath12k applies the vendor SAR TX power limit to the WCN7860, as stock Android does,
-    to address 5 GHz 80 MHz links dropping about 12 s after association. This kernel package has not
-    been tested on the device; the support matrix remains limited to firmware, MAC address and scanning.
-  - Volume keys (PM8550 GPIO6 and the PMK8550 resin, as in the stock devicetree) and the PM8550
-    temperature-alarm thermal zone; not yet tested on the device.
-  - Configuration that Ubuntu's generic kernel has: PSI (for systemd-oomd), zram, uhid and hidraw
-    (Bluetooth LE input devices), nftables and the common xtables modules, WireGuard, the Yama and
-    Landlock security modules, NTFS3, CIFS, ISO 9660, UDF, dm-crypt and binfmt_misc. Not tested on the
-    device; no BTF type information (built without pahole).
-  - Since 7.2.6-piano6: experimental FS19xx/TDM speaker code; playback remains unsupported in the support matrix.
-- Speakers: stereo streams are up-mixed to the bottom pair at -3 dB (`channelmix.upmix-method = simple`);
-  with PipeWire's default method `none` the bottom pair stayed silent. Checked in QEMU, not yet heard
-  on the tablet.
-- Clock: a boot starts from the time `fake-hwclock` saved at the last shutdown or hourly instead of
-  systemd's built-in date (2026-04-15), and chrony skips the NTS certificate time checks until its
-  first update (`nocerttimecheck 1`). chrony selects sources regardless of authentication
-  (`authselectmode ignore`), so that it also synchronises behind a router that answers every NTP request
-  itself (not yet tested); unauthenticated time is then accepted when NTS is unavailable. These are
-  interim measures until the clock offset can be stored on the PMIC.
-- Developer mode stays off in the image; the installation guide turns it on for the installation and
-  off at the end of step 10. With piano-device-support 0.1+20261010.8, its SSH socket listens on
-  `192.168.88.2:22` with `FreeBind=yes`, without `BindToDevice`, so startup does not wait for `usb0`.
-  This binds the destination address; it does not filter the incoming interface.
-- Only the piano kernel is installed: Ubuntu's generic HWE kernel, its headers, tools and zfs modules
-  and `kdump-tools` are removed (47 packages, including `libc6-dev`: install `build-essential` before
-  compiling), so updates no longer download kernels that cannot boot and build initrds for them.
-  `linux-firmware` stays.
-- Swap in compressed RAM (zram): half the memory up to 8 GiB, zstd.
-- The login screen and Initial Setup use 200 % scaling (one system-wide `monitors.xml`); not yet
-  checked on the device.
-- Kernel and initrd updates without `/etc/piano/boot-partitions.json`, such as the one Initial Setup's
-  keyboard page starts, leave the boot set and slot A unchanged instead of failing and leaving `dracut`
-  half-configured; `piano-boot-switch` reads the serial from `/proc/bootconfig` and accepts the
-  release set.
-- Installation: Fastboot writes only the used blocks of the root image, and the build discards the
-  blocks it freed, about 8.7 GB in a check build of this root. The first upload stored the free space
-  as 51.8 GiB of FILL, which the tablet kept writing for about 30 minutes after `OKAY`.
-- Hostname `xiaomipad-8pro` with the pretty name "Xiaomi Pad 8 Pro" (Initial Setup sets the hostname
-  from its *Computer* field); no stale APT indexes: run `sudo apt update` before the first `apt install`.
+No account, serial, Bluetooth/Wi-Fi address, touch calibration, private sensor registry or private signing key is shipped. GNOME Initial Setup creates the account. Developer-mode SSH is installed but disabled until the installation guide enables it.
 
-## What works
+- Supply your own `thp-calibration.json`, `bluetooth-address`, `wlan-address`, `boot-profile.json`, `boot-partitions.json`, signing key and Android recovery set as described in INSTALL.
+- For sensors, run `python3 tools/stage-sensor-registry.py --registry /path/to/own/extracted/persist/sensors/registry --output /path/to/private-sensor-payload` on the host. Install the resulting `usr/share/piano/sensors/registry-private` into the new root in INSTALL step 8a, before first boot. Never share this payload or use another unit's registry.
+- Without private calibration, sensors initialize an empty seed from stock static configuration; default-calibration accuracy is unverified. Normal restarts do not overwrite existing sensor state.
+- The 60 GiB root remains a sparse **used-blocks** image. `linux_data` is not shipped; create it on the device exactly as in INSTALL. Partitioning and fresh-install steps are unchanged.
+- GStreamer tools plus `gstreamer1.0-plugins-good` and `gstreamer1.0-plugins-bad` supply `h264parse` and `v4l2h264dec`; no additional private Iris firmware injection is needed.
+- The snap is embedded at `/usr/share/piano/snaps/piano-mesa-2404.snap`. The normal first-boot `piano-snap-graphics.service` waits for snap seeding and Firefox removal, then installs and connects it. This new image's first-boot sequence is not a device PASS.
 
-Status on the test unit (one 512 GB unit, model 25091RP04C) with 7.2.6-piano5 and 7.2.6-piano6;
-`$kernel_release` has not been booted there yet. See the [support matrix]($repo_url/blob/$integration_commit/README.md#support-matrix) for the details and limits.
+## Not supported / not verified
 
-- ✅ Working: CPU frequency scaling, boot from slot A (marked successful after each boot), UFS storage,
-  GNOME on Wayland at 200 % scaling, Adreno 830 rendering with the bundled Mesa 26.2.0, battery gauges
-  and thermal zones, SSH over USB in developer mode.
-- 🟡 Partial: display (firmware framebuffer, 3200×2136 at 120 Hz, fixed brightness, no screen-off or wake;
-  occasional flicker with touch active), touchscreen (single finger, correct orientation, needs your
-  calibration; no long press, lock-screen on-screen keyboard fails; multi-touch, edges and power
-  management unverified), magnetic keyboard (keys; reattach and power management unverified; the
-  tested keyboard has no touchpad), Wi-Fi (firmware load, MAC address and 2.4/5 GHz scanning verified;
-  association unverified in the support matrix), Bluetooth (discovery, needs your address; pairing,
-  audio and Wi-Fi coexistence unverified), internal microphones (a 1 kHz test tone was recorded by all
-  four microphones; speech quality and noise processing unverified), switching (from Ubuntu verified;
-  the app-grid button and Android-side module unverified), charger reporting (read-only; no charge
-  control), power key (no screen-off or wake; volume keys unverified).
-- ❌ Unsupported: speaker playback (no speaker protection; listening tests and channel mapping unverified),
-  charging (the battery discharges under Linux, also on USB), cameras, sensors, video decoding, USB host
-  and external display, suspend, hibernation (no swap partition), writing the real-time clock, fingerprint,
-  stylus. The clock measures described above are not yet verified on the tablet.
+- Camera: stock evidence and imported code only; board integration is not enabled.
+- DP external display, stylus and fingerprint: not supported/verified.
+- Suspend/hibernation: disabled or unsupported; screen-off is not suspend.
+- RTC writes/persistent clock offset: unsupported; fake-hwclock and network time remain the workaround.
+- Charging control, wall-charger MiPPS/PPS and net battery charging: unverified; charge in Android.
+- Physical four-direction rotation, keyboard detach/reattach rotation and automatic brightness: unverified. Keyboard-attached `SW_TABLET_MODE=0` correctly gates Mutter rotation.
+- Iris encoder, other codecs and application-selected decoding: unverified; an encoder node is not an encoding PASS.
+- Speaker protection, Bluetooth pairing/audio and long-term peripheral/power-management stability remain open.
 
-The GNOME desktop's 200 % scaling was verified on earlier builds; this release's login-screen and
-Initial Setup scaling are unverified. The README support matrix is authoritative for these statuses.
+## Files and checks
 
-## Per-unit data you must add
+| File | Bytes | SHA256 | Purpose |
+|---|---:|---|---|
+$artefact_rows
 
-The image and the boot set contain no data of any unit: no account, serial number, Bluetooth or Wi-Fi
-address, touch calibration, boot profile, partition map or signing key of yours. Until you add them:
+`rootfs/verification.json` records offline root checks. `release-manifest.json` records source identity, stage timings, sparse write sizes and the zero-match identity scan. Checks of components on the tablet do not establish that these fresh images boot successfully.
 
-| File in `/etc/piano/` (root, mode 0600) | Without it |
-|---|---|
-| `thp-calibration.json` | the touchscreen does not start (use the keyboard) |
-| `wlan-address` | Wi-Fi uses a random MAC address on every boot: this unit's WCN7860 reports an all-zero address, and ath12k falls back to a random one unless the boot DTB carries the address, which `piano-boot-update` writes from this file |
-| `bluetooth-address` | the Bluetooth controller stays unconfigured |
-| `boot-profile.json`, `boot-signing.pem` | `piano-boot-update` cannot rebuild the boot set, so the addresses above are not applied and kernel updates leave the set unchanged |
-| `boot-partitions.json` | `piano-boot-switch` (switching from Ubuntu, the app-grid button) refuses; with this release’s piano-device-support 0.1+20261010.8, kernel and initrd updates then leave the boot set and slot A unchanged |
+$qemu_note
 
-After adding them run `sudo piano-boot-update $kernel_release`; it rebuilds the set with your addresses and
-key and rewrites slot A. Your stock Android set goes into the store with
-`sudo piano-boot-switch import-android --from <directory>`.
+`boot/boot-ram-maintenance.img` is RAM-only. It offers an unauthenticated USB root shell for INSTALL steps 6/8a, mounts nothing automatically and uses the existing ten-minute idle timeout. Never flash it. The KSU zip follows the `piano-switch-ksu-v<version>.zip` scheme.
 
-This release supports stock $stock_build on slot A only. Do not install its prebuilt images on another stock build. Porting another build requires preparing the effective boot DTB from that build’s stock DTB and DTBO, rebuilding the kernel package and boot set with the matching boot profile, and validating the result; changing boot-profile.json alone is insufficient.
+## Source and licensing
 
-## Known limitations
+Kernel source: [linux-sm8750-piano](https://github.com/yzddmr6/linux-sm8750-piano/tree/$kernel_commit). Integration source: [this commit]($repo_url/tree/$integration_commit). Ubuntu binaries come from the pinned official ISO/signed snapshot; Mozilla Firefox comes from its separately signed and locked repository. Source packages correspond to those recorded versions. BusyBox source references remain in the support package's licence records; no new upload is claimed.
 
-- Firefox is the Mozilla deb. Its preseeded snap is removed after first-boot seeding;
-  removal and the Firefox Adreno rendering path still require device validation.
-
-- Volume keys are not yet working.
-- The console-setup unit fails after Initial Setup (text console only).
-- The clock is behind until the tablet is online.
-- Classic Bluetooth pairing and external accessories have not yet been tested.
-- Developer mode SSH is reachable over the USB address only when enabled.
-
-## Known issues
-
-- No charging under Linux: keep at least 40 % and charge in Android.
-- Release boots have no debug console. Developer mode (SSH over USB) is installed but off;
-  enable it with `sudo piano-devmode on` before relying on remote access.
-- With no picture or no response, hold Power + Volume Down for Fastboot and switch with `piano-switch.py`.
-- boot/boot-ram-maintenance.img is the RAM environment for INSTALL.md steps 6 and 8a. Started with fastboot boot, it provides an unauthenticated root shell over USB at 192.168.88.2:2323. It mounts no UFS partition and writes nothing automatically; step 8a explicitly mounts the new root to install your files. The idle timer counts when no session is open or the cable is disconnected, and expires after 10 minutes. Never flash this image to a partition.
-- The Android-side KernelSU module (`piano-switch-ksu`) is unverified in the support matrix; use the host switching path until it is verified. Other root managers are untested.
-- Not flashed to a tablet as a whole: this image was assembled offline from the packages and
-  procedure that run on the test unit, and checked offline. On the test unit, 7.2.6-piano4 booted as a RAM boot
-  with the partition-name root and the serial-free command line of an address-free set, and the
-  7.2.6-piano6 build of this release was installed from scratch there; `$kernel_release` has not been booted
-  on a tablet yet.
-  $qemu_note
-
-## Source code
-
-- Ubuntu: every Ubuntu binary in the root image is unmodified, from the official 26.04 Desktop ARM64 ISO
-  and the archive snapshot https://snapshot.ubuntu.com/ubuntu/$apt_snapshot/ (packages listed above); the
-  corresponding source is in the Ubuntu archive for the same versions.
-- BusyBox: `piano-device-support` carries the unmodified Ubuntu `busybox-static` 1.36.1-6ubuntu3.1 binary;
-  its source package (`busybox_1.36.1-6ubuntu3.1.dsc`, `busybox_1.36.1.orig.tar.bz2` with `.asc`,
-  `busybox_1.36.1-6ubuntu3.1.debian.tar.xz`) is attached to this release.
-- Kernel: [linux-sm8750-piano at commit $kernel_commit](https://github.com/yzddmr6/linux-sm8750-piano/tree/$kernel_commit), the source of $kernel_release. The tag `v0.1.0-preview` points at commit `667263fd4496` (`7.2.6-piano7`).
-- Mesa 26.2.0 with the A830 patch, device userspace and packaging: this repository at `$integration_commit`.
-
-The firmware package carries unmodified stock files of `$stock_build`; there is no redistribution
-licence for them, and they are removed on request of the rights holder. Integration code is MIT,
-the kernel GPL-2.0.
+Mesa, SSC userspace and snap/runtime provenance and licences are recorded in their packages and repository source locks. Integration code is MIT, the kernel GPL-2.0, and individual third-party components retain their licences. Stock firmware and static sensor configuration follow `firmware/README.md`: redistribution permission has not been established, and they are removed upon a rights-holder request. No private persist calibration is included.

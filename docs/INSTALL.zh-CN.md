@@ -1,9 +1,9 @@
-# 安装 v0.1.0-preview
+# 安装 v0.2.0
 
 [English](INSTALL.md) ｜ [项目首页](../README.zh-CN.md) ｜ [Fastboot、切换与恢复](FLASHING.zh-CN.md)
 
-本指南手工把 v0.1.0-preview 发布版本安装到小米平板 8 Pro（`piano`）的 Android 旁边。
-v0.1 只能手工安装，尚无安装器；写入新分区表（[第 6 步](#6-写入分区表平板上)）在发布目录的维护 RAM 镜像中进行。
+本指南手工把 v0.2.0 发布版本安装到小米平板 8 Pro（`piano`）的 Android 旁边。
+v0.2 只能手工安装，尚无安装器；写入新分区表（[第 6 步](#6-写入分区表平板上)）在发布目录的维护 RAM 镜像中进行。
 开始前请通读全文。
 
 ## 先读
@@ -36,16 +36,10 @@ v0.1 只能手工安装，尚无安装器；写入新分区表（[第 6 步](#6-
 | 发布目录 | 同一版本的全部文件，不与其他版本混用 |
 | 主机可用空间 | 约 40 GB：备份（测试机 16 GB）、发布目录（约 9 GB）与数据镜像 |
 
-从同一发布版本把 SHA256SUMS.assets 及其中列出的全部附件下载到一个空目录。本版归档只有两片：`piano-v0.1.0-preview.tar.zst.part0` 和 `piano-v0.1.0-preview.tar.zst.part1`。在该目录执行 `sha256sum -c SHA256SUMS.assets`，全部条目通过后再解压分卷。
-附件见[发布页](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview)，解压约需 14 GB 空间。
-
-```bash
-sha256sum -c SHA256SUMS.assets                   # 下载的全部附件必须通过
-cat piano-v0.1.0-preview.tar.zst.part* | zstd -d | tar -x
-```
+v0.2.0 当前是主机本地构建目录 `out/release-v0.2.0`，尚未上传发布附件。使用完整目录，不能混入 preview 的文件；在设置下面的 RELEASE 后校验全部 SHA256。
 
 REPO 为发布记录提交的集成仓检出目录的绝对路径，RELEASE 为解压后的发布目录，WORK 为仓库之外的私有安装工作目录。后续主机命令均在 WORK 中执行；源码工具使用 `"$REPO/tools/NAME"`，发布文件使用 `"$RELEASE/PATH"`。
-每个使用的主机终端都需设置这些路径。上面的下载附件位于 RELEASE 之外；下一次校验检查解压后的文件。
+每个使用的主机终端都需设置这些路径。下一次校验检查 RELEASE 中的全部文件。
 
 ```bash
 REPO=/absolute/path/to/xiaomipad-8pro-mainline
@@ -59,6 +53,8 @@ sh "$REPO/tools/fetch-aosp-mkbootimg.sh"
 
 发布目录包含 `boot/`（A 槽的 Ubuntu 启动镜像组、`boot-ram-check.img` 和 `boot-ram-maintenance.img`）、`rootfs/root.sparse.img`（60 GiB 根）、
 `debs/`、`tools/piano-switch.py` 和 KernelSU 模块，内容说明见 [RELEASE.md](RELEASE.md)（英文）。
+
+本版预装 `linux-image-7.2.6-piano9`、`piano-device-support`、`piano-local-firmware` 0.5（含 Iris）、`piano-mesa`、`piano-mipps-auth`、`piano-ubuntu-desktop`、`piano-snap-graphics`、`piano-sensors` 和 `piano-iio-sensor-proxy`。GStreamer good/bad 插件及命令行工具已装入，提供 `h264parse` / `v4l2h264dec`；浏览器自动硬解仍未验证。snap provider 随 deb 内嵌，首次启动完成 snap seeding 后自动安装和连接。传感器仅带空默认种子，没有任何设备的私有 registry；默认标定的精度尚未验收。
 
 ## 1. 解锁并核对原厂版本
 
@@ -182,6 +178,20 @@ python3 <avbtool.py> info_image --image backup/boot_a.img
 `com.android.build.boot.os_version` 与 `com.android.build.boot.security_patch`。发布目录的
 `boot/boot-profile.json` 展示了该原厂版本的同一结构（不含序列号）。
 
+### 可选：准备本机传感器 registry
+
+在主机用这台平板自己的 persist 提取备份执行；输入是含内层 `registry/` 的外层 `sensors/registry/`。这个私有目录和 tar 不得分享，也不放入发布镜像。第 8a 步在首次 Ubuntu 启动前安装它。
+
+```bash
+python3 "$REPO/tools/stage-sensor-registry.py" \
+  --registry /path/to/own/extracted/persist/sensors/registry \
+  --output "$WORK/private-sensor-payload"
+tar -C "$WORK/private-sensor-payload" -cf "$WORK/sensor-registry.tar" usr
+sha256sum "$WORK/sensor-registry.tar"
+```
+
+不提供时服务会从原厂静态配置生成默认标定；普通重启不会覆盖已经生成的状态。后装私有标定须按[传感器说明](../device/sensors/README.zh-CN.md)处理现有状态。
+
 ## 4. 分区布局
 
 LUN 0 上原 `userdata` 的范围拆成三个分区，其他分区和 LUN 不变。
@@ -286,7 +296,7 @@ piano-maint fastboot                                    # 重启进入 Fastboot
   打开的 telnet 会话只在连着线时才阻止计时。
 - 如果 `piano-maint fastboot` 提示 `nvmem-reboot-mode is not bound`，它不会重启；请按电源 + 音量下。
 
-这些真机结果来自 2026-10-10 的早期维护与发布构建：USB 连接、LUN 检查、原样重写既有 GPT、定时返回 Fastboot，以及预置本机文件。它们不代表本发布目录中的维护或启动镜像已经验证；这里的镜像使用 7.2.6-piano7，尚未在平板上启动。第 8a 步生成分区映射仅经过离线检查。
+这些真机结果来自 2026-10-10 的早期维护与发布构建：USB 连接、LUN 检查、原样重写既有 GPT、定时返回 Fastboot，以及预置本机文件。它们不代表本发布目录中的维护或启动镜像已经验证；这里的新安装镜像使用已验收的 7.2.6-piano9 内核包，但整套全新安装仍待验证。第 8a 步生成分区映射仅经过离线检查。
 
 ## 7. 写入文件系统（Fastboot）
 
@@ -336,7 +346,7 @@ fastboot -s <SERIAL> boot "$RELEASE/boot/boot-ram-check.img"     # 预期 "Booti
 可以用[第 6 步](#6-写入分区表平板上)的维护镜像，在 Ubuntu 首次启动前生成分区映射，把它与触控标定、地址一起放进新根，并打开开发者模式。
 这样初始设置中触控可用，账户建好后主机即可经 SSH 连接平板。不做本步时，初始设置使用磁吸键盘，并在第 10 步复制文件。
 
-boot-profile.json 与 boot-signing.pem 留在主机上，到第 10 步再安装，以便在 Android 恢复镜像组准备好之后重建启动镜像组。本发布版已包含 piano-device-support 0.1+20261010.9，早期的 serial-mismatch 故障已经修复。
+boot-profile.json 与 boot-signing.pem 留在主机上，到第 10 步再安装，以便在 Android 恢复镜像组准备好之后重建启动镜像组。本发布版已包含 piano-device-support 0.1+20261012.piano9，早期的 serial-mismatch 故障已经修复。
 
 平板处于 Fastboot，主机当前目录里有第 3 步的文件：
 
@@ -380,13 +390,18 @@ done
 sha256sum /mnt/etc/piano/*                          # 四个哈希必须与主机一致
 mkdir -p /mnt/etc/systemd/system/usb-gadget.target.wants
 ln -sf /usr/lib/systemd/system/piano-devmode.service /mnt/etc/systemd/system/usb-gadget.target.wants/
+# 可选：仅当已准备自己的 sensor-registry.tar；核对下面哈希与主机一致
+# wget -O /tmp/sensor-registry.tar http://192.168.88.10:8000/sensor-registry.tar
+# sha256sum /tmp/sensor-registry.tar
+# tar -xf /tmp/sensor-registry.tar -C /mnt
+# chown -R 0:0 /mnt/usr/share/piano/sensors/registry-private
 sync; umount /mnt
 piano-maint fastboot
 ```
 
 此环境中 `lsblk` 不显示分区标签，上面的循环从 sysfs 读取。该符号链接就是 `piano-devmode on` 所创建的。
 
-这些真机结果来自 2026-10-10 的早期维护与发布构建：USB 连接、LUN 检查、原样重写既有 GPT、定时返回 Fastboot，以及预置本机文件。它们不代表本发布目录中的维护或启动镜像已经验证；这里的镜像使用 7.2.6-piano7，尚未在平板上启动。第 8a 步生成分区映射仅经过离线检查。
+这些真机结果来自 2026-10-10 的早期维护与发布构建：USB 连接、LUN 检查、原样重写既有 GPT、定时返回 Fastboot，以及预置本机文件。它们不代表本发布目录中的维护或启动镜像已经验证；这里的新安装镜像使用已验收的 7.2.6-piano9 内核包，但整套全新安装仍待验证。第 8a 步生成分区映射仅经过离线检查。
 离线时，发布版 BusyBox 的 `nc` 在分区表结束时关闭连接，主机的 `nc -l` 随即退出，工具从测试机 LUN 4 的 GPT 重建出其映射。
 
 ## 9. 写入 A 槽并首次启动
@@ -449,7 +464,7 @@ python3 "$REPO/tools/extract-boot-partitions.py" --input boot-lun.json --profile
 
 此方式取代本指南旧版的手写映射，尚未在平板上运行。
 
-本发布版已包含 piano-device-support 0.1+20261010.9。全新安装无需构建、复制或安装支持包：下面的 scp 命令已移除该软件包，也无需执行 dpkg 命令。boot-profile.json 与 boot-signing.pem 留在主机上，到第 10 步再安装，以便在 Android 恢复镜像组准备好之后重建启动镜像组。serial-mismatch 故障影响包含 0.1+20261010.3 的早期镜像，本发布版已经修复。
+本发布版已包含 piano-device-support 0.1+20261012.piano9。全新安装无需构建、复制或安装支持包：下面的 scp 命令已移除该软件包，也无需执行 dpkg 命令。boot-profile.json 与 boot-signing.pem 留在主机上，到第 10 步再安装，以便在 Android 恢复镜像组准备好之后重建启动镜像组。serial-mismatch 故障影响包含 0.1+20261010.3 的早期镜像，本发布版已经修复。
 
 **复制文件：**
 
@@ -487,7 +502,7 @@ piano-devmode status       # 预期 "developer mode: disabled, inactive"
 ```
 
 需要主机连接时用 `sudo piano-devmode on` 再次打开。开启期间它经 USB 线接受所有设有密码的本地账户，如需仅允许 SSH 密钥，见
-[device/devmode](../device/devmode/README.md)。自 piano-device-support 0.1+20261010.9 起，其 SSH 套接字通过
+[device/devmode](../device/devmode/README.md)。自 piano-device-support 0.1+20261012.piano9 起，其 SSH 套接字通过
 `FreeBind=yes` 监听 `192.168.88.2:22`，可在 USB 接口和地址出现之前启动。
 它不监听 Wi-Fi 地址，但地址绑定不会过滤入站接口：有到 `192.168.88.2` 路由的 Wi-Fi 对端仍能访问。
 

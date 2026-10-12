@@ -98,14 +98,6 @@ audit=$(in_target dpkg --audit)
 [ -z "$audit" ] || fail "dpkg --audit after the kernel: $audit"
 rm -r "$T/var/cache/piano-install"
 
-step system locale
-# Set the system/greeter default only. Ubuntu GDM's PAM stack reads the
-# user's ~/.pam_environment (written by AccountsService/Initial Setup) later.
-# Do not force LANGUAGE or LC_ALL in GDM or the user environment.
-in_target locale-gen --keep-existing zh_CN.UTF-8 en_US.UTF-8
-in_target update-locale --reset LANG=zh_CN.UTF-8
-in_target locale -a >"$OUT/locales.txt"
-cp "$T/etc/locale.conf" "$OUT/locale.conf"
 
 left=$(in_target dpkg-query -W -f '${db:Status-Abbrev} ${Package}\n' 'linux-image-*' 'linux-modules-*' \
 	'linux-headers-*' 'kdump-tools' 2>/dev/null | awk 'substr($1, 2, 1) != "n" && $2 != "linux-image-'"$RELEASE"'" { print $2 }')
