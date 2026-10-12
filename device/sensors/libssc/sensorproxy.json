@@ -16,6 +16,15 @@
       "changes": "Imported unchanged; no device-specific parameters"
     },
     {
+      "path": "sensorproxy-patches/0004-iio-sensor-proxy-serialize-ssc-accel-polling.patch",
+      "sha256": "978b9d168584890e576ac6cee4b27fb75260d0117da4b0d68813a25fe15fa738",
+      "source_repository": "liuqin integration",
+      "source_commit": "7df47f82f6e6ca5a04ab02fbcc4a3486c6a259be",
+      "source_path": "device/sensors/patches/0004-iio-sensor-proxy-serialize-ssc-accel-polling.patch",
+      "license": "GPL-3.0-only (modified upstream C file)",
+      "changes": "Imported unchanged; serialize reentrant SSC accelerometer polling transitions; admission rules unchanged"
+    },
+    {
       "path": "sensorproxy-patches/0005-iio-sensor-proxy-cancel-released-pending-claims.patch",
       "sha256": "c46633a0ff858cd4d28fcdc14226f473a874c7fc6073970a215bc77b1be11aaf",
       "source_repository": "liuqin integration",

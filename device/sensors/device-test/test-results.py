@@ -1,0 +1,177 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+"""Result classification and owned-process cleanup, without device access."""
+import importlib.util
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+import os
+from unittest.mock import patch
+from types import SimpleNamespace
+import unittest
+
+spec = importlib.util.spec_from_file_location('ssc_run', Path(__file__).with_name('run.py'))
+run = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(run)
+
+
+class Results(unittest.TestCase):
+    def accel(self, value='-9.810000', code=0, extra=''):
+        return run.parse_sensor('accelerometer',
+            "DEBUG: Discovered 'accel' sensor (123 456)\nDEBUG:   name: actual accel\n" +
+            f'Accelerometer sensor measurement: X=0.000000 Y=0.000000 Z={value} m/s²\n' * 2 + extra, code)
+
+    def test_resting_accel(self):
+        row = self.accel()
+        result = run.aggregate({'accelerometer': row}, True)
+        self.assertEqual(result['result'], 'PASS')
+        self.assertAlmostEqual(result['accel_median_m_s2'], 9.81)
+        self.assertEqual(row['suid'], ('123', '456'))
+
+    def test_zero_not_a_pass(self):
+        self.assertEqual(run.aggregate({'accelerometer': self.accel('0')}, True)['result'], 'FAIL')
+
+    def test_nan_is_rejected(self):
+        self.assertEqual(self.accel('nan')['result'], 'FAIL')
+        self.assertEqual(self.accel('nan')['invalid_samples'], 2)
+
+    def test_daemon_exit_is_not_a_pass(self):
+        self.assertEqual(run.aggregate({'accelerometer': self.accel()}, False)['result'], 'FAIL')
+
+    def test_cli_failure_after_samples_is_not_a_pass(self):
+        self.assertEqual(self.accel(code=-15)['result'], 'FAIL')
+
+    def test_close_error_is_not_a_pass(self):
+        self.assertEqual(self.accel(extra='Unable to close accelerometer sensor: error\n')['result'], 'FAIL')
+
+    def test_debug_translation_is_not_a_transport_failure(self):
+        row = self.accel(extra='<<<<<<   translated =  ERROR: Reading TLV would overflow\n')
+        self.assertEqual(row['result'], 'PASS')
+        self.assertEqual(len(row['trace_diagnostics']), 1)
+
+    def test_actual_glib_warning_is_retained_as_failure(self):
+        self.assertEqual(self.accel(extra='** (ssccli:42): WARNING **: 00:00:00: parse failed\n')['result'], 'FAIL')
+
+    def test_missing_optional_type(self):
+        gyro = run.parse_sensor('gyroscope', "DEBUG: No 'gyro' sensor available\n", 254)
+        self.assertEqual(gyro['result'], 'UNAVAILABLE')
+        self.assertEqual(run.aggregate({'accelerometer': self.accel(), 'gyroscope': gyro}, True)['result'], 'PASS')
+
+    def test_advertised_but_no_sample(self):
+        light = run.parse_sensor('light', "DEBUG: Discovered 'ambient_light' sensor (2 3)\n", 0)
+        self.assertEqual(light['result'], 'FAIL')
+        self.assertEqual(run.aggregate({'accelerometer': self.accel(), 'light': light}, True)['result'], 'FAIL')
+
+    def test_proximity_and_light(self):
+        self.assertEqual(run.parse_sensor('proximity', 'Proximity sensor measurement: FAR\n', 0)['samples'], [{'near': False}])
+        self.assertEqual(run.parse_sensor('light', 'Light sensor measurement: 42.000000 Lux\n', 0)['samples'], [{'lux': 42.0}])
+
+    def test_owned_process_is_reaped(self):
+        child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'], start_new_session=True)
+        try:
+            run.stop(child)
+            self.assertIsNotNone(child.poll())
+            run.stop(child)  # Cleanup remains safe after natural/earlier exit.
+        finally:
+            if child.poll() is None:
+                child.kill(); child.wait()
+
+    def test_registry_copy_is_private_and_fresh_each_time(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); pristine = root/'pristine'; pristine.mkdir()
+            (pristine/'calibration').write_bytes(b'original-device-data')
+            before = run.copy_registry(pristine, root/'run1')
+            (root/'run1/calibration').write_bytes(b'changed-in-scratch')
+            self.assertEqual(run.registry_hashes(pristine), before)
+            self.assertEqual(run.copy_registry(pristine, root/'run2'), before)
+            self.assertEqual((root/'run2/calibration').read_bytes(), b'original-device-data')
+            with self.assertRaises(FileExistsError):
+                run.copy_registry(pristine, root/'run2')
+
+    def test_registry_symlink_is_rejected_before_copy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); pristine = root/'pristine'; pristine.mkdir()
+            (root/'outside').write_bytes(b'must-not-touch')
+            (pristine/'link').symlink_to(root/'outside')
+            with self.assertRaises(RuntimeError):
+                run.copy_registry(pristine, root/'scratch')
+            self.assertFalse((root/'scratch').exists())
+
+    def test_only_explicit_empty_suid_is_retried(self):
+        text = "DEBUG: No 'accel' sensor available\nUnable to initialize accelerometer sensor: UNKNOWN\n"
+        self.assertTrue(run.empty_suid_reply('accelerometer', text, 254))
+        self.assertFalse(run.empty_suid_reply('accelerometer', text, -15))
+        self.assertFalse(run.empty_suid_reply('accelerometer', text + '** (ssccli:1): WARNING **: bad transport\n', 254))
+        self.assertFalse(run.empty_suid_reply('accelerometer', 'registry sensor timed out', 254))
+
+    def test_delayed_cli_is_polled_and_all_attempts_retained(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            cli = out/'fixture.py'
+            cli.write_text('''from pathlib import Path
+import sys
+p=Path(__file__).with_suffix('.count')
+n=int(p.read_text())+1 if p.exists() else 1
+p.write_text(str(n))
+if n<3:
+ print("DEBUG: No 'accel' sensor available")
+ print('Unable to initialize accelerometer sensor: UNKNOWN')
+ sys.exit(254)
+print("DEBUG: Discovered 'accel' sensor (2 2)")
+print('Accelerometer sensor measurement: X=0 Y=0 Z=-9.81 m/s²')
+print('Accelerometer sensor measurement: X=0 Y=0 Z=-9.81 m/s²')
+''')
+            children = []
+            rows = run.collect_sensors([sys.executable, str(cli)], out,
+                SimpleNamespace(poll=lambda: None), children, os.environ.copy(), ['accelerometer'])
+            self.assertEqual(rows['accelerometer']['result'], 'PASS')
+            self.assertEqual(len(rows['accelerometer']['discovery_attempts']), 3)
+            self.assertEqual(len(list(out.glob('accelerometer.attempt-*.log'))), 3)
+            self.assertNotIn("No 'accel'", (out/'accelerometer.log').read_text())
+            self.assertTrue(all(p.poll() is not None for p in children))
+
+    def test_no_sensor_expires_without_restarting_daemon(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp); children = []
+            cmd = [sys.executable, '-c', 'import sys; print("No \'accel\' sensor available"); sys.exit(254)']
+            with patch.object(run, 'SENSOR_POLL_SECONDS', 0.2):
+                rows = run.collect_sensors(cmd, out, SimpleNamespace(poll=lambda: None), children,
+                                           os.environ.copy(), ['accelerometer'])
+            self.assertEqual(rows['accelerometer']['result'], 'UNAVAILABLE')
+            self.assertTrue(all(p.poll() is not None for p in children))
+
+    def test_fresh_boot_enrollment_and_history(self):
+        a = '11111111-1111-4111-8111-111111111111'
+        b = '22222222-2222-4222-8222-222222222222'
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp)
+            self.assertFalse(run.claim_boot(a, state)['allowed'])
+            self.assertFalse(run.claim_boot(a, state)['fresh'])
+            self.assertTrue(run.claim_boot(b, state)['fresh'])
+            self.assertFalse(run.claim_boot(b, state)['allowed'])
+            self.assertFalse(run.claim_boot(a, state)['allowed'])  # any earlier boot, not only last
+            forced = run.claim_boot(a, state, True)
+            self.assertTrue(forced['allowed'])
+            self.assertFalse(forced['fresh'])
+            self.assertTrue(forced['forced'])
+
+    def test_fresh_boot_imports_shared_last_id(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp)
+            (state/'last-boot-id').write_text('11111111-1111-4111-8111-111111111111\n')
+            self.assertFalse(run.claim_boot('11111111-1111-4111-8111-111111111111', state)['allowed'])
+            self.assertTrue(run.claim_boot('22222222-2222-4222-8222-222222222222', state)['allowed'])
+
+    def test_boot_history_corruption_is_not_reset(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp)
+            for text in ('{broken', '[]', '{"schema":1,"seen_boot_ids":[123]}'):
+                (state/'boot-history.json').write_text(text)
+                with self.assertRaises(ValueError):
+                    run.claim_boot('11111111-1111-4111-8111-111111111111', state, True)
+                self.assertEqual((state/'boot-history.json').read_text(), text)
+
+
+if __name__ == '__main__':
+    unittest.main()

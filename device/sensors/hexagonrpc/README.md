@@ -1,7 +1,7 @@
 # HexagonRPC reference input
 
 Use the upstream project at the commit in `source.json`, with the listed patches
-in order. These are fixes to the original marshaller and tests, not a replacement
+in order. These extend the original marshaller and file service, not a replacement
 sensor protocol implementation. There is no firmware, calibration or installed
 piano service in this directory.
 
@@ -27,14 +27,44 @@ For host memory checks, use a separate native build with
 and as ARM64 binaries under qemu-user. The original source fails the new sequence
 regressions. No test opens a DSP device; the full sensor service is not validated.
 
+The third patch adds read-only ODM and additional vendor sensor paths and an
+explicit `-w DIR` registry mapping. Only that copied directory permits real
+create/write/append/update/remove operations; links and non-regular write targets
+are rejected, and other mappings remain read-only. Its new test drives the real
+apps_std method handlers and checks actual file bytes and confinement. The
+Qualcomm method ABI and upstream PR #21 informed the patch; fake-success stubs
+are not used. See `../device-test/README.zh-CN.md` for the bounded test contract.
+All 15 tests now pass under ARM64 qemu-user and native ASan/UBSan (leak checking
+is excluded for the upstream process-lifetime virtual directory tree).
+
 Keep the upstream library, daemon and service files under their own build and
 packaging. A native distribution package recipe can consume the staging tree;
 piano-specific firmware/registry inputs and permission policy are separate.
 The staged upstream services have not been enabled or accepted as product policy.
-P23 deliberately omits FastRPC, so it cannot exercise this daemon yet.
+P23 deliberately omitted FastRPC. The later piano8 v1 device run reached this
+daemon through the secure ADSP sensorspd node, but registry initialization failed
+at file-service gaps. V2 file-service fixes are offline-tested, not device-tested.
 
 Licenses remain per upstream file: the marshaller source is LGPL-3.0-or-later;
 its public header, tests and reverse-tunnel code are GPL-3.0-or-later. The new test
 is GPL-3.0-or-later. See the retained file headers, `NOTICE`, and `LICENSES`.
 Drop the local patches when upstream contains the fixes and the same regressions
 pass; do not maintain an independent copy of the source tree here.
+
+V3 adds a fourth patch after the v2 device log showed that version, temporary
+registry output and parsed-file cache live one level above the inner registry
+entries. Both `-R .../sensors/registry` and explicit `-w DIR` now describe the
+whole parent containing `registry/`, `sns_reg_version` and `parsed_file_list.csv`.
+The existing write confinement is retained; tests replay the actual sibling
+paths and 108 temporary-file opens. V2 source and evidence remain historical.
+
+V4 imports upstream PR #27 commit f0dfd5095d3b7defc3b368f227337bfc6d6aef42
+unchanged as patch 0005 (original author/date/Sign-off retained). It fetches
+reverse-listener input beyond the 256-byte prefix with get_in_bufs2, method 5.
+This was cleanly cherry-picked onto 598b591a in an isolated source repository;
+it is not claimed to be merged upstream. Patch 0006 adds length validation,
+partial-buffer cleanup, consistent empty error-reply sizing and ioctl-boundary
+file-write regressions. 4 KiB/64 KiB are read back from real scratch files;
+24 ARM64 tests pass. No custom ION path is introduced: fd=-1 invoke arguments
+use the inspected kernel's copied DMA-backed payload path, as the existing
+marshaller does for input/output buffers. Real DSP/DMA acceptance remains untested.

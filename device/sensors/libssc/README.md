@@ -17,11 +17,15 @@ and use the original Meson build with `-Dssc-support=enabled`. Use its existing
 service, D-Bus API and rules. SSC accelerometer/proximity rules remain disabled
 upstream; these changes do not enable physical rotation.
 
-The three C patches are reused unchanged from the liuqin integration snapshot
+The four C patches are reused unchanged from the liuqin integration snapshot
 identified in the lock and `NOTICE`. They start sensors claimed during coldplug
 and broadcast availability to observers before claims. Releasing a pending
 claim completes that sender's call with a cancellation error while retaining
 other clients' claims. Measurement notifications remain directed to claimants.
+The accelerometer patch serializes polling transitions while libssc synchronous
+operations dispatch nested Claim/Release calls. On 2026-10-12 it applied cleanly
+with the full pinned series; the existing ARM64 QEMU SensorProxy suite (four
+groups, including two release cases) and all three polling cases passed again.
 No board identity, SLPI service policy, calibration
 or mounting matrix is imported. The test patch waits for the resulting capability
 notification using the existing assertion deadline, keeping functional checks

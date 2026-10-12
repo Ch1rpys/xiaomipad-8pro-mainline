@@ -316,16 +316,17 @@ QRTR nameservice lookup diagnostic
 SensorProxy SSC startup and availability
 - Upstream iio-sensor-proxy: https://gitlab.freedesktop.org/hadess/iio-sensor-proxy.git
   at 0085ddf8ecb173a1c5fcf2344aa40e561125354f.
-- The unchanged coldplug, pending-claim cancellation and availability patches in
+- The unchanged coldplug, serialized SSC accelerometer polling, pending-claim cancellation and availability patches in
   device/sensors/libssc/sensorproxy-patches/ are reused from the independent
   liuqin integration snapshot 7df47f82f6e6ca5a04ab02fbcc4a3486c6a259be,
   device/sensors/patches/0003-iio-sensor-proxy-start-preclaimed-coldplug-sensor.patch
+  0004-iio-sensor-proxy-serialize-ssc-accel-polling.patch,
   0005-iio-sensor-proxy-cancel-released-pending-claims.patch and
   0006-iio-sensor-proxy-broadcast-sensor-availability.patch.
   Original patch author headers are retained; the snapshot commit, not a
   synthetic mail header hash, identifies the source. No board parameters,
   sensor matrix, firmware, service policy or dependency on that workspace is copied.
-- The modified upstream src/iio-sensor-proxy.c is GPL-3.0-only, copyright
+- The modified upstream src/iio-sensor-proxy.c and src/drv-ssc-accel.c are GPL-3.0-only, copyright
   2014-2016 Bastien Nocera. License text: LICENSES/hexagonrpc-GPL-3.0.txt.
 - The local discovery-notification regression patch modifies tests/ssc-test.py,
   retaining its GPL-2.0-or-later notices and upstream authors (Martin Pitt and
@@ -481,3 +482,47 @@ Authors: ianchb <i@4t.pw>, bluseliu50
 No root LICENSE was supplied; this import includes only the explicitly
 licensed script. Local patch, hashes and exit condition: source.json in that
 directory. The systemd/udev packaging here is project MIT integration.
+
+SSC device-test v2 file service
+- device/sensors/hexagonrpc/patches/0003-serve-odm-and-explicit-scratch-registry.patch
+  extends linux-msm/hexagonrpc 598b591ae9da6a6cfe2ca5ea78998019ca6395ea
+  in its original GPL-3.0-or-later files and adds a GPL-3.0-or-later regression.
+- Protocol reference: Luca Weiss, linux-msm/hexagonrpc PR #21,
+  https://github.com/linux-msm/hexagonrpc/pull/21, pinned head
+  9f987970f9bc3e72081b7966a1f4e766ce6af6f7, methods 5/24. The implementation
+  performs actual confined file I/O and does not import the PR's fake-success
+  write/remove or unverified fd-method stubs.
+- ABI checked against Qualcomm fastrpc v1.0.7 inc/apps_std.h and
+  src/apps_std_imp.c (https://github.com/qualcomm/fastrpc/tree/v1.0.7).
+  Those files were references, not bundled code.
+- Reviewed liuqin 7df47f82 registry version/property patches and upstream SDM845
+  file-layout examples; no board data or property shim imported. Reviewed
+  blu-sharky/piano-sensors 65a92202db65ad13493b43fbf15d6abb3b7bcf92's
+  ODM/persist-copy design; no Qualcomm adsprpcd or product services imported.
+- stage-input.py and the test orchestration are original MIT integration code.
+  Stock config and per-device registry remain private local inputs.
+
+SSC device-test v3
+- 0004-map-complete-registry-parent.patch extends the same GPL-3.0-or-later
+  HexagonRPC files/tests using piano's v2 file-request evidence. It moves the
+  mapping to the complete parent without weakening write confinement. No
+  third-party board values or fabricated stock files are added.
+- Empty-SUID polling is MIT one-shot runner code; the pinned libssc/ssccli
+  source and binary protocol remain unchanged. All attempts retain their logs.
+- late-suid-server.py is a GPL-3.0-or-later QEMU-only availability gate around
+  the pinned upstream SSC mock. The mock retains all QMI/QRTR/protobuf encoding;
+  the gate hides accel for two queries and then exposes its existing fixture.
+
+SSC device-test v4 large reverse-listener requests
+- Unchanged upstream patch: linux-msm/hexagonrpc
+  f0dfd5095d3b7defc3b368f227337bfc6d6aef42, Fady <me@fadyackad.dev>,
+  2026-09-19, from https://github.com/linux-msm/hexagonrpc/pull/27.
+  Original author/date/Signed-off-by are retained in patch 0005. License:
+  GPL-3.0-or-later, per the original listener and interface file headers.
+- Local patch 0006 adds validation/cleanup and GPL-3.0-or-later regressions.
+  Its empty-reply sizing correction follows the same upstream PR's
+  40e50412812adce9dddc2be9a4510ebce05eef89 iobuffer correction.
+  ABI/required-length reference: Qualcomm fastrpc v1.0.7,
+  inc/adsp_listener.h and src/listener_android.c. No Qualcomm code bundled.
+- The MIT runner boot-id ledger is local test bookkeeping, not a DSP reset
+  mechanism. First-use baseline enrollment does not access the DSP.
