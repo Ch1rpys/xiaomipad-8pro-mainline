@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "purpose": "Piano11: start NT36532E THP after panel enable; disabled-panel opens wait successfully. Offline candidate; hardware acceptance pending.",
+  "purpose": "Release kernel for v0.2.0: NT36532E THP input follows the panel power sequence.",
   "upstream_url": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git",
   "upstream_tag": "v7.2.6",
   "upstream_commit": "500df175a7f9e6bc1a9c328590ca5150f84f9ff0",
   "url": "https://github.com/yzddmr6/linux-sm8750-piano",
   "commit": "9ab0942f973489419d58caf5f69c17afee61df53",
-  "branch": "piano/thp-panel-follower",
+  "branch": "piano/dev",
   "config": "arch/arm64/configs/piano-diagnostic.config",
   "release_config_fragments": [
     "arch/arm64/configs/piano-diagnostic.config",
