@@ -52,7 +52,11 @@ class NativeVerdicts(unittest.TestCase):
         state={'uptime':198.0,'connectors':{'card0-DSI-1':{'status':'connected','enabled':'enabled'}},
                'crtcs':[{'width':width,'height':2136,'hz':hz}], 'errors':[],
                'encoders':[{'intf':i,'vsync':23000,'underrun':underrun,'frame_timeout':0} for i in (1,2)]}
-        p=self.d/'root-0098s-scanout.txt';p.write_text(p.read_text()+'\nNATIVE_JSON='+json.dumps(state)+'\nNATIVE_DSI_ERRORS=0\n')
+        # The historical firmware probe has latched TOP0 underruns. Clear
+        # them only in this synthetic native scenario, not in the saved fixture.
+        p=self.d/'root-0098s-scanout.txt'
+        text=p.read_text().replace('0x3c000300', '0x28000300').replace('_underrun=1', '_underrun=0')
+        p.write_text(text+'\nNATIVE_JSON='+json.dumps(state)+'\nNATIVE_DSI_ERRORS=0\n')
     def test_firmware_pass_is_not_native_pass(self):
         v=m.judge(self.d,'7.2.6-piano2')
         self.assertEqual(v['hardware_verdict'],'INCOMPLETE')

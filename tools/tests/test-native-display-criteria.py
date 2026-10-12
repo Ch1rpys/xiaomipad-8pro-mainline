@@ -16,15 +16,120 @@ capture = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(capture)
 FIXTURE = Path(__file__).resolve().parent / 'fixtures/native-display-ram'
 INITRD = (FIXTURE / 'initrd-first.txt').read_text()
+ROOT = (FIXTURE / 'root-0040s.txt').read_text()
 
 
 class NativeCriteria(unittest.TestCase):
-    def judge(self, initrd=INITRD):
+    def judge(self, initrd=INITRD, root=ROOT):
         with tempfile.TemporaryDirectory() as tmp:
             directory = Path(tmp)
             (directory / 'initrd-first.txt').write_text(initrd)
-            (directory / 'root-0040s.txt').write_text((FIXTURE / 'root-0040s.txt').read_text())
+            (directory / 'root-0040s.txt').write_text(root)
             return capture.judge(directory, '7.2.6-piano8')
+
+    def assert_underrun(self, text, status):
+        verdict = self.judge(root=text)
+        name = 'zero_underrun:root-0040s.txt'
+        row = next(r for r in verdict['criteria'] if r['name'] == name)
+        self.assertEqual(row['status'], status, row)
+        self.assertTrue(row['measured'])
+        self.assertTrue(row['rule'])
+        self.assertEqual(name in verdict['failed'], status == 'FAIL')
+        self.assertEqual(name in verdict['unavailable'], status == 'UNAVAILABLE')
+        return row
+
+    def test_live_underrun_bits_clear_and_hardware_frames_advance(self):
+        row = self.assert_underrun(ROOT, 'PASS')
+        self.assertEqual(row['value']['top0'][0]['underrun'], {'INTF1': [0, 0], 'INTF2': [0, 0]})
+        self.assertEqual([i['frames'] for i in row['value']['intf']], [72, 72])
+        # INTF2's software vsync is zero in the actual capture; its hardware
+        # counter advances. TOP0 intr_en=0 is not an underrun status bit.
+        self.assertEqual({e['vsync'] for e in row['value']['encoders'] if e['intf'] == 2}, {0})
+
+    def test_either_top0_bit_in_either_sample_fails(self):
+        for bit in (26, 28):
+            for sample in (0, 1):
+                with self.subTest(bit=bit, sample=sample):
+                    values = ['0x28000300', '0x28000300']
+                    values[sample] = f'{int(values[sample], 16) | (1 << bit):#010x}'
+                    text = ROOT.replace('0x28000300->0x28000300', '->'.join(values))
+                    # Leave the convenience INTFn_underrun=0 fields unchanged:
+                    # both raw status samples, not just the printed last bit, matter.
+                    row = self.assert_underrun(text, 'FAIL')
+                    self.assertIn(values[sample], row['measured'])
+                    self.assert_underrun(text + ROOT, 'FAIL')
+
+    def test_missing_native_register_lines_are_unavailable(self):
+        for prefixes in (('TOP0 ',), ('INTF1 ',), ('INTF2 ',), ('TOP0 ', 'INTF1 ', 'INTF2 ')):
+            with self.subTest(prefixes=prefixes):
+                text = '\n'.join(line for line in ROOT.splitlines() if not line.startswith(prefixes))
+                self.assert_underrun(text, 'UNAVAILABLE')
+
+    def test_stalled_counter_fails_and_wrapped_counter_can_advance(self):
+        self.assert_underrun(ROOT.replace('4758->4830 (+72', '4758->4758 (+0'), 'FAIL')
+        self.assert_underrun(ROOT.replace('4758->4830 (+72', '4294967290->66 (+72'), 'PASS')
+        self.assert_underrun(ROOT.replace('4758->4830 (+72', '4758->4758 (+72'), 'FAIL')
+
+    def test_encoder_errors_still_fail_but_zero_software_vsync_does_not(self):
+        for old, new in (('"underrun": 0', '"underrun": 1'),
+                         ('"frame_timeout": 0', '"frame_timeout": 1')):
+            with self.subTest(field=old):
+                row = self.assert_underrun(ROOT.replace(old, new, 1), 'FAIL')
+                self.assertIn('encoder INTF1', row['measured'])
+
+    def test_native_scanout_ignores_splash_colours_or_missing_splash(self):
+        without_splash = '\n'.join(line for line in ROOT.splitlines() if not line.startswith('scanout samples'))
+        for text in (ROOT, without_splash):
+            with self.subTest(splash=text == ROOT):
+                row = next(r for r in self.judge(root=text)['criteria'] if r['name'] == 'scanout')
+                self.assertEqual(row['status'], 'PASS', row)
+                self.assertFalse(row['required'])
+                self.assertIn('not applicable (native KMS)', row['measured'])
+                self.assertIn('INTF1 144 Hz, INTF2 144 Hz', row['measured'])
+
+    def test_native_scanout_checks_rate_counter_enable_and_interrupts(self):
+        for text in (ROOT.replace('(+72 in 0.5s)', '(+72 in 1.0s)', 1),
+                     ROOT.replace('4758->4830 (+72', '4758->4758 (+0'),
+                     ROOT.replace('timing_en=1', 'timing_en=0', 1),
+                     ROOT.replace('0xa00->0xa00', '0xa00->0xa01', 1)):
+            with self.subTest(text=text):
+                row = next(r for r in self.judge(root=text)['criteria'] if r['name'] == 'scanout')
+                self.assertEqual(row['status'], 'FAIL', row)
+                self.assertTrue(row['measured'])
+
+    def test_native_scanout_missing_interface_is_unavailable(self):
+        text = '\n'.join(line for line in ROOT.splitlines() if not line.startswith('INTF2 '))
+        row = next(r for r in self.judge(root=text)['criteria'] if r['name'] == 'scanout')
+        self.assertEqual(row['status'], 'UNAVAILABLE')
+
+    def test_ram_store_and_slot_report_preinstall_values_as_info(self):
+        rows = {r['name']: r for r in self.judge()['criteria']}
+        for name, value in (('store_manifest_release', '7.2.6-piano7'), ('slot_occupant', 'android')):
+            row = rows[name]
+            self.assertEqual(row['status'], 'INFO')
+            self.assertEqual(row['value'], value)
+            self.assertEqual(row['measured'], value)
+            self.assertFalse(row['required'])
+            self.assertIn('pre-install', row['rule'])
+
+    def test_missing_ram_store_and_slot_are_unavailable(self):
+        text = '\n'.join(line for line in ROOT.splitlines()
+                         if not line.startswith('MANIFEST_RELEASE=') and '"occupant"' not in line)
+        rows = {r['name']: r for r in self.judge(root=text)['criteria']}
+        for name in ('store_manifest_release', 'slot_occupant'):
+            self.assertEqual(rows[name]['status'], 'UNAVAILABLE')
+
+    def test_simpledrm_still_requires_colours_and_cold_install_state(self):
+        # Give the old profile its accepted 120 Hz rate so only the splash
+        # colour requirement can explain scanout FAIL.
+        text = ROOT.replace('(+72 in 0.5s)', '(+60 in 0.5s)')
+        verdict = capture.acceptance.evaluate(consoles=[('root.txt', text)],
+                                              release='7.2.6-piano8', profile='cold')
+        rows = {r['name']: r for r in verdict['criteria']}
+        for name in ('scanout', 'store_manifest_release', 'slot_occupant'):
+            self.assertEqual(rows[name]['status'], 'FAIL', rows[name])
+            self.assertTrue(rows[name]['required'])
+        self.assertIn('2 colours, top 000000', rows['scanout']['measured'])
 
     def assert_clock(self, text, status):
         verdict = self.judge(text)

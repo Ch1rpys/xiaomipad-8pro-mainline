@@ -7,3 +7,11 @@ ActiveEnterTimestampMonotonic=24481030
  gcc_disp_hf_axi_clk                 4       4        0        0           0          0     50000      Y   ae96000.dsi                     bus
 REG t=40.56 hf_axi_cbcr=0x08200001
 ActiveState=active
+MANIFEST_RELEASE=7.2.6-piano7
+NATIVE_JSON={"backlight": {"ktz8866-backlight": {"actual_brightness": "1390", "bl_power": "0", "brightness": "1390", "max_brightness": "2047"}}, "connectors": {"card1-DSI-1": {"enabled": "enabled", "modes": "3200x2136\n3200x2136\n3200x2136\n3200x2136", "status": "connected"}}, "crtcs": [{"card": "card1", "height": 2136, "hz": 144, "id": 103, "width": 3200}], "encoders": [{"frame_timeout": 0, "intf": 1, "path": "/sys/kernel/debug/dri/1/encoder-0/status", "underrun": 0, "vsync": 384}, {"frame_timeout": 0, "intf": 2, "path": "/sys/kernel/debug/dri/1/encoder-0/status", "underrun": 0, "vsync": 0}, {"frame_timeout": 0, "intf": 1, "path": "/sys/kernel/debug/dri/128/encoder-0/status", "underrun": 0, "vsync": 384}, {"frame_timeout": 0, "intf": 2, "path": "/sys/kernel/debug/dri/128/encoder-0/status", "underrun": 0, "vsync": 0}, {"frame_timeout": 0, "intf": 1, "path": "/sys/kernel/debug/dri/ae01000.display-controller/encoder-0/status", "underrun": 0, "vsync": 384}, {"frame_timeout": 0, "intf": 2, "path": "/sys/kernel/debug/dri/ae01000.display-controller/encoder-0/status", "underrun": 0, "vsync": 0}], "errors": [], "uptime": 41.0}
+INTF1 timing_en=1 frame_count 4758->4830 (+72 in 0.5s) line_count 82->140 status=0x1 intr_status 0xa00->0xa00 hsync_period=480 vtotal=2310 active_lines=2136
+INTF2 timing_en=1 frame_count 4830->4902 (+72 in 0.5s) line_count 184->1056 status=0x1 intr_status 0xa00->0xa00 hsync_period=480 vtotal=2310 active_lines=2136
+TOP0 intr_en=0x00000000 intr_status 0x28000300->0x28000300 INTF1_underrun=0 INTF2_underrun=0
+scanout samples 792 distinct 2 top_rgb [('000000', 791), ('060606', 1)]
+NATIVE_DSI_ERRORS=0
+    "occupant": "android",
