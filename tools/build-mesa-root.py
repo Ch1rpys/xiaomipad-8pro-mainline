@@ -94,6 +94,7 @@ def main():
     parser.add_argument('--cache', type=Path, default=WS / 'cache/mesa')
     parser.add_argument('--jobs', type=int, default=6)
     parser.add_argument('--target', choices=('gpu-2404',), default='gpu-2404')
+    parser.add_argument('--base-snap', type=Path, required=True, help='Stock mesa-2404 pinned by mesa/snap/mesa-2404.json')
     parser.add_argument('--mesa-source', type=Path, required=True,
                         help='Mesa Git checkout containing mesa/source.json commit')
     parser.add_argument('--resume', action='store_true',
@@ -114,6 +115,9 @@ def main():
     if not root_tools.HOST_CA.is_file():
         die(f'{root_tools.HOST_CA} is required for TLS to the snapshot service')
 
+    stock = json.loads((INPUTS / 'snap/mesa-2404.json').read_text())
+    if root_tools.sha256(args.base_snap) != stock['sha256']:
+        die('stock mesa-2404 does not match its lock')
     source = json.loads((INPUTS / 'source.json').read_text())
     pinfile = INPUTS / 'snap/core24-sdk.json'
     pins = json.loads(pinfile.read_text())
@@ -166,6 +170,7 @@ def main():
                 shutil.copy2(path, build / 'recipe' / name)
         (build / 'inputs').mkdir(exist_ok=True)
         shutil.copyfile(archive, build / 'inputs' / source['archive'])
+        shutil.copyfile(args.base_snap, build / 'inputs' / stock['file'])
         for entry, path in (() if args.resume else bootstrap):
             shutil.copyfile(path, build / 'inputs' / entry['file'])
             inside = '/build/inputs/' + entry['file']
@@ -192,7 +197,7 @@ def main():
         root_tools.chroot(root, (
             f'python3 -u /build/recipe/tools/build-mesa.py --profile {args.target} --jobs {args.jobs} '
             f'--source-archive /build/inputs/{source["archive"]} --output /build/out\n'
-            f'python3 -u /build/recipe/tools/{packager} --build-output /build/out --output /build/debs\n'),
+            f'python3 -u /build/recipe/tools/{packager} --build-output /build/out --base-snap /build/inputs/{stock['file']} --output /build/debs\n'),
             log=log)
 
         installed = root_tools.capture(root, "dpkg-query -W -f='${Package} ${Version}\\n'").splitlines()

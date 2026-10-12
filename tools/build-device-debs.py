@@ -146,7 +146,7 @@ def main():
         metadata = json.loads(subprocess.check_output(['unsquashfs', '-cat', str(snap), 'meta/snap.yaml']))
         if (metadata['name'] != 'piano-mesa-2404' or metadata['base'] != 'core24'
                 or metadata['architectures'] != ['arm64'] or metadata['version'] != manifest['version']
-                or metadata['slots'] != {'gpu-2404': {'interface': 'content', 'content': 'gpu-2404', 'read': ['$SNAP']}}):
+                or metadata['slots'] != {'gpu-2404': {'interface': 'content', 'read': ['$SNAP', '$SNAP_DATA/kernel-gpu-2404']}}):
             raise ValueError('incompatible snap provider metadata')
         graphics = stages / 'piano-snap-graphics'
         shutil.copytree(repo / 'packaging/piano-snap-graphics', graphics, ignore=untracked)
@@ -164,7 +164,7 @@ def main():
                 third_party=[((payload + 'piano-mesa-2404.snap',),
                               'Mesa, GLVND, Vulkan, Ubuntu runtime and provider-tool contributors',
                               'GPL-2.0-only', 'This is an aggregate, not a relicensing of Mesa/runtime libraries.\n'
-                              'The provider wrapper is GPL-2.0-only; each runtime retains its own licence.\n'
+                              'The stock mesa-2404 payload retains its MIT metadata and per-library licences.\n'
                               'Full upstream notices and source/build provenance are inside the snap at\n'
                               '/usr/share/doc/piano-mesa-2404/; see provider-build.json beside this file.')],
                 prerm='#!/bin/sh\nset -e\nif [ "$1" = remove ]; then\n'

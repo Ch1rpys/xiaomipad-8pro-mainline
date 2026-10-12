@@ -254,27 +254,49 @@ filesystem as the root image build. Layout, contents and installation: [RELEASE.
 each application with a deb. The existing Mozilla Firefox deb policy is unchanged;
 `mesa-2404` stays installed for rollback. The provider uses the desktop's exact
 `mesa/source.json` commit and patch, compiled against the separately locked
-`mesa/snap/core24-sdk.json` ABI. Imported tooling provenance and its GPL-2.0-only
-licence are recorded in `mesa/snap/provenance.json`.
+`mesa/snap/core24-sdk.json` ABI and overlaid on the complete ARM64 mesa-2404 rev 1166
+locked in `mesa/snap/mesa-2404.json`. This full content contract matters: consumers
+run Canonical's gpu-2404 cleanup and omit libraries supplied by mesa-2404, including
+non-Mesa X11/XML dependencies. A Mesa-only provider passed its own pixel test but
+broke Thunderbird and App Center on the device (2026-10-12). The packager now
+rejects missing stock files or changes outside the Mesa overlay and name/version.
+All stock wrapper/hooks, component metadata, runtime files and notices are retained.
+Imported tooling provenance and its GPL-2.0-only licence are recorded in `mesa/snap/provenance.json`.
 
 ```bash
 python3 tools/build-mesa-root.py --target gpu-2404 --native-nir \
+  --base-snap <mesa-2404_1166.snap> \
   --mesa-source <Mesa Git checkout> --cache out/gpu-snap-inputs \
   --work out/gpu-snap-build --output out/gpu-snap-package --jobs 6
 python3 tools/validate-mesa-snap.py --build out/gpu-snap-package \
-  --sdk-root out/gpu-snap-build/root \
+  --sdk-root out/gpu-snap-build/root --stock-provider <mesa-2404_1166.snap> \
   --base out/gpu-snap-inputs/ubuntu-base-24.04.4-base-arm64.tar.gz \
-  --output out/gpu-snap-validation --core24 <frozen-core24-arm64.snap>
+  --output out/gpu-snap-validation --core24 <frozen-core24-arm64.snap> \
+  --consumer <thunderbird_1045.snap> --consumer <snap-store_1368.snap> \
+  --gnome-runtime <gnome-46-2404_154.snap>
 python3 tools/build-device-debs.py --snap-graphics-only \
   --snap-graphics-build out/gpu-snap-package --output out/gpu-snap-deb \
   --version 0.1+<YYYYMMDD>.<n>
 ```
 
-The build needs qemu-user ARM64 binfmt and unprivileged user namespaces; native
-NIR generation needs the SDK Python minor version (3.12), Mako, MarkupSafe and
+Obtain the locked ARM64 provider with `snap download mesa-2404 --revision=1166`
+on ARM64, or extract `var/lib/snapd/seed/snaps/mesa-2404_1166.snap` from the frozen
+Desktop SquashFS; always check the lock's SHA-256. For a packaging-only correction,
+`tools/package-mesa-snap.py --reuse-mesa-build <previous-build> --base-snap <snap>
+--output <new-output>` reuses only Mesa files verified against the previous build
+and snap receipts, preserving the same source/patch without recompilation. The
+stock component monitor and hooks remain upstream; the install hook disables
+that monitor when its optional kernel content plug is disconnected.
+
+Packaging/validation need Python 3, PyYAML and squashfs-tools. The build needs
+qemu-user ARM64 binfmt and unprivileged user namespaces; native NIR generation needs the SDK Python minor version (3.12), Mako, MarkupSafe and
 Ninja on the host (`--ninja /path/to/ninja` if it is not on PATH). Target compilation stays in the pinned ARM64 SDK. `--resume`
 continues that attempt's frozen recipe, without changing its inputs. The offline
 pixel check explicitly requires softpipe and is not a GPU or sandbox test.
+Validation uses the actual seeded core24 runtime, checks every provider ELF,
+and can check Thunderbird/App Center binaries plus their dlopened graphics/proxy
+libraries with the GNOME runtime. `--old-provider <previous.snap>` first reproduces
+the missing-library failure. These checks do not launch the GUI or prove confinement.
 
 Pass the resulting deb as one additional `--deb` to `build-rootfs-image.py` along
 with the existing device packages. Its postinst only enables the unit. On the

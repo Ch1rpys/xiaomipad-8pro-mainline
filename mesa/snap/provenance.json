@@ -32,7 +32,8 @@
     {
       "source": "packaging/mesa-snap/gpu-2404-provider-wrapper",
       "destination": "packaging/mesa-snap/gpu-2404-provider-wrapper",
-      "sha256": "4ae36b2adc8e4fad629c4bc7dc1e752b280a28772d3a08efc4e0c7cfb9770c3e"
+      "sha256": "4ae36b2adc8e4fad629c4bc7dc1e752b280a28772d3a08efc4e0c7cfb9770c3e",
+      "retired": "2026-10-12; runtime now retains the exact wrapper from the locked stock snap."
     },
     {
       "source": "packaging/mesa/build-root-core24.json",
@@ -49,6 +50,22 @@
     "Rename provider and SDK-local paths from erhai to piano.",
     "Use mesa/source.json Git commit and mesa/a830-speedbin.patch shared with the desktop deb; archive the exact commit, never the reference Mesa 26.2.3 archive.",
     "Limit the imported root build entry point to gpu-2404, retain native NIR and resume, and keep downloads under the caller cache.",
-    "Retain imported tool/wrapper GPL-2.0-only notices and ship their licence."
-  ]
+    "Retain imported tool/wrapper GPL-2.0-only notices and ship their licence.",
+    "2026-10-12: replace the minimal dependency-closure runtime with the complete pinned mesa-2404 revision 1166, overlay only compiled Mesa files, and preserve the stock wrapper/hooks and non-Mesa content.",
+    "Reuse verified Mesa build artifacts for packaging-only changes; no runtime files from an old minimal provider are copied outside the recorded Mesa payload."
+  ],
+  "stock_provider": {
+    "repository": "https://github.com/canonical/mesa-2404",
+    "commit": "07eefb905dd4a75b31f05b7954326312cb19e99a",
+    "author": "Christopher James Halse Rogers <chris@cooperteam.net>",
+    "licence": "MIT as declared by the stock snap; preserve each embedded library copyright notice",
+    "source_identity_evidence": "The embedded snap/snapcraft.yaml matches this commit byte-for-byte and its history count is 211, matching 25.0.7-snap211. This identifies the matching recipe; binary identity remains the revision/hash lock.",
+    "artifact_lock": "mesa/snap/mesa-2404.json",
+    "files": "Complete stock snap payload, including wrapper, hooks and component monitor",
+    "local_changes": [
+      "Overlay the Mesa files recorded by the pinned core24 Mesa build",
+      "Change only name/version in snap metadata",
+      "Add piano build provenance and licence files"
+    ]
+  }
 }
