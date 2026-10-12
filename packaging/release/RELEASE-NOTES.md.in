@@ -1,98 +1,95 @@
-# Ubuntu for Xiaomi Pad 8 Pro — $release_name
+# Ubuntu for Xiaomi Pad 8 Pro $release_name
 
-Ubuntu 26.04 LTS GNOME with Linux $kernel_release for Xiaomi Pad 8 Pro (`piano`, SM8750P), alongside Android.
-This directory was assembled and checked on the host. **Full fresh-install acceptance of these exact images is pending**; component device results below come from earlier tests on the same tablet. No device was accessed, no tag created and nothing pushed by this release task.
+适用于小米平板 8 Pro 的 Ubuntu 26.04 Desktop ARM64，与 Android 双系统共存。
 
-Follow `docs/INSTALL.md` or `docs/INSTALL.zh-CN.md` in the integration checkout at the commit below. Installation erases Android data. Use only stock `$stock_build` on slot A, preserve your backup and recovery set, and charge in Android. Verify every file with `sha256sum -c SHA256SUMS` before use. This is a local release directory; no downloadable archive parts are claimed.
+**实验性项目：安装会清空 Android 数据，并有变砖风险。请先读 [README「安装前请阅读」]($repo_url/blob/$integration_commit/README.zh-CN.md#️-安装前请阅读)。**
 
-## Pinned identity
+## 下载
 
-| Input | Identity |
+<!-- downloads-zh:start -->
+$downloads_zh
+<!-- downloads-zh:end -->
+
+将全部附件下载到一个空目录，安装主机上的 `unzip` 和 `zstd` 后，在该目录依次执行：
+
+<!-- restore:start -->
+```sh
+$restore_commands
+```
+<!-- restore:end -->
+
+## 安装 / 升级
+
+[全新安装]($repo_url/blob/$integration_commit/docs/INSTALL.zh-CN.md) · [已安装用户升级]($repo_url/blob/$integration_commit/docs/UPGRADE.zh-CN.md)。升级使用 `$prefix-packages.zip`；镜像内软件包版本见 `release-manifest.json` 的 `packages` 清单。
+
+## 本版变化
+
+$changes
+
+## 支持状态与已知问题
+
+各项功能的支持范围与已知限制，请查阅 [README 硬件支持表]($repo_url/blob/$integration_commit/README.zh-CN.md#硬件支持)。
+
+## 版本信息
+
+| 项目 | 版本 |
+|---|---|
+| 版本 | `$release_name` |
+| 内核包 | `$kernel_package` |
+| Ubuntu 基础 | 26.04 Desktop ARM64；APT 快照 `$apt_snapshot` |
+| 原厂版本 | `$stock_build`，A 槽 |
+| 集成仓提交 | [$integration_short]($repo_url/commit/$integration_commit) |
+| 内核提交 | [$kernel_short]($kernel_url/commit/$kernel_commit) |
+
+## 来源与许可
+
+来源、致谢与各组件许可证见 [README]($repo_url/blob/$integration_commit/README.zh-CN.md#致谢与许可证)；维护镜像内 BusyBox $busybox_version 的对应源码见 [Ubuntu 源码包](https://launchpad.net/ubuntu/+source/busybox/$busybox_version)。
+
+---
+
+# Ubuntu for Xiaomi Pad 8 Pro $release_name
+
+Ubuntu 26.04 Desktop ARM64 for Xiaomi Pad 8 Pro, dual-booting alongside Android.
+
+**Experimental: installation erases Android data and can brick your tablet. Read [Before Installing]($repo_url/blob/$integration_commit/README.md#️-read-before-installing) first.**
+
+## Downloads
+
+<!-- downloads-en:start -->
+$downloads_en
+<!-- downloads-en:end -->
+
+Download every attachment into an empty directory. With `unzip` and `zstd` installed on your host, run there:
+
+<!-- restore:start -->
+```sh
+$restore_commands
+```
+<!-- restore:end -->
+
+## Install / upgrade
+
+[Fresh installation]($repo_url/blob/$integration_commit/docs/INSTALL.md) · [Upgrade an existing installation]($repo_url/blob/$integration_commit/docs/UPGRADE.md). Use `$prefix-packages.zip` to upgrade; image package versions are listed under `packages` in `release-manifest.json`.
+
+## Changes
+
+$changes
+
+## Support and known issues
+
+See the [README hardware support table]($repo_url/blob/$integration_commit/README.md#hardware-support) for supported functionality and known limitations.
+
+## Version information
+
+| Item | Version |
 |---|---|
 | Release | `$release_name` |
-| Integration | `$integration_commit`, release branch based on `4c15551` |
-| Kernel | `$kernel_release`, `$kernel_commit`; existing device-verified deb, no kernel rebuild |
-| Ubuntu ISO | 26.04 Desktop ARM64, `$iso_sha256` |
-| Pristine merged SquashFS | `35f9b475e79de3ba87da4bbe957778d6d5f9637ce27d9267ed6b98d48b6fb0bc` |
-| APT | Signed Ubuntu snapshot `$apt_snapshot`; locked signed Mozilla Firefox input |
+| Kernel package | `$kernel_package` |
+| Ubuntu base | 26.04 Desktop ARM64; APT snapshot `$apt_snapshot` |
 | Stock build | `$stock_build`, slot A |
-| Boot command line | `$boot_cmdline` |
-| AVB release public key | SHA256 `$boot_key_public_sha256` |
+| Integration commit | [$integration_short]($repo_url/commit/$integration_commit) |
+| Kernel commit | [$kernel_short]($kernel_url/commit/$kernel_commit) |
 
-The preview-5 root manifest records the merged SquashFS hash, not a download URL. `ubuntu/desktop-layers.json` pins its official ISO URL, ISO/layer/TAR hashes and merge tools; the same pristine image was reconstructed and its final hash checked. The preview-5 manifest contains the Mesa deb but **no snap provider or first-boot connect package**. This release retains its Mesa deb and adds the requested provider/service from the later verified GPU work.
+## Sources and licensing
 
-The original `piano-snap-graphics 0.1+20261012.3` deb was absent after cleanup. It was repacked from the recorded `c14de88` source (contained in `4c15551`) and the unchanged provider snap. The original recorded deb SHA256 is `85b5562a465688eae69919d0ec6a3b4b39146b08caf32b1733e8aaf9c19a24ba`; this repack is `a4d24a119663084b445233dbe2f412208a5743190958518a5ba4407c2ec5dd97`. All seven payload files were checked against that build receipt and source; provider, helper and service bytes are unchanged. This archive has host packaging verification, not a new device-install claim. All five piano9 debs, both sensor debs and the preview-5 Mesa deb are reused byte-for-byte.
-
-## Changes since v0.1.0-preview-5
-
-Each line states the verification level of the component, not acceptance of this new installation image.
-
-**Display and graphics**
-
-- Native DSI display — device-verified at 3200×2136 / 144 Hz, with DPMS off/on checks; replaces firmware-only simpledrm display.
-- Adreno 830 — device-verified Mesa 26.2.0 deb rendering and `piano-mesa-2404` snap provider; `piano-snap-graphics` installs/connects gpu-2404 consumers after first-boot seeding, with stale namespace handling.
-- Desktop monitor defaults — offline-verified DSI-1 200% / 144 Hz defaults, retaining simpledrm layouts; Initial Setup in this fresh image awaits acceptance.
-- Iris H.264 — device-verified on installed piano9: 150/150 decoded 1080p frames match the software reference; firmware 0.5 and GStreamer good/bad plugins are included. Browser/player automatic hardware-decoder selection is unverified.
-
-**Connectivity, audio and input**
-
-- Wi-Fi 80 MHz — device-verified HE80 automatic association and ≥120 s connection without disconnects after the SAR TX-power fix; wide-area throughput is not a radio benchmark.
-- Internal microphones — device-verified default PipeWire source recording of a 1 kHz tone on both channels; speech quality/noise processing unverified.
-- SSC sensors — device-verified acceleration/gyro/light/proximity samples and packaged SensorProxy orientation/ambient-light reporting with the owner's registry; the image ships only the empty default seed.
-- WN8030 magnetic keyboard — device-verified keyboard transport and tablet-mode switch reporting; physical reattach/rotation and every key combination remain separate checks.
-- Bluetooth — device-verified controller power and discovery scan; pairing and Bluetooth audio unverified.
-
-**Boot, power and desktop integration**
-
-- MiPPS/charging — device-verified read-only charger/battery reporting and non-failing MiPPS cleanup on a non-Xiaomi charger; charging control and net charging are not verified.
-- Clean RAM return — device-verified clean return in the piano9 RAM test and subsequent KernelSU check; the bounded diagnostic path does not replace fresh-install acceptance.
-- Cold-boot acceptance tool — host tests passed and installed piano9 verdict passed (switch-root 6.04 s, GDM 12.7 s); native RAM criteria use hardware evidence and retain unavailable results when evidence is absent.
-- Switch inhibitor fix — offline tests passed: shutdown blockers and errors are reported, the next boot target remains explicit, and the desktop switch uses the deliberate force path; fresh-install UI acceptance pending.
-- Initial Setup keyboard sentinel — already included in the reused desktop deb via main's `dc92b55`, equivalent to `eccb457`; no `.piano9.1` rebuild was needed. Full fresh Initial Setup regression remains pending.
-- Mozilla Firefox deb and first-boot removal of its preseeded snap are retained from main; Thunderbird and other snap seed state remain. The zh-CN default-language policy is excluded from this release branch.
-
-## Packages installed in the image
-
-| Package | Version | Origin |
-|---|---|---|
-$package_rows
-
-## Per-unit data and installation
-
-No account, serial, Bluetooth/Wi-Fi address, touch calibration, private sensor registry or private signing key is shipped. GNOME Initial Setup creates the account. Developer-mode SSH is installed but disabled until the installation guide enables it.
-
-- Supply your own `thp-calibration.json`, `bluetooth-address`, `wlan-address`, `boot-profile.json`, `boot-partitions.json`, signing key and Android recovery set as described in INSTALL.
-- For sensors, run `python3 tools/stage-sensor-registry.py --registry /path/to/own/extracted/persist/sensors/registry --output /path/to/private-sensor-payload` on the host. Install the resulting `usr/share/piano/sensors/registry-private` into the new root in INSTALL step 8a, before first boot. Never share this payload or use another unit's registry.
-- Without private calibration, sensors initialize an empty seed from stock static configuration; default-calibration accuracy is unverified. Normal restarts do not overwrite existing sensor state.
-- The 60 GiB root remains a sparse **used-blocks** image. `linux_data` is not shipped; create it on the device exactly as in INSTALL. Partitioning and fresh-install steps are unchanged.
-- GStreamer tools plus `gstreamer1.0-plugins-good` and `gstreamer1.0-plugins-bad` supply `h264parse` and `v4l2h264dec`; no additional private Iris firmware injection is needed.
-- The snap is embedded at `/usr/share/piano/snaps/piano-mesa-2404.snap`. The normal first-boot `piano-snap-graphics.service` waits for snap seeding and Firefox removal, then installs and connects it. This new image's first-boot sequence is not a device PASS.
-
-## Not supported / not verified
-
-- Camera: stock evidence and imported code only; board integration is not enabled.
-- DP external display, stylus and fingerprint: not supported/verified.
-- Suspend/hibernation: disabled or unsupported; screen-off is not suspend.
-- RTC writes/persistent clock offset: unsupported; fake-hwclock and network time remain the workaround.
-- Charging control, wall-charger MiPPS/PPS and net battery charging: unverified; charge in Android.
-- Physical four-direction rotation, keyboard detach/reattach rotation and automatic brightness: unverified. Keyboard-attached `SW_TABLET_MODE=0` correctly gates Mutter rotation.
-- Iris encoder, other codecs and application-selected decoding: unverified; an encoder node is not an encoding PASS.
-- Speaker protection, Bluetooth pairing/audio and long-term peripheral/power-management stability remain open.
-
-## Files and checks
-
-| File | Bytes | SHA256 | Purpose |
-|---|---:|---|---|
-$artefact_rows
-
-`rootfs/verification.json` records offline root checks. `release-manifest.json` records source identity, stage timings, sparse write sizes and the zero-match identity scan. Checks of components on the tablet do not establish that these fresh images boot successfully.
-
-$qemu_note
-
-`boot/boot-ram-maintenance.img` is RAM-only. It offers an unauthenticated USB root shell for INSTALL steps 6/8a, mounts nothing automatically and uses the existing ten-minute idle timeout. Never flash it. The KSU zip follows the `piano-switch-ksu-v<version>.zip` scheme.
-
-## Source and licensing
-
-Kernel source: [linux-sm8750-piano](https://github.com/yzddmr6/linux-sm8750-piano/tree/$kernel_commit). Integration source: [this commit]($repo_url/tree/$integration_commit). Ubuntu binaries come from the pinned official ISO/signed snapshot; Mozilla Firefox comes from its separately signed and locked repository. Source packages correspond to those recorded versions. BusyBox source references remain in the support package's licence records; no new upload is claimed.
-
-Mesa, SSC userspace and snap/runtime provenance and licences are recorded in their packages and repository source locks. Integration code is MIT, the kernel GPL-2.0, and individual third-party components retain their licences. Stock firmware and static sensor configuration follow `firmware/README.md`: redistribution permission has not been established, and they are removed upon a rights-holder request. No private persist calibration is included.
+See [README acknowledgments and licensing]($repo_url/blob/$integration_commit/README.md#acknowledgments-and-licensing) for component sources and licences; the maintenance image's BusyBox $busybox_version source is available as an [Ubuntu source package](https://launchpad.net/ubuntu/+source/busybox/$busybox_version).

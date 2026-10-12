@@ -13,8 +13,13 @@ Layout of the output directory:
            firmware, Mesa, desktop defaults)
   tools/   piano-switch.py and the KernelSU module zip
   RELEASE-NOTES.md, release-manifest.json, SHA256SUMS
-The data partition is not shipped: RELEASE-NOTES.md and docs/RELEASE.md give
-the mkfs recipe.  Before writing anything the tool checks that the boot set
+The data partition is not shipped; follow docs/INSTALL.md to create it.
+--changes embeds handwritten Markdown verbatim in both language sections of
+the short user-facing notes. Put bilingual text in this file when needed.
+Package this directory with package-release-assets.py; its output notes fill
+in attachment sizes for the Release body, while the archived original stays
+unchanged for SHA256SUMS. Package identities remain in release-manifest.json.
+Before writing anything the tool checks that the boot set
 carries no unit identity: no serial on its command line, no address properties
 in its DTB, the stock-build-only boot profile, and prints what Fastboot writes
 for every image (sparse_image.py): it stops if a sparse image carries FILL
@@ -30,16 +35,14 @@ import os
 from pathlib import Path
 import re
 import shutil
-import string
 import struct
 import subprocess
 import sys
 
 import sparse_image
+from release_notes import render_notes
 
 REPO = Path(__file__).resolve().parents[1]
-REPO_URL = 'https://github.com/yzddmr6/xiaomipad-8pro-mainline'
-ISO_SHA256 = 'c2afd538d66fdd77377d03f1ed2ac76a34f1c116baecc9a8170d68f833121f57'
 FORBIDDEN_PROPERTIES = ('local-mac-address', 'local-bd-address', 'mac-address', 'serial-number')
 SET_FILES = ('boot.img', 'init_boot.img', 'vendor_boot.img', 'SHA256SUMS', 'manifest.json',
              'profile.json', 'piano-boot.dtb', 'boot-ram-check.img')
@@ -119,7 +122,9 @@ def main():
                     help='FILL limit per sparse image (on free blocks for the ext4 root)')
     ap.add_argument('--allow-fill', action='store_true', help='Report FILL beyond the limit without stopping')
     ap.add_argument('--output', type=Path, required=True, help='New release directory')
+    ap.add_argument('--changes', type=Path, help='Markdown release changes, embedded verbatim (UTF-8)')
     a = ap.parse_args()
+    changes = a.changes.read_text(encoding='utf-8') if a.changes else '见 README / See README.'
     build = a.rootfs_build.resolve()
     rootfs = json.loads((build / 'manifest.json').read_text())
     verification = json.loads((build / 'verification.json').read_text())
@@ -135,7 +140,8 @@ def main():
     tools_committed = {n: subprocess.run(['git', '-C', str(REPO), 'cat-file', '-e', f'HEAD:tools/{n}'],
                                          capture_output=True).returncode == 0
                        for n in ('build-rootfs-image.py', 'rootfs-image-guest.sh')}
-    kernel_commit = json.loads((REPO / 'kernel/source.json').read_text())['commit']
+    kernel_source = json.loads((REPO / 'kernel/source.json').read_text())
+    kernel_commit = kernel_source['commit']
 
     # The boot set must not be bound to a unit.
     s = build / 'ubuntu-set'
@@ -211,8 +217,6 @@ def main():
     os.link(build / 'root.sparse.img', out / 'rootfs/root.sparse.img')
     for name in ('manifest.json', 'verification.json'):
         shutil.copy2(build / name, out / 'rootfs' / name)
-    qemu_note = ('No QEMU boot was run for this build.' if not a.boot_check else
-                 'QEMU boot (no piano hardware): see `rootfs/qemu-boot-check.json`.')
     if a.boot_check:
         check = json.loads(a.boot_check.read_text())
         if check.get('rootfs_sparse_sha256') != rootfs['outputs']['root.sparse.img']['sha256']:
@@ -241,37 +245,15 @@ def main():
         if identity['matches']:
             raise SystemExit('An output contains an identifier of a real unit; release directory is not usable')
 
-    rows = []
-    hashes = {}
-    for p in files:
-        rel = str(p.relative_to(out))
-        hashes[rel] = sha(p)
-    purposes = {
-        'boot/boot.img': 'slot A `boot_a`', 'boot/init_boot.img': 'slot A `init_boot_a`',
-        'boot/vendor_boot.img': 'slot A `vendor_boot_a`', 'boot/boot-ram-check.img': '`fastboot boot` check of the installed root',
-        'boot/boot-ram-maintenance.img': '`fastboot boot` maintenance shell for the partition table (INSTALL.md step 6)',
-        'rootfs/root.sparse.img': '`fastboot flash linux_rootfs`',
-        'tools/piano-switch.py': 'host Fastboot switching and recovery',
-    }
-    for rel, digest in hashes.items():
-        if rel in purposes or rel.startswith(('debs/', 'tools/piano-switch-ksu')) and rel.endswith(('.deb', '.zip')):
-            purpose = purposes.get(rel) or ('installed in the root image' if rel.endswith('.deb')
-                                            else 'Android KernelSU module')
-            rows.append(f'| `{rel}` | {(out / rel).stat().st_size:,} | `{digest}` | {purpose} |')
-    packages = [f'| {e["package"]} | {e["version"]} | {"this project" if e["source"] == "piano" else e["source"]} |'
-                for e in rootfs['packages']]
+    hashes = {str(p.relative_to(out)): sha(p) for p in files}
     stock = profile['boot']['avb_properties']['com.android.build.boot.fingerprint'].split('/')[4].split(':')[0]
-    notes = string.Template((REPO / 'packaging/release/RELEASE-NOTES.md.in').read_text()).substitute(
-        release_name=release_name, repo_url=REPO_URL, integration_commit=head, kernel_release=release,
-        kernel_commit=kernel_commit, iso_sha256=ISO_SHA256, apt_snapshot=rootfs['apt_snapshot'],
-        stock_build=stock, boot_cmdline=manifest['cmdline'],
-        boot_key_public_sha256=rootfs['boot_key_public_sha256'],
-        artefact_rows='\n'.join(rows), package_rows='\n'.join(packages), qemu_note=qemu_note)
+    notes = render_notes(rootfs, stock, head, kernel_source, changes)
     (out / 'RELEASE-NOTES.md').write_text(notes)
     hashes['RELEASE-NOTES.md'] = sha(out / 'RELEASE-NOTES.md')
     release_manifest = {
         'release_name': release_name, 'kernel_release': release, 'kernel_commit': kernel_commit,
         'integration_commit': head, 'integration_tree_dirty': bool(dirty), 'tools_committed': tools_committed,
+        'packages': rootfs['packages'],
         'rootfs_manifest_sha256': sha(build / 'manifest.json'), 'boot_set_checks': checks,
         'maintenance_image_checks': maint_checks,
         'dtb_property_count': len(properties), 'identity_scan': identity,
