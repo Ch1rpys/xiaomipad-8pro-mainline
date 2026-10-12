@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "purpose": "Offline community WN8030 keyboard RAM candidate pin, not a packaged ABI or device result",
+  "purpose": "Merged piano8 kernel candidate: native display, display PM, WN8030 keyboard and charging3; offline qualification does not establish combined hardware support.",
   "upstream_url": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git",
   "upstream_tag": "v7.2.6",
   "upstream_commit": "500df175a7f9e6bc1a9c328590ca5150f84f9ff0",
   "url": "https://github.com/yzddmr6/linux-sm8750-piano",
-  "commit": "2de34c8a9c5ddd9b4c6a27c12c187db47d7b68a7",
-  "branch": "piano/keyboard-20261012",
+  "commit": "bcdf33caef53992503b11cc8b4e875b63965d8a7",
+  "branch": "piano/piano8-20261012",
   "config": "arch/arm64/configs/piano-diagnostic.config",
   "release_config_fragments": [
     "arch/arm64/configs/piano-diagnostic.config",
     "arch/arm64/configs/piano-desktop-diag.config",
     "arch/arm64/configs/piano-persistent.config",
-    "arch/arm64/configs/piano-keyboard-test.config"
+    "arch/arm64/configs/piano-release.config"
   ],
-  "note": "Build all listed fragments in order using the existing build-kernel.sh flow. This branch uses a distinct RAM-only release and complete matching modules in the debug initrd. It allocates no installable ABI; do not build a kernel deb or install its generated persistent triplet."
+  "note": "'config' is the base fragment read by tools/build-kernel.sh; the installed release merges the remaining release_config_fragments in that order via CONFIG_FRAGMENT_EXTRA (space separated). piano-release.config is last and sets the unique release 7.2.6-piano<ABI>; kernel/abi.json records which commit and .config each packaged release was built from."
 }

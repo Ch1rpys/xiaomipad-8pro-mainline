@@ -462,3 +462,11 @@ The kernel imports blu-sharky/linux-piano f8afe7ff7127f46f5339fdaf5c24ecbffbfbb9
 the kernel repository. Community debian-piano a75f8c5d5fa099d65c171ac839c2e3bb6c63ec45
 keyboard overlay/service were reviewed, not copied: standard udev OF autoload
 makes their manual module startup unnecessary. See device/keyboard/README.md.
+MiPPS authentication: device/power/mipps-auth/upstream/xiaomi-mipps-auth is
+from blu-sharky/piano-mipps-auth ccdc3ce7f5200ef736d7d552eb7b387ea3bb6fd9,
+a fork of ianchb/xiaomi-mipps-auth (base 9176efbdf276b874fc0a97912a914449a88155fb).
+Authors: ianchb <i@4t.pw>, bluseliu50
+<265648257+bluseliu50@users.noreply.github.com>. Script SPDX: GPL-2.0-only.
+No root LICENSE was supplied; this import includes only the explicitly
+licensed script. Local patch, hashes and exit condition: source.json in that
+directory. The systemd/udev packaging here is project MIT integration.

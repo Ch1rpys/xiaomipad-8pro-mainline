@@ -70,13 +70,14 @@ def main():
     select.add_argument('--support-only', action='store_true', help='Rebuild only the small device integration package')
     select.add_argument('--desktop-only', action='store_true', help='Build desktop policy without rebuilding locked support/Mesa inputs')
     select.add_argument('--snap-graphics-only', action='store_true', help='Build only piano-snap-graphics')
+    select.add_argument('--mipps-auth-only', action='store_true', help='Build only the pinned MiPPS authentication package')
     a = ap.parse_args()
     if a.snap_graphics_only and not a.snap_graphics_build:
         ap.error('--snap-graphics-only requires --snap-graphics-build')
-    if not (a.desktop_only or a.snap_graphics_only):
+    if not (a.desktop_only or a.snap_graphics_only or a.mipps_auth_only):
         for name in ('thp_live', 'mesa_build', 'busybox', 'avbtool'):
             if getattr(a, name) is None:
-                ap.error('--' + name.replace('_', '-') + ' is required unless --desktop-only or --snap-graphics-only')
+                ap.error('--' + name.replace('_', '-') + ' is required unless --desktop-only, --snap-graphics-only or --mipps-auth-only')
     repo = Path(__file__).resolve().parents[1]
     a.output.mkdir(parents=True, exist_ok=False)
     stages = a.output / 'stages'
@@ -180,6 +181,34 @@ def main():
             return
 
     if not a.desktop_only:
+        auth = stages / 'piano-mipps-auth'
+        shutil.copytree(repo / 'packaging/piano-mipps-auth', auth, ignore=untracked)
+        tree(repo / 'packaging/piano-mipps-auth', auth, '.')
+        source = repo / 'device/power/mipps-auth'
+        lock = json.loads((source / 'source.json').read_text())
+        upstream = source / lock['file']
+        if sha(upstream) != lock['sha256']:
+            raise ValueError('MiPPS source hash mismatch')
+        target = auth / 'usr/libexec/xiaomi-mipps-auth'
+        copy(upstream, auth, 'usr/libexec/xiaomi-mipps-auth', 0o755)
+        for patch in lock['patches']:
+            path = source / patch['file']
+            if sha(path) != patch['sha256']:
+                raise ValueError('MiPPS patch hash mismatch')
+            subprocess.run(['patch', '--batch', '--forward', '--fuzz=0', '-p1', '-i', str(path.resolve())],
+                           cwd=target.parent, check=True)
+        if sha(target) != lock['patched_sha256']:
+            raise ValueError('MiPPS patched output hash mismatch')
+        package('piano-mipps-auth', auth, 'python3, util-linux, systemd',
+                'Xiaomi MiPPS charger authentication through the kernel MCA relay',
+                third_party=[(('usr/libexec/xiaomi-mipps-auth',), 'ianchb; bluseliu50',
+                              'GPL-2.0-only', lock['url'] + ' at ' + lock['commit'] +
+                              '; piano relay path and device-only integration patch in device/power/mipps-auth.')])
+        if a.mipps_auth_only:
+            (a.output / 'manifest.json').write_text(json.dumps(receipts, indent=2) + '\n')
+            return
+
+    if not a.desktop_only:
         support = stages / 'piano-device-support'
         shutil.copytree(repo / 'packaging/piano-device-support', support, ignore=untracked)
         tree(repo / 'packaging/piano-device-support', support, '.')
@@ -224,7 +253,7 @@ def main():
              'Apache-2.0, the rest MIT (see NOTICE); it includes the MIT nlohmann JSON headers.'),
         ]
         package('piano-device-support', support,
-                'python3, openssl, device-tree-compiler, dracut, kmod, init-system-helpers',
+                'python3, openssl, device-tree-compiler, dracut, kmod, init-system-helpers, piano-mipps-auth',
                 'Piano platform, touchscreen and persistent boot integration',
                 '#!/bin/sh\nset -e\nif [ "$1" = configure ]; then\n'
                 # piano-thp.service is udev-activated only; remove the multi-user.target link
