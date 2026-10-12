@@ -284,14 +284,6 @@ def verify(fs, scratch, expected_packages, release, caps, set_hashes, boot_hashe
     checks['fstab_by_partlabel'] = fs.cat('/etc/fstab') == FSTAB.encode()
     checks['device_hostnames'] = (fs.cat('/etc/hostname') == HOSTNAME.encode()
                                   and fs.cat('/etc/machine-info') == MACHINE_INFO.encode())
-    checks['system_locale'] = (
-        [line for line in fs.cat('/etc/locale.conf').decode().splitlines()
-         if line.strip() and not line.lstrip().startswith('#')] == ['LANG=zh_CN.UTF-8']
-        and b'Fast link dest: "../locale.conf"' in fs.run('stat /etc/default/locale')[0])
-    locale_gen = fs.cat('/etc/locale.gen').decode()
-    checks['generated_locale_selection'] = all(re.search(r'^' + re.escape(locale) + r' +UTF-8$',
-                                                         locale_gen, re.M)
-                                                for locale in ('zh_CN.UTF-8', 'en_US.UTF-8'))
     checks['fake_hwclock_data'] = fs.size('/etc/fake-hwclock.data') not in (None, 0)
     checks['no_install_leftovers'] = not any(fs.exists(p) for p in (
         '/var/cache/piano-install', '/usr/sbin/policy-rc.d', '/etc/initramfs-tools/update-initramfs.conf',

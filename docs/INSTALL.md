@@ -1,9 +1,9 @@
-# Installing v0.1.0-preview
+# Installing v0.2.0
 
 [中文](INSTALL.zh-CN.md) | [Project overview](../README.md) | [Fastboot, switching and recovery](FLASHING.md)
 
-This guide installs a v0.1.0-preview release next to Android on the Xiaomi Pad 8 Pro (`piano`) by
-hand. Installation is manual in v0.1: there is no installer yet. Writing the new partition table
+This guide installs a v0.2.0 release next to Android on the Xiaomi Pad 8 Pro (`piano`) by
+hand. Installation is manual in v0.2: there is no installer yet. Writing the new partition table
 ([step 6](#6-write-the-partition-table-on-the-tablet)) runs in the release's maintenance RAM image.
 Read the whole guide before you start.
 
@@ -41,13 +41,7 @@ Steps that use standard commands because no project tool exists yet are marked *
 | The release directory | every file of one release, not mixed with other releases |
 | Free host space | about 40 GB: the backup (16 GB on the test unit), the release (about 9 GB) and the data image |
 
-Download SHA256SUMS.assets and every asset listed in it from the same release into an empty directory. This release has two archive parts, `piano-v0.1.0-preview.tar.zst.part0` and `piano-v0.1.0-preview.tar.zst.part1`. Run `sha256sum -c SHA256SUMS.assets` there and require every entry to pass before extracting the archive parts.
-The assets are on the [release page](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview); extraction needs about 14 GB of free space.
-
-```bash
-sha256sum -c SHA256SUMS.assets                   # require every downloaded asset to pass
-cat piano-v0.1.0-preview.tar.zst.part* | zstd -d | tar -x
-```
+v0.2.0 is currently a locally built directory, `out/release-v0.2.0`; no download assets have been published. Use the complete directory without mixing preview files, and verify its SHA256SUMS after setting RELEASE below.
 
 REPO is the absolute path to the integration checkout at the release’s recorded commit. RELEASE is the extracted release directory. WORK is a private installation directory outside the checkout. Run subsequent host commands from WORK; use `"$REPO/tools/NAME"` for source tools and `"$RELEASE/PATH"` for release files.
 Set these paths in each host terminal you use. The download assets above are outside RELEASE; the next check validates the extracted files.
@@ -66,6 +60,8 @@ The release contains `boot/` (the Ubuntu boot set for slot A, `boot-ram-check.im
 `boot-ram-maintenance.img`),
 `rootfs/root.sparse.img` (the 60 GiB root), `debs/`, `tools/piano-switch.py` and the KernelSU module.
 Its contents are described in [RELEASE.md](RELEASE.md).
+
+The image includes `linux-image-7.2.6-piano9`, `piano-device-support`, `piano-local-firmware` 0.5 (including Iris), `piano-mesa`, `piano-mipps-auth`, `piano-ubuntu-desktop`, `piano-snap-graphics`, `piano-sensors` and `piano-iio-sensor-proxy`. GStreamer good/bad plugins and command-line tools provide `h264parse` / `v4l2h264dec`; automatic browser decoding remains unverified. The deb embeds the snap provider; its first-boot service installs and connects it after snap seeding. Sensors ship an empty default seed and no private registry; default-calibration accuracy is unverified.
 
 ## 1. Unlock and check the stock build
 
@@ -198,6 +194,20 @@ python3 <avbtool.py> info_image --image backup/boot_a.img
 `com.android.build.boot.security_patch`. The release's `boot/boot-profile.json` shows the same
 structure for the stock build, without a serial.
 
+### Optional: prepare your sensor registry
+
+On the host, use this tablet's own extracted persist backup. The input is the outer `sensors/registry/` directory containing the inner `registry/`. Keep this private payload and tar out of the release and never share them. Install it in step 8a before Ubuntu first boots.
+
+```bash
+python3 "$REPO/tools/stage-sensor-registry.py" \
+  --registry /path/to/own/extracted/persist/sensors/registry \
+  --output "$WORK/private-sensor-payload"
+tar -C "$WORK/private-sensor-payload" -cf "$WORK/sensor-registry.tar" usr
+sha256sum "$WORK/sensor-registry.tar"
+```
+
+Without it, the service generates defaults from the static stock configuration. Normal reboots do not replace existing state; for later calibration installation follow the [sensor instructions](../device/sensors/README.zh-CN.md).
+
 ## 4. Partition layout
 
 The original `userdata` range on LUN 0 is split into three partitions. All other partitions and
@@ -313,7 +323,7 @@ session. Stop the host's `http.server` afterwards.
 - If `piano-maint fastboot` says `nvmem-reboot-mode is not bound`, it does not reboot; use
   Power + Volume Down.
 
-These device results were obtained with earlier maintenance and release builds on 2026-10-10: USB connection, LUN inspection, rewriting the existing GPT without changes, timed return to Fastboot, and preinstalling unit files. They do not validate the maintenance or boot images bundled here, which use 7.2.6-piano7 and have not yet been booted on a tablet. Generating the partition map in step 8a has only been checked offline.
+These device results were obtained with earlier maintenance and release builds on 2026-10-10: USB connection, LUN inspection, rewriting the existing GPT without changes, timed return to Fastboot, and preinstalling unit files. They do not validate the maintenance or boot images bundled here, which use the device-verified 7.2.6-piano9 kernel package but still await a full fresh-install test as a set. Generating the partition map in step 8a has only been checked offline.
 
 ## 7. Write the filesystems (Fastboot)
 
@@ -374,7 +384,7 @@ before Ubuntu first boots. Touch then works in Initial Setup, and the host can r
 SSH as soon as the account exists. Without this step, use the magnetic keyboard in Initial Setup and
 copy the files in step 10.
 
-Keep boot-profile.json and boot-signing.pem on the host until step 10 so boot-set regeneration happens after the Android recovery set is ready. This release already contains piano-device-support 0.1+20261010.9; the earlier serial-mismatch failure is fixed.
+Keep boot-profile.json and boot-signing.pem on the host until step 10 so boot-set regeneration happens after the Android recovery set is ready. This release already contains piano-device-support 0.1+20261012.piano9; the earlier serial-mismatch failure is fixed.
 
 In Fastboot, with the files of step 3 in the current directory on the host:
 
@@ -420,6 +430,11 @@ done
 sha256sum /mnt/etc/piano/*                          # the four hashes must equal the host's
 mkdir -p /mnt/etc/systemd/system/usb-gadget.target.wants
 ln -sf /usr/lib/systemd/system/piano-devmode.service /mnt/etc/systemd/system/usb-gadget.target.wants/
+# Optional: only if you prepared your own sensor-registry.tar; compare its hash with the host
+# wget -O /tmp/sensor-registry.tar http://192.168.88.10:8000/sensor-registry.tar
+# sha256sum /tmp/sensor-registry.tar
+# tar -xf /tmp/sensor-registry.tar -C /mnt
+# chown -R 0:0 /mnt/usr/share/piano/sensors/registry-private
 sync; umount /mnt
 piano-maint fastboot
 ```
@@ -427,7 +442,7 @@ piano-maint fastboot
 `lsblk` shows no partition labels in this environment; the loop above reads them from sysfs. The
 symbolic link is what `piano-devmode on` creates.
 
-These device results were obtained with earlier maintenance and release builds on 2026-10-10: USB connection, LUN inspection, rewriting the existing GPT without changes, timed return to Fastboot, and preinstalling unit files. They do not validate the maintenance or boot images bundled here, which use 7.2.6-piano7 and have not yet been booted on a tablet. Generating the partition map in step 8a has only been checked offline.
+These device results were obtained with earlier maintenance and release builds on 2026-10-10: USB connection, LUN inspection, rewriting the existing GPT without changes, timed return to Fastboot, and preinstalling unit files. They do not validate the maintenance or boot images bundled here, which use the device-verified 7.2.6-piano9 kernel package but still await a full fresh-install test as a set. Generating the partition map in step 8a has only been checked offline.
 Offline, the release's BusyBox `nc` closed the connection at the end of the table, the host's
 `nc -l` then exited, and the tool rebuilt the test unit's map from its LUN 4 GPT.
 
@@ -504,7 +519,7 @@ python3 "$REPO/tools/extract-boot-partitions.py" --input boot-lun.json --profile
 This route replaces the hand-written map of earlier versions of this guide and has not yet run on
 the tablet.
 
-This release already contains piano-device-support 0.1+20261010.9. A fresh installation requires no support-package build, copy or installation: the scp command below omits the package, and no dpkg command is needed. Keep boot-profile.json and boot-signing.pem on the host until step 10 so boot-set regeneration happens after the Android recovery set is ready. The serial-mismatch failure affected earlier images containing 0.1+20261010.3 and is fixed in this release.
+This release already contains piano-device-support 0.1+20261012.piano9. A fresh installation requires no support-package build, copy or installation: the scp command below omits the package, and no dpkg command is needed. Keep boot-profile.json and boot-signing.pem on the host until step 10 so boot-set regeneration happens after the Android recovery set is ready. The serial-mismatch failure affected earlier images containing 0.1+20261010.3 and is fixed in this release.
 
 **Copy the files:**
 
@@ -546,7 +561,7 @@ piano-devmode status       # expect "developer mode: disabled, inactive"
 
 `sudo piano-devmode on` turns it on again when you need the host connection. While on, it accepts
 every local account with a password over the USB cable; see [device/devmode](../device/devmode/README.md)
-to restrict it to SSH keys. From piano-device-support 0.1+20261010.9 its SSH socket listens on
+to restrict it to SSH keys. From piano-device-support 0.1+20261012.piano9 its SSH socket listens on
 `192.168.88.2:22` with `FreeBind=yes`, so it can start before the USB interface and address exist.
 It does not listen on the Wi-Fi address. This address binding does not filter incoming interfaces:
 a Wi-Fi peer with a route to `192.168.88.2` can still reach it.
