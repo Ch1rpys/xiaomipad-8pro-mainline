@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: MIT
+[Unit]
+Description=Piano ADSP sensor PD FastRPC file service
+ConditionPathExists=/dev/fastrpc-adsp-secure
+After=systemd-udevd.service
+Before=iio-sensor-proxy.service
+
+[Service]
+Type=exec
+StateDirectory=piano/sensors
+StateDirectoryMode=0700
+RuntimeDirectory=piano-sensors
+RuntimeDirectoryMode=0700
+UMask=0077
+ExecStartPre=/usr/libexec/piano/sensors-prepare
+ExecStart=/usr/bin/hexagonrpcd -f /dev/fastrpc-adsp-secure -d adsp -s -R /run/piano-sensors/hexagonfs -w /var/lib/piano/sensors/registry
+TimeoutStartSec=10
+TimeoutStopSec=5
+# A failed attach needs diagnosis/a normal reboot, not blind DSP re-attachment.
+Restart=no
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+PrivateTmp=true
+NoNewPrivileges=true
+RestrictAddressFamilies=AF_UNIX AF_QIPCRTR
+
+[Install]
+WantedBy=multi-user.target

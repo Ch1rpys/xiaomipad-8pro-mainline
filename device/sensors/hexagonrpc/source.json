@@ -41,6 +41,6 @@
       "changes": "Length/error cleanup and ioctl-boundary apps_std 4 KiB/64 KiB regressions; upstream implementation remains separate"
     }
   ],
-  "scope": "V3 fresh-boot device run reached large-file writes but the listener stopped above 256 B. V4 imports upstream method-5 continuation and verifies 4 KiB/64 KiB writes offline; physical V4 samples unverified.",
+  "scope": "User fresh-boot V4 on 7.2.6-piano8 passed SSC sampling on 2026-10-12 with unchanged pristine registry. Product service/GNOME lifecycle requires separate device validation.",
   "exit_condition": "Drop local patches after an upstream release covers these fixes and the same regressions pass."
 }

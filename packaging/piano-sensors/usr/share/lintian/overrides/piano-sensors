@@ -1,0 +1,4 @@
+# Immutable pristine ROM input by design, additionally protected read-only in
+# the service mount namespace. Runtime writes go only to StateDirectory.
+piano-sensors: non-standard-file-perm 0444 != 0644 [usr/share/piano/sensors/odm/*]
+piano-sensors: non-standard-file-perm 0444 != 0644 [usr/share/piano/sensors/vendor/*]

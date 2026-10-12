@@ -78,7 +78,7 @@ Test configuration, known issues and roadmap: [docs/STATUS.md](docs/STATUS.md).
 | Microphone | Internal DMIC / ADSP / AudioReach | 🟡 Partial | Records through the VA path with a UCM profile; a 1 kHz test tone was picked up by all four microphones; speech quality and noise processing unverified |
 | Video decoding | Qualcomm Iris (VPU35) | ❌ Unsupported | Built as modules, not enabled |
 | Cameras | S5KJN1SQ03 rear, OV32D40 front | ❌ Unsupported | Mainline lacks SM8750 CAMSS support |
-| Rotation, light and Hall sensors | ADSP sensor hub (SSC) | ❌ Unsupported | Userspace stack prepared, not enabled |
+| Rotation, light and Hall sensors | ADSP sensor hub (SSC) | 🧪 Testing | User verified four SSC sample types; [rotation/light packages](device/sensors/README.zh-CN.md) await device acceptance; Hall unverified |
 
 ### Power and Time
 

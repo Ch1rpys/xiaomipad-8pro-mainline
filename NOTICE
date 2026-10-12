@@ -526,3 +526,18 @@ SSC device-test v4 large reverse-listener requests
   inc/adsp_listener.h and src/listener_android.c. No Qualcomm code bundled.
 - The MIT runner boot-id ledger is local test bookkeeping, not a DSP reset
   mechanism. First-use baseline enrollment does not access the DSP.
+
+Piano sensor packages (2026-10-12)
+---------------------------------
+- firmware/sensors/: 66 static ODM/vendor sensor configuration files from piano
+  OS3.0.303.0.WPYCNXM. Source paths and SHA256 in firmware/sensors/source.json.
+  Unmodified stock bytes; no persist registry or per-device factory calibration.
+  Proprietary, no redistribution licence established; distributed by owner
+  decision under the firmware policy and removed on rightsholder request.
+- piano-sensors consumes the existing hexagonrpc source lock and all patches,
+  including the unchanged upstream large-listener-input commit f0dfd5095d3b.
+- piano-iio-sensor-proxy consumes the existing libssc and SensorProxy source
+  locks/patches. Protocol and library sources retain their GPL licences; only
+  package/service/udev integration and registry staging are project MIT code.
+- tools/build-sensors-debs.py preserves upstream Meson builds and records
+  sources/tool versions/hashes; no third-party source is rebranded as original.
