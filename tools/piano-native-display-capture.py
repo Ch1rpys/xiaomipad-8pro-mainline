@@ -13,6 +13,64 @@ import re
 
 import piano_boot_acceptance as acceptance
 
+HF_AXI_CONSUMERS = {
+    'framebuffer', 'ae96000.dsi', 'ae00000.display-subsystem',
+    'ae01000.display-controller', 'mdss', 'dpu',
+}
+HF_AXI_RULE = ('every captured row enable >= 1, hardware Y, consumer framebuffer, ae96000.dsi or MDSS/DPU; '
+               'every CBCR CLK_ENABLE=1, CLK_OFF=0; any observed disabled/unheld gap fails; '
+               'PASS needs both clk_summary and CBCR evidence')
+RAM_TIMING_NOTE = (
+    'RAM full-module boot; persistent budgets '
+    f'(switch_root ≤{acceptance.BUDGETS["switch_root_s"]:g} s, '
+    f'GDM ≤{acceptance.BUDGETS["gdm_active_s"]:g} s) apply only to the cold-boot acceptance'
+)
+TOP0 = re.compile(r'TOP0 intr_en=(0x[0-9a-fA-F]+) intr_status '
+                  r'(0x[0-9a-fA-F]+)->(0x[0-9a-fA-F]+)')
+UNDERRUN_RULE = ('TOP0 status bits 26 (INTF1) and 28 (INTF2) clear in both samples; '
+                 'both hardware frame counters advance; any observed underrun or frame timeout fails; '
+                 'missing TOP0/INTF evidence is UNAVAILABLE')
+SPLASH_NOTE = 'splash-memory colour sampling: not applicable (native KMS)'
+
+
+def native_intfs(text):
+    """Reuse the probe grammar, but keep the actual counters as evidence."""
+    result = []
+    for name, en, first, last, delta, seconds, intr1, intr2 in acceptance.INTF.findall(text):
+        if name not in ('INTF1', 'INTF2'):
+            continue
+        frames = (int(last) - int(first)) & 0xffffffff
+        period = float(seconds)
+        result.append({'name': name, 'timing_en': int(en),
+                       'frame_count': [int(first), int(last)], 'frames': frames,
+                       'reported_frames': int(delta), 'sample_s': period,
+                       'advancing': frames > 0 and frames == int(delta),
+                       'hz': frames / period if period > 0 else None,
+                       'intr_status': [intr1, intr2], 'intr_same': int(intr1, 16) == int(intr2, 16)})
+    return result
+
+
+def zero_underrun(text, intfs, encoders):
+    top = [{'intr_en': en, 'intr_status': [first, last],
+            'underrun': {name: [(int(v, 16) >> bit) & 1 for v in (first, last)]
+                         for name, bit in (('INTF1', 26), ('INTF2', 28))}}
+           for en, first, last in TOP0.findall(text)]
+    bad = (any(any(bits) for sample in top for bits in sample['underrun'].values())
+           or any(not i['advancing'] for i in intfs)
+           or any(e['underrun'] or e['frame_timeout'] for e in encoders))
+    complete = bool(top) and {i['name'] for i in intfs} == {'INTF1', 'INTF2'}
+    status = 'FAIL' if bad else 'PASS' if complete else 'UNAVAILABLE'
+    value = {'top0': top, 'intf': intfs, 'encoders': encoders}
+    shown = ['TOP0 ' + '->'.join(t['intr_status']) + ' ' + ', '.join(
+        f'{name} underrun {bits[0]}->{bits[1]}' for name, bits in t['underrun'].items()) for t in top]
+    shown += [f'{i["name"]} frames {i["frame_count"][0]}->{i["frame_count"][1]} (+{i["frames"]})'
+              for i in intfs]
+    shown += [f'encoder INTF{e["intf"]} underrun={e["underrun"]} timeout={e["frame_timeout"]}'
+              for e in encoders if e['underrun'] or e['frame_timeout']]
+    if not complete:
+        shown.append('missing TOP0 or INTF1/INTF2 evidence')
+    return status, value, '; '.join(shown)
+
 NATIVE = r'''
 import ctypes, fcntl, glob, json, os, re, struct
 from pathlib import Path
@@ -101,17 +159,29 @@ def judge(directory, release):
     texts = [(p.name, p.read_text(errors='replace')) for p in sorted(directory.glob('root-*.txt'))]
     args = acceptance.parse_args(['evaluate', '--dir', str(directory), '--release', release])
     raw = acceptance.run_evaluate(args)
-    # The firmware-only scanout and its framebuffer consumer checks do not
-    # describe native KMS. Keep their raw results for review, outside PASS.
+    # Firmware-only scanout does not describe native KMS. Evaluate clock
+    # ownership below using the same rule for the legacy and native row names.
     required = {'simpledrm_init', 'switch_root', 'gdm_active', 'gmu_first_load', 'gpu_errors',
                 'copy_256mib', 'thp_first_frame', 'modules_own_release', 'release_in_root',
                 'config_dispcc_builtin', 'rpmhpd_icc_synced', 'failed_units', 'slot_attributes'}
     rows = [dict(r, required=r['name'] in required) for r in raw['criteria']]
+    mode = next(r for r in rows if r['name'] == 'mode_fast')
+    timings = {k: mode['value'][k] for k in ('switch_root_s', 'gdm_active_s', 'fbcon_s')}
+    measured = '; '.join(f'{name} {timings[key]:.3f} s' if timings[key] is not None
+                         else f'{name} not captured'
+                         for name, key in (('switch_root', 'switch_root_s'), ('GDM', 'gdm_active_s')))
+    mode.update(status='INFO', value=timings, measured=RAM_TIMING_NOTE + '; ' + measured,
+                budget='informational for RAM full-module boot', rule=RAM_TIMING_NOTE, required=False)
+    for row in rows:
+        if row['name'] in ('store_manifest_release', 'slot_occupant'):
+            row.update(status='INFO' if row['value'] is not None else 'UNAVAILABLE',
+                       budget='informational for RAM boot from Android',
+                       rule='pre-install store/slot state; RAM boot does not install the candidate')
 
-    def add(name, status, value):
-        rows.append({'name': name, 'status': status, 'value': value, 'required': True})
+    def add(name, status, value, **details):
+        rows.append({'name': name, 'status': status, 'value': value, 'required': True, **details})
 
-    native, rates, underruns, dsi = [], [], [], []
+    native, scanout, dsi = [], [], []
     for label, text in texts:
         states = re.findall(r'^NATIVE_JSON=(.+)$', text, re.M)
         if not states:
@@ -123,31 +193,51 @@ def judge(directory, release):
         native_ok = (modes_ok and not state['errors'] and any(
             c['status'] == 'connected' and c['enabled'] == 'enabled' for c in state['connectors'].values()))
         add('native_kms:' + label, 'PASS' if native_ok else 'FAIL', state)
-        found = acceptance.INTF.findall(text)
-        measured = [(v[0], int(v[4]) / float(v[5])) for v in found if float(v[5]) > 0]
+        intfs = native_intfs(text)
+        measured = [(i['name'], i['hz']) for i in intfs if i['hz'] is not None]
         expected = modes[0]['hz'] if modes_ok else None
         ok = (expected and {i for i, _ in measured} == {'INTF1', 'INTF2'} and
               all(abs(hz - expected) <= expected * 0.05 for _, hz in measured))
-        rates.append(measured)
         add('intf_rate:' + label, 'PASS' if ok else 'FAIL' if measured else 'UNAVAILABLE',
             {'expected_hz': expected, 'measured': measured})
+        bad = any(not i['advancing'] or i['timing_en'] != 1 or not i['intr_same'] or
+                  (expected and i['hz'] is not None and abs(i['hz'] - expected) > expected * 0.05)
+                  for i in intfs)
+        complete = (expected and {i['name'] for i in intfs} == {'INTF1', 'INTF2'} and
+                    all(i['hz'] is not None for i in intfs))
+        scanout.append({'label': label, 'expected_hz': expected, 'intf': intfs,
+                        'status': 'FAIL' if bad else 'PASS' if complete else 'UNAVAILABLE'})
         enc = [e for e in state['encoders'] if e['intf'] in (1, 2)]
-        underruns += enc
-        ok = enc and {e['intf'] for e in enc} == {1, 2} and all(
-            e['vsync'] > 0 and e['underrun'] == 0 and e['frame_timeout'] == 0 for e in enc)
-        add('zero_underrun:' + label, 'PASS' if ok else 'FAIL' if enc else 'UNAVAILABLE', enc)
+        status, value, shown = zero_underrun(text, intfs, enc)
+        add('zero_underrun:' + label, status, value, measured=shown, rule=UNDERRUN_RULE,
+            source='scanout probe INTF frame counters and TOP0 status; native encoder error counters',
+            budget='0 underrun bits in both TOP0 samples, advancing INTF1/INTF2 counters')
         dsi += [int(x) for x in re.findall(r'^NATIVE_DSI_ERRORS=(\d+)$', text, re.M)]
+    row = next(r for r in rows if r['name'] == 'scanout')
+    status = ('FAIL' if any(s['status'] == 'FAIL' for s in scanout) else
+              'PASS' if scanout and all(s['status'] == 'PASS' for s in scanout) else 'UNAVAILABLE')
+    shown = [s['label'] + ': ' + ', '.join(
+        f'{i["name"]} {i["hz"]:g} Hz' if i['hz'] is not None else f'{i["name"]} rate unavailable'
+        for i in s['intf']) + '; ' +
+        ('counters advancing' if s['intf'] and all(i['advancing'] for i in s['intf']) else 'counters not advancing/missing') +
+        '; ' + ('intr same' if all(i['intr_same'] for i in s['intf']) else 'intr changed') for s in scanout]
+    row.update(status=status, value=scanout, measured='; '.join(shown + [SPLASH_NOTE]),
+               source='native KMS CRTC mode and scanout probe INTF1/INTF2 frame/interrupt registers',
+               budget='both INTF rates within 5% of the active CRTC mode, counters advancing, intr unchanged',
+               rule='every native capture must pass; ' + SPLASH_NOTE)
     add('native_capture', 'PASS' if native else 'UNAVAILABLE', len(native))
     add('dsi_smmu_errors', 'PASS' if dsi and not any(dsi) else 'FAIL' if any(dsi) else 'UNAVAILABLE', dsi)
-    # A native display is now the consumer; retain the clock and CBCR budget.
+    # Require every sample to stay held, including the framebuffer -> KMS
+    # handoff. A later enabled sample cannot erase an observed gap.
     for phase in ('initrd', 'root'):
         row = next(r for r in rows if r['name'] == 'hf_axi_held_' + phase)
         v = row['value'] or {}; clocks, registers = v.get('rows', []), v.get('cbcr', [])
-        consumers = ('framebuffer', 'ae00000', 'ae01000', 'ae94000', 'ae96000')
-        ok = (clocks and registers and all(c['enable'] >= 1 and c['hw'] == 'Y' and
-              any(n in c['consumer'] for n in consumers) for c in clocks)
-              and all(int(x, 16) & 1 and not int(x, 16) & (1 << 31) for x in registers))
-        add('native_hf_axi_' + phase, 'PASS' if ok else 'FAIL' if clocks and registers else 'UNAVAILABLE', v)
+        bad = (any(c['enable'] < 1 or c['hw'] != 'Y' or c['consumer'] not in HF_AXI_CONSUMERS
+                   for c in clocks)
+               or any(not int(x, 16) & 1 or int(x, 16) & (1 << 31) for x in registers))
+        status = 'FAIL' if bad else 'PASS' if clocks and registers else 'UNAVAILABLE'
+        row.update(status=status, rule=HF_AXI_RULE)
+        add('native_hf_axi_' + phase, status, v)
     failures = [r['name'] for r in rows if r['required'] and r['status'] == 'FAIL']
     missing = [r['name'] for r in rows if r['required'] and r['status'] == 'UNAVAILABLE']
     return {'profile': 'native-display-ram', 'release': release, 'criteria': rows,
