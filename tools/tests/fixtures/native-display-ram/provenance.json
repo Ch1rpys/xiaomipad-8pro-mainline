@@ -1,0 +1,10 @@
+{
+  "source": "piano8-20261012-live-01",
+  "release": "7.2.6-piano8",
+  "scope": "Only clock/CBCR samples, uptime, release and systemd timings; no device identity, boot ID or other logs. LF line endings and trailing whitespace removed.",
+  "source_sha256": {
+    "initrd-first.txt": "d816a02f93aea2e95c1504ba32adf70eb7e35c9a3c3bc1d6717df9b049a64d96",
+    "root-0040s.txt": "fda195597eb09489c2a8e189a2b6093054d7b3b0a4cdc3a67de3a78031b21d19"
+  },
+  "mutations": "Tests synthesize consumer, clock and register changes from these saved lines; these variants are not hardware results."
+}

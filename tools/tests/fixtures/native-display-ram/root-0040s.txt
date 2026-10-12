@@ -1,0 +1,9 @@
+UPTIME=40.16
+WHERE=root
+UNAME=7.2.6-piano8
+UserspaceTimestampMonotonic=18057400
+ActiveState=active
+ActiveEnterTimestampMonotonic=24481030
+ gcc_disp_hf_axi_clk                 4       4        0        0           0          0     50000      Y   ae96000.dsi                     bus
+REG t=40.56 hf_axi_cbcr=0x08200001
+ActiveState=active

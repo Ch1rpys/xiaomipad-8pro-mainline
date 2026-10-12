@@ -1,0 +1,4 @@
+# UPTIME=11.09
+# #  gcc_disp_hf_axi_clk                 4       4        0        0           0          0     50000      Y   ae96000.dsi                     bus
+# > > > > REG t=11.10 hf_axi_cbcr=0x08200001
+REG t=11.60 hf_axi_cbcr=0x08200001
