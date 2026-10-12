@@ -1,150 +1,142 @@
-# Attended 5 V charging experiment
+# One-boot charging candidate (piano8)
 
-This candidate is untested on the tablet. The automatic udev policy has not
-passed its cold-boot gate; do not deploy its candidate support deb. The manual
-one-boot experiment below does not install that policy. It uses the existing Xiaomi MCA
-transport and adds no PD/PPS negotiation, MiPPS, SC8541 control or temperature
-policy. ADSP still controls JEITA, float voltage and charging enable.
+This is an offline candidate. No device result is claimed. Use the exact debs
+and SHA256SUMS from the merged piano8 bundle. The earlier charging-only
+`d03669c9a273` / `879164d18e78` package is superseded; do not install it as
+the merged candidate. See [piano8 integration](PIANO8.md). Keep the installed piano7 kernel and
+its verified boot set. Do not mix piano7 modules with the piano8 Image.
 
-`input_current_limit` and `constant_charge_current` are the only writable
-power_supply properties. Values are in microamps; the MCA payload is an integer
-in milliamps. The minimum is 100 mA. Values over the following caps are rejected;
-sub-mA values inside the range round down. Unknown/unsupported raw charger types
-are refused, including automatic ICL restoration when the type is unknown.
+The candidate ports the community charging group into `xiaomi_mca`, preserving
+`xiaomi-mca-usb`, standard microamp/microvolt properties, checked replies and
+unknown-source refusal. All kernel policy switches default off. The support
+package's udev-triggered `piano-charging.service` enables them after probe;
+`pan_ack` is on the existing AltMode module. The MiPPS package owns the separate
+bounded authentication oneshot. There is one MCA client and one PAN owner.
+Old kernels without these parameters skip the policy unit, so booting the
+previous set does not pass unknown module options to the old driver.
 
-| Firmware type | Standard USB type | ICL cap (mA) | FCC cap (mA) |
-|---|---|---:|---:|
-| SDP (1) | SDP | 500 | 500 |
-| CDP (2) | CDP | 900 | 900 |
-| DCP, QC2/3/3_B/3P5 (3, 5–8) | DCP | 1500 | 2000 |
-| Type-C (9) | C | 1500 | 2000 |
-| PD/verified PD (10–11) | PD | 1500 | 2000 |
-| PPS detected (12), no PPS requests | PD_PPS | 1500 | 2000 |
-| FLOAT/OCP (4, 15) | Unknown | 1000 | 1000 |
-| Unknown, reserved, ACA, unlisted | Unknown | writes refused | writes refused |
+| Path | Input ceiling | Buck FCC ceiling |
+|---|---:|---:|
+| SDP / CDP | 500 / 900 mA | 500 / 900 mA |
+| DCP, QC, Type-C and PD at 5 V | 1500 mA | 2000 mA |
+| FLOAT / OCP | 1000 mA | 1000 mA |
+| Fixed PD at 9 V | 1600 mA, bounded by PDO | 3000 mA |
+| PD_VERIFY / PPS at 9 V | 2500 mA, bounded by PDO/APDO | 3000 mA |
+| Unknown, reserved or unsupported | refused | refused |
 
-The caps come from this unit's stock `mca,strategy_buckchg` configuration.
-The vendor `strategy_buckchg_select_charg_para()` maps QC to DCP at 5 V before
-selecting the table: `in_hvdcp=1200` is the higher-voltage QC2 branch, not its
-5 V limit. FCC is limited to the stock 5 V DCP value, 2000 mA.
-Protocol reference: [vendor MCA, commit 8276ba954d80](https://github.com/unmoved21/android_kernel_xiaomi_onyx/tree/8276ba954d8076303a5ae0f7b15d4092d66bdff6/drivers/power/supply/mca)
-(GPL-2.0; unmoved21's source import). [blu-sharky piano_mca.c, 453bb567f2fc](https://github.com/blu-sharky/linux-piano/blob/453bb567f2fc/drivers/power/supply/piano_mca.c)
-(GPL-2.0-only, bluseliu50) was cross-checked; its charging policy was not imported.
+Automatic Type-C/FLOAT ICL remains at the community fallback of 500 mA;
+Type-C FCC also stays at 500 mA. The table lists ceilings, not forced targets.
+The obsolete standalone ICL udev candidate is removed.
 
-The device-support candidate contains one `80-piano-charging.rules` file. It
-sets ICL on add/change for SDP, CDP, DCP, C, PD and PD_PPS, skips unknown/offline
-supplies and avoids rewriting an already equal limit. It does not set FCC.
-The kernel rechecks the firmware type before accepting the write. Reading the
-supply alone never enables this userspace policy. `usb_type` now describes the
-known non-SDP types; the existing GLINK read requests and values keep their
-wire format. The read-only `usb_type` text therefore has a larger available list.
+The battery-temperature policy only reduces FCC, with a delayed, stepped
+recovery. SC8541 direct charging uses a PPS contract and both gauges; it starts
+only below 4.10 V and in its narrower temperature window, leaves at 4.20 V or
+45 °C, and stops on read/protection failures. Source, stage and combined-cell
+limits are separate. These are the imported conservative software windows;
+the stock board ceilings were checked on this unit. This is not complete
+Android JEITA/FFC policy: float voltage and firmware thermal settings remain
+untouched. The present package is for the bounded room-temperature test below,
+not an all-temperature charging qualification. Do not interpret `Charging`,
+service `active`, or an authentication result as net battery charge.
 
-## One boot on the installed Ubuntu system
+Authentication exchanges and exact provenance are in
+[device/power/mipps-auth](../device/power/mipps-auth/README.md). It does not
+promise 67 W. At high state of charge the stage may never enter direct charging;
+record that path as unexercised rather than forcing it.
 
-Use the supplied `one-boot/SHA256SUMS` and `manifest.json`. The temporary
-`xiaomi_mca.ko` is for **7.2.6-piano7 only**, with the exact piano7 config and no
-changes outside this driver. Do not install it in `/lib/modules`, rebuild an
-initrd, write a boot partition or mix it with another kernel release. A full
-kernel build is provided for offline inspection; it is not a newly allocated
-installable kernel ABI. The support deb is a separate policy candidate: **do
-not install it for the baseline experiment**. The accompanying verification report records the rule's cold-boot status;
-syntax checks or late rule execution alone do not qualify it. Installation on
-piano remains unverified.
+## Prepare and boot once (tech lead, later)
 
-Reserve the tablet for this experiment; no other device test may run concurrently.
-The user must be present, with a wall charger able to supply at least 5 V/1.5 A.
-Use 40–90% battery and room temperature. The two battery currents must be read
-from `bq27z561-*`, where positive means charging, not the USB input current.
+No commands below were executed on the tablet by this task. Reserve this unit,
+keep the lead present, use its stock charger, and keep developer mode enabled.
+Use the normal serial-bound project connection helper to transfer the bundle
+and enter the installed Ubuntu shell. `PIANO_SERIAL` must identify this tablet.
 
-1. Start installed Ubuntu with developer mode enabled. Connect from the host
-   using the existing helper and the unit's serial, then copy the bundle:
+1. On the current installed Ubuntu, unpack to `/var/tmp/charging3`, verify
+   `sha256sum -c SHA256SUMS`, then run:
 
    ```sh
-   # Host: set PIANO_SERIAL and PIANO_USER to this tablet and its existing account.
-   tar -C /path/to/one-boot -cf - . | \
-     python3 tools/piano-devmode-ssh.py --serial "$PIANO_SERIAL" "$PIANO_USER" \
-       'mkdir -p /tmp/piano-charging-test && tar -xf - -C /tmp/piano-charging-test'
-   python3 tools/piano-devmode-ssh.py --serial "$PIANO_SERIAL" -t "$PIANO_USER"
+   sudo python3 /var/tmp/charging3/charging-test-device.py \
+     --serial "$PIANO_SERIAL" --preflight-only
+   sudo piano-boot-switch verify
+   sudo test ! -e /var/lib/piano/charging3-previous
+   sudo cp -a /var/lib/piano/switch/ubuntu /var/lib/piano/charging3-previous
    ```
 
-2. In that device shell, set `PIANO_SERIAL` to the same unit and run the following
-   as one block. The identity check must succeed before unloading anything:
+   The preflight requires both batteries at 40–90%. `--allow-high-soc` overrides
+   only the upper guard and must also be passed to the observation below; at
+   100% the rising-percentage PASS criterion cannot be met. Do not bypass the
+   lower guard. Preserve the previous set and its kernel package on both the
+   tablet and recovery host before installing the candidate.
+
+2. Install the bundle's `piano-mipps-auth`, `piano-device-support` and complete
+   `linux-image-7.2.6-piano8` debs together, using native APT. This is an
+   installation step for the lead, not a step this offline task performed:
 
    ```sh
-   sudo bash -s -- "$PIANO_SERIAL" <<'SH'
-   set -eu
-   serial=$1
-   cd /tmp/piano-charging-test
-   sha256sum -c SHA256SUMS
-   python3 - "$serial" <<'PY'
-   import sys
-   sys.path.insert(0, '/usr/lib/piano/boot')
-   from piano_bootslot import Host, require_piano, firmware_serial
-   h = Host()
-   require_piano(h)
-   assert firmware_serial(h) == sys.argv[1], 'wrong or missing firmware serial'
-   PY
-   test "$(uname -r)" = 7.2.6-piano7
-   cmp /boot/config-7.2.6-piano7 config
-   sha256sum -c installed-kernel.sha256
-   mkdir -p /run/udev/rules.d
-   ln -s /dev/null /run/udev/rules.d/80-piano-charging.rules
-   udevadm control --reload
-   udevadm settle
-   rmmod xiaomi_mca
-   insmod ./xiaomi_mca.ko
-   mountpoint -q /sys/kernel/debug || mount -t debugfs debugfs /sys/kernel/debug
-   systemd-run --unit=piano-charging-test --collect \
-     --property=RuntimeMaxSec=10min \
-     --property='ExecStopPost=/usr/bin/systemctl reboot' \
-     /usr/bin/python3 /tmp/piano-charging-test/charging-test-device.py \
-     --serial "$serial" --attended-wall-charger \
-     --output /var/log/piano-charging-01
-   SH
+   sudo apt-get install /var/tmp/charging3/debs/*.deb
+   sudo dpkg --audit
+   sudo piano-boot-update 7.2.6-piano8
+   sudo piano-boot-switch verify
+   sudo piano-boot-switch to-ubuntu --dry-run
+   sudo piano-boot-switch to-ubuntu --reboot
    ```
 
-   Use a new output directory if one already exists. The transient service's
-   stop action reboots even if the collector exits early or exceeds its time
-   budget. Nothing from this experiment is enabled for the next boot.
+   The existing hook generates the matching dracut initrd and boot set and may
+   already update slot A when Ubuntu owns it. Verify the result before reboot.
+   No repartitioning, other slot, calibration or firmware replacement is needed.
+   The bundle's prepared `piano-boot.dtb` is included in the kernel deb; do not
+   reuse an earlier DTB, since this candidate adds SC8541 on this unit's SE5.
 
-3. Move the cable to the **wall charger**, within 120 seconds. The USB SSH link
-   disappears; the local transient service continues. It records the charger
-   type, VBUS/IBUS, both gauges' current, capacity, voltage and temperature every
-   10 seconds for a 120-second baseline. It then writes ICL=1500000, checks the
-   readback, writes FCC=2000000, checks again and records 300 seconds. It saves
-   raw samples, phase-boundary MCA status/stats/frames and dmesg, then reboots.
-   A baseline that already charges is valid evidence; do not manufacture a
-   discharge baseline or attribute an existing charge rate to this change.
+3. After this one cold boot, verify `uname -r` is `7.2.6-piano8` and the loaded
+   kernel/config match the bundle manifest. Mount debugfs if needed. Start the
+   bounded collector while still connected to the host:
 
-4. After the reboot, reconnect the host cable and use the same serial-bound
-   developer-mode helper to retrieve `/var/log/piano-charging-01/`. Read MCA
-   status again to check the firmware's restored defaults. The installed
-   original driver is loaded and the `/run` rule mask has disappeared.
+   ```sh
+   sudo mount -t debugfs debugfs /sys/kernel/debug 2>/dev/null || true
+   sudo systemd-run --unit=charging3-test --collect \
+     --property=RuntimeMaxSec=13min \
+     --property="ExecStopPost=/var/tmp/charging3/revert.sh $PIANO_SERIAL /var/lib/piano/charging3-previous" \
+     /usr/bin/python3 /var/tmp/charging3/charging-test-device.py \
+     --serial "$PIANO_SERIAL" --attended-wall-charger --community-policy \
+     --output /var/log/piano-charging3-01
+   ```
 
-**PASS:** both gauges' median current in the last minute is positive and the
-mean capacity percentage at the end is above the pre-write value. Inspect all
-samples, MCA error counters and dmesg as well: no transport timeout, firmware
-error or reset is acceptable. A positive current with unchanged integer percent
-in five minutes does not meet this PASS criterion; retain the trace and report
-the result as unproven, not proof that charging is impossible.
+   Move the cable to the stock wall charger within 120 seconds. The host USB
+   connection disappears; the local service continues. It records ten minutes
+   of policy operation without manually setting ICL/FCC. A lead must still
+   supervise startup/recovery; the timer cannot recover an early kernel hang.
 
-**Abort/fail:** source absent/unknown/changed, VBUS outside the 4.5–5.5 V test
-window, either gauge outside 15–45 °C, missing gauge/identity/config, write or
-readback failure, MCA error, or the above PASS criterion not met. The voltage and
-temperature windows are experiment stop conditions, not new charging settings
-or a thermal control loop. If the user observes unusual heat or instability,
-unplug the charger and use the normal reboot/recovery path.
+4. `ExecStopPost` imports the saved previous set through `piano-boot-switch`
+   and boots it. It runs on normal completion, failure or collector timeout.
+   After return, verify piano7, the old module/config and slot identity, then
+   retrieve `/var/log/piano-charging3-01/` through the serial-bound helper.
+   If the candidate cannot start the service, use the existing host
+   `tools/piano-switch.py --serial <SERIAL> --images <saved-previous-set>
+   --rollback <saved-candidate-set>` recovery flow from Fastboot. Never infer
+   recovery success from an elapsed timeout.
 
-**Revert:** reboot restores the installed driver and is expected to reset ADSP
-current requests; verify the defaults by reading them. Do not rely on module
-unload to restore FCC. If the policy deb was installed separately, restore the
-previous support deb (or mask its rule persistently), reload udev, then reboot;
-otherwise it will apply ICL again on the next coldplug. No kernel deb, initrd,
-boot set or firmware is installed by the one-boot procedure above.
+## PASS and capture
 
-Not established offline: actual wall-source detection, write acceptance and
-readback on this firmware, effective ICL/FCC, charging gain, long-term thermal
-behaviour, PD source capability, plug transitions and reset defaults. ADSP's
-JEITA/float policy is not a copy of every Android MCA temperature vote: for
-example the stock HLOS low-temperature FCC curve is stricter. The test does not
-qualify unattended or all-temperature charging.
+PASS requires recognized PD/PPS, measured voltage/current consistent with the
+negotiated path and this unit's ceilings, both battery currents positive in the
+last-minute median, mean percentage rising, both battery temperatures within
+15–45 °C throughout, and a current-boot `pd_auth=1` journal entry with verified
+readback. Preserve samples even when percentage is unchanged; that is not PASS.
+
+Capture `samples.jsonl`, result/identity/boot ID, phase-boundary MCA
+status/stats/frames, authentication journal and relay values, SC8541 state,
+and dmesg. Review transport errors, protection trips, resets and cooling
+transitions manually as well as the collector result. SC8541 engagement,
+physical attach/detach, hardware protections and recovery are separate
+observations; do not inherit their PASS from QEMU.
+
+**Revert:** boot the saved previous set using the bundle's `revert.sh` or the
+existing recovery flow above. Keep the previous kernel installed. Restoring the
+previous support package is also appropriate when ending evaluation; the new
+units skip the old kernel and do not enable the new policy there.
+
+Unverified by the offline package: actual GLINK/PD/VDM exchanges, effective
+limits, net charging, real temperatures, SC8541 I2C and analog protections,
+stock charger/cable behavior, boot-set update on this installed root, and
+physical recovery. The software kick uses kernel work and is not a hardware
+watchdog guarantee during a hard lockup.

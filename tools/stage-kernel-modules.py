@@ -28,8 +28,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--kernel-out', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--module', type=module_name, action='append', required=True,
+    selection = parser.add_mutually_exclusive_group(required=True)
+    selection.add_argument('--module', type=module_name, action='append', default=[],
                         help='Explicit root module; repeat as needed (built-ins are accepted)')
+    selection.add_argument('--all', action='store_true',
+                           help='Carry the complete verified module tree for a disk-root RAM boot')
     parser.add_argument('--forbid-module', type=module_name, action='append', default=[],
                         help='Reject a root or dependency with this module name')
     args = parser.parse_args()
@@ -60,7 +63,13 @@ def main():
         selected = {}
         builtins = set()
         commands = {}
-        for name in requested:
+        if args.all:
+            selected = {n: p for n, p in files.items() if re.search(r'\.ko(?:\.(?:gz|xz|zst))?$', n)}
+            requested = sorted({re.sub(r'\.ko(?:\.(?:gz|xz|zst))?$', '', p.name).replace('-', '_')
+                                for p in selected.values()})
+            if forbidden.intersection(requested):
+                raise ValueError('Forbidden module in complete tree')
+        for name in (() if args.all else requested):
             # kmod owns dependency/softdep/built-in resolution. Ignore host config.
             result = subprocess.check_output([
                 'modprobe', '--config', '/dev/null', '--dirname', str(kout / 'modules-root'),
@@ -119,6 +128,7 @@ def main():
                 'files': {str(p.relative_to(stage)): sha(p)
                           for p in sorted(stage.rglob('*')) if p.is_file()},
                 'scope': 'Module files only; no firmware, autoload service, boot image or hardware test',
+                'selection': 'all' if args.all else 'subset',
             }
             (stage / 'module-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
             stage.rename(output)

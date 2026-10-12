@@ -20,6 +20,11 @@ install() {
     inst_simple /usr/libexec/piano/debug-timeout
     inst_simple /usr/lib/systemd/system/piano-debug-timeout.service
     ln_r /usr/lib/systemd/system/piano-debug-timeout.service /usr/lib/systemd/system/sysinit.target.wants/piano-debug-timeout.service
+    # Native KMS can request the built-in A830 firmware before switch-root.
+    inst_simple /usr/lib/firmware/qcom/gen80000_gmu.bin
+    inst_simple /usr/lib/firmware/qcom/gen80000_aqe.fw
+    inst_simple /usr/lib/firmware/qcom/gen80000_sqe.fw
+    inst_simple /usr/lib/firmware/qcom/sm8750/xiaomi/piano/gen80000_zap.mbn
     # PAS and input consumers probe before the persistent root exists.
     inst_simple /usr/lib/firmware/nanosic/piano/MCU_Upgrade.bin
     for f in /usr/lib/firmware/qca/gngbtfw20.mbn /usr/lib/firmware/qca/gngbtnv20.*; do

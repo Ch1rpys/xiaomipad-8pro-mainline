@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "purpose": "piano kernel pin for the RAM bring-up variants and the installed first-release Ubuntu system (persistent boot images, full module tree); hardware status is in docs/STATUS.md, not implied by this pin",
+  "purpose": "Merged piano8 kernel candidate: native display, display PM, WN8030 keyboard and charging3; offline qualification does not establish combined hardware support.",
   "upstream_url": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git",
   "upstream_tag": "v7.2.6",
   "upstream_commit": "500df175a7f9e6bc1a9c328590ca5150f84f9ff0",
   "url": "https://github.com/yzddmr6/linux-sm8750-piano",
-  "commit": "8cac9ef5ae447ca5ad46ff4d871043d50f27e789",
-  "branch": "piano/dev",
+  "commit": "bcdf33caef53992503b11cc8b4e875b63965d8a7",
+  "branch": "piano/piano8-20261012",
   "config": "arch/arm64/configs/piano-diagnostic.config",
   "release_config_fragments": [
     "arch/arm64/configs/piano-diagnostic.config",
