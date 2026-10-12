@@ -489,9 +489,6 @@ python3 "$REPO/tools/extract-boot-partitions.py" --input boot-lun.json --profile
 # expect init_boot_a 8388608 B, vendor_boot_a and boot_a 100663296 B each
 ```
 
-This route replaces the hand-written map of earlier versions of this guide and has not yet run on
-the tablet.
-
 A fresh installation needs no separate support package; it is in the image. Keep boot-profile.json and boot-signing.pem on the host until this step, so that the boot set is rebuilt after the Android recovery set is ready.
 
 **Copy the files:**
