@@ -40,7 +40,7 @@ class DesktopPolicy(unittest.TestCase):
         argv = shlex.split(self.entry()['Exec'])
         notes = {a.get('key')[len(ANNOTATE):]: a.text for a in self.action().findall('annotate')}
         self.assertEqual(argv[:3], ['pkexec', notes['path'], notes['argv1']])
-        self.assertEqual(argv, ['pkexec', '/usr/sbin/piano-boot-switch', 'to-android', '--desktop'])
+        self.assertEqual(argv, ['pkexec', '/usr/sbin/piano-boot-switch', 'to-android', '--desktop', '--force'])
         self.assertEqual(set(notes), {'path', 'argv1'}, 'no allow_gui: the root process needs no display')
         self.assertEqual(self.entry()['Terminal'], 'false')
 
@@ -56,6 +56,7 @@ class DesktopPolicy(unittest.TestCase):
         with unittest.mock.patch.object(tool, 'cmd_switch', capture), contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(tool.main(args, host=fp.slot.Host('/nonexistent')), 0)
         self.assertTrue(parsed.desktop)
+        self.assertTrue(parsed.force)
         self.assertEqual(parsed.command, 'to-android')
 
     def test_authentication_is_admin_keep_everywhere(self):
@@ -70,6 +71,8 @@ class DesktopPolicy(unittest.TestCase):
         lang = '{http://www.w3.org/XML/1998/namespace}lang'
         for tag in ('description', 'message'):
             self.assertEqual(sorted(e.get(lang) or '' for e in self.action().findall(tag)), ['', 'zh_CN'])
+        self.assertIn('save your work', entry['Comment'])
+        self.assertIn('Save your work', self.action().find('message').text)
 
 
 if __name__ == '__main__':

@@ -111,7 +111,7 @@ Android set from the current slot A images and store it with
 | `sudo piano-boot-switch status` | nothing | slot A occupant (`android`, `ubuntu`, `ubuntu.prev`, `unknown`), slot flags, backup GPT state |
 | `sudo piano-boot-switch verify` | nothing | exit status 0 when every set is intact |
 | `sudo piano-boot-switch to-android --dry-run` | nothing | `"result": "would-write"` |
-| `sudo piano-boot-switch to-android --reboot` | slot A | `"result": "written"`, then Android starts |
+| `sudo piano-boot-switch to-android --reboot [--force]` | slot A | `"result": "written"`, then requests a reboot into Android |
 | `sudo piano-boot-switch to-ubuntu [--reboot]` | slot A | `written`, or `unchanged` when slot A already holds it |
 | `sudo piano-boot-switch import-android --from DIR` | store | `"result": "imported"`; replaces `android/` |
 | `sudo piano-boot-switch import-ubuntu [--from DIR]` | store | `imported`; the old `ubuntu/` becomes `ubuntu.prev/` |
@@ -123,6 +123,13 @@ Android set from the current slot A images and store it with
   back in full; on a failure the previous set is written back.
 - `"result": "refused"` means nothing was written; `code` and `message` say why.
   `rollback-failed` or `final-mismatch`: do not reboot; recover from Fastboot (below).
+- From support 0.1+20261012.1, reboot lists shutdown block inhibitors (who/why)
+  and preserves systemctl's stderr. If reboot is denied, the command exits 1:
+  slot A still holds Android and the next boot will be Android. Save your work
+  and reboot normally, or re-run with `--reboot --force` to ignore inhibitors
+  (`systemctl reboot -i`). The app-grid entry uses `--desktop --force`, with
+  an unsaved-work warning in its comment and polkit prompt; it has no GNOME
+  logout dialog. This fix is tested offline, pending device validation.
 - Verified on the test unit: `status`, `verify`, both imports, `to-ubuntu`, `to-android --reboot`.
   The app-grid entry **Switch to Android** runs the same tool but is not yet verified.
 

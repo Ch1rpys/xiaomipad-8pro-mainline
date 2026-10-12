@@ -17,6 +17,10 @@ import fakepiano as fp
 from fakepiano import slot
 
 tool = fp.load_tool('piano-boot-switch')
+LIST_INHIBITORS = ['busctl', '--system', '--json=short', 'call',
+                   'org.freedesktop.login1', '/org/freedesktop/login1',
+                   'org.freedesktop.login1.Manager', 'ListInhibitors']
+INHIBITED = 'Call to Reboot failed: Operation denied due to active block inhibitor\n'
 
 
 class Base(unittest.TestCase):
@@ -26,6 +30,17 @@ class Base(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.p = fp.FakePiano(self.tmp.name, occupant=self.occupant)
         self.store = self.p.root / 'var/lib/piano/switch'
+        self.inhibitors = []
+        capture = self.p.host.capture
+
+        def commands(argv):
+            result = capture(argv)
+            if argv == LIST_INHIBITORS:
+                result.stdout = json.dumps({'type': 'a(ssssuu)', 'data': [self.inhibitors]})
+            return result
+        patcher = mock.patch.object(self.p.host, 'capture', side_effect=commands)
+        self.capture = patcher.start()
+        self.addCleanup(patcher.stop)
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -67,20 +82,20 @@ class Switch(Base):
     def test_desktop_reboots_after_success(self):
         rc, report = self.run_tool('to-android', '--desktop')
         self.assertEqual(rc, 0)
-        self.assertEqual(self.runs(), [['systemctl', 'reboot']])
+        self.assertEqual(self.runs(), [LIST_INHIBITORS, ['systemctl', 'reboot']])
 
     def test_already_target_is_unchanged_and_still_reboots_for_desktop(self):
         self.p.fill_slot(self.p.sets['android'])
         rc, report = self.run_tool('to-android', '--desktop')
         self.assertEqual((rc, report['result']), (0, 'unchanged'))
-        self.assertEqual(self.runs(), [['systemctl', 'reboot']])
+        self.assertEqual(self.runs(), [LIST_INHIBITORS, ['systemctl', 'reboot']])
 
     def test_to_ubuntu_from_android(self):
         self.p.fill_slot(self.p.sets['android'])
         rc, report = self.run_tool('to-ubuntu', '--reboot')
         self.assertEqual((rc, report['result'], report['rollback']), (0, 'written', 'android'))
         self.assert_slot('ubuntu')
-        self.assertEqual(self.runs(), [['systemctl', 'reboot']])
+        self.assertEqual(self.runs(), [LIST_INHIBITORS, ['systemctl', 'reboot']])
 
     def test_occupant_ignores_slot_attributes(self):
         # The former bit-exact attribute snapshot refused after every ABL decrement.
@@ -124,6 +139,123 @@ class Switch(Base):
             self.assertEqual(self.run_tool('to-android')[0], 0)
         self.assertEqual(seen, [True])
         self.assertNotIn(slot.signal.SIGTERM, slot.signal.pthread_sigmask(slot.signal.SIG_BLOCK, []))
+
+
+class Reboot(Base):
+    def setUp(self):
+        super().setUp()
+        self.inhibitors = [
+            ['shutdown:sleep', 'gnome-session-s', 'user session inhibited', 'block', 1000, 123],
+            ['handle-lid-switch', 'gsd-power', 'GNOME handling lid', 'block', 1000, 124],
+            ['handle-power-key', 'gsd-media-keys', 'GNOME handling keys', 'block', 1000, 125],
+            ['shutdown', 'delay-only', 'Saving state', 'delay', 1000, 126],
+        ]
+        self.reboot_stderr = INHIBITED
+        self.reboot_rc = 1
+        commands = self.capture.side_effect
+
+        def results(argv):
+            result = commands(argv)
+            if argv[:2] == ['systemctl', 'reboot']:
+                result.returncode = self.reboot_rc
+                result.stderr = self.reboot_stderr
+            return result
+        self.capture.side_effect = results
+
+    def test_inhibited_reboot_keeps_android_and_reports_real_error_and_next_boot(self):
+        rc, report = self.run_tool('to-android', '--reboot')
+        self.assertEqual((rc, report['result']), (1, 'written'))
+        self.assert_slot('android')
+        self.assertIn(INHIBITED, self.stderr)
+        self.assertEqual(self.stderr.count(INHIBITED), 1)
+        self.assertIn('Slot A now holds the android set', self.stderr)
+        self.assertIn('the next boot will be Android', self.stderr)
+        self.assertIn('reboot manually', self.stderr)
+        self.assertIn('sudo piano-boot-switch to-android --reboot --force', self.stderr)
+        self.assertNotIn('nothing was written', self.stderr)
+        self.assertIn('who=gnome-session-s; why=user session inhibited', self.stderr)
+        for other in ('gsd-power', 'gsd-media-keys', 'delay-only'):
+            self.assertNotIn(other, self.stderr)
+        self.assertLess(self.stderr.index('who=gnome-session-s'), self.stderr.index(INHIBITED))
+        self.assertEqual(self.runs(), [LIST_INHIBITORS, ['systemctl', 'reboot']])
+        self.assertEqual(json.loads((self.store / 'state.json').read_text())['occupant'], 'android')
+        self.assertIn('the next boot will be Android', (self.store / 'switch.log').read_text())
+
+    def test_force_retry_ignores_inhibitors_without_rewriting_slot(self):
+        self.assertEqual(self.run_tool('to-android', '--reboot')[0], 1)
+        self.p.host.events.clear()
+        self.reboot_rc, self.reboot_stderr = 0, ''
+        with mock.patch.object(tool, 'write_set', side_effect=AssertionError('must not rewrite')):
+            rc, report = self.run_tool('to-android', '--reboot', '--force')
+        self.assertEqual((rc, report['result']), (0, 'unchanged'))
+        self.assert_slot('android')
+        self.assertEqual(self.runs(), [LIST_INHIBITORS, ['systemctl', 'reboot', '-i']])
+        self.assertIn('who=gnome-session-s; why=user session inhibited', self.stderr)
+        self.assertIn('unsaved work may be lost', self.stderr)
+
+    def test_force_still_reports_reboot_failure_to_desktop_caller(self):
+        self.reboot_stderr = 'Failed to connect to bus: No such file or directory\n'
+        rc, report = self.run_tool('to-android', '--desktop', '--force',
+                                   env={'PKEXEC_UID': str(os.getuid())})
+        self.assertEqual((rc, report['result']), (1, 'written'))
+        self.assert_slot('android')
+        self.assertIn(self.reboot_stderr, self.stderr)
+        self.assertEqual(self.runs()[:2], [LIST_INHIBITORS, ['systemctl', 'reboot', '-i']])
+        notification = self.runs()[-1]
+        self.assertIn('Notify', notification)
+        self.assertIn(self.reboot_stderr, notification[-4])
+        self.assertIn('the next boot will be Android', notification[-4])
+
+    def test_success_still_surfaces_systemctl_stderr_verbatim(self):
+        self.reboot_rc, self.reboot_stderr = 0, 'A warning with trailing spaces  \n\n'
+        self.assertEqual(self.run_tool('to-android', '--reboot')[0], 0)
+        self.assertIn(self.reboot_stderr, self.stderr)
+
+    def test_missing_systemctl_reports_written_state(self):
+        commands = self.capture.side_effect
+
+        def missing(argv):
+            if argv[0] == 'systemctl':
+                raise FileNotFoundError('systemctl not found')
+            return commands(argv)
+        self.capture.side_effect = missing
+        rc, report = self.run_tool('to-android', '--reboot')
+        self.assertEqual((rc, report['result']), (1, 'written'))
+        self.assert_slot('android')
+        self.assertIn('systemctl not found', self.stderr)
+        self.assertIn('the next boot will be Android', self.stderr)
+
+    def test_listing_failure_is_visible_and_systemctl_still_decides(self):
+        commands = self.capture.side_effect
+
+        def broken_list(argv):
+            result = commands(argv)
+            if argv == LIST_INHIBITORS:
+                result.returncode, result.stderr = 1, 'Could not get active inhibitors\n'
+            return result
+        self.capture.side_effect = broken_list
+        rc, report = self.run_tool('to-android', '--reboot')
+        self.assertEqual((rc, report['result']), (1, 'written'))
+        self.assertIn('Could not get active inhibitors\n', self.stderr)
+        self.assertIn('Could not list shutdown block inhibitors', self.stderr)
+        self.assertIn(INHIBITED, self.stderr)
+        self.assertEqual(self.runs(), [LIST_INHIBITORS, ['systemctl', 'reboot']])
+
+    def test_ubuntu_reboot_failure_names_ubuntu(self):
+        self.p.fill_slot(self.p.sets['android'])
+        rc, report = self.run_tool('to-ubuntu', '--reboot')
+        self.assertEqual((rc, report['result']), (1, 'written'))
+        self.assert_slot('ubuntu')
+        self.assertIn('the next boot will be Ubuntu', self.stderr)
+
+    def test_force_dry_run_never_reboots(self):
+        for occupant, expected in (('ubuntu', 'would-write'), ('android', 'unchanged')):
+            with self.subTest(occupant=occupant):
+                self.p.fill_slot(self.p.sets[occupant])
+                rc, report = self.run_tool('to-android', '--dry-run', '--desktop', '--force')
+                self.assertEqual((rc, report['result']), (0, expected))
+                self.assert_slot(occupant)
+                self.assertEqual(self.runs(), [])
 
 
 class Rollback(Base):
@@ -405,6 +537,17 @@ class ImportUbuntu(Base):
 
 
 class Cli(unittest.TestCase):
+    def test_capture_retains_stderr_and_status_from_a_real_child(self):
+        host = slot.Host()
+        result = host.capture([sys.executable, '-c',
+                               f'import sys; sys.stderr.write({INHIBITED!r}); sys.exit(1)'])
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (1, '', INHIBITED))
+
+    def test_force_requires_a_reboot_request(self):
+        with self.assertRaises(SystemExit) as ctx, contextlib.redirect_stderr(io.StringIO()):
+            tool.main(['to-android', '--force'], host=slot.Host('/nonexistent'))
+        self.assertEqual(ctx.exception.code, 2)
+
     @unittest.skipIf(os.geteuid() == 0, 'checks the unprivileged refusal')
     def test_standalone_script_runs_and_requires_root(self):
         for script, argv in (('piano-boot-switch', ['status']), ('piano-slot-success', ['--check'])):

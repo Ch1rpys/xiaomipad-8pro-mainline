@@ -697,7 +697,9 @@ sudo apt-get purge linux-image-<old release>    # 删除残留的 depmod 索引�
 - A 槽内 Android 的 root 补丁变化时（例如 Magisk 改为 KernelSU）更新 `android/`：在 Android 位于槽内时启动的调试
   RAM 会话中执行 `sudo piano-boot-switch import-android`。否则 `to-android` 会写回旧的 `init_boot`。
 - 已在测试机上验证：`status`、`verify`、两种 import、`to-ubuntu`、`to-android --reboot`。尚未在设备上验证：
-  应用网格中的 **切换到 Android**（`pkexec /usr/sbin/piano-boot-switch to-android --desktop`）以及写入失败后的回退。
+  应用网格中的 **切换到 Android**（`pkexec /usr/sbin/piano-boot-switch to-android --desktop --force`）以及写入失败后的回退。
+  support 0.1+20261012.1 起，桌面入口显式忽略重启 inhibitor，请先保存工作；CLI 默认尊重 inhibitor，
+  仅 `--reboot --force` 忽略。重启失败与下一次启动目标见[切换说明](FLASHING.zh-CN.md#在-ubuntu-中piano-boot-switch)。
 
 ### 6.2 在 Android 中：KernelSU 模块（尚未在设备上验证）
 

@@ -66,8 +66,8 @@ do not affect it.
 ```
 piano-boot-switch status                    # attributes, occupant, per-set hashes and matches
 piano-boot-switch verify                    # every set and the occupant; never writes
-piano-boot-switch to-android [--dry-run] [--reboot] [--desktop]
-piano-boot-switch to-ubuntu  [--dry-run] [--reboot] [--desktop] [--only-if-ubuntu]
+piano-boot-switch to-android [--dry-run] [--reboot] [--desktop] [--force]
+piano-boot-switch to-ubuntu  [--dry-run] [--reboot] [--desktop] [--force] [--only-if-ubuntu]
 piano-boot-switch import-android [--from DIR] [--dry-run]
 piano-boot-switch import-ubuntu  [--from DIR] [--dry-run]
 ```
@@ -100,15 +100,31 @@ piano-boot-switch import-ubuntu  [--from DIR] [--dry-run]
   Fastboot install of a set that is not in the store.
 - Writes are logged to the journal (`journalctl -t piano-boot-switch`),
   `switch.log` and `state.json`.
+- From `piano-device-support` 0.1+20261012.1, before requesting a reboot the
+  tool lists logind's `shutdown` inhibitors in `block` mode with their who/why.
+  `handle-*` and delay inhibitors are not shutdown blocks. `systemctl` stderr
+  is printed verbatim, including on success. If reboot fails, the tool exits 1
+  and explicitly names the set still in slot A and the next boot's OS; the
+  JSON `written`/`unchanged` result describes the slot operation only.
+  Save your work and reboot normally, or run
+  `sudo piano-boot-switch to-android --reboot --force` to ignore inhibitors
+  (`systemctl reboot -i`). Retrying when Android already occupies slot A does
+  not rewrite it. `--force` requires `--reboot` or `--desktop`; it does not
+  bypass any write checks. `--dry-run` never reboots.
 
 The app grid entry **Switch to Android** (切换到 Android) runs
-`pkexec /usr/sbin/piano-boot-switch to-android --desktop`. Its polkit action
+`pkexec /usr/sbin/piano-boot-switch to-android --desktop --force`. Its polkit action
 `io.github.piano.switch.to-android` matches exactly that program and first
 argument and asks for administrator authentication (`auth_admin_keep`).
-With `--desktop` the tablet reboots once slot A reads back as the Android
-set; a failure is sent to the caller's notification service and nothing
-reboots. GNOME's own restart-into-another-system needs the UEFI Boot Loader
-Interface, which ABL does not provide.
+This entry uses `--force`, not a GNOME logout dialog: save your work first;
+unsaved changes may be lost. Both the entry's comment and the polkit prompt
+state this policy (authentication may be cached). Before 0.1+20261012.1 it
+used `--desktop` alone and hit the same inhibitor failure as the SSH command.
+With `--desktop` a reboot is requested once slot A holds the Android set;
+a failure is sent to the caller's notification service, including systemctl's
+error and the next boot's OS. GNOME's own restart-into-another-system needs
+the UEFI Boot Loader Interface, which ABL does not provide. The updated
+inhibitor and desktop behavior has unit-test coverage; device testing is pending.
 
 ### Kernel and initrd updates
 

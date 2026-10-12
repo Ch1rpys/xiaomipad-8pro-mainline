@@ -354,6 +354,68 @@ def notify_failure(host, command, message):
               PROG, '0', 'dialog-error', title, body, '0', '0', '0'], check=False)
 
 
+def command_output(host, argv):
+    result = host.capture(argv)
+    # Keep the command's stderr verbatim, including warnings on success.
+    if result.stderr:
+        print(result.stderr, end='', file=sys.stderr, flush=True)
+        host.log(PROG, result.stderr, error=result.returncode != 0)
+    return result
+
+
+def list_shutdown_inhibitors(host):
+    """ListInhibitors returns (what, who, why, mode, uid, pid) tuples."""
+    try:
+        result = command_output(host, ['busctl', '--system', '--json=short', 'call',
+                                      'org.freedesktop.login1', '/org/freedesktop/login1',
+                                      'org.freedesktop.login1.Manager', 'ListInhibitors'])
+        if result.returncode:
+            raise ValueError(f'ListInhibitors exited with status {result.returncode}')
+        reply = json.loads(result.stdout)
+        if reply['type'] != 'a(ssssuu)':
+            raise ValueError('Unexpected ListInhibitors reply type')
+        found = False
+        for what, who, why, mode, uid, pid in reply['data'][0]:
+            if mode == 'block' and 'shutdown' in what.split(':'):
+                say(host, f'Shutdown block inhibitor: who={who}; why={why} (uid={uid}, pid={pid})')
+                found = True
+        if not found:
+            say(host, 'No shutdown block inhibitors reported')
+    except (OSError, ValueError, KeyError, IndexError, TypeError) as error:
+        # The listing is diagnostic; systemctl still decides whether reboot is allowed.
+        say(host, f'Could not list shutdown block inhibitors: {error}', error=True)
+
+
+def reboot(host, args, target):
+    list_shutdown_inhibitors(host)
+    argv = ['systemctl', 'reboot']
+    if args.force:
+        argv.append('-i')
+        say(host, 'Rebooting with inhibitors ignored (--force); unsaved work may be lost')
+    else:
+        say(host, 'Rebooting')
+    detail = ''
+    try:
+        result = command_output(host, argv)
+        if result.returncode == 0:
+            return 0
+        detail = result.stderr
+    except OSError as error:
+        detail = str(error)
+        say(host, detail, error=True)
+    system = 'Android' if target == 'android' else 'Ubuntu'
+    message = (f'Slot A now holds the {target} set, but systemctl reboot failed. '
+               f'The tablet was not restarted; the next boot will be {system}. '
+               'Save your work and reboot manually')
+    if not args.force:
+        message += f', or re-run `sudo {PROG} {args.command} --reboot --force` to ignore inhibitors'
+    message += '.'
+    say(host, message, error=True)
+    if args.desktop:
+        notify_failure(host, args.command, message + ('\n' + detail if detail else ''))
+    return 1
+
+
 def main(argv=None, host=None):
     ap = argparse.ArgumentParser(prog=PROG, description=__doc__.split('\n\n')[0])
     sub = ap.add_subparsers(dest='command', required=True)
@@ -363,6 +425,8 @@ def main(argv=None, host=None):
         p = sub.add_parser(name, help=f'write the {target} set into slot A')
         p.add_argument('--dry-run', action='store_true', help='check everything, write nothing')
         p.add_argument('--reboot', action='store_true', help='reboot after the slot holds the set')
+        p.add_argument('--force', action='store_true',
+                       help='with --reboot/--desktop, ignore inhibitors (systemctl reboot -i); unsaved work may be lost')
         p.add_argument('--desktop', action='store_true',
                        help='desktop entry: reboot on success, notify the pkexec caller on failure')
         if name == 'to-ubuntu':
@@ -376,6 +440,8 @@ def main(argv=None, host=None):
                        help='directory with boot.img, init_boot.img, vendor_boot.img and SHA256SUMS')
         p.add_argument('--dry-run', action='store_true')
     args = ap.parse_args(argv)
+    if getattr(args, 'force', False) and not (args.reboot or args.desktop):
+        ap.error('--force requires --reboot or --desktop')
     host = host or slot.Host()
     handler = {'status': cmd_status, 'verify': cmd_verify, 'to-android': cmd_switch, 'to-ubuntu': cmd_switch,
                'import-android': cmd_import, 'import-ubuntu': cmd_import}[args.command]
@@ -394,14 +460,8 @@ def main(argv=None, host=None):
     report = {'tool': PROG, 'command': args.command, **report}
     print(json.dumps(report, indent=2, sort_keys=True), flush=True)
     if rc == 0 and (getattr(args, 'reboot', False) or getattr(args, 'desktop', False)) and \
-            report.get('result') in ('written', 'unchanged'):
-        say(host, 'Rebooting')
-        if host.run(['systemctl', 'reboot'], check=False) != 0:
-            message = f'Slot A holds the {report["target"]} set, but systemctl reboot failed; restart manually'
-            say(host, message, error=True)
-            if args.desktop:
-                notify_failure(host, args.command, message)
-            rc = 1
+            not args.dry_run and report.get('result') in ('written', 'unchanged'):
+        rc = reboot(host, args, report['target'])
     return rc
 
 

@@ -15,8 +15,8 @@
   <action id="io.github.piano.switch.to-android">
     <description>Switch to Android</description>
     <description xml:lang="zh_CN">切换到 Android</description>
-    <message>Authentication is required to write the Android boot images into slot A and restart the tablet now</message>
-    <message xml:lang="zh_CN">需要认证才能将 Android 启动镜像写入 A 槽并立即重启平板</message>
+    <message>Authentication is required to write the Android boot images into slot A and restart ignoring inhibitors. Save your work first; unsaved changes may be lost.</message>
+    <message xml:lang="zh_CN">需要认证才能将 Android 启动镜像写入 A 槽并忽略阻止请求重启。请先保存工作，未保存的更改可能丢失。</message>
     <icon_name>system-reboot</icon_name>
     <defaults>
       <allow_any>auth_admin_keep</allow_any>

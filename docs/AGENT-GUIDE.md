@@ -763,7 +763,10 @@ sudo apt-get purge linux-image-<old release>    # removes the leftover depmod in
   in the slot. Otherwise `to-android` writes the old `init_boot` back.
 - Verified on the test unit: `status`, `verify`, both imports, `to-ubuntu`, `to-android --reboot`.
   Not yet verified on the device: the app-grid entry **Switch to Android** (`pkexec
-  /usr/sbin/piano-boot-switch to-android --desktop`) and the rollback after a failed write.
+  /usr/sbin/piano-boot-switch to-android --desktop --force`) and the rollback after a failed write.
+  From support 0.1+20261012.1 the desktop entry explicitly ignores reboot inhibitors;
+  save work first. The CLI respects them unless `--force` is given with `--reboot`.
+  See [reboot failures and the next boot's OS](FLASHING.md#from-ubuntu-piano-boot-switch).
 
 ### 6.2 From Android: KernelSU module (not yet verified on the device)
 

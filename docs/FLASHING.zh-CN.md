@@ -99,7 +99,7 @@ A 槽的 Android root 补丁变化后（例如从 Magisk 换成 KernelSU），�
 | `sudo piano-boot-switch status` | 不写 | A 槽内容（`android`、`ubuntu`、`ubuntu.prev`、`unknown`）、槽标志、备份 GPT 状态 |
 | `sudo piano-boot-switch verify` | 不写 | 所有镜像组完好时退出码为 0 |
 | `sudo piano-boot-switch to-android --dry-run` | 不写 | `"result": "would-write"` |
-| `sudo piano-boot-switch to-android --reboot` | A 槽 | `"result": "written"`，随后启动 Android |
+| `sudo piano-boot-switch to-android --reboot [--force]` | A 槽 | `"result": "written"`，随后请求重启进入 Android |
 | `sudo piano-boot-switch to-ubuntu [--reboot]` | A 槽 | `written`；A 槽已是该镜像组时为 `unchanged` |
 | `sudo piano-boot-switch import-android --from DIR` | 存储 | `"result": "imported"`；替换 `android/` |
 | `sudo piano-boot-switch import-ubuntu [--from DIR]` | 存储 | `imported`；原 `ubuntu/` 变为 `ubuntu.prev/` |
@@ -109,6 +109,11 @@ A 槽的 Android root 补丁变化后（例如从 Magisk 换成 KernelSU），�
   该镜像组同时作为回滚。每个分区都完整写入并读回；失败时写回原镜像组。
 - `"result": "refused"` 表示什么都没写，`code` 与 `message` 说明原因。
   `rollback-failed` 或 `final-mismatch`：不要重启，从 Fastboot 恢复（见下文）。
+- support 0.1+20261012.1 起，重启前列出 shutdown block inhibitor 的 who/why，
+  原样输出 systemctl 的 stderr。重启被拒时退出 1：A 槽仍为 Android，下一次启动将进入 Android。
+  保存工作后正常重启，或追加 `--reboot --force` 重跑以忽略 inhibitor（`systemctl reboot -i`）。
+  桌面入口使用 `--desktop --force`，入口说明和 polkit 提示均提醒先保存工作；不经过 GNOME 注销对话框。
+  本修复仅离线验证，未上机。
 - 测试机已验证：`status`、`verify`、两种导入、`to-ubuntu`、`to-android --reboot`。
   应用网格中的 **切换到 Android** 调用同一工具，尚未验证。
 

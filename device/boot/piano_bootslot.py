@@ -98,6 +98,14 @@ class Host:
                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
         return 0
 
+    def capture(self, argv):
+        """Return command output and status for callers that report diagnostics."""
+        self.events.append(('run', list(argv)))
+        if self.real:
+            return subprocess.run(argv, check=False, stdin=subprocess.DEVNULL,
+                                  capture_output=True, text=True)
+        return subprocess.CompletedProcess(argv, 0, stdout='', stderr='')
+
 
 def crc32(data):
     return zlib.crc32(data) & 0xffffffff
