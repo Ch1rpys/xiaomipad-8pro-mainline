@@ -21,7 +21,7 @@ for DFP data role through the MCA relay, queries version/voltage/temperature
 recovers a missing/stale 16-bit ID by matching that digest, then sends remove
 compensation (7) before verified (6), and writes `pd_verifed`. It does not send
 reverse authentication (8) on piano. The misspelled `pd_verifed` is the existing
-community/vendor-facing ABI. `ExecStopPost` clears an interrupted verify flag.
+community/vendor-facing ABI. `ExecStopPost` attempts to clear an interrupted verify flag, ignoring errors because firmware rejects the write when no Xiaomi adapter is attached.
 
 The kernel performs the PD/VDM transport and enforces source/length/value
 limits. Userland does not select a voltage, current, battery float voltage or

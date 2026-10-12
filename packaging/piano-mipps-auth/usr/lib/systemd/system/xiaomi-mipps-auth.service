@@ -8,5 +8,5 @@ ConditionPathExists=/sys/class/power_supply/xiaomi-mca-usb/xiaomi/request_vdm_cm
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/flock -n -E 0 /run/xiaomi-mipps-auth.lock /usr/libexec/xiaomi-mipps-auth --timeout 4
-ExecStopPost=/bin/sh -ec 'echo 0 > /sys/class/power_supply/xiaomi-mca-usb/xiaomi/verify_process'
+ExecStopPost=-/bin/sh -c 'echo 0 > /sys/class/power_supply/xiaomi-mca-usb/xiaomi/verify_process 2>/dev/null'
 TimeoutStartSec=20
