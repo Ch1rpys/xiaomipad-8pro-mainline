@@ -14,6 +14,7 @@ import argparse
 import gzip
 import hashlib
 import json
+import lzma
 from pathlib import Path
 import re
 import shutil
@@ -47,6 +48,19 @@ def kernel_release(path):
     """Release string of an uncompressed arm64 Image, from its linux_banner."""
     match = re.search(rb'Linux version ([0-9][A-Za-z0-9.+-]*) \(', Path(path).read_bytes())
     return match[1].decode() if match else None
+
+
+def ram_image_size(kernel, initrd, dtb, profile):
+    """V2 header and three page-aligned payloads, with no second stage."""
+    page = profile['vendor_boot']['page_size']
+    size = page + sum((path.stat().st_size + page - 1) // page * page
+                      for path in (kernel, initrd, dtb))
+    # A successful Fastboot download is not evidence that ABL can boot it.
+    # Keep RAM images strictly below this unit's verified boot partition size.
+    if size >= profile['boot']['capacity']:
+        raise ValueError(f'RAM image {size} bytes must stay under the boot partition size '
+                         f'({profile["boot"]["capacity"]} bytes)')
+    return size
 
 
 def empty_ramdisk():
@@ -117,17 +131,32 @@ def main():
         p.error('Kernel has no Linux version banner; expected an uncompressed arm64 Image')
     if a.kernel_release and a.kernel_release != release:
         p.error(f'Kernel banner is {release}, not {a.kernel_release}')
+    profile = json.loads(a.profile.read_text())
+    for name in ('boot', 'init_boot', 'vendor_boot'):
+        if profile[name]['header_version'] != 4 or profile[name]['capacity'] <= 0:
+            p.error('Expected verified stock v4 geometry')
+    ram_image_size(a.kernel, a.initrd, a.dtb, profile)
     if a.native_display:
         if not a.debug or a.debug_timeout != 600 or a.module_blacklist or a.modprobe_blacklist:
             p.error('--native-display requires --debug --debug-timeout 600 and no module blacklist')
-        entries = read_newc(subprocess.check_output(['zstd', '-dc', str(a.initrd)]))
+        compressed = a.initrd.read_bytes()
+        if compressed.startswith(b'\xfd7zXZ\0'):
+            decoder = lzma.LZMADecompressor(format=lzma.FORMAT_XZ)
+            archive = decoder.decompress(compressed)
+            if not decoder.eof or decoder.unused_data or decoder.check != lzma.CHECK_CRC32:
+                p.error('Native display requires one complete CRC32 XZ stream')
+            initrd_decoder = 'RD_XZ'
+        else:
+            archive = subprocess.check_output(['zstd', '-dc', str(a.initrd)])
+            initrd_decoder = 'RD_ZSTD'
+        entries = read_newc(archive)
         info = json.loads(regular_file(entries, 'etc/piano-native-display/manifest.json'))
         config = regular_file(entries, 'etc/piano-native-display/kernel.config')
         if (info['kernel_release'] != release or info['kernel_sha256'] != sha(a.kernel) or
                 info['config_sha256'] != hashlib.sha256(config).hexdigest() or
                 info['modules'].get('selection') != 'all'):
             p.error('Native display initrd/kernel/config/complete-module identity mismatch')
-        for option in ('RD_ZSTD', 'DRM_MSM', 'DRM_MSM_DPU', 'DRM_MSM_DSI', 'SM_DISPCC_8750', 'DRM_PANEL_NOVATEK_NT36532',
+        for option in (initrd_decoder, 'DRM_MSM', 'DRM_MSM_DPU', 'DRM_MSM_DSI', 'SM_DISPCC_8750', 'DRM_PANEL_NOVATEK_NT36532',
                        'BACKLIGHT_KTZ8866', 'BACKLIGHT_CLASS_DEVICE'):
             if f'CONFIG_{option}=y'.encode() not in config.splitlines():
                 p.error(f'Native display requires built-in {option}')
@@ -158,10 +187,6 @@ def main():
                                               mdss + '/dsi@ae94000/panel@0', 'compatible'], text=True).strip()
         if compatible != 'xiaomi,piano-boe-nt36532 novatek,nt36532':
             p.error('Native display candidate must use the selected P81 42-02-0a profile')
-    profile = json.loads(a.profile.read_text())
-    for name in ('boot', 'init_boot', 'vendor_boot'):
-        if profile[name]['header_version'] != 4 or profile[name]['capacity'] <= 0:
-            p.error('Expected verified stock v4 geometry')
     a.output.mkdir(parents=True, exist_ok=False)
     out = a.output.resolve()
     shutil.copyfile(a.profile, out / 'profile.json')
@@ -221,6 +246,7 @@ def main():
         cmdline += ' modprobe.blacklist=' + a.modprobe_blacklist
     if len(cmdline.encode()) > RAM_CMDLINE_MAX:
         raise ValueError(f'command line is {len(cmdline.encode())} bytes; the RAM check keeps only 511')
+    ram_bytes = ram_image_size(a.kernel, a.initrd, dtb, profile)
     empty = out / 'empty.cpio.gz'
     empty.write_bytes(empty_ramdisk())
     mk = ['python3', str(a.mkbootimg)]
@@ -258,6 +284,8 @@ def main():
     subprocess.run(mk + ['--header_version', '2', '--pagesize', str(vendor['page_size'])] + offsets +
                    ['--kernel', str(a.kernel), '--ramdisk', str(a.initrd), '--dtb', str(dtb),
                     '--cmdline', cmdline, '--output', str(ram)], check=True)
+    if ram.stat().st_size != ram_bytes:
+        raise ValueError('RAM image size differs from its admitted v2 layout')
     manifest = {'kind': 'piano-persistent-v4', 'kernel_release': release,
                 'cmdline': cmdline, 'root': root_spec,
                 'root_partuuid': str(a.root_partuuid) if a.root_partuuid is not None else None,
@@ -266,7 +294,9 @@ def main():
                 'inputs': {n: sha(getattr(a, n)) for n in ('kernel', 'dtb', 'initrd', 'profile', 'mkbootimg', 'avbtool')},
                 'private_bt_address_injected': bool(a.bt_address_file),
                 'private_wlan_address_injected': bool(a.wlan_address_file), 'effective_dtb_sha256': sha(dtb),
-                'outputs': outputs, 'ram_image': {'file': ram.name, 'sha256': sha(ram)},
+                'outputs': outputs, 'ram_image': {'file': ram.name, 'sha256': sha(ram),
+                                                 'bytes': ram_bytes,
+                                                 'boot_partition_bytes': profile['boot']['capacity']},
                 'scope': 'Image construction only; cold boot and recovery must be verified on piano'}
     if a.debug_boot_trace:
         manifest['debug_boot_trace'] = DEBUG_BOOT_TRACE
@@ -301,6 +331,7 @@ def maintenance(p, a):
         p.error(f'The maintenance initramfs carries modules of {info["kernel_release"]}, not {release}')
     profile = json.loads(a.profile.read_text())
     vendor = profile['vendor_boot']
+    ram_bytes = ram_image_size(a.kernel, a.initrd, a.dtb, profile)
     cmdline = f'{MAINTENANCE_CMDLINE} piano.maint_idle={a.maintenance_idle}'
     if not a.no_serial:
         serial = profile.get('serial')
@@ -317,6 +348,8 @@ def maintenance(p, a):
                     '--ramdisk_offset', str(vendor['ramdisk_addr']), '--tags_offset', str(vendor['tags_addr']),
                     '--dtb_offset', str(vendor['dtb_addr']), '--kernel', str(a.kernel), '--ramdisk', str(a.initrd),
                     '--dtb', str(a.dtb), '--cmdline', cmdline, '--output', str(image)], check=True)
+    if image.stat().st_size != ram_bytes:
+        raise ValueError('RAM image size differs from its admitted v2 layout')
     if cmdline.encode() not in image.read_bytes()[:4096]:
         raise ValueError('The command line is not in the v2 header')
     manifest = {'kind': 'piano-maintenance-ram', 'kernel_release': release, 'cmdline': cmdline,

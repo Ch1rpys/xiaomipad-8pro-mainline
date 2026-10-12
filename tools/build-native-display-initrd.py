@@ -48,6 +48,8 @@ def main():
     for name in ('arch/arm64/boot/Image', '.config'):
         if sha(kout / name) != build['files'][name]:
             ap.error(f'Changed kernel artifact: {name}')
+    if 'CONFIG_RD_XZ=y' not in (kout / '.config').read_text().splitlines():
+        ap.error('The native display RAM initrd requires built-in RD_XZ')
     for name, path in full.items():
         if '.ko' in name and sha(a.modules_dir / f'lib/modules/{release}' / name) != sha(path):
             ap.error(f'Changed or missing staged module: {name}')
@@ -137,19 +139,18 @@ def main():
                if n not in entries or hashlib.sha256(entries[n][1]).hexdigest() != h]
     if any(not n.startswith(('usr/lib/modules/', 'usr/lib/firmware/')) for n in changes):
         raise ValueError(f'Unexpected base initrd changes: {changes}')
-    # As in the source dracut image, use the kernel's Zstd initrd decoder.
-    # gen_init_cpio emits independent copies of the base's hard-linked files;
-    # a 128 MiB window (the decoder's supported maximum) also deduplicates
-    # these copies without extending the strict single-newc archive reader.
-    image = out / 'initrd.cpio.zst'
+    # Keep the complete module/firmware payload, but compress it enough for the
+    # v2 RAM image to stay below the boot partition size. CRC32 is supported by
+    # the kernel XZ decoder; one thread produces one stream with a 64 MiB dict.
+    image = out / 'initrd.cpio.xz'
     with image.open('wb') as stream:
-        subprocess.run(['zstd', '-15', '--long=27', '-T2', '--check', '-q', '-c'],
+        subprocess.run(['xz', '-9e', '--check=crc32', '-T1', '-c'],
                        input=archive, stdout=stream, check=True)
-    if subprocess.check_output(['zstd', '-dc', str(image)]) != archive:
+    if subprocess.check_output(['xz', '-dc', str(image)]) != archive:
         raise ValueError('Compressed initrd does not round-trip')
     receipt.update(initrd_sha256=sha(image), initrd_bytes=image.stat().st_size,
                    changed_base_files=changes, entries=len(entries),
-                   compression='zstd -15 --long=27 -T2 --check', uncompressed_bytes=len(archive))
+                   compression='xz -9e --check=crc32 -T1', uncompressed_bytes=len(archive))
     (out / 'manifest.json').write_text(json.dumps(receipt, indent=2) + '\n')
     print(json.dumps({k: receipt[k] for k in ('state', 'kernel_release', 'initrd_sha256', 'initrd_bytes')}))
 

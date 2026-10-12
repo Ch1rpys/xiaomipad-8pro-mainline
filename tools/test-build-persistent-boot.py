@@ -71,6 +71,22 @@ def build(d, *options, output='out'):
 
 
 class RootAndSerial(unittest.TestCase):
+    def test_ram_size_limit_includes_header_and_page_padding(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            fake_inputs(d)
+            # 12 KiB kernel + 4 KiB each for header, ramdisk and DTB.
+            profile = json.loads((d / 'profile.json').read_text())
+            for capacity in (24575, 24576):
+                profile['boot']['capacity'] = capacity
+                (d / 'profile.json').write_text(json.dumps(profile))
+                result = build(d, '--root-partlabel', 'linux_rootfs', '--no-serial')
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('RAM image 24576 bytes must stay under the boot partition size', result.stderr)
+                self.assertFalse((d / 'out').exists())
+            profile['boot']['capacity'] = 24577
+            self.assertEqual(load().ram_image_size(d / 'Image', d / 'initrd', d / 'dtb', profile), 24576)
+
     def test_root_options_are_exclusive_and_validated(self):
         with tempfile.TemporaryDirectory() as tmp:
             d = Path(tmp)
