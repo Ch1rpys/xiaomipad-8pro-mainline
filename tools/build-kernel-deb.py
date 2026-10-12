@@ -5,7 +5,7 @@
 Layout follows upstream scripts/package/builddeb (DTBs in /usr/lib/linux-image-<release>);
 maintainer scripts and the linux-update-<release> trigger follow the Ubuntu 26.04 linux-image
 package (see NOTICE), so distro hooks such as dracut run from /etc/kernel/postinst.d.
-Only a unique release <version>-piano<ABI> (arch/arm64/configs/piano-release.config) recorded
+Only a unique release <version>-piano<ABI> (kernel release config or source.json override) recorded
 in kernel/abi.json with this commit and .config is packaged, so package names and module trees
 never repeat across builds; the version is <version>-<ABI>.<upload>, as Ubuntu's <abi>.<upload>.
 Nothing is compiled, installed, flashed or written to the kernel build output.
@@ -184,7 +184,7 @@ def recorded_upload(ledger_path, release, commit, config_sha256):
                          f'  {json.dumps(wanted)}')
     if entry['kernel_commit'] != commit or entry['config_sha256'] != config_sha256:
         raise SystemExit(f'{release} already belongs to {entry["kernel_commit"]} (config '
-                         f'{entry["config_sha256"]}); raise the ABI in arch/arm64/configs/piano-release.config')
+                         f'{entry["config_sha256"]}); allocate a new ABI in kernel/source.json and rebuild')
     upload = entry.get('upload', 1)
     if not isinstance(upload, int) or upload < 1:
         raise ValueError(f'Invalid upload number for {release}')

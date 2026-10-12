@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Judge saved piano8 cold-boot captures, or collect two over developer SSH.
+"""Judge saved piano cold-boot captures, or collect two over developer SSH.
 
 Only `run` contacts a device. Missing evidence is UNAVAILABLE, never PASS.
 The captured UPTIME, not a filename or journal receive time, sets the window.
@@ -47,7 +47,7 @@ def one(text, key):
     return values[0] if len(values) == 1 else None
 
 
-def judge(early, late=None):
+def judge(early, late=None, expected_release='7.2.6-piano8'):
     """Return data only; accepts capture text, never opens a device or a path."""
     captures = [('early', acceptance.clean(early))]
     if late is not None:
@@ -163,14 +163,14 @@ def judge(early, late=None):
     per_capture('failed_units', failed, 'FAILED_COUNT=0 AND SYSTEM_STATE=running')
 
     def controls(text):
-        expected = {'PIANO8_RELEASE': '7.2.6-piano8', 'PIANO8_KEYBOARD_MODULE': 'present',
+        expected = {'PIANO8_RELEASE': expected_release, 'PIANO8_KEYBOARD_MODULE': 'present',
                     'PIANO8_MCA_MODULE': 'present', 'PIANO8_MCA_SUPPLY': 'present'}
         values = {key: one(text, key) for key in expected}
         bad = any(v not in (None, 'UNAVAILABLE', expected[k]) for k, v in values.items())
         if values['PIANO8_RELEASE'] is not None and one(text, 'UNAME') != values['PIANO8_RELEASE']:
             bad = True
         return values, False if bad else None if any(v in (None, 'UNAVAILABLE') for v in values.values()) else True
-    per_capture('piano8_controls', controls, 'PIANO8_RELEASE=UNAME=7.2.6-piano8; keyboard/MCA/supply present')
+    per_capture('piano8_controls', controls, f'PIANO8_RELEASE=UNAME={expected_release}; keyboard/MCA/supply present')
     per_capture('wayland_session', numeric('PIANO8_ACTIVE_WAYLAND_USERS', lambda v: v == 1),
                 'exactly 1 active Class=user, Type=wayland session')
     # Legacy late capture lacks /proc/asound/cards; registration in either
@@ -192,7 +192,8 @@ def judge(early, late=None):
     per_capture('thp_first_frame', thp, 'THP first frame logged, THP_FIRST > 0 AND THP_ERR=0')
     failures = [r['name'] for r in rows if r['status'] == 'FAIL']
     missing = [r['name'] for r in rows if r['status'] == 'UNAVAILABLE']
-    return {'schema': 1, 'profile': 'piano8-cold-boot', 'criteria': rows, 'failed': failures,
+    return {'schema': 1, 'profile': expected_release.split('-')[-1] + '-cold-boot', 'expected_release': expected_release,
+            'criteria': rows, 'failed': failures,
             'unavailable': missing, 'verdict': 'FAIL' if failures else 'UNAVAILABLE' if missing else 'PASS',
             'scope': 'Saved cold-boot readings; no visual, physical input, charging or continuous clock proof.'}
 
@@ -266,7 +267,7 @@ def run_captures(args, password, run=subprocess.run):
         if rc != 0:
             transport.append(f'{label} capture SSH/sudo exit: {rc}')
             break
-    verdict = judge(texts[0] if texts else '', texts[1] if len(texts) > 1 else None)
+    verdict = judge(texts[0] if texts else '', texts[1] if len(texts) > 1 else None, args.kernel_release)
     if transport:
         verdict['criteria'].append(dict(name='capture_transport', status='FAIL', required=True,
             value=transport, measured='; '.join(transport), budget='both SSH/sudo captures exit 0'))
@@ -288,10 +289,16 @@ def main(argv=None):
     live.add_argument('--user', required=True)
     live.add_argument('--out', type=Path, required=True, help='new private output directory')
     live.add_argument('--late-seconds', type=float, default=LATE_SECONDS, help='second capture uptime, >=200 (default 200)')
+    for command in (check, live):
+        command.add_argument('--kernel-release', default='7.2.6-piano8',
+                             help='required kernel release (default: 7.2.6-piano8)')
     args = parser.parse_args(argv)
     try:
+        if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+-piano[1-9][0-9]*', args.kernel_release):
+            parser.error('invalid --kernel-release')
         if args.action == 'judge':
-            verdict = judge(args.capture_early.read_text(), args.capture_late.read_text() if args.capture_late else None)
+            verdict = judge(args.capture_early.read_text(), args.capture_late.read_text() if args.capture_late else None,
+                            args.kernel_release)
         else:
             if not math.isfinite(args.late_seconds) or not LATE_SECONDS <= args.late_seconds <= 3600:
                 parser.error('--late-seconds must be between 200 and 3600')
