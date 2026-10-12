@@ -1,13 +1,18 @@
-# SSC 一次性检查 v2（7.2.6-piano8）
+# SSC 一次性检查 v3（7.2.6-piano8）
 
-v2 修复已由用户真机日志证实的文件服务缺口：**ODM 路径没有映射，registry 写打开被拒绝**。
-这两处发生在 FastRPC sensorspd 已开始请求文件、QMI SSC 已回复成功之后；不是 secure 节点不能 attach。
-尚未以 v2 取得 piano 样本。主机工作已完成，设备步骤由操作者执行。
+v2 真机已能发现 registry，但尚无默认 accel。完整 567 行日志定位到：可写目录仅覆盖内层
+`registry/registry/`，外层的 `sns_reg_version`、`fstempfile`、`parsed_file_list.csv` 仍无法写入或缺失。
+**v3 将整个 registry 父目录及其 registry/ 子目录映射到每轮 scratch**，并携带同机 persist
+备份中已有的版本文件和解析清单（不是生成占位文件）。尚无 v3 piano 样本 PASS。
 
-复用原 HexagonRPC `598b591a` + 前两项序列修复 + 新增第三项文件服务补丁，libssc
-`54dd13e3` 及其测试退出码补丁不变。没有新 daemon/框架、内核修改或服务安装。
-`run.sh` 保持 v1 的 60 秒 daemon 超时（TERM 后 2 秒 KILL）、四类默认 sensor 查询、
-每类开流后约 5 秒采样和共同 45 秒客户端期限，结束时回收本次启动的全部进程。
+仍用原 HexagonRPC `598b591a` + 四项局部补丁；libssc `54dd13e3` 与 ssccli 二进制保持不变。
+在已有 one-shot runner 内，只对 ssccli 的明确空 SUID 结果重查，每次空回复后间隔 1 秒、从第一次空回复起最多
+30 秒；registry 超时、GLib 错误、其他退出码不重试。四类并发，daemon 始终保留。
+每次请求/失败日志保存为 `<类型>.attempt-NN.log`，常规 `<类型>.log` 和 JSON 取最后一次，
+避免早先的 `UNKNOWN` 初始化错误污染后来成功的样本。发现类型后允许完成约 5 秒采样。
+
+registry 本来有 30 秒等待；为覆盖两阶段，客户端总限时 70 秒、daemon 75 秒（TERM 后 2 秒 KILL）。
+结束回收全部自启进程，保留日志和副本；不重启 daemon/ADSP/设备，不安装服务、不改内核。
 
 ## 精确传输与运行
 
@@ -18,17 +23,17 @@ SSH，并透传 stdin。tar 二进制流不要加 `-t`。
 ```sh
 : "${PIANO_SERIAL:?先设置本机 piano 的序列号}"
 set -o pipefail
-tar -C out/ssc-device-test-20261012-2 -cf - . |
+tar -C out/ssc-device-test-20261012-3 -cf - . |
   python3 public/xiaomipad-8pro-mainline/tools/piano-devmode-ssh.py \
     --serial "$PIANO_SERIAL" root \
-    'umask 077; mkdir -p /var/tmp/ssc-test/bundle-20261012-2; tar -xf - -C /var/tmp/ssc-test/bundle-20261012-2'
+    'umask 077; mkdir -p /var/tmp/ssc-test/bundle-20261012-3; tar -xf - -C /var/tmp/ssc-test/bundle-20261012-3'
 
 python3 public/xiaomipad-8pro-mainline/tools/piano-devmode-ssh.py \
   --serial "$PIANO_SERIAL" root \
-  '/var/tmp/ssc-test/bundle-20261012-2/run.sh'
+  '/var/tmp/ssc-test/bundle-20261012-3/run.sh'
 ```
 
-静置平板约一分钟。脚本打印本轮 `SSC_OUTPUT` 与 `SSC_SCRATCH`，不要混入旧会话。
+静置平板，观察窗口最长约 75 秒。脚本打印本轮 `SSC_OUTPUT` 与 `SSC_SCRATCH`，不要混入旧会话。
 输出默认在 `/var/tmp/ssc-test/run-…/`，可写 registry 在
 `/var/tmp/ssc-test/scratch/run-…/registry/`。若显式使用 `/run/` 下的输出目录，则 scratch
 跟随该目录。包内 pristine 数据、主机 persist 备份和设备真实 persist 均不作为写目标。
@@ -55,21 +60,22 @@ SSC_SAMPLES=... SSC_ACCEL_G=9.8...
 
 ## 这次修正与已知边界
 
-用户的 v1 12 行 daemon 日志依次证实：`oemconfig.so` 找不到，vendor `sns_reg_config` 两次
-成功读取（271 B），`registry/DIR` 写打开被拒绝，最后 ODM `config/json.lst` 打开失败。
-加速度前 140 行包含 QRTR node 5/port 19、QMI Control 成功；完整日志约 30 次轮询后触发
-30 秒超时，`(30/100)` 中 100 是重试上限。无需延时或更换 kernel 来解释这些失败。
+v2 日志中，内层 `registry/registry/DIR` 成功写入 3 B，ODM JSON 能逐个读取；但外层
+`sns_reg_version` 写打开被拒一次、`fstempfile` 被拒 **108 次**，`parsed_file_list.csv` 首次读取 ENOENT。
+因此 v2 的 DIR 单点回放覆盖不足。v3 的 `-w` 和 pristine 布局都对应外层
+`/mnt/vendor/persist/sensors/registry/`，里面真实保留 `registry/` 子目录。
 
-新增文件服务补丁：
+外层新增文件与内层条目使用同一受限映射：真实 create/truncate/append/update/write/remove，
+其他目录仍只读，软/硬链接和非普通文件写目标被拒绝，`..` 跨出外层 registry 不会获得写权限。
+每轮从 pristine 复制为新 inode、目录 0700/文件 0600；前后 SHA、变更文件清单和完整副本保留。
+`sns_reg_version`、`fstempfile`、`parsed_file_list.csv` 逐个通过 w/wb/w+、读回以及 108 次临时文件
+重开的实际 handler 回放。v2 失败行没有记录 mode/flags，不能声称这些测试模式全部被真机观测；
+v3 的失败日志新增 mode/flags，后续可精确裁决。
 
-- 增加 `/odm/etc/sensors/` 的只读映射，vendor/ODM 目录分别保留原厂内容，不混合两处不同的
-  `chre_dynamic_sensors.json`。继续原 upstream vendor 路径，并提供 vendor 的 sns_odp_config、hals.conf、javalibs。
-- `-w DIR` 显式选择唯一可写 registry 根；未传该参数仍只读。`fopen` 的 r/w/a、binary/update
-  模式具有实际读写语义；method 5 fwrite 返回真实写入字节，method 24 remove 真正删除 scratch 文件。
-  普通映射仍拒绝写入，拒绝软链接、硬链接和非普通文件写目标；`..` 只能回到原虚拟目录，不能赋予外部路径写权限。
-- 每轮新建 0700 scratch 目录，复制为新 inode、文件 0600。记录 `registry-pristine.json`、
-  `registry-before.json`、`registry-after.json`，结束核验 pristine 未变并列出 scratch 改变项。
-  保留 scratch 及日志；不还原或删除根系统文件。写入的只是试验副本，不是永久校准更新。
+**硬件访问线索：**完整日志无 PD 的 `/dev`/sns_* 设备节点、QUP、I2C、SPI、GPIO、regulator 请求；
+唯一 `/dev/` 字样来自 daemon 启动横幅的 FastRPC 节点。`sns_*.json` 是配置文件。
+当前没有证据把这次失败转成 kernel/DTS 任务，因此未改内核。该文件服务日志不覆盖 DSP 内部总线操作，
+也不能据它证明 ADSP 已拥有所需 QUP 或物理传感器已工作。
 
 协议依据为 [Qualcomm fastrpc v1.0.7 apps_std](https://github.com/qualcomm/fastrpc/blob/v1.0.7/inc/apps_std.h)
 和 [HexagonRPC PR #21](https://github.com/linux-msm/hexagonrpc/pull/21) 的 method 5/24 布局；
@@ -77,12 +83,12 @@ PR 固定 head `9f987970f9bc3e72081b7966a1f4e766ce6af6f7` 的写/删除为 stub�
 复核了 liuqin `7df47f82` 的 registry-version/property 补丁与 upstream 文档的 SDM845 文件布局：
 它们未提供这里需要的受限真实写入实现，未导入他机 registry、property 策略或 SLPI 启动服务。
 本机社区 piano-sensors `65a92202` 也将 ODM/persist 导入副本供 sensorspd 使用，但用的是 Qualcomm
-adsprpcd；本包继续原 HexagonRPC。详细文件/来源/hash/退出条件见 `../hexagonrpc/source.json` 和 NOTICE。
+adsprpcd；本包继续原 HexagonRPC。详细文件/来源/hash/退出条件见 `../hexagonrpc/source.json` 和 NOTICE。新增第四项补丁仅调整父目录映射、失败日志和回放，写入约束不变。
 
-`oemconfig.so`：保存的 stock tree 中没有该文件；本机日志在它 ENOENT 后继续到 registry/config
+`oemconfig.so`：保存的 stock tree 中没有该文件；v1 本机日志在它 ENOENT 后继续到 registry/config
 文件读取，所以**就已观察的初始化序列而言是可选探测，不是当前最早阻塞**。保留真实 ENOENT，
 不放空 ELF、不借用其他设备库。现有 persist 已解析 registry 是本次输入；不能凭其他端口的成功
-保证 piano 的全部 OEM 初始化功能。如果 v2 文件链通过后仍失败，按新日志裁定。
+保证 piano 的全部 OEM 初始化功能。如果 v3 文件链通过后仍失败，按新日志裁定。
 
 ## 本包原厂输入和实际路径
 
@@ -95,21 +101,21 @@ adsprpcd；本包继续原 HexagonRPC。详细文件/来源/hash/退出条件见
 | `/vendor/etc/sensors/config/*` | `sensors/config/`，原厂 vendor 3 文件；不以 ODM 覆盖 | 只读 |
 | `/vendor/etc/sensors/sns_reg_config` | `sensors/sns_reg.conf`，原厂 271 B 文本 | 只读 |
 | `/vendor/etc/sensors/sns_odp_config`、`hals.conf`、`javalibs/*` | `sensors/vendor/` 对应原件（vendor 全树 7 文件） | 只读 |
-| `/mnt/vendor/persist/sensors/registry/registry/*`（以及 `/persist/…`） | 包内 `sensors/registry/` 的 **每轮 scratch 副本**；传 `-w` 给 daemon | 可读写/删除副本 |
+| `/mnt/vendor/persist/sensors/registry/*`（以及 `/persist/sensors/registry/*`） | 包内 `sensors/registry/` 的 **每轮 scratch 副本**；含版本/清单和 `registry/` 内层条目，传 `-w` 给 daemon | 可读写/删除副本 |
 | `/sys/devices/soc0/*` | 每轮复制实际主线 sysfs 已有属性到输出的 socinfo/ | 只读 |
 | `/usr/lib/qcom/adsp/`、`/vendor/etc/acdbdata/` | 空 dsp/adsp、acdb 目录；本次仅 sensorspd | 只读 |
 
-运行 registry 的 226 文件来自既有、已核 hash 的本机 persist 备份。本轮再与 v1 pristine SHA
-逐项核对，不重新读设备，不往真实备份写入。
+整个父目录共 228 文件：内层原 226 项，加同一备份中 9 B 的 sns_reg_version 和 10,908 B 的
+parsed_file_list.csv。都从既有已核 SHA 的 persist 备份离线提取；内层与 v2 pristine 逐项同 SHA。
+不从 v2 已修改的 scratch 生成 v3，不重新读设备、不写真实备份。
 69 行 ODM `json.lst` 中 53 项有现存原厂文件，已全部提供；余 16 项在本机保存的**整个** stock tree
-中也没有同名文件，因此未新增它们，原列表不改。精确名单和搜索结果在 `private-input/input-status.json`。
+中也没有同名文件。提取记录确认 vendor_a/odm_a 为完整 EROFS 提取，故它们在该原厂快照中不存在；
+v2 日志在各 ENOENT 后继续解析，缺项被容忍。未新增它们，原列表不改。精确名单和搜索结果在 `private-input/input-status.json`。
 不能把缺失项用默认值/他机配置补齐。其他原厂已存在但未列入 json.lst 的 ODM 配置也原样提供。
 
-`sns_reg_config` 的两个 property 路径是 registry 的 sibling `file1`/`file2`，sns_odp_config
-指向独立 `/mnt/vendor/persist/sensors/odp/`；当前日志没有请求这些服务，不扩大写权限。
-若随后出现 sibling version/property、ODP 或更高 FastRPC method 请求，会明确失败并留下日志，
-不添加未知 ABI 的成功 stub。若同一次 ADSP 启动已经放弃初始化，再次运行可能不再请求配置；
-保留这次记录，由操作者另行决定是否正常重启系统后再测，脚本不重启 ADSP。
+`sns_reg_config` 的两个 property 路径 file1/file2 也在该父目录内；只有固件明确创建时才出现，
+不预填属性值。独立 `/mnt/vendor/persist/sensors/odp/` 仍无写权限，高 method 的未知 ABI 仍明确失败。
+若同一次 ADSP 启动已放弃初始化，后续可能不再请求文件；保留新日志，脚本不自动重启 ADSP。
 
 ## 预期日志与回收
 
@@ -118,11 +124,11 @@ adsprpcd；本包继续原 HexagonRPC。详细文件/来源/hash/退出条件见
 ```sh
 RESULT_DIR=/var/tmp/ssc-test/run-实际本次目录
 cat "$RESULT_DIR/result.json" "$RESULT_DIR/sensors.json"
-grep -E 'json.lst|sns_reg_config|/DIR|write\(|remove\(|Could not|Unknown|not implemented' "$RESULT_DIR/daemon.log"
+grep -E 'json.lst|sns_reg_version|fstempfile|parsed_file_list|/DIR|write\(|remove\(|Could not|Unknown|not implemented' "$RESULT_DIR/daemon.log"
 grep -E 'registry|Discovered|Attributes populated|measurement:|Unable to' "$RESULT_DIR/accelerometer.log"
 ```
 
-应看到 ODM json.lst 成功 open/read/close，`registry/DIR` 的写打开不再报拒绝；随后实际是否出现
+应看到外层 sns_reg_version/parsed_file_list.csv 可读，外层 fstempfile 写打开不再报只读；随后实际是否出现
 write/remove、registry SUID、各类型 SUID/样本，均按真实日志判定。`oemconfig.so` ENOENT 可保留。
 `kernel-before.log`/`kernel-after.log` 收集 FastRPC/ADSP/QRTR/SMMU 摘录，不清空 dmesg。
 QMI debug 的 `translated = ERROR` 仅保留为 trace_diagnostics；真实 GLib 错误、CLI 失败、无样本仍 FAIL。
@@ -130,24 +136,28 @@ QMI debug 的 `translated = ERROR` 仅保留为 trace_diagnostics；真实 GLib 
 ```sh
 python3 public/xiaomipad-8pro-mainline/tools/piano-devmode-ssh.py \
   --serial "$PIANO_SERIAL" root \
-  'tar -C /var/tmp/ssc-test -cf - run-实际本次目录 scratch/run-实际本次目录' > out/ssc-device-test-v2-results.tar
+  'tar -C /var/tmp/ssc-test -cf - run-实际本次目录 scratch/run-实际本次目录' > out/ssc-device-test-v3-results.tar
 ```
 
 如仍无 registry，看**最早失败的文件/method**；不要把 QRTR 400、daemon 存活或 QMI ACK 当样本通过。
-如明确回复某类型无 SUID，只标该默认类型 UNAVAILABLE。光感/proximity 可能为 on-change，零帧
+如该默认类型在完整 30 秒空 SUID 重查窗口后仍未出现，才标 UNAVAILABLE。光感/proximity 可能为 on-change，零帧
 不直接证明硬件损坏。模长检查也不能替代方向、动态范围、自动旋转或休眠验收。
 
 ## 离线重建和验证
 
-先用 `stage-input.py --stock-root <保存的vendor/odm根> --registry <已核备份提取的registry目录>
+先用 `stage-input.py --stock-root <保存的vendor/odm根> --registry <已核备份提取的完整sensors/registry父目录>
 --output <新私有输入目录>` 装配同机数据。`build-bundle.py` 接口保持不变，输入新私有目录，
-新 output 为 `out/ssc-device-test-20261012-2/`。它校验固定 source.json/patch SHA 并用原 Meson 构建，
+新 output 为 `out/ssc-device-test-20261012-3/`。它校验固定 source.json/patch SHA 并用原 Meson 构建，
 动态库/loader 随包携带，不替换系统库。沿用原交叉 sysroot、native protoc/Meson 与 qemu-user 环境。
 
 新增 `tests/test_registry_io.c` 直接调用真实 apps_std handlers（模拟 DSP 请求，无 ioctl），
 核对路径字节、写入/追加/截断/更新/删除、只读默认、越界路径、软/硬链接以及错误返回。
-原 v1 同一负对照在 ODM json.lst 失败。ARM64 回放对 293 个本机原件逐字节比对，只在 scratch
-新增 3 字节 `DIR`，原输入/registry 哈希不变。主机 ASan/UBSan 检查与 ARM64 15 项通过；
-ASan 未启用 leak 检查：上游构建的虚拟目录树原本是进程生命周期分配、没有释放树接口，
-不将这次内存安全检查说成无泄漏审计。已有四条 read 返回值告警和一条 verbose 格式告警保留。
-最终校验、完整/失败日志 hash 见本地 `offline-validation.json`；**不是本机 v2 样本 PASS**。
+v2 负对照在相同外层 sns_reg_version 写打开返回 EROFS。v3 回放 295 个原厂文件（原 293 加两份
+外层元数据），实际创建/更新 DIR 与三个外层路径，原件 SHA 保持不变。ARM64/native ASan/UBSan
+15 项通过；ASan 不含 leak 检查，因为上游虚拟目录树仍为进程生命周期分配，不能称无泄漏审计。
+原五条编译告警保留。扩展 QEMU QRTR mock 验证先空 SUID、后出现的传感器能采样，永久缺失类型
+等待完整 30 秒后才 UNAVAILABLE，同一模拟 SSC 服务在重查期间保留；实际 FastRPC daemon 的
+75 秒监督与不重启策略由 runner 执行，未在本轮访问真机。备份原本已有内容为 `DIR` 的 3 B 内层
+文件，回放重写相同字节，其 SHA 不变；此前“新增 DIR”的表述不准确，实际内容变化为三个外层路径。
+精确结果/失败记录见 offline-validation.json。
+这些都是离线回放，不是本机 v3 样本 PASS。

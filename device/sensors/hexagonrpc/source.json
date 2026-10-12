@@ -18,8 +18,14 @@
       "protocol_reference": "https://github.com/linux-msm/hexagonrpc/pull/21",
       "protocol_reference_commit": "9f987970f9bc3e72081b7966a1f4e766ce6af6f7",
       "changes": "Actual scoped registry IO and ODM mapping; not the upstream PR fake-success stubs"
+    },
+    {
+      "path": "patches/0004-map-complete-registry-parent.patch",
+      "sha256": "271097c6466e9b07a528038502676440b01baa6ed266a9add76fde08dd655cc5",
+      "license": "GPL-3.0-or-later",
+      "changes": "Map outer registry parent and inner registry data to one per-run copy; retain write confinement and replay v2 paths"
     }
   ],
-  "scope": "Piano sensorspd file requests reached userspace in v1; explicit scratch registry IO and ODM mappings offline-tested for v2. Physical samples still unverified.",
+  "scope": "V2 reached registry SUID but no physical samples; V3 covers the full registry parent, including saved version/cache siblings. Offline tests do not establish physical sensor availability.",
   "exit_condition": "Drop local patches after an upstream release covers these fixes and the same regressions pass."
 }

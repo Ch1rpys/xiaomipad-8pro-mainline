@@ -50,3 +50,10 @@ its public header, tests and reverse-tunnel code are GPL-3.0-or-later. The new t
 is GPL-3.0-or-later. See the retained file headers, `NOTICE`, and `LICENSES`.
 Drop the local patches when upstream contains the fixes and the same regressions
 pass; do not maintain an independent copy of the source tree here.
+
+V3 adds a fourth patch after the v2 device log showed that version, temporary
+registry output and parsed-file cache live one level above the inner registry
+entries. Both `-R .../sensors/registry` and explicit `-w DIR` now describe the
+whole parent containing `registry/`, `sns_reg_version` and `parsed_file_list.csv`.
+The existing write confinement is retained; tests replay the actual sibling
+paths and 108 temporary-file opens. V2 source and evidence remain historical.

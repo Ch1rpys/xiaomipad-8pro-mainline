@@ -16,7 +16,7 @@ def sha(path):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--stock-root', type=Path, required=True, help='saved vendor/ and odm/ trees from this tablet')
-    p.add_argument('--registry', type=Path, required=True, help='already extracted registry/registry from the verified persist backup')
+    p.add_argument('--registry', type=Path, required=True, help='full extracted sensors/registry parent, including registry/, version and parsed-file list')
     p.add_argument('--output', type=Path, required=True)
     args = p.parse_args()
     vendor = args.stock_root/'vendor/etc/sensors'
@@ -26,6 +26,8 @@ def main():
             p.error('require complete regular directory without symlinks: ' + str(directory))
     if not (odm/'config/json.lst').is_file() or not (vendor/'sns_reg_config').is_file():
         p.error('missing stock ODM json.lst or vendor sns_reg_config')
+    if not (args.registry/'registry').is_dir():
+        p.error('--registry needs the full sensors/registry parent, not the inner registry/registry directory')
     args.output.mkdir(parents=True, exist_ok=False, mode=0o700)
     root = args.output/'hexagonfs/sensors'
     root.mkdir(parents=True)

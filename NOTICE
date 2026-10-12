@@ -501,3 +501,14 @@ SSC device-test v2 file service
   ODM/persist-copy design; no Qualcomm adsprpcd or product services imported.
 - stage-input.py and the test orchestration are original MIT integration code.
   Stock config and per-device registry remain private local inputs.
+
+SSC device-test v3
+- 0004-map-complete-registry-parent.patch extends the same GPL-3.0-or-later
+  HexagonRPC files/tests using piano's v2 file-request evidence. It moves the
+  mapping to the complete parent without weakening write confinement. No
+  third-party board values or fabricated stock files are added.
+- Empty-SUID polling is MIT one-shot runner code; the pinned libssc/ssccli
+  source and binary protocol remain unchanged. All attempts retain their logs.
+- late-suid-server.py is a GPL-3.0-or-later QEMU-only availability gate around
+  the pinned upstream SSC mock. The mock retains all QMI/QRTR/protobuf encoding;
+  the gate hides accel for two queries and then exposes its existing fixture.

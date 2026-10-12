@@ -1,0 +1,178 @@
+From: yzddmr6 <46088090+yzddmr6@users.noreply.github.com>
+Subject: [PATCH] hexagonrpcd: map the complete registry parent into scratch
+
+The piano v2 trace writes registry/registry/DIR but also opens
+registry/sns_reg_version, registry/fstempfile (108 times), and
+registry/parsed_file_list.csv. The writable mapping was one directory too deep.
+Map the whole parent, with registry/ as its real child. Keep all I/O confinement
+checks and the read-only default. Log the mode/flags on a failed open so future
+traces identify the requested operation instead of just the path.
+
+Replay those exact filenames, common C create/truncate modes, reads, and 108
+reopens. The v2 error lines did not record mode/flags, so tests do not claim
+that all replayed modes were observed on hardware.
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+---
+diff --git a/hexagonrpcd/apps_std.c b/hexagonrpcd/apps_std.c
+index 806d7c3..1939523 100644
+--- a/hexagonrpcd/apps_std.c
++++ b/hexagonrpcd/apps_std.c
+@@ -237,8 +237,9 @@ static uint32_t apps_std_fopen_with_env(void *data,
+ 
+ 	fd = hexagonfs_openat_flags(ctx->fds, ctx->rootfd, dirfd, inbufs[3].p, flags);
+ 	if (fd < 0) {
+-		fprintf(stderr, "Could not open %s: %s\n",
++		fprintf(stderr, "Could not open %s (mode=%s, flags=0x%x): %s\n",
+ 				(const char *) inbufs[3].p,
++				rw_mode, flags,
+ 				strerror(-fd));
+ 		return AEE_EFAILED;
+ 	}
+diff --git a/hexagonrpcd/rpcd.c b/hexagonrpcd/rpcd.c
+index 9517613..652e938 100644
+--- a/hexagonrpcd/rpcd.c
++++ b/hexagonrpcd/rpcd.c
+@@ -78,7 +78,7 @@ static void print_usage(const char *argv0)
+ 	       "\t-p PROGRAM\tRun client program with shared file descriptor\n"
+ 	       "\t-R DIR\t\tRoot directory of served files (default: /usr/share/qcom/)\n"
+ 	       "\t-s\t\tAttach to sensorspd\n"
+-	       "\t-w DIR\t\tExplicit writable registry copy (default: read-only)\n");
++	       "\t-w DIR\t\tWritable registry parent copy, containing registry/ (default: read-only)\n");
+ }
+ 
+ static int create_shell_pd(int fd, const char *create_shell)
+diff --git a/hexagonrpcd/rpcd_builder.c b/hexagonrpcd/rpcd_builder.c
+index 0d8aed9..8d403cd 100644
+--- a/hexagonrpcd/rpcd_builder.c
++++ b/hexagonrpcd/rpcd_builder.c
+@@ -190,9 +190,7 @@ struct hexagonfs_dirent *construct_root_dir(const char *prefix, const char *dsp,
+ 		registry->ops = &hexagonfs_registry_ops;
+ 	persist_dir = hfs_mkdir("persist", 1,
+ 				hfs_mkdir("sensors", 1,
+-					hfs_mkdir("registry", 1,
+-						registry
+-					)
++					registry
+ 				)
+ 		      );
+ 
+diff --git a/tests/test_registry_io.c b/tests/test_registry_io.c
+index dcd7b7f..7ff5ad3 100644
+--- a/tests/test_registry_io.c
++++ b/tests/test_registry_io.c
+@@ -16,13 +16,14 @@
+ #include "../hexagonrpcd/rpcd_builder.h"
+ 
+ #define REG "/mnt/vendor/persist/sensors/registry/registry/"
++#define REG_PARENT "/mnt/vendor/persist/sensors/registry/"
+ #define CHECK(x) do { if (!(x)) { fprintf(stderr, "FAIL line %d: %s\n", __LINE__, #x); exit(1); } } while (0)
+ 
+ static char *join(const char *dir, const char *name)
+ {
+ 	char *out = malloc(strlen(dir) + strlen(name) + 2);
+ 	CHECK(out);
+-	sprintf(out, "%s/%s", dir, name);
++	sprintf(out, "%s%s%s", dir, *dir && dir[strlen(dir) - 1] == '/' ? "" : "/", name);
+ 	return out;
+ }
+ 
+@@ -139,12 +140,12 @@ static void mutations(struct fastrpc_interface *iface, const char *root, const c
+ 	CHECK(rpc_open(iface, REG "DIR", "wx-invalid") < 0);
+ 	CHECK(rpc_open(iface, "/odm/etc/sensors/config/json.lst", "w") < 0);
+ 	CHECK(rpc_open(iface, "/vendor/etc/sensors/sns_reg_config", "r+") < 0);
+-	CHECK(rpc_open(iface, REG "../escape", "w") < 0);
++	CHECK(rpc_open(iface, REG "../../escape", "w") < 0);
+ 	CHECK(rpc_open(iface, REG "../../../../../../outside", "w") < 0);
+ 	CHECK(rpc_open(iface, REG "./..", "w") < 0);
+ 	CHECK(rpc_open(iface, "/", "w") < 0);
+ 	CHECK(rpc_remove(iface, "/odm/etc/sensors/config/json.lst") != 0);
+-	CHECK(rpc_remove(iface, REG "../escape") != 0);
++	CHECK(rpc_remove(iface, REG "../../escape") != 0);
+ 	CHECK(rpc_remove(iface, REG "..") != 0);
+ 	/* Verify link escapes and hard-link truncation do not touch original bytes. */
+ 	host_write(root, "outside", "original");
+@@ -163,12 +164,50 @@ static void mutations(struct fastrpc_interface *iface, const char *root, const c
+ 	CHECK(rpc_remove(iface, REG "DIR") != 0); /* No fake success for a missing file. */
+ }
+ 
++static void parent_writes(struct fastrpc_interface *iface, const char *scratch)
++{
++	const char *names[] = { "sns_reg_version", "fstempfile", "parsed_file_list.csv" };
++	const char *modes[] = { "w", "wb", "w+" };
++	uint32_t written;
++	for (size_t i = 0; i < 3; i++) {
++		char *virtual = join(REG_PARENT, names[i]);
++		char *physical = join(scratch, names[i]);
++		for (size_t j = 0; j < 3; j++) {
++			int fd = rpc_open(iface, virtual, modes[j]); CHECK(fd >= 0);
++			CHECK(!rpc_write(iface, fd, "parsed", 6, 6, &written) && written == 6);
++			rpc_close(iface, fd);
++			compare_text(scratch, names[i], "parsed");
++			compare_file(iface, virtual, physical);
++		}
++		free(virtual); free(physical);
++	}
++	/* 108 rejected fstempfile opens were present in the v2 log. */
++	for (unsigned int i = 0; i < 108; i++) {
++		int fd = rpc_open(iface, REG_PARENT "fstempfile", "w"); CHECK(fd >= 0);
++		CHECK(!rpc_write(iface, fd, "parsed", 6, 6, &written));
++		rpc_close(iface, fd);
++	}
++	/* Both observed absolute and inner/../ spellings stay in the same copy. */
++	int fd = rpc_open(iface, REG "../fstempfile", "a"); CHECK(fd >= 0);
++	CHECK(!rpc_write(iface, fd, "+", 1, 1, &written));
++	rpc_close(iface, fd); compare_text(scratch, "fstempfile", "parsed+");
++	CHECK(rpc_open(iface, REG_PARENT "../outside", "w") < 0);
++	CHECK(rpc_remove(iface, REG_PARENT "../outside") != 0);
++}
++
+ int main(int argc, char **argv)
+ {
+ 	char fixture[] = "/tmp/hexagonrpc-registry-XXXXXX";
+ 	char *root, *scratch, *path;
+ 	struct fastrpc_interface *iface;
+ 	int fd;
++	if (argc == 5 && !strcmp(argv[4], "--parents-only")) {
++		iface = fastrpc_apps_std_init(construct_root_dir(argv[1], "adsp", argv[2])); CHECK(iface);
++		parent_writes(iface, argv[2]);
++		fastrpc_apps_std_deinit(iface);
++		puts("REGISTRY_PARENT_IO_PASS");
++		return 0;
++	}
+ 	if (argc == 4) {
+ 		/* Real stock byte-mapping replay: scratch must be a disposable copy. */
+ 		char *line = NULL;
+@@ -185,14 +224,15 @@ int main(int argc, char **argv)
+ 		fd = rpc_open(iface, REG "DIR", "w"); CHECK(fd >= 0);
+ 		uint32_t written;
+ 		CHECK(!rpc_write(iface, fd, "DIR", 3, 3, &written) && written == 3);
+-		rpc_close(iface, fd); compare_text(argv[2], "DIR", "DIR");
++		rpc_close(iface, fd); compare_text(argv[2], "registry/DIR", "DIR");
++		parent_writes(iface, argv[2]);
+ 		fastrpc_apps_std_deinit(iface);
+-		printf("REGISTRY_STOCK_REPLAY_PASS files=%zu actual_DIR_write=3\n", count);
++		printf("REGISTRY_STOCK_REPLAY_PASS files=%zu actual_DIR_write=3 parents=3 fstempfile_reopens=108\n", count);
+ 		return 0;
+ 	}
+ 	CHECK(argc == 1);
+ 	root = mkdtemp(fixture); CHECK(root);
+-	const char *dirs[] = { "sensors", "sensors/odm", "sensors/odm/config", "sensors/vendor", "sensors/config", "sensors/registry", "scratch" };
++	const char *dirs[] = { "sensors", "sensors/odm", "sensors/odm/config", "sensors/vendor", "sensors/config", "sensors/registry", "sensors/registry/registry", "scratch", "scratch/registry" };
+ 	for (size_t i = 0; i < sizeof(dirs)/sizeof(dirs[0]); i++) {
+ 		path = join(root, dirs[i]); CHECK(!mkdir(path, 0700)); free(path);
+ 	}
+@@ -205,10 +245,12 @@ int main(int argc, char **argv)
+ 	path = join(root, "sensors/odm/config/json.lst"); compare_file(iface, "/odm/etc/sensors/config/json.lst", path); free(path);
+ 	path = join(root, "sensors/odm/config/piano.json"); compare_file(iface, "/odm/etc/sensors/config/piano.json", path); free(path);
+ 	path = join(root, "sensors/config/piano.json"); compare_file(iface, "/vendor/etc/sensors/config/piano.json", path); free(path);
+-	mutations(iface, root, scratch);
++	path = join(scratch, "registry"); mutations(iface, root, path); free(path);
++	parent_writes(iface, scratch);
+ 	fastrpc_apps_std_deinit(iface);
+ 	iface = fastrpc_apps_std_init(construct_root_dir(root, "adsp", NULL)); CHECK(iface);
+ 	CHECK(rpc_open(iface, REG "DIR", "w") < 0);
++	CHECK(rpc_open(iface, REG_PARENT "sns_reg_version", "w") < 0);
+ 	fastrpc_apps_std_deinit(iface);
+ 	/* Keep the synthetic fixture path in the log for sanitizer/failure inspection. */
+ 	printf("REGISTRY_IO_PASS fixture=%s\n", root);

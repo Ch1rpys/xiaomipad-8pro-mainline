@@ -20,6 +20,9 @@ import time
 
 TYPES = {'accelerometer': 'accel', 'gyroscope': 'gyro', 'light': 'ambient_light', 'proximity': 'proximity'}
 CRITERION = 'Resting tablet: |a| approximately 9.8 m/s^2; require >=2 samples, median 7.8..11.8 m/s^2. SSC_ACCEL_G is m/s^2, not multiples of g.'
+SENSOR_POLL_SECONDS = 30
+CLIENT_SECONDS = 70  # registry <=30 + physical discovery <=30 + samples/close
+DAEMON_SECONDS = 75
 
 
 def parse_sensor(kind, text, returncode):
@@ -83,6 +86,89 @@ def aggregate(rows, daemon_ok):
         result, reason = ('FAIL', 'other sensor failures: ' + ', '.join(failures)) if failures else ('PASS', 'plausible acceleration and samples from all advertised requested types')
     return dict(result=result, reason=reason, accel_samples=len(magnitudes), accel_first_m_s2=first,
                 accel_median_m_s2=median, criterion=CRITERION)
+
+
+def empty_suid_reply(kind, text, code):
+    """Only retry the CLI's specific empty-SUID initialization result."""
+    return (code == 254 and f"No '{TYPES[kind]}' sensor available" in text and
+            not re.search(r'\b(?:WARNING|CRITICAL|ERROR)\s*\*\*:', text))
+
+
+def collect_sensors(command, out, daemon, children, env, kinds=None):
+    """Poll one-shot ssccli discovery; never restart the daemon or hide attempts."""
+    kinds = tuple(kinds or TYPES)
+    states = {kind: dict(child=None, log=None, attempt=0, retry_at=0,
+                        deadline=None, found=False, attempts=[]) for kind in kinds}
+    start = time.monotonic()
+    global_deadline = start + CLIENT_SECONDS
+    rows = {}
+
+    def finish(kind, state, row):
+        shutil.copyfile(state['path'], out/(kind+'.log'))
+        row['discovery_attempts'] = state['attempts']
+        row['elapsed_seconds'] = round(time.monotonic()-start, 3)
+        rows[kind] = row
+
+    try:
+        while len(rows) < len(states):
+            now = time.monotonic()
+            if daemon.poll() is not None:
+                raise RuntimeError('hexagonrpcd exited during discovery; inspect daemon.log and attempt logs')
+            for kind, state in states.items():
+                if kind in rows:
+                    continue
+                child = state['child']
+                if child is None:
+                    if state['deadline'] is not None and now >= state['deadline']:
+                        state['last']['reason'] = 'default sensor not advertised during 30-second empty-SUID polling'
+                        finish(kind, state, state['last'])
+                        continue
+                    if now < state['retry_at']:
+                        continue
+                    state['attempt'] += 1
+                    state['path'] = out/f"{kind}.attempt-{state['attempt']:02d}.log"
+                    state['log'] = state['path'].open('wb')
+                    state['attempt_start'] = now
+                    child = subprocess.Popen([*command, '--debug', '--sensor', kind, '--timeout', '5'],
+                                             stdout=state['log'], stderr=subprocess.STDOUT,
+                                             env=env, start_new_session=True)
+                    children.append(child); state['child'] = child
+                timed_out = False
+                if child.poll() is None and state['deadline'] is not None and now >= state['deadline'] and not state['found']:
+                    text = state['path'].read_text(errors='replace')
+                    state['found'] = bool(re.search(r"Discovered '" + TYPES[kind] + r"' sensor \(", text))
+                    # A discovered sensor may finish its five-second stream.
+                    if not state['found']:
+                        stop(child); timed_out = True
+                if child.poll() is None and now >= global_deadline:
+                    stop(child); timed_out = True
+                if child.poll() is None:
+                    continue
+                state['log'].close(); state['log'] = None
+                text = state['path'].read_text(errors='replace')
+                row = parse_sensor(kind, text, child.returncode)
+                state['attempts'].append(dict(log=state['path'].name, returncode=child.returncode,
+                    elapsed_seconds=round(time.monotonic()-state['attempt_start'], 3), timed_out=timed_out))
+                if timed_out:
+                    row.update(result='FAIL', reason='active SSC lookup or sample phase exceeded its deadline')
+                if not timed_out and empty_suid_reply(kind, text, child.returncode):
+                    if state['deadline'] is None:
+                        state['deadline'] = time.monotonic() + SENSOR_POLL_SECONDS
+                    if time.monotonic() < state['deadline'] and time.monotonic() < global_deadline:
+                        state['last'] = row
+                        state['child'] = None
+                        state['retry_at'] = time.monotonic() + 1
+                        continue
+                finish(kind, state, row)
+            if len(rows) < len(states):
+                time.sleep(0.1)  # Supervisor polling, not a device initialization delay.
+    finally:
+        for state in states.values():
+            if state['child'] is not None:
+                stop(state['child'])
+            if state['log'] is not None:
+                state['log'].close()
+    return rows
 
 
 def stop(child):
@@ -160,6 +246,7 @@ def main():
     out.mkdir()
     print('SSC_OUTPUT=' + str(out), flush=True)
     print('SSC_CRITERION=' + CRITERION, flush=True)
+    print('SSC_TIMING=registry<=30s empty-SUID-poll<=30s samples~5s client<=70s daemon<=75s', flush=True)
     children, streams, readers = [], [], []
     pristine = scratch = pristine_hashes = None
     summary = dict(result='FAIL', reason='test interrupted before completion', accel_samples=0,
@@ -209,7 +296,7 @@ def main():
         manifest = json.loads((bundle/'payload.json').read_text())
         source = bundle/'private-input/hexagonfs'
         required = [source/'sensors/odm/config/json.lst', source/'sensors/sns_reg.conf']
-        if not all(p.is_file() for p in required) or not any((source/'sensors/registry').glob('*')):
+        if not all(p.is_file() for p in required) or not any((source/'sensors/registry/registry').glob('*')):
             summary.update(result='UNAVAILABLE', reason='missing local stock config/sns_reg.conf/runtime registry; see README')
             return 2
         for name, digest in manifest['sha256'].items():
@@ -247,7 +334,7 @@ def main():
         # the last short file-request/attach log in a userspace stdio buffer.
         master, slave = os.openpty()
         try:
-            daemon = subprocess.Popen(['timeout', '--signal=TERM', '--kill-after=2s', '60s', *loader,
+            daemon = subprocess.Popen(['timeout', '--signal=TERM', '--kill-after=2s', f'{DAEMON_SECONDS}s', *loader,
                                        str(bundle/'bin/hexagonrpcd'), '-f', '/dev/fastrpc-adsp-secure', '-d', 'adsp', '-s', '-R', str(root), '-w', str(scratch)],
                                       stdin=subprocess.DEVNULL, stdout=slave, stderr=slave, env=env, start_new_session=True)
         except BaseException:
@@ -266,21 +353,8 @@ def main():
                 os.close(fd)
         reader = threading.Thread(target=drain, args=(master, log), daemon=True)
         reader.start(); readers.append(reader)
-        clients = {}
+        rows = collect_sensors([*loader, str(bundle/'bin/ssccli')], out, daemon, children, env)
         for kind in TYPES:
-            log = (out/(kind+'.log')).open('wb'); streams.append(log)
-            client = subprocess.Popen([*loader, str(bundle/'bin/ssccli'), '--debug', '--sensor', kind, '--timeout', '5'],
-                                      stdout=log, stderr=subprocess.STDOUT, env=env, start_new_session=True)
-            clients[kind] = client; children.append(client)
-        # No retries or daemon restarts. This bounds libssc's upstream 100-second registry wait.
-        deadline = time.monotonic() + 45
-        rows = {}
-        for kind, client in clients.items():
-            try:
-                client.wait(timeout=max(0.01, deadline-time.monotonic()))
-            except subprocess.TimeoutExpired:
-                stop(client)
-            rows[kind] = parse_sensor(kind, (out/(kind+'.log')).read_text(errors='replace'), client.returncode)
             (out/(kind+'.json')).write_text(json.dumps(rows[kind], indent=2, allow_nan=False)+'\n')
             print('SSC_SENSOR=' + kind + ' RESULT=' + rows[kind]['result'] + ' SAMPLES=' + str(rows[kind]['sample_count']), flush=True)
         (out/'sensors.json').write_text(json.dumps([{k: v for k, v in row.items() if k != 'samples'} for row in rows.values()], indent=2)+'\n')

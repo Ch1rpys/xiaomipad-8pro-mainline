@@ -6,6 +6,9 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import os
+from unittest.mock import patch
+from types import SimpleNamespace
 import unittest
 
 spec = importlib.util.spec_from_file_location('ssc_run', Path(__file__).with_name('run.py'))
@@ -94,6 +97,49 @@ class Results(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 run.copy_registry(pristine, root/'scratch')
             self.assertFalse((root/'scratch').exists())
+
+    def test_only_explicit_empty_suid_is_retried(self):
+        text = "DEBUG: No 'accel' sensor available\nUnable to initialize accelerometer sensor: UNKNOWN\n"
+        self.assertTrue(run.empty_suid_reply('accelerometer', text, 254))
+        self.assertFalse(run.empty_suid_reply('accelerometer', text, -15))
+        self.assertFalse(run.empty_suid_reply('accelerometer', text + '** (ssccli:1): WARNING **: bad transport\n', 254))
+        self.assertFalse(run.empty_suid_reply('accelerometer', 'registry sensor timed out', 254))
+
+    def test_delayed_cli_is_polled_and_all_attempts_retained(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            cli = out/'fixture.py'
+            cli.write_text('''from pathlib import Path
+import sys
+p=Path(__file__).with_suffix('.count')
+n=int(p.read_text())+1 if p.exists() else 1
+p.write_text(str(n))
+if n<3:
+ print("DEBUG: No 'accel' sensor available")
+ print('Unable to initialize accelerometer sensor: UNKNOWN')
+ sys.exit(254)
+print("DEBUG: Discovered 'accel' sensor (2 2)")
+print('Accelerometer sensor measurement: X=0 Y=0 Z=-9.81 m/s²')
+print('Accelerometer sensor measurement: X=0 Y=0 Z=-9.81 m/s²')
+''')
+            children = []
+            rows = run.collect_sensors([sys.executable, str(cli)], out,
+                SimpleNamespace(poll=lambda: None), children, os.environ.copy(), ['accelerometer'])
+            self.assertEqual(rows['accelerometer']['result'], 'PASS')
+            self.assertEqual(len(rows['accelerometer']['discovery_attempts']), 3)
+            self.assertEqual(len(list(out.glob('accelerometer.attempt-*.log'))), 3)
+            self.assertNotIn("No 'accel'", (out/'accelerometer.log').read_text())
+            self.assertTrue(all(p.poll() is not None for p in children))
+
+    def test_no_sensor_expires_without_restarting_daemon(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp); children = []
+            cmd = [sys.executable, '-c', 'import sys; print("No \'accel\' sensor available"); sys.exit(254)']
+            with patch.object(run, 'SENSOR_POLL_SECONDS', 0.2):
+                rows = run.collect_sensors(cmd, out, SimpleNamespace(poll=lambda: None), children,
+                                           os.environ.copy(), ['accelerometer'])
+            self.assertEqual(rows['accelerometer']['result'], 'UNAVAILABLE')
+            self.assertTrue(all(p.poll() is not None for p in children))
 
 
 if __name__ == '__main__':
