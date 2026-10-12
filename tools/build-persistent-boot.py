@@ -190,6 +190,13 @@ def main():
             data = regular_file(entries, 'usr/lib/firmware/' + row['path'])
             if len(data) != row['bytes'] or hashlib.sha256(data).hexdigest() != row['sha256']:
                 p.error(f'Native display packed firmware mismatch: {row["path"]}')
+        if info.get('purpose') == 'iris':
+            iris = [r for r in info['firmware'] if r['path'] == 'qcom/sm8750/vpu35_4v.mbn']
+            if len(iris) != 1:
+                p.error('Iris RAM check requires the locked VPU35 firmware')
+            expected = f'{iris[0]["sha256"]}  {iris[0]["path"]}\n'.encode()
+            if regular_file(entries, 'etc/piano-native-display/iris-firmware.sha256') != expected:
+                p.error('Iris runtime firmware check differs from the packed payload')
         for name, digest in info['runtime_units'].items():
             if hashlib.sha256(regular_file(entries, 'etc/piano-native-display/systemd/' + name)).hexdigest() != digest:
                 p.error(f'Native display runtime unit mismatch: {name}')

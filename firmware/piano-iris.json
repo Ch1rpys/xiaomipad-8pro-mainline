@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "kind": "Pinned piano Iris VPU35 firmware identity; same distribution policy as firmware/README.md",
+  "stock_build": "OS3.0.303.0.WPYCNXM",
+  "files": {
+    "qcom/sm8750/vpu35_4v.mbn": {
+      "bytes": 2409160,
+      "sha256": "95c5882f9b66b93ad2635604b7db563cc310481e017fa6b82e0ce6cbb9eae01b",
+      "stock_source": "odm/firmware/vpu35_4v.mbn"
+    }
+  }
+}
