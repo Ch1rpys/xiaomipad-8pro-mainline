@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""The release checks: FDT property names, identifier patterns and the chunked byte scan."""
+"""Release identity checks and the concise bilingual, data-driven note template."""
 import importlib.machinery
 import importlib.util
 import json
 from pathlib import Path
 import struct
+import subprocess
+import sys
 import tempfile
 import unittest
+
+from release_notes import fill_asset_details, render_notes
 
 TOOL = Path(__file__).with_name('build-release.py')
 
@@ -67,6 +71,90 @@ class Release(unittest.TestCase):
             for chunk in (1003, 1004, 1006, 4096):
                 self.assertTrue(self.tool.scan(f, {b'abc1234'}, chunk=chunk), chunk)
             self.assertFalse(self.tool.scan(f, {b'abc1235'}, chunk=1003))
+
+    def test_short_bilingual_notes_and_verbatim_changes(self):
+        changes = '- 修复显示。\n\n  **Keep $literal and `code` unchanged.**\n'
+        rootfs = {'release_name': 'v9.8.7', 'kernel_release': '7.2.6-piano10',
+                  'apt_snapshot': '20261001T000000Z',
+                  'packages': [{'package': 'linux-image-7.2.6-piano10', 'version': '7.2.6-10.1'},
+                               {'package': 'a-package-not-for-the-notes', 'version': '1'}]}
+        notes = render_notes(rootfs, 'OS3.0.303.0.WPYCNXM', '1234567' + '0' * 33,
+                             {'url': 'https://example.org/kernel', 'commit': 'abcdef0' + '1' * 33}, changes)
+        self.assertEqual(notes.count(changes), 2)
+        self.assertLess(notes.index('## 下载'), notes.index('## Downloads'))
+        self.assertIn('linux-image-7.2.6-piano10 7.2.6-10.1', notes)
+        self.assertIn('[1234567]', notes)
+        self.assertIn('busybox/1.36.1-6ubuntu3.1', notes)
+        self.assertIn('release-manifest.json', notes)
+        self.assertNotRegex(notes, r'[0-9a-f]{64}')
+        for absent in ('preview-5', 'repack', 'no device was accessed', 'QEMU', 'AVB',
+                       'Packages installed in the image', 'a-package-not-for-the-notes'):
+            self.assertNotIn(absent, notes)
+        for doc in ('INSTALL', 'UPGRADE'):
+            for suffix in ('.md', '.zh-CN.md'):
+                self.assertIn(f'/docs/{doc}{suffix}', notes)
+        prefix = 'piano-ubuntu-v9.8.7'
+        sizes = {f'{prefix}-{kind}.zip': 123 for kind in ('boot', 'tools', 'packages')}
+        sizes.update({f'{prefix}-rootfs.img.zst.part0': 456,
+                      'SHA256SUMS.assets': 789, 'assets-manifest.json': 1011})
+        filled = fill_asset_details(notes, 'v9.8.7', sizes, [f'{prefix}-rootfs.img.zst.part0'])
+        self.assertEqual(filled.count(changes), 2)
+        self.assertNotIn('Pending packaging', filled)
+        self.assertNotIn('打包后填写', filled)
+        self.assertIn('part0: 456 B', filled)
+
+    def test_build_cli_embeds_changes_and_keeps_package_inventory(self):
+        """Assemble tiny synthetic inputs through the real --changes CLI."""
+        with tempfile.TemporaryDirectory() as temporary:
+            d = Path(temporary)
+            build, maintenance, output = d / 'build', d / 'maintenance', d / 'release'
+            s = build / 'ubuntu-set'
+            s.mkdir(parents=True)
+            maintenance.mkdir()
+            dtb = fdt(['compatible'])
+            command = 'root=PARTLABEL=linux_rootfs rw'
+            for name in self.tool.SET_FILES:
+                (s / name).write_bytes(b'synthetic ' + name.encode())
+            (s / 'boot.img').write_bytes(command.encode())
+            (s / 'piano-boot.dtb').write_bytes(dtb)
+            (s / 'vendor_boot.img').write_bytes(dtb)
+            stock = {'boot': {'avb_properties': {'com.android.build.boot.fingerprint':
+                     'Xiaomi/piano/piano:16/ID/OS3.0.303.0.WPYCNXM:user/release-keys'}},
+                     'init_boot': {}, 'vendor_boot': {}, 'scope': 'stock'}
+            (s / 'profile.json').write_text(json.dumps(stock))
+            (build / 'boot-profile.json').write_text(json.dumps(stock))
+            manifest = {'cmdline': command, 'debug': False, 'inputs': {'kernel': 'synthetic'},
+                        'private_bt_address_injected': False, 'private_wlan_address_injected': False,
+                        'effective_dtb_sha256': self.tool.sha(s / 'piano-boot.dtb'),
+                        'outputs': {n: {'sha256': self.tool.sha(s / f'{n}.img')}
+                                    for n in ('boot', 'init_boot', 'vendor_boot')}}
+            (s / 'manifest.json').write_text(json.dumps(manifest))
+            (build / 'root.sparse.img').write_bytes(b'synthetic root')
+            package = d / 'kernel.deb'
+            package.write_bytes(b'synthetic package')
+            packages = [{'package': 'linux-image-7.2.6-piano9', 'version': '7.2.6-9.1',
+                         'source': 'piano', 'file': package.name, 'sha256': self.tool.sha(package)}]
+            rootfs = {'state': 'ROOT_IMAGE_BUILT_OFFLINE_CHECKS_PASS_NOT_BOOTED',
+                      'release_name': 'v1.2.3', 'kernel_release': '7.2.6-piano9',
+                      'apt_snapshot': '20261001T000000Z', 'packages': packages,
+                      'outputs': {'root.sparse.img': {'sha256': self.tool.sha(build / 'root.sparse.img')}}}
+            (build / 'manifest.json').write_text(json.dumps(rootfs))
+            (build / 'verification.json').write_text('{"passed": true}')
+            (build / 'inputs-local.json').write_text(json.dumps({package.name: str(package)}))
+            (maintenance / 'maintenance.img').write_bytes(b'synthetic maintenance')
+            maint = {'kind': 'piano-maintenance-ram', 'kernel_release': rootfs['kernel_release'],
+                     'inputs': {'kernel': 'synthetic', 'dtb': manifest['effective_dtb_sha256']},
+                     'serial_in_cmdline': False, 'cmdline': 'rdinit=/init',
+                     'image': {'file': 'maintenance.img', 'sha256': self.tool.sha(maintenance / 'maintenance.img')}}
+            (maintenance / 'manifest.json').write_text(json.dumps(maint))
+            changes = '- 本版手写变化 / Handwritten changes: **$literal**\n'
+            (d / 'changes.md').write_text(changes)
+            subprocess.run([sys.executable, str(TOOL), '--rootfs-build', str(build),
+                            '--maintenance', str(maintenance), '--output', str(output),
+                            '--changes', str(d / 'changes.md')], check=True, capture_output=True)
+            self.assertEqual((output / 'RELEASE-NOTES.md').read_text().count(changes), 2)
+            self.assertEqual(json.loads((output / 'release-manifest.json').read_text())['packages'], packages)
+            subprocess.run(['sha256sum', '-c', 'SHA256SUMS'], cwd=output, check=True, capture_output=True)
 
 
 if __name__ == '__main__':
