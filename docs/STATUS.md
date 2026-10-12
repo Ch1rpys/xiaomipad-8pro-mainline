@@ -1,129 +1,95 @@
 # Status
 
-Last updated: 2026-10-11. The component support matrix is in the
-[README](../README.md#support-matrix). This page records the test
-configuration, known issues, roadmap and upstreaming state.
+Last updated: **2026-10-12**. The current kernel/package release is
+**7.2.6-piano9 (ABI 9)**, installed and cold-boot accepted on piano.
+The component support matrix is in the [README](../README.md#support-matrix)
+and [中文 README](../README.zh-CN.md#硬件支持). This page records the
+verification scope, remaining limitations and upstreaming state.
 
 ## Test configuration
 
-All hardware statuses refer to this configuration only.
+These results belong to the tested piano. They do not establish support for
+other units, variants or accessories. Earlier input checks and the separate
+piano8-module video test are identified below.
 
 | Item | Value |
 |---|---|
 | Device | Xiaomi Pad 8 Pro (`piano`), model 25091RP04C (China), SoC SM8750P, 16 GB RAM, 512 GB UFS; bootloader unlocked |
 | Stock build | OS3.0.303.0.WPYCNXM |
-| Kernel | `7.2.6-piano5` (ABI 5), kernel repository commit `24dd77102` as pinned in [`kernel/source.json`](../kernel/source.json) and recorded in [`kernel/abi.json`](../kernel/abi.json); fragments `piano-diagnostic.config`, `piano-desktop-diag.config`, `piano-persistent.config`, `piano-release.config`; DTB `sm8750-xiaomi-piano-desktop.dtb`; 1071 modules. `7.2.6-piano4` owns the rollback image set; the piano4 and piano3 packages stay installed |
-| Integration | this repository at `950743c`; `piano-device-support` 0.1+20261009.2, `piano-local-firmware` 0.3+os3.0.303.0 (built from `firmware/`, VA capture topology), `piano-ubuntu-desktop` 0.1+20261010.1 (on-screen keyboard guard, microphone UCM) |
-| Userspace | Ubuntu 26.04 Desktop ARM64; Mesa 26.2.0 with `mesa/a830-speedbin.patch` |
+| Kernel | `7.2.6-piano9` (ABI 9), commit `3ef018a0e9d5ac6e9a1b22ae85dd8e7b5c243166`; source/configuration identity in [kernel/source.json](../kernel/source.json) and [kernel/abi.json](../kernel/abi.json) |
+| Installation | Updated from piano8 with an independent `piano9-rollback` image set retained; [upgrade procedure](PIANO9.md) |
+| Userspace | Ubuntu 26.04 Desktop ARM64; Mesa 26.2 deb plus snap `gpu-2404` provider integration .3 |
+| Desktop dependencies | GStreamer good/bad plugins are dependencies of `piano-ubuntu-desktop`; installation of plugins is not application playback verification |
+| Sensor packages | `piano-sensors` (hexagonrpcd) and `piano-iio-sensor-proxy` (libssc-backed SensorProxy); private registry calibration staged from the owner's own backup |
 
-Verification basis: the installed system was checked with a debug image set
-that is identical to the release set except for the kernel command line (it
-adds a USB console and a session timeout). Display output was confirmed both
-visually and with DPU frame counters. The release image set boots from slot A.
+## Cold-boot acceptance
+
+[tools/piano-cold-boot-accept.py](../tools/piano-cold-boot-accept.py) accepted
+the installed piano9 cold boot on 2026-10-12:
+
+| Check | Device result |
+|---|---|
+| simpledrm first light | 0.18 s |
+| switch_root | 6.0 s |
+| GDM | 12.7 s |
+| GMU | 0.87 s |
+| Native scanout | Dual INTF at 144 Hz |
+| Clock / DSI / GPU errors | Zero over 200 s |
+
+simpledrm is only the initial display path; native DSI KMS (`msm_dpu`) drives
+3200×2136 at 144 Hz. Backlight control through Mutter and DPMS off/on were
+hardware-verified. This is not suspend/resume acceptance.
+
+## Device verification scope
+
+| Area | Verified result and limit |
+|---|---|
+| GPU | Adreno 830 with Mesa 26.2 deb and snap `gpu-2404` provider integration .3; Firefox WebRender verified |
+| Video | Iris V4L2 decoder/encoder nodes present; 1080p H.264 hardware decode was bit-exact against software in a RAM check with piano8 modules; persistent piano9 exposes `/dev/video0/1`; application playback unverified and encoder untested |
+| Wi-Fi | WCN7860 ath12k: stable 2.4 GHz and 5 GHz 80 MHz HE links verified on the installed kernel |
+| Bluetooth | Scan found 4 devices; pairing and audio unverified |
+| Speakers | FS19xx playback verified without speaker protection, with a −15 dB cap (TD-026) |
+| Internal microphones | PipeWire capture verified: 1 kHz tone 29–36 dB above the noise floor |
+| Touch | NT36532E THP input verified; orientation confirmed earlier by the user |
+| Keyboard | WN8030 transport; keys confirmed earlier by the user; this keyboard has no touchpad |
+| Sensors | SSC through hexagonrpcd and libssc: accelerometer, gyro, light and proximity samples verified; SensorProxy reports orientation |
+| Rotation | Mutter's tablet-mode rule enables GNOME auto-rotation only with the keyboard detached; physical four-orientation test pending |
+| Dual boot | Slot-A image-set rotation with `piano-boot-switch` and Android KernelSU module switching verified; clean shutdown on RAM-check return fixed |
 
 ## Known issues
 
-1. **Slot retry count.** ABL decrements slot A's retry counter on every boot
-   of an unsuccessful slot. `piano-slot-success.service` marks slot A
-   successful after a completed Ubuntu boot, and switching with
-   `piano-boot-switch` keeps the attributes; a host `fastboot flash` resets the
-   counter to 7 and clears the successful bit until the next Ubuntu boot.
-2. **No charging.** The battery discharges under Linux, including with USB
-   connected. The read-only `xiaomi_mca` client reports the USB input
-   (`xiaomi-mca-usb`), but there is no charge control. Charge in Android and
-   keep at least 40 % before switching to Linux.
-3. **Clock.** The PMIC RTC cannot be written: its driver sets the clock to
-   1970 in the initrd and systemd then advances it to its built-in date
-   (2026-04-15). From piano-ubuntu-desktop 0.1+20261010.6, `fake-hwclock`
-   restores the time saved at the last shutdown or hourly and chrony skips
-   the NTS certificate time checks until its first update. From
-   0.1+20261010.7 chrony selects sources regardless of authentication
-   (`authselectmode ignore`), so that it also synchronises behind a router
-   that answers every NTP request itself (not yet tested). Trade-off:
-   unauthenticated time is accepted when NTS is unavailable.
-4. **Display.** Firmware scanout only: brightness stays at the bootloader
-   level and there is no screen-off or wake. simpledrm reports no physical
-   size, so GNOME shows an unknown 40-inch monitor; `piano-ubuntu-desktop`
-   presets 200 % scaling for accounts (0.1+20261010.5 and later: one
-   system-wide `/etc/xdg/monitors.xml` that also covers the login screen and
-   Initial Setup, which were at 100 %; not yet checked on the device). Intermittent whole-screen black flicker has been
-   observed with touch active; the cause is not identified.
-5. **Touch.** Long press does not work: a stationary finger is released after
-   about one frame. After the first touch the controller stays in 120 Hz
-   active scanning. On the lock screen GNOME Shell 50 raised a JavaScript
-   error on every touch release while the on-screen keyboard was active
-   (`keyboard.js:1159`); `piano-ubuntu-desktop` now ships the
-   `piano-osk-guard@io.github.piano` extension against it, not yet tested on
-   the tablet. Until it is, enter passwords with the magnetic keyboard.
-6. **Suspend disabled.** `piano-device-support` installs
-   `/usr/lib/systemd/sleep.conf.d/50-piano-first-release.conf` (all sleep
-   states refused) and a GSettings override that sets the GNOME idle actions
-   to `nothing`. A same-named file in `/etc/systemd/sleep.conf.d/` re-enables
-   sleep for testing; resume has never been exercised on this kernel.
-7. **Kernel updates.** Installing `linux-image-7.2.6-piano5` took 21 s on the
-   device (dracut, the kdump-tools initrd and the boot image set). The 10 to
-   12.5 minutes measured before came from sessions running the older
-   `7.2.6-piano+` kernel, with dispcc as a module and so probably in the slow
-   display-clock state (memory bandwidth was not measured there). `piano-boot-update` then rebuilds
-   the Ubuntu image set in `/var/lib/piano/switch/ubuntu/` and, on a
-   persistent boot whose slot A holds an Ubuntu set, rewrites slot A in place.
-8. **Generic kernels.** Kernel packages inherited from the Desktop image
-   (`linux-image-7.0.0-14-generic`, `linux-generic-hwe-26.04`) remain
-   installable and receive initrds, but cannot boot piano. Release roots
-   built with 7.2.6-piano7 have them and `kdump-tools` purged (47 packages,
-   including `libc6-dev`; install `build-essential` to compile).
-9. **Boot log errors without observed effect:** systemd `bpf-restrict-fs`
-   fails to load; Bluetooth frame reassembly errors (-84) during firmware
-   download; two snap user services fail. The UFS `EE_CONTROL` -22, the ADSP
-   "Handover signaled" message, the qcom-apm command timeout and the deferred
-   trace NOC are gone in 7.2.6-piano3.
-10. **Debug entry.** `piano-debug.service` and `piano-debug-timeout.service`
-    are installed and enabled but run only when the kernel command line
-    contains `piano.debug=1`; that mode provides an unauthenticated root
-    shell over USB. Release images do not set it.
-11. **Module ABI.** `CONFIG_MODVERSIONS` is disabled. Install the kernel image
-    and modules from the same build only.
-12. **Package notices.** `piano-device-support`, `piano-mesa` and
-    `piano-ubuntu-desktop` contain third-party binaries (BusyBox, AOSP tools,
-    Mesa). Packages built by `tools/build-device-debs.py` from 2026-10-10 carry
-    `/usr/share/doc/<package>/copyright` and `NOTICE`; the versions listed in
-    the test configuration above were built earlier and lack them.
-13. **Wi-Fi.** The WCN7860 probes from the installed firmware, takes this
-    unit's MAC address from the boot DTB (`/etc/piano/wlan-address`, see
-    [device/boot](../device/boot/README.md)), or a random locally administered
-    one when no address is provided, and NetworkManager's scans find 2.4 and
-    5 GHz networks (7.2.6-piano4 and later, with a not yet merged upstream fix of
-    ath12k's frequency range). With 7.2.6-piano6, 2.4 GHz and 5 GHz 40 MHz
-    networks associated and got DHCP leases; 5 GHz 80 MHz links dropped about
-    12 s after association. 7.2.6-piano7 applies the vendor SAR TX power limit
-    as stock Android does; the two changed modules loaded on 7.2.6-piano6 held
-    an 80 MHz HE link for 120 s with 74.7/100 Mbit/s down/up, and 2.4 GHz still
-    worked. The piano7 package itself is not yet checked on the device. The
-    board file is the API 1 `board.bin` (no `board-2.bin` yet).
-14. **Volume keys.** 7.2.6-piano7 describes them from the stock devicetree
-    (volume up on PM8550 GPIO6, volume down on the PMK8550 resin); key events
-    and wakeup are not yet checked on the device. Earlier kernels have the
-    power key only.
+1. **Charging is not accepted.** Read-only `xiaomi_mca` reporting is available;
+   MiPPS/charging3 control awaits a wall-charger test. Net charging has not
+   been verified. Charge in Android and keep at least 40 % before switching.
+2. **Speaker protection is absent.** Verified FS19xx playback retains the
+   −15 dB cap. Playback success does not close TD-026.
+3. **Sensor calibration and rotation.** Stage private registry calibration
+   from your own backup using
+   [tools/stage-sensor-registry.py](../tools/stage-sensor-registry.py) and the
+   [sensor package instructions](../device/sensors/README.zh-CN.md#原厂配置与私有标定).
+   Never share or substitute another tablet's calibration. Samples and
+   SensorProxy orientation do not establish physical four-orientation
+   behavior; that test remains pending with the keyboard detached.
+4. **Video acceptance is limited.** The bit-exact H.264 result belongs to the
+   piano8-module RAM check. The installed piano9 root exposes both nodes;
+   application-level playback and encoding have not been verified.
+5. **Bluetooth acceptance is limited to scanning.** Pairing and audio remain
+   unverified.
+6. **Suspend is disabled** by product policy (D3). **The RTC cannot be set**
+   (TD-022). Display DPMS off/on does not establish either capability.
+7. **Unsupported hardware.** Cameras lack SM8750 CAMSS support; stock
+   read-only evidence has been captured. USB-C DisplayPort external display
+   has only offline control-chain evidence and is not supported yet. Stylus
+   and fingerprint are unsupported.
 
 ## Roadmap
 
-In priority order:
-
-1. Wi-Fi: check the 80 MHz fix with the 7.2.6-piano7 package on the device,
-   and a `board-2.bin` for each board SKU.
-2. Charging: charge control over the vendor charger protocol (MCA), which
-   differs from the upstream `battmgr` interface; reading it is done.
-3. Publish the installer (partitioning, filesystem creation, boot-profile
-   generation); add an avbtool fetch script and
-   Python-independent `init_boot` output.
-4. Native display: MDSS/DPU/DSI with the NT36532 panel driver and both
-   KTZ8866 backlight controllers, providing brightness and screen-off/wake.
-   External display depends on this step.
-5. Suspend and resume (s2idle and deep) with display, touch, keyboard,
-   Bluetooth and UFS recovery.
-6. Speaker playback, microphone speech quality and UCM tuning (capture
-   itself records a test tone), USB host and Type-C roles, sensors, video
-   decoding, cameras.
+Remaining validation includes the wall-charger MiPPS/charging3 test, physical
+four-orientation testing with the keyboard detached, Bluetooth pairing/audio,
+application-level video playback and encoder testing. Speaker protection
+(TD-026), suspend (D3), RTC setting (TD-022), cameras, external DisplayPort,
+stylus and fingerprint remain open; the completed piano9 cold-boot checks do
+not close these gaps.
 
 ## Upstreaming
 
