@@ -64,8 +64,6 @@ only while the cable is connected. `fastboot -s <SERIAL> reboot` then starts slo
 `sha256sum` and `wget`. Every command runs as root: `dd`, `sgdisk` and `sfdisk` write the disk
 when you tell them to.
 
-These device results were obtained with earlier maintenance and release builds on 2026-10-10: USB connection, LUN inspection, rewriting the existing GPT without changes, timed return to Fastboot, and preinstalling unit files. They do not validate the maintenance or boot images bundled here, which use 7.2.6-piano7 and have not yet been booted on a tablet. Generating the partition map in INSTALL.md step 8a has only been checked offline.
-
 ## Image sets
 
 An image set is a directory with `boot.img`, `init_boot.img`, `vendor_boot.img` (each the full
@@ -116,33 +114,24 @@ Android set from the current slot A images and store it with
 | `sudo piano-boot-switch import-android --from DIR` | store | `"result": "imported"`; replaces `android/` |
 | `sudo piano-boot-switch import-ubuntu [--from DIR]` | store | `imported`; the old `ubuntu/` becomes `ubuntu.prev/` |
 
-- The required fixes are included in this release’s piano-device-support 0.1+20261010.7. Complete
-  [INSTALL.md step 10](INSTALL.md#10-install-your-units-files) to install your unit’s files.
+- Complete [INSTALL.md step 10](INSTALL.md#10-install-your-units-files) first to install your unit's files.
 - It needs your `boot-profile.json` and `boot-partitions.json` in `/etc/piano/`, and writes only
   when slot A holds a known set, which serves as the rollback. Each partition is written and read
   back in full; on a failure the previous set is written back.
 - `"result": "refused"` means nothing was written; `code` and `message` say why.
   `rollback-failed` or `final-mismatch`: do not reboot; recover from Fastboot (below).
-- From support 0.1+20261012.1, reboot lists shutdown block inhibitors (who/why)
-  and preserves systemctl's stderr. If reboot is denied, the command exits 1:
-  slot A still holds Android and the next boot will be Android. Save your work
-  and reboot normally, or re-run with `--reboot --force` to ignore inhibitors
-  (`systemctl reboot -i`). The app-grid entry uses `--desktop --force`, with
-  an unsaved-work warning in its comment and polkit prompt; it has no GNOME
-  logout dialog. This fix is tested offline, pending device validation.
+- Before rebooting it lists the processes that block shutdown (inhibitors); if the reboot is denied it exits 1 with slot A already holding Android, so the next boot is Android. Save your work and reboot normally, or use `--reboot --force` to ignore inhibitors. The app-grid entry **Switch to Android** runs the same tool.
 - Verified on the test unit: `status`, `verify`, both imports, `to-ubuntu`, `to-android --reboot`.
-  The app-grid entry **Switch to Android** runs the same tool but is not yet verified.
 
 ## From Android: KernelSU module
 
-The Android-side module is unverified in the [support matrix](../README.md#support-matrix);
-use the host path below until it is verified. The module
-`tools/piano-switch-ksu-v0.1.0.zip` of the release needs KernelSU-Next with shell root, a stored
+Switching from Android is verified on the test unit. The module
+`tools/piano-switch-ksu-v0.2.0.zip` of the release needs KernelSU-Next with shell root, a stored
 `android/` set equal to slot A and a clean Ubuntu shutdown.
 
 ```bash
-adb -s <SERIAL> push "$RELEASE/tools/piano-switch-ksu-v0.1.0.zip" /data/local/tmp/
-adb -s <SERIAL> shell su -c '/data/adb/ksud module install /data/local/tmp/piano-switch-ksu-v0.1.0.zip'
+adb -s <SERIAL> push "$RELEASE/tools/piano-switch-ksu-v0.2.0.zip" /data/local/tmp/
+adb -s <SERIAL> shell su -c '/data/adb/ksud module install /data/local/tmp/piano-switch-ksu-v0.2.0.zip'
 adb -s <SERIAL> reboot
 adb -s <SERIAL> shell su -c 'sh /data/adb/modules/piano-switch/piano-switch.sh --check'
 # expect "CHECK OK: slot A holds the android set and the ubuntu set is ready; nothing written"
@@ -210,7 +199,6 @@ not answer.
 
 ## Restoring the original layout
 
-Removing Ubuntu and restoring the original partition table has no tool and no verified procedure
-in v0.1; the [maintenance RAM image](#maintenance-ram-image) is the environment such a write would
+Removing Ubuntu and restoring the original partition table has no tool and no verified procedure yet; the [maintenance RAM image](#maintenance-ram-image) is the environment such a write would
 need. Keep the partition table backups of [INSTALL.md](INSTALL.md#2-back-up) and the full
 partition backup.

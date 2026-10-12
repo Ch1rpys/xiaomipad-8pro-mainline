@@ -1,11 +1,8 @@
-# Installing v0.2.0
+# Fresh Installation
 
 [中文](INSTALL.zh-CN.md) | [Project overview](../README.md) | [Fastboot, switching and recovery](FLASHING.md)
 
-This guide installs a v0.2.0 release next to Android on the Xiaomi Pad 8 Pro (`piano`) by
-hand. Installation is manual in v0.2: there is no installer yet. Writing the new partition table
-([step 6](#6-write-the-partition-table-on-the-tablet)) runs in the release's maintenance RAM image.
-Read the whole guide before you start.
+This guide installs the release next to Android on a Xiaomi Pad 8 Pro (`piano`). There is no graphical installer yet: follow this guide yourself, or hand it to an AI assistant as described on the [project page](../README.md#recommended-let-an-ai-assistant-install-it). The new partition table ([step 6](#6-write-the-partition-table-on-the-tablet)) is written from the maintenance RAM image of the release directory. Read the whole guide before starting. This procedure was carried out once in full on the test unit with v0.2.0.
 
 ## Read first
 
@@ -41,7 +38,7 @@ Steps that use standard commands because no project tool exists yet are marked *
 | The release directory | every file of one release, not mixed with other releases |
 | Free host space | about 40 GB: the backup (16 GB on the test unit), the release (about 9 GB) and the data image |
 
-v0.2.0 is currently a locally built directory, `out/release-v0.2.0`; no download assets have been published. Use the complete directory without mixing preview files, and verify its SHA256SUMS after setting RELEASE below.
+Restore the release directory from the release assets as in the [README's manual installation](../README.md#manual-installation); use only the complete directory of one version and never mix in files of another.
 
 REPO is the absolute path to the integration checkout at the release’s recorded commit. RELEASE is the extracted release directory. WORK is a private installation directory outside the checkout. Run subsequent host commands from WORK; use `"$REPO/tools/NAME"` for source tools and `"$RELEASE/PATH"` for release files.
 Set these paths in each host terminal you use. The next check validates every file in RELEASE.
@@ -61,7 +58,7 @@ The release contains `boot/` (the Ubuntu boot set for slot A, `boot-ram-check.im
 `rootfs/root.sparse.img` (the 60 GiB root), `debs/`, `tools/piano-switch.py` and the KernelSU module.
 Its contents are described in [RELEASE.md](RELEASE.md).
 
-The image includes `linux-image-7.2.6-piano9`, `piano-device-support`, `piano-local-firmware` 0.5 (including Iris), `piano-mesa`, `piano-mipps-auth`, `piano-ubuntu-desktop`, `piano-snap-graphics`, `piano-sensors` and `piano-iio-sensor-proxy`. GStreamer good/bad plugins and command-line tools provide `h264parse` / `v4l2h264dec`; automatic browser decoding remains unverified. The deb embeds the snap provider; its first-boot service installs and connects it after snap seeding. Sensors ship an empty default seed and no private registry; default-calibration accuracy is unverified.
+The image ships the kernel package and every project package (device support, firmware, Mesa, desktop defaults, snap graphics provider, MiPPS authentication, sensors); the versions are in the release notes. GStreamer good/bad plugins are installed. Sensors carry default calibration only, no unit's private calibration.
 
 ## 1. Unlock and check the stock build
 
@@ -323,7 +320,6 @@ session. Stop the host's `http.server` afterwards.
 - If `piano-maint fastboot` says `nvmem-reboot-mode is not bound`, it does not reboot; use
   Power + Volume Down.
 
-These device results were obtained with earlier maintenance and release builds on 2026-10-10: USB connection, LUN inspection, rewriting the existing GPT without changes, timed return to Fastboot, and preinstalling unit files. They do not validate the maintenance or boot images bundled here, which use the device-verified 7.2.6-piano9 kernel package but still await a full fresh-install test as a set. Generating the partition map in step 8a has only been checked offline.
 
 ## 7. Write the filesystems (Fastboot)
 
@@ -348,23 +344,9 @@ fastboot -s <SERIAL> flash linux_data data.sparse.img                      # sec
 # expect "OKAY" on every Sending and Writing line, then "Finished."
 ```
 
-The tablet writes the RAW and FILL blocks of a sparse image and skips its DONT_CARE blocks. The root
-image writes only the blocks its filesystem uses (7.2.6-piano6 builds: 8.2 GiB of data and 1.1 GiB of
-zeroed inode tables and journal, 10.1 GB in all; the 51 GiB of free space are DONT_CARE). From the
-7.2.6-piano7 build the image build also discards the blocks it freed by removing Ubuntu's generic
-kernels, about 8.7 GB in all (measured offline on a test build of that root); the `summary` line
-above prints the figure of your image. `img2simg -s` likewise leaves the free blocks of
-`data.sparse.img` out (6 MB of data, at most 1 GiB of journal fill).
+The tablet writes only the blocks the filesystem actually uses (about 9 GB) and skips the free blocks; `img2simg -s` likewise skips the free blocks of `data.sparse.img`.
 
-**`OKAY` does not mean the write is finished.** The bootloader answers once the data has arrived and
-keeps writing FILL blocks in the background at about 30 MB/s; the next Fastboot command waits until it
-is done. Do not unplug the cable, reset or power off the tablet while a command waits, and do not
-repeat a write that finished with `OKAY`. (On the test unit, 2026-10-10: an earlier image of this
-preview stored the free space of the root as 51.8 GiB of FILL; `flash linux_rootfs` returned `OKAY`
-after 41 s, and the following `flash linux_data` of a 6 MB image returned only after 1839 s, the root's
-FILL commit. A data image with 1 GiB of FILL delayed the next `fastboot boot` by about 30 s.) Android
-re-creates `userdata` and `metadata` on its next boot; all Android data, including the root manager's
-configuration, is gone.
+**`OKAY` does not mean the write is complete.** The bootloader answers as soon as the data has arrived and keeps writing in the background; the next Fastboot command waits for it. Do not unplug, reset or power off while a command waits, and do not repeat a write that returned `OKAY`.
 
 ## 8. Optional: test-boot without writing slot A
 
@@ -384,7 +366,7 @@ before Ubuntu first boots. Touch then works in Initial Setup, and the host can r
 SSH as soon as the account exists. Without this step, use the magnetic keyboard in Initial Setup and
 copy the files in step 10.
 
-Keep boot-profile.json and boot-signing.pem on the host until step 10 so boot-set regeneration happens after the Android recovery set is ready. This release already contains piano-device-support 0.1+20261012.piano9; the earlier serial-mismatch failure is fixed.
+Keep boot-profile.json and boot-signing.pem on the host until step 10 so boot-set regeneration happens after the Android recovery set is ready.
 
 In Fastboot, with the files of step 3 in the current directory on the host:
 
@@ -442,9 +424,6 @@ piano-maint fastboot
 `lsblk` shows no partition labels in this environment; the loop above reads them from sysfs. The
 symbolic link is what `piano-devmode on` creates.
 
-These device results were obtained with earlier maintenance and release builds on 2026-10-10: USB connection, LUN inspection, rewriting the existing GPT without changes, timed return to Fastboot, and preinstalling unit files. They do not validate the maintenance or boot images bundled here, which use the device-verified 7.2.6-piano9 kernel package but still await a full fresh-install test as a set. Generating the partition map in step 8a has only been checked offline.
-Offline, the release's BusyBox `nc` closed the connection at the end of the table, the host's
-`nc -l` then exited, and the tool rebuilt the test unit's map from its LUN 4 GPT.
 
 ## 9. Write slot A and first boot
 
@@ -464,16 +443,10 @@ fastboot -s <SERIAL> reboot
   10) the host cannot reach it (developer mode needs an account and refuses root logins), and the only
   way back is Power + Volume Down.
 - **Computer name.** The account page fills its *Computer* field with your user name and makes it
-  the hostname, replacing the image's `xiaomipad-8pro` (7.2.6-piano7 build); edit the field for
+  the hostname, replacing the image's `xiaomipad-8pro`; edit the field for
   another name, or later run `sudo hostnamectl hostname --static <name>`. The pretty name
   "Xiaomi Pad 8 Pro", which Bluetooth shows, stays.
-- **Clock.** The hardware clock cannot be written. This release’s piano-ubuntu-desktop
-  0.1+20261010.7 is configured to restore the time saved at the last shutdown or hourly
-  (`fake-hwclock`), so it is behind by the time the tablet was off or in Android. Images without
-  this measure start at systemd's built-in date, 2026-04-15. chrony is configured to correct it once
-  online, including behind a router that answers NTP itself, by accepting unauthenticated time
-  when NTS is unavailable (`authselectmode ignore`). These clock measures are not yet verified on
-  the tablet. Otherwise set it by hand: `sudo date -s 'YYYY-MM-DD HH:MM'`.
+- **Clock.** The hardware clock cannot be written: a boot restores the time saved at the last shutdown and corrects it from the network once online; without a network, set it by hand with `sudo date -s 'YYYY-MM-DD HH:MM'`.
 - The slot is marked as successfully booted after the boot completes:
   `sudo piano-slot-success --check` should report `"state": "already-successful"`.
 
@@ -519,7 +492,7 @@ python3 "$REPO/tools/extract-boot-partitions.py" --input boot-lun.json --profile
 This route replaces the hand-written map of earlier versions of this guide and has not yet run on
 the tablet.
 
-This release already contains piano-device-support 0.1+20261012.piano9. A fresh installation requires no support-package build, copy or installation: the scp command below omits the package, and no dpkg command is needed. Keep boot-profile.json and boot-signing.pem on the host until step 10 so boot-set regeneration happens after the Android recovery set is ready. The serial-mismatch failure affected earlier images containing 0.1+20261010.3 and is fixed in this release.
+A fresh installation needs no separate support package; it is in the image. Keep boot-profile.json and boot-signing.pem on the host until this step, so that the boot set is rebuilt after the Android recovery set is ready.
 
 **Copy the files:**
 
@@ -561,10 +534,7 @@ piano-devmode status       # expect "developer mode: disabled, inactive"
 
 `sudo piano-devmode on` turns it on again when you need the host connection. While on, it accepts
 every local account with a password over the USB cable; see [device/devmode](../device/devmode/README.md)
-to restrict it to SSH keys. From piano-device-support 0.1+20261012.piano9 its SSH socket listens on
-`192.168.88.2:22` with `FreeBind=yes`, so it can start before the USB interface and address exist.
-It does not listen on the Wi-Fi address. This address binding does not filter incoming interfaces:
-a Wi-Fi peer with a route to `192.168.88.2` can still reach it.
+to restrict it to SSH keys. It listens only on the USB network address `192.168.88.2`.
 
 If the rebuilt set does not boot: Power + Volume Down, then write the release `boot/` set back from
 the host ([FLASHING.md](FLASHING.md#from-the-host-piano-switchpy)).
@@ -572,23 +542,15 @@ the host ([FLASHING.md](FLASHING.md#from-the-host-piano-switchpy)).
 ## After installation
 
 - **Switching and recovery:** [FLASHING.md](FLASHING.md).
-- **Packages:** run `sudo apt update` before the first `apt install`. The image carries no indexes of
-  its package sources (from the 7.2.6-piano7 build none at all), and apt then only reports "Unable
-  to locate package", without suggesting `apt update`. The 7.2.6-piano7 build also removes Ubuntu's
-  generic kernels and, with them, the C library headers: install `build-essential` before compiling
-  software.
-- **Kernel updates:** install the new `linux-image-<release>` package with `dpkg -i`; it rebuilds
-  the boot set and rewrites slot A when it holds Ubuntu. Details: [AGENT-GUIDE.md](AGENT-GUIDE.md) §5.
-  Roots from the 7.2.6-piano7 build swap to zram (`systemd-zram-generator`); a kernel without
-  `CONFIG_ZRAM` (7.2.6-piano6 and earlier) booted on such a root, for example an older rollback set,
-  waits about 90 s for `/dev/zram0` (measured in QEMU).
+- **Packages:** run `sudo apt update` before the first `apt install`; the image ships without package indexes. Only the project kernel is installed, without Ubuntu's generic kernel and the C library headers: install `build-essential` before compiling software.
+- **Kernel updates:** see [UPGRADE.md](UPGRADE.md).
 - **Android:** the first Android boot re-creates its data and takes several minutes. Reinstall the
   root manager app if you need root; the root-patched `init_boot_a` is unchanged. After changing the
   root patch in slot A, refresh the stored Android set ([FLASHING.md](FLASHING.md#image-sets)).
 - **Known issues and support status:** [README](../README.md#support-matrix), the release's
   `RELEASE-NOTES.md`.
 
-## Steps without a project tool in v0.1
+## Steps without a project tool
 
 | Step | State |
 |---|---|

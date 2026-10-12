@@ -650,7 +650,7 @@ sudo piano-slot-success --check       # 预期 "state": "already-successful"
 
 ### 5.4 写槽前先验证
 
-内核含启动相关改动时推荐；这是 7.2.6-piano2 验证过的顺序。
+内核含启动相关改动时推荐；这是经真机验证的顺序。
 
 1. 在 A 槽为 Android 时安装新包，钩子报告 `skipped`（例如在当前内核的调试 RAM 启动中安装）。
 2. 把 `/boot/vmlinuz-<new>`、`/boot/initrd.img-<new>`（平板上生成的 initrd）和

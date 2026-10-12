@@ -10,7 +10,7 @@ Conventions:
 - Host commands run from the root of this repository on a Linux x86_64 host. Commands marked
   *on the tablet* run in a shell on the tablet.
 - `<SERIAL>` is the tablet's serial number (`adb devices`, `fastboot devices`), `<USER>` an account
-  on the tablet, `<release>` a kernel release such as `7.2.6-piano2`, `<N>` its ABI number.
+  on the tablet, `<release>` a kernel release such as `7.2.6-piano<N>`, `<N>` its ABI number.
 - `# expect` comments give the expected output.
 - Status words: *verified on the test unit*; *not yet verified on the device*; *not yet available*
   (no tool exists); *manual in v0.1* (standard commands, no project tool yet).
@@ -706,7 +706,7 @@ release cold boot (§8.4).
 
 ### 5.4 Validate before writing the slot
 
-Recommended for kernels with boot-relevant changes; this is the sequence verified for 7.2.6-piano2.
+Recommended for kernels with boot-relevant changes; this sequence is device-verified.
 
 1. Install the package while slot A holds Android, so that the hook reports `skipped` (for example
    in a debug RAM boot of the current kernel).

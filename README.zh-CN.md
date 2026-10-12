@@ -1,10 +1,8 @@
 # Ubuntu for Xiaomi Pad 8 Pro
 
-在小米平板 8 Pro（`piano`，SM8750P）上与 Android 双系统运行 Ubuntu 26.04 LTS GNOME 桌面，内核基于上游 Linux 7.2 适配。[English](README.md)
+在小米平板 8 Pro（代号 `piano`，骁龙 8 至尊版）上原生运行 Ubuntu 26.04 LTS GNOME 桌面，与 Android 双系统共存，内核基于上游 Linux 7.2 适配。不是容器，不是远程桌面。[English](README.md)
 
-**最新内核/软件包版本：7.2.6-piano9（ABI 9），2026-10-12 已真机验证。** 见 [piano9 升级与验收记录](docs/PIANO9.md)。
-
-v0.2.0 本地全新安装候选见 [INSTALL](docs/INSTALL.zh-CN.md)；尚未发布或完成整套重装验收。镜像只带传感器默认种子，用户自己的 registry 按上述工具在首次启动前暂存。
+**最新版本：[v0.2.0](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.2.0)。** 支持状态见[硬件支持](#硬件支持)，技术路线与同类项目的差异见 [docs/APPROACH.zh-CN.md](docs/APPROACH.zh-CN.md)。
 
 ## 📮 关注与交流
 
@@ -23,132 +21,155 @@ v0.2.0 本地全新安装候选见 [INSTALL](docs/INSTALL.zh-CN.md)；尚未发�
 
 ## ⚠️ 安装前请阅读
 
-- **数据清除**：安装会重建 `userdata` 并清除 `metadata`，平板上的 Android 数据全部丢失。
-- **解锁 Bootloader**：必须先按小米官方流程解锁；不支持未解锁的设备。
-- **原厂版本 OS3.0.303.0.WPYCNXM，运行在 A 槽**：启动镜像沿用该版本的头部字段、回滚索引和 AVB 属性，启动 DTB 也针对该版本的 DTB 与 DTBO 生成。其他版本不支持。
-- **先备份**：任何写入前，备份全部分区及每个 UFS LUN 的 GPT（读取分区需要 Android 下的 root 权限）；`userdata` 反正会被清除，可以不备份。切回 Android 需要 A 槽原厂的 `boot`、`init_boot`、`vendor_boot`。
-- **Linux 下净充电未验证**：`xiaomi_mca` 提供只读状态，MiPPS/charging3 控制仍待墙充测试。请在 Android 中充电，切换前保持电量不低于 40 %。
-- **没有扬声器保护**：FS19xx 播放已验证，增益上限为 −15 dB；保护问题仍开放（TD-026）。
-- **挂起由产品策略禁用**（D3）；RTC 不可设置（TD-022）。
-- **恢复方法**：无画面或无响应时，长按电源 + 音量下进入 Fastboot，用 `tools/piano-switch.py` 切回 Android（见[使用与维护](#使用与维护)）。正式镜像没有调试控制台。
-- **非官方、实验性**：与小米无关。仅适用于小米平板 8 Pro（`piano`，SM8750P），只在一台测试机上验证：型号 25091RP04C（中国版），16 GB 内存、512 GB UFS。其他版本与容量未验证。
+- **这是实验性项目，不是日用方案。** 安装会解锁、重分区、清空数据；操作不当可能变砖，恢复需要你会用 `adb`、`fastboot` 和分区备份。请确认自己有相应的动手能力，想清楚再做，后果自负。
+- **会清空平板上的全部 Android 数据。** 安装重建 `userdata` 并清除 `metadata`。
+- **必须先解锁 Bootloader**（按小米官方流程），并取得 Android root（用于读取分区做备份）。
+- **只支持原厂版本 OS3.0.303.0.WPYCNXM，运行在 A 槽。** 启动镜像按这个版本的头部字段、回滚索引和 AVB 属性生成，其他版本不支持。
+- **先备份。** 任何写入之前，备份除 `userdata` 外的全部分区和每个 UFS LUN 的分区表。切回 Android 需要 A 槽原厂的 `boot`、`init_boot`、`vendor_boot`。
+- **Linux 下不能充电。** 充电控制尚未验证，请在 Android 中充电，切换前保持电量不低于 40%。
+- **没有扬声器保护。** 扬声器可以播放，但音量上限受限，不要自行提高增益。
+- **不支持待机，时钟不保存。** 屏幕会关，系统不会睡眠；硬件时钟不可写，启动后联网自动校时。
+- **只在一台机器上验证过：** 型号 25091RP04C（国行），16 GB 内存，512 GB 存储。其他型号和容量未验证。
+- **恢复方法：** 无画面或无响应时，长按电源 + 音量下进入 Fastboot，用 `tools/piano-switch.py` 写回 Android，见[使用与维护](#使用与维护)。
 
-512 GB 布局把原 `userdata` 的范围分为 `userdata`（200 GiB，Android）、`linux_rootfs`（60 GiB，Ubuntu `/`）和 `linux_data`（约 201.27 GiB，`/home`），其他分区和 LUN 不变。
-不要刷写 `vbmeta`，不要写入或激活 B 槽：测试机的 B 槽是旧版原厂链，无法启动 Android。Android OTA 更新未验证。
-标定数据与蓝牙地址必须来自本机，不可跨设备复制。
-传感器的私有 registry 标定须用 [tools/stage-sensor-registry.py](tools/stage-sensor-registry.py)
-从自己的备份准备，步骤见[传感器包说明](device/sensors/README.zh-CN.md#原厂配置与私有标定)。
+分区布局：512 GB 机型把原 `userdata` 的范围拆成 `userdata`（200 GiB，Android）、`linux_rootfs`（60 GiB，Ubuntu `/`）和 `linux_data`（约 201 GiB，`/home`），其他分区不变。
+**不要刷写 `vbmeta`，不要写入或激活 B 槽。** 触控标定、蓝牙和 Wi-Fi 地址必须取自你自己的平板，不能用别人的。
 
-## 🚀 获取与安装
+## 🚀 安装
 
-硬件表描述已装机的 piano9 系统。下面的预览下载是较早的安装镜像，其包版本须单独核对；从 piano8 升级到 piano9 请按 [docs/PIANO9.md](docs/PIANO9.md) 操作，并保留 `piano9-rollback`。
+你需要一台 Linux x86_64 主机、一根 USB 数据线，以及坐在平板旁边的一个多小时。
 
-1. **使用发布版本**：[v0.1.0-preview](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview)。从同一发布版本把 SHA256SUMS.assets 及其中列出的全部附件下载到一个空目录。本版归档只有两片：`piano-v0.1.0-preview.tar.zst.part0` 和 `piano-v0.1.0-preview.tar.zst.part1`。在该目录执行 `sha256sum -c SHA256SUMS.assets`，全部条目通过后再解压分卷。用 `cat piano-v0.1.0-preview.tar.zst.part* | zstd -d | tar -x` 还原（约需 14 GB 空间），在解压目录内执行 `sha256sum -c SHA256SUMS`，然后按 [docs/INSTALL.zh-CN.md](docs/INSTALL.zh-CN.md) 安装。内容与构建流程见 [docs/RELEASE.md](docs/RELEASE.md)（英文）。
-2. **从源码构建**：输入锁定在 [kernel/source.json](kernel/source.json) 与 [kernel/abi.json](kernel/abi.json)（内核提交、配置片段、release）、[mesa/source.json](mesa/source.json)（Mesa 26.2.0 及 A830 补丁）、[ubuntu/](ubuntu/26.04.sources)（官方 26.04 Desktop ARM64 ISO、快照 APT 源）和 `device/*/source.json`。[tools/](tools/) 中的工具无需 root 权限即可构建内核包、Mesa、设备软件包、ext4 根镜像和签名的启动镜像组。触控标定、蓝牙地址、启动配置（boot profile）、原厂 DTB 与 DTBO、AVB 签名密钥取自你自己的平板，从不提交。详见 [docs/build.zh-CN.md](docs/build.zh-CN.md)。
-3. **安装**：按 [docs/INSTALL.zh-CN.md](docs/INSTALL.zh-CN.md) 的手动步骤操作；切换、Fastboot 恢复及禁止刷写的分区见 [docs/FLASHING.zh-CN.md](docs/FLASHING.zh-CN.md)。
+### 推荐：让 AI 帮你安装
 
-不要混用不同构建的文件：内核镜像与模块必须来自同一次构建。
+安装步骤多、顺序严格，最省力的方式是交给能执行命令的 AI 编程助手（Claude Code、Codex CLI、Gemini CLI 等）。在 Linux 主机上启动助手，把下面这段完整复制给它。它会读文档、检查环境、做备份，每一步写入前先向你确认；你只负责在平板上按键和做选择。
+
+```text
+我要在小米平板 8 Pro（代号 piano）上安装 Ubuntu，与 Android 双系统共存。请你作为操作助手，按下面的规则帮我完成。
+
+项目：https://github.com/yzddmr6/xiaomipad-8pro-mainline ，版本 v0.2.0。
+
+1. 先 git clone 该仓库并检出标签 v0.2.0，通读 README.zh-CN.md 的「安装前请阅读」、docs/INSTALL.zh-CN.md、docs/FLASHING.zh-CN.md，以及 docs/AGENT-GUIDE.zh-CN.md 第 1 节的安全规则，然后再开始。
+2. 从 GitHub Release v0.2.0 把全部附件下载到一个空目录，先执行 sha256sum -c SHA256SUMS.assets，再按 Release 说明还原发布目录并再次校验。
+3. 检查主机工具（adb、fastboot、python3、zstd、sgdisk、sfdisk、img2simg 等，以 INSTALL 的「准备」表为准）和平板状态（型号 piano、原厂版本 OS3.0.303.0.WPYCNXM、当前 A 槽、已解锁、已 root、电量不低于 40%）。任何一项不符就停下来告诉我，不要绕过。
+4. 严格按 docs/INSTALL.zh-CN.md 的步骤顺序执行，每条设备命令都带上我的序列号。每一步开始前用一两句话告诉我这步做什么、会写哪里；凡是写入平板的操作（分区表、擦除、flash、写 A 槽），先列出将要执行的命令，等我回复「确认」再执行。
+5. 绝不写入 vbmeta、dtbo、任何 _b 分区、persist 或其他校准、基带、固件分区；绝不执行 fastboot --set-active=b；绝不使用别的平板的标定、地址或镜像。
+6. 备份完成并校验哈希之后才能进入任何写入步骤。备份和本机文件放在仓库之外的目录，不要提交，不要上传到任何地方。
+7. 出错就停：任何命令返回错误，或输出与文档中的「预期」不符，立即停止并把完整输出给我看；不要自行重试写入命令，不要中断正在进行的写入。
+8. 我会全程坐在平板旁边。需要我在平板上操作（按键进入 Fastboot、初始设置建账户、输入密码）时，明确告诉我做什么、等什么现象。
+9. 安装完成后按文档做完最后一步（装入本机文件、保存 Android 镜像组、重建启动镜像组、关闭开发者模式），然后教我怎样在两个系统之间切换、怎样从 Fastboot 恢复 Android。
+```
+
+### 手动安装
+
+1. 从 [v0.2.0 发布页](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.2.0)把全部附件下载到一个空目录，校验并还原发布目录：
+
+   ```bash
+   sha256sum -c SHA256SUMS.assets
+   unzip piano-ubuntu-v0.2.0-boot.zip && unzip piano-ubuntu-v0.2.0-tools.zip && unzip piano-ubuntu-v0.2.0-packages.zip
+   mkdir -p rootfs && cat piano-ubuntu-v0.2.0-rootfs.img.zst.part* | zstd -d > rootfs/root.sparse.img
+   sha256sum -c SHA256SUMS
+   ```
+
+2. 按 [docs/INSTALL.zh-CN.md](docs/INSTALL.zh-CN.md) 逐步操作。切换、Fastboot 恢复和绝不能写入的分区见 [docs/FLASHING.zh-CN.md](docs/FLASHING.zh-CN.md)。
+
+### 已安装用户升级
+
+按 [docs/UPGRADE.zh-CN.md](docs/UPGRADE.zh-CN.md) 用发布页的 `packages.zip` 升级内核和配套软件包，升级会保留回退镜像组。
+
+### 从源码构建
+
+内核、Mesa、设备软件包、根镜像和启动镜像组都能在主机上无 root 权限构建，输入锁定在 `kernel/source.json`、`mesa/source.json`、`ubuntu/` 和 `device/*/source.json`。见 [docs/build.zh-CN.md](docs/build.zh-CN.md)。
 
 ## 硬件支持
 
-2026-10-12 更新，当前装机版本为 **7.2.6-piano9（ABI 9）**。视频解码使用 piano8 模块在 RAM 检查中验证；触控方向和键盘按键由用户此前确认。其他版本和配件未测试。
-测试配置、已知问题与路线图见 [docs/STATUS.md](docs/STATUS.md)（英文）。
-
-✅ 可用 · 🟡 部分支持 · ❌ 不支持 · 🧪 未验证
-
-✅ 表示所述功能已真机验证，不代表所有生命周期或应用均已测试。未变的平台条目保留此前证据。本表是支持状态的权威来源，发布说明须保持相同的限制。
+以下为 v0.2.0 在测试机上的状态。✅ 可用 · 🟡 部分支持 · ❌ 不支持 · 🧪 未验证。
+✅ 表示已在真机验证所述功能，不代表所有应用和使用场景都测过。详细范围、已知问题与路线图见 [docs/STATUS.md](docs/STATUS.md)（英文）。
 
 ### 平台、显示与输入
 
-| 功能 | 器件 / 实现 | 状态 | 范围与限制 |
+| 功能 | 器件 / 实现 | 状态 | 说明 |
 |---|---|---|---|
-| SoC / CPU | 高通骁龙 8 至尊版（SM8750P），ARM64 | ✅ 可用 | 八个核心均可经 SCMI 调频 |
-| 启动 / 内核包 | 小米 ABL / AVB，A 槽 | ✅ 可用 | 从 piano8 安装到 piano9，保留 `piano9-rollback`；[冷启动验收通过](docs/STATUS.md#cold-boot-acceptance) |
-| 双系统切换 | `piano-boot-switch`，A 槽镜像组 | ✅ 可用 | 镜像组轮换与 Android KernelSU 模块切换已验证；RAM 检查返回时的干净关机已修复 |
-| 内置存储 | 铠侠 UFS / ext4 | ✅ 可用 | 60 GiB 根分区与约 201 GiB `/home` |
-| 内置显示 | 原生 DSI KMS / `msm_dpu` | ✅ 可用 | 3200×2136、144 Hz，Mutter 背光调节与 DPMS 关/开屏已硬件验证；simpledrm 仅用于初始点亮 |
-| GNOME 桌面 | Ubuntu 26.04 GNOME / Wayland / GDM | ✅ 可用 | piano9 冷启动验收通过，GDM 在 12.7 s 启动 |
-| GPU | Adreno 830 / msm / Mesa 26.2 | ✅ 可用 | Mesa deb 与 snap `gpu-2404` provider 集成 .3 已验证；Firefox WebRender 已验证 |
-| 触摸屏 | Novatek NT36532E THP / SPI / `piano-thp` | ✅ 可用 | 触控输入已验证，方向由用户此前确认 |
-| 手写笔 | Novatek NT36532E 笔扫描 | ❌ 不支持 | 触控启动时关闭笔扫描 |
-| 磁吸键盘 | Nanosic WN8030 传输 | ✅ 可用 | 按键由用户此前确认；该键盘没有触摸板 |
+| SoC / CPU | 高通骁龙 8 至尊版（SM8750P） | ✅ 可用 | 八个核心均可调频 |
+| Android / Linux 双系统 | A 槽镜像组轮换 | ✅ 可用 | Ubuntu 内一条命令、Android 内 KernelSU 模块、主机 Fastboot 三种切换方式都已验证 |
+| 内置存储 | 铠侠 UFS / ext4 | ✅ 可用 | 60 GiB 根分区，约 201 GiB `/home` |
+| 内置显示 | 原生 DSI KMS（`msm_dpu`） | ✅ 可用 | 3200×2136、144 Hz，背光可调，关屏/亮屏正常 |
+| GNOME 桌面 | Ubuntu 26.04 GNOME / Wayland / GDM | ✅ 可用 | 冷启动约 13 秒到登录界面 |
+| GPU | Adreno 830 / Mesa 26.2 | ✅ 可用 | 桌面与 snap 应用（含 Firefox）均走 GPU 渲染 |
+| 触摸屏 | Novatek NT36532E（THP，SPI） | ✅ 可用 | 触控与方向已验证；关屏后再亮屏会自动恢复；多指手势未系统测试 |
+| 手写笔 | — | ❌ 不支持 | 笔扫描已关闭 |
+| 磁吸键盘 | Nanosic WN8030 | ✅ 可用 | 按键已验证；该键盘本身没有触摸板和背光 |
 | 指纹 | — | ❌ 不支持 | 没有驱动 |
 
 ### 无线与 USB
 
-| 功能 | 器件 / 实现 | 状态 | 范围与限制 |
+| 功能 | 器件 / 实现 | 状态 | 说明 |
 |---|---|---|---|
-| Wi-Fi | 高通 WCN7860 / PCIe / ath12k | ✅ 可用 | 装机内核上 2.4 GHz 与 5 GHz 80 MHz HE 稳定连接已验证 |
-| 蓝牙 | 高通 WCN7860 / UART / `hci_qca` | 🟡 部分支持 | 扫描发现 4 个设备；配对与音频未验证 |
-| USB 设备模式 | Synopsys DWC3 / USB 2.0 NCM | ✅ 可用 | 开发者模式下经 USB 的 SSH，默认关闭；正式镜像不提供其他 USB 功能 |
-| USB 主机 / Type-C 角色 | UCSI | ❌ 不支持 | 未启用 Type-C 角色切换 |
-| USB-C 外接显示 | DisplayPort Alt Mode / DIO4485 | ❌ 不支持 | 控制链仅离线检查，外接显示尚不支持 |
+| Wi-Fi | 高通 WCN7860 / ath12k | ✅ 可用 | 2.4 GHz 与 5 GHz 80 MHz 连接稳定 |
+| 蓝牙 | 高通 WCN7860 / `hci_qca` | 🟡 部分支持 | 扫描可用；配对与蓝牙音频未验证 |
+| USB 设备模式 | USB 2.0 网络（NCM） | ✅ 可用 | 开发者模式下经 USB 线 SSH 登录，默认关闭 |
+| USB 主机 / Type-C 角色切换 | — | ❌ 不支持 | 不能接 U 盘、键鼠等外设 |
+| USB-C 外接显示 | DisplayPort Alt Mode | ❌ 不支持 | |
 
 ### 音视频与传感器
 
-| 功能 | 器件 / 实现 | 状态 | 范围与限制 |
+| 功能 | 器件 / 实现 | 状态 | 说明 |
 |---|---|---|---|
-| 扬声器 | FS19xx 系列功放 | 🟡 部分支持 | 播放已验证，无扬声器保护，增益上限 −15 dB（TD-026） |
-| 内置麦克风 | DMIC / ADSP / AudioReach / PipeWire | ✅ 可用 | PipeWire 录音已验证：1 kHz 单音高于本底 29–36 dB |
-| 视频解码 | 高通 Iris / V4L2 | 🟡 部分支持 | piano8 模块 RAM 检查的 1080p H.264 与软件解码逐位一致；piano9 有 `/dev/video0/1`；应用播放未验 |
-| 视频编码 | 高通 Iris / V4L2 | 🧪 未验证 | 编码节点存在；编码未测试 |
-| 摄像头 | 后摄 S5KJN1SQ03、前摄 OV32D40 | ❌ 不支持 | 已采原厂只读证据；缺少 SM8750 CAMSS 支持 |
-| 加速度、陀螺、光感、距离 | SSC / hexagonrpcd / libssc | ✅ 可用 | `piano-sensors` 与 `piano-iio-sensor-proxy` 的样本已验证，SensorProxy 可报告方向 |
-| GNOME 自动旋转 | SensorProxy / Mutter 平板模式 | 🧪 未验证 | 按 Mutter 规则仅拆下键盘后启用；实体四方向测试待做 |
+| 扬声器 | FS19xx 四路功放 | 🟡 部分支持 | 可播放；没有扬声器保护，音量上限受限 |
+| 内置麦克风 | DMIC / ADSP / PipeWire | ✅ 可用 | 录音已验证 |
+| 视频硬解 | 高通 Iris / V4L2 | 🟡 部分支持 | 1080p H.264 硬解已验证；播放器自动调用硬解未验证 |
+| 视频硬编 | 高通 Iris / V4L2 | 🧪 未验证 | 编码节点存在，未测试 |
+| 摄像头 | 后摄 S5KJN1SQ03、前摄 OV32D40 | ❌ 不支持 | 缺少 SM8750 相机子系统支持 |
+| 加速度、陀螺、光感、距离 | SSC / hexagonrpcd / libssc | ✅ 可用 | SensorProxy 可报告方向和环境光 |
+| 自动旋转 | SensorProxy / Mutter | ✅ 可用 | 拆下键盘后自动旋转；装着键盘时按 GNOME 规则锁定 |
 
 ### 电源与时间
 
-| 功能 | 器件 / 实现 | 状态 | 范围与限制 |
+| 功能 | 器件 / 实现 | 状态 | 说明 |
 |---|---|---|---|
-| 电源键 / 音量键 | 高通 PMIC | 🟡 部分支持 | 电源键事件可送达 logind；音量键未验证 |
-| 电量计 / 温度 | 2 × TI BQ27Z561 / 温区 | ✅ 可用 | 电量、电压和电流；温区可读；温控限频未验证 |
-| 充电 | 只读 `xiaomi_mca` / MiPPS | 🟡 部分支持 | MiPPS/charging3 控制待墙充测试；净充电未验证 |
-| 挂起 | Linux 电源管理 | ❌ 不支持 | 由产品策略禁用（D3） |
-| 休眠到磁盘 | — | ❌ 不支持 | 分区布局中没有 swap 分区 |
-| 实时时钟 | PMK8550 RTC | ❌ 不支持 | RTC 不可设置（TD-022） |
+| 电源键 / 音量键 | 高通 PMIC | 🟡 部分支持 | 电源键可用；音量键未验证 |
+| 电量 / 温度 | 2 × TI BQ27Z561 / 温区 | ✅ 可用 | 电量、电压、电流和温度可读 |
+| 充电 | 只读 `xiaomi_mca` | 🟡 部分支持 | 能看到充电状态；充电控制和净充电未验证，请在 Android 充电 |
+| 待机 | — | ❌ 不支持 | 已禁用；屏幕会关，系统不睡眠 |
+| 休眠到磁盘 | — | ❌ 不支持 | 没有 swap 分区 |
+| 实时时钟 | PMK8550 RTC | ❌ 不支持 | 不可写，启动后联网校时 |
 
 ## 使用与维护
 
-详见 [docs/FLASHING.zh-CN.md](docs/FLASHING.zh-CN.md)（切换、槽属性、恢复）。
-主机命令按 [INSTALL.zh-CN.md](docs/INSTALL.zh-CN.md#准备) 设置 REPO、RELEASE 和 WORK，并在 WORK 中执行。
-源码工具使用 `"$REPO/tools/NAME"`，发布文件使用 `"$RELEASE/PATH"`。
+主机命令按 [INSTALL.zh-CN.md 的「准备」](docs/INSTALL.zh-CN.md#准备)设置 REPO、RELEASE 和 WORK，在 WORK 中执行。详细说明见 [docs/FLASHING.zh-CN.md](docs/FLASHING.zh-CN.md)。
 
-**切换系统。** 在 Ubuntu 中运行 `sudo piano-boot-switch to-android --reboot`，会把保存的 Android 镜像组写入 A 槽、读回校验后重启。在 Android 中，可用 [KernelSU 切换模块](device/android/piano-switch-ksu/README.md) 切到 Ubuntu。A 槽镜像组轮换与 Android 模块均已真机验证；RAM 检查返回时的干净关机已修复。
-在任一系统内切换都不会改变槽属性。
+**切换系统。** 在 Ubuntu 中运行 `sudo piano-boot-switch to-android --reboot`，它把保存的 Android 镜像组写入 A 槽、读回校验后重启。在 Android 中用 [KernelSU 切换模块](device/android/piano-switch-ksu/README.md)切到 Ubuntu。在系统内切换不改变槽属性。
 
-**从主机恢复。** 在 Fastboot（电源 + 音量下）中，`tools/piano-switch.py` 先核对设备与两组镜像，再写入 A 槽，任一步写入失败即恢复原镜像组：
+**从主机恢复。** 平板处于 Fastboot（电源 + 音量下）时，`tools/piano-switch.py` 先核对设备与两组镜像，再写入 A 槽，任一步失败即写回原镜像组：
 
-```sh
+```bash
 python3 "$REPO/tools/piano-switch.py" --serial <serial> --images <android-set> --rollback <ubuntu-set>
 fastboot -s <serial> reboot
 ```
 
-主机写入会重置 A 槽的重试计数，下一次 Ubuntu 启动后由 `piano-slot-success` 重新标记。若 Fastboot 显示 `slot-unbootable:a` 为 `yes`，执行 `fastboot -s <serial> --set-active=a` 即可重置；B 槽仍不可用。详见 [device/boot](device/boot/README.md)。
+主机写入会重置 A 槽的重试计数，下一次 Ubuntu 启动后自动重新标记。若 Fastboot 显示 `slot-unbootable:a` 为 `yes`，执行 `fastboot -s <serial> --set-active=a` 重置；B 槽仍然不能用。
 
-**更新到 piano9。** 按 [docs/PIANO9.md](docs/PIANO9.md#b-install-on-the-ordinary-piano8-root) 保留独立的 `piano9-rollback` 镜像组，并成套安装内核与配套软件包。GStreamer good/bad 已是桌面包依赖；安装插件不等于应用级硬件播放通过。
+**开发者模式。** `sudo piano-devmode on` 开启经 USB 线的 SSH；默认关闭。主机上用 `python3 "$REPO/tools/piano-devmode-ssh.py" --serial <serial> <user>` 连接。装完后用 `sudo piano-devmode off` 关闭。详见 [device/devmode](device/devmode/README.md)。
 
-**开发者模式。** `sudo piano-devmode on` 开启经 USB 线的 SSH（USB NCM）；默认关闭，需要安装 `openssh-server`。在主机上用 `python3 "$REPO/tools/piano-devmode-ssh.py" --serial <SERIAL> USER` 连接。安装过程会打开它，装完后用 `sudo piano-devmode off` 关闭（[INSTALL](docs/INSTALL.zh-CN.md) 第 10 步）。详见 [device/devmode](device/devmode/README.md)。
+**升级。** 见 [docs/UPGRADE.zh-CN.md](docs/UPGRADE.zh-CN.md)。内核包安装后会自动重建启动镜像组并改写 A 槽，旧镜像组保留为回退。
 
-**启动后的时间。** PMIC RTC 不可设置（TD-022），启动后请检查系统时间；piano9 冷启动通过不代表 RTC 获得支持。
+**时间。** 硬件时钟不可写，启动后联网自动校时；没有网络时用 `sudo date -s 'YYYY-MM-DD HH:MM'` 手动设置。
 
-**传感器与旋转。** 安装 `piano-sensors` 和 `piano-iio-sensor-proxy`，并按[传感器说明](device/sensors/README.zh-CN.md)从自己的备份准备 registry 标定。SensorProxy 可报告方向，但 Mutter 只在拆下键盘时启用自动旋转；实体四方向测试仍待完成。
+**传感器标定。** 镜像只带默认标定。要用你自己平板的原厂标定，按[传感器说明](device/sensors/README.zh-CN.md)从自己的备份准备，不要用别人的。
 
-**初始设置之后。** 初始设置会把用户名设为主机名，除非你修改其中的“计算机”栏；之后可用 `sudo hostnamectl hostname --static <名字>` 修改。第一次 `apt install` 之前先运行 `sudo apt update`：镜像不带当前的软件包索引。
+**初始设置之后。** 初始设置会把「计算机」栏设为主机名，之后可用 `sudo hostnamectl hostname --static <名字>` 修改。第一次 `apt install` 之前先 `sudo apt update`，镜像不带软件包索引。
 
 ## 开发与贡献
 
 | 仓库 | 内容 |
 |---|---|
 | xiaomipad-8pro-mainline | 设备用户态、Ubuntu 集成、构建/打包/切换工具、固件、文档 |
-| [linux-sm8750-piano](https://github.com/yzddmr6/linux-sm8750-piano) | Linux 内核：在上游 v7.2.6 stable 历史之上维护驱动、设备树与配置，分支 `piano/dev` |
+| [linux-sm8750-piano](https://github.com/yzddmr6/linux-sm8750-piano) | Linux 内核：在上游 v7.2.6 stable 之上维护驱动、设备树与配置，分支 `piano/dev` |
 
-[kernel/source.json](kernel/source.json) 锁定内核提交与配置片段；[kernel/abi.json](kernel/abi.json) 为每次打包构建分配唯一 release（当前为 `7.2.6-piano9`，ABI 9）。
-本机输入（标定、蓝牙地址、启动配置、签名密钥、备份）归各设备所有者所有，从不提交。
-调试镜像组（`tools/build-persistent-boot.py --debug`）另带一个供 `fastboot boot` 使用的检查镜像，经 USB 提供无认证的 root shell，仅用于诊断。
+[kernel/source.json](kernel/source.json) 锁定内核提交与配置片段。本机输入（标定、蓝牙和 Wi-Fi 地址、启动配置、签名密钥、备份）归各设备所有者所有，从不提交。
 
-在设备上操作前，请先阅读 [docs/AGENT-GUIDE.md](docs/AGENT-GUIDE.md)，它同时面向人工操作者和 AI 代理。贡献规则见 [CONTRIBUTING.md](CONTRIBUTING.md) 与 [AGENTS.md](AGENTS.md)。尚未向上游提交补丁，候选列表见 [docs/STATUS.md](docs/STATUS.md#upstreaming)。
+在设备上操作前，请先阅读 [docs/AGENT-GUIDE.zh-CN.md](docs/AGENT-GUIDE.zh-CN.md)，它同时面向人工操作者和 AI 助手。贡献规则见 [CONTRIBUTING.md](CONTRIBUTING.md) 与 [AGENTS.md](AGENTS.md)。尚未向上游提交补丁，候选列表见 [docs/STATUS.md](docs/STATUS.md#upstreaming)。
 
-问题请通过 [GitHub Issues](https://github.com/yzddmr6/xiaomipad-8pro-mainline/issues) 反馈，注明设备型号、原厂版本、内核 release 和镜像组身份；提交前去除序列号、蓝牙地址、标定数据和个人信息。
+问题请通过 [GitHub Issues](https://github.com/yzddmr6/xiaomipad-8pro-mainline/issues) 反馈，注明设备型号、原厂版本和项目版本；提交前去除序列号、蓝牙地址、标定数据和个人信息。
 
 ## 致谢与许可证
 
@@ -176,7 +197,7 @@ fastboot -s <serial> reboot
 - BusyBox（GPL-2.0）；
 - [Ubuntu](https://ubuntu.com/download/desktop)。
 
-相关项目（已调研，未复用）：
+相关项目（已调研，作为参考）：
 - [Project-SunUEFI](https://github.com/slwyts/Project-SunUEFI)（按文件许可）；
 - [blu-sharky/linux-piano](https://github.com/blu-sharky/linux-piano)（GPL-2.0）；
 - [blu-sharky/debian-piano](https://github.com/blu-sharky/debian-piano)（MIT）。

@@ -1,0 +1,85 @@
+# 升级已安装的系统
+
+[English](UPGRADE.md) ｜ [项目首页](../README.zh-CN.md) ｜ [全新安装](INSTALL.zh-CN.md) ｜ [切换与恢复](FLASHING.zh-CN.md)
+
+本页说明如何把已经装好的 Ubuntu 升级到新版本的内核和配套软件包，不重装、不动分区、不清数据。
+升级前提：已按 [INSTALL.zh-CN.md](INSTALL.zh-CN.md) 做完最后一步（`/etc/piano` 中有 `boot-profile.json`、`boot-signing.pem` 和 `boot-partitions.json`），能开启开发者模式，电量不低于 40%。
+
+发布附件里的 `piano-ubuntu-<版本>-packages.zip` 就是升级包：解压后 `debs/` 下是该版本安装在镜像里的全部项目软件包。总是整组一起安装，不要只装其中一个。
+
+## 1. 下载并校验
+
+在主机上，把发布页的 `piano-ubuntu-<版本>-packages.zip` 和 `SHA256SUMS.assets` 下载到一个空目录：
+
+```bash
+sha256sum -c --ignore-missing SHA256SUMS.assets    # 预期 packages.zip 一行 "OK"
+unzip piano-ubuntu-<版本>-packages.zip               # 得到 debs/
+```
+
+## 2. 保留回退
+
+升级会把当前启动镜像组换成新内核的，旧组自动保留为 `ubuntu.prev`。再额外保存一份独立副本，以防之后再次升级把 `ubuntu.prev` 也轮换掉。在平板上：
+
+```bash
+sudo cp -a /var/lib/piano/switch/ubuntu /var/lib/piano/rollback-$(uname -r)
+```
+
+主机上也按 [FLASHING.zh-CN.md「镜像组」](FLASHING.zh-CN.md#镜像组)保留当前 Ubuntu 镜像组和 Android 镜像组的副本，这是从 Fastboot 恢复的依据。
+
+## 3. 传到平板
+
+在平板终端打开开发者模式，再从主机复制：
+
+```bash
+# 平板
+sudo piano-devmode on
+# 主机
+python3 "$REPO/tools/piano-devmode-ssh.py" --serial <SERIAL> --check     # 预期 "... ready"
+scp -r debs <USER>@192.168.88.2:
+```
+
+## 4. 安装
+
+用临时单元运行安装，SSH 断开也不会中止；内核包的安装会重建 initrd，约 10 分钟。
+
+```bash
+sudo apt update
+sudo systemd-run --unit=piano-upgrade --setenv=DEBIAN_FRONTEND=noninteractive \
+  apt-get install -y /home/<USER>/debs/*.deb
+journalctl -f -u piano-upgrade
+# 预期 "Piano boot image set prepared for <新版本内核>" 和 "Slot A now holds store/ubuntu"，
+# 最后 "piano-upgrade.service: Deactivated successfully."
+sudo dpkg --audit                          # 预期无输出
+sudo piano-boot-switch verify              # 预期退出码 0
+```
+
+## 5. 重启并核对
+
+```bash
+sudo systemctl reboot
+```
+
+重新登录后：
+
+```bash
+uname -r                                   # 预期新版本的内核
+sudo piano-boot-switch status              # 预期 "occupant": "ubuntu"
+sudo piano-slot-success --check            # 预期 "state": "already-successful"
+sudo piano-devmode off                     # 不再需要主机连接时关闭
+```
+
+旧内核包仍然装着，回退镜像组用得到它；确认新版本正常使用一段时间后，可用 `sudo apt purge linux-image-<旧版本>` 清理。
+
+## 回退
+
+- **系统能进 Ubuntu：**
+  ```bash
+  sudo piano-boot-switch import-ubuntu --from /var/lib/piano/rollback-<旧版本>   # 预期 "result": "imported"
+  sudo piano-boot-switch to-ubuntu --reboot                                     # 写回旧组并重启
+  ```
+- **系统进不去：** 长按电源 + 音量下进入 Fastboot，用主机上保存的旧 Ubuntu 镜像组写回：
+  ```bash
+  python3 "$REPO/tools/piano-switch.py" --serial <SERIAL> --images <旧 ubuntu 镜像组> --rollback <android-set>
+  fastboot -s <SERIAL> reboot
+  ```
+  或者先切回 Android（`--images <android-set> --rollback <旧 ubuntu 镜像组>`），再从容处理。

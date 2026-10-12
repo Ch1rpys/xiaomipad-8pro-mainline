@@ -1,8 +1,8 @@
 # Contributing
 
 Read AGENTS.md and docs/AGENT-GUIDE.md before making changes. Ubuntu is installed
-next to Android on one test unit and boots from slot A; installation is manual
-(docs/INSTALL.md) and the release is a developer preview. Hardware status is in the
+next to Android on one test unit and boots from slot A; installation follows
+docs/INSTALL.md, by hand or through an AI assistant. Hardware status is in the
 README support matrix and docs/STATUS.md.
 
 Keep drivers, DTS and kernel configuration in the independent Linux tree.

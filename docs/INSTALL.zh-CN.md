@@ -1,10 +1,8 @@
-# 安装 v0.2.0
+# 全新安装
 
 [English](INSTALL.md) ｜ [项目首页](../README.zh-CN.md) ｜ [Fastboot、切换与恢复](FLASHING.zh-CN.md)
 
-本指南手工把 v0.2.0 发布版本安装到小米平板 8 Pro（`piano`）的 Android 旁边。
-v0.2 只能手工安装，尚无安装器；写入新分区表（[第 6 步](#6-写入分区表平板上)）在发布目录的维护 RAM 镜像中进行。
-开始前请通读全文。
+本指南把发布版本安装到小米平板 8 Pro（`piano`）的 Android 旁边。目前没有图形安装器：可以自己按本文操作，也可以按[项目首页](../README.zh-CN.md#推荐让-ai-帮你安装)把它交给 AI 助手执行。写入新分区表（[第 6 步](#6-写入分区表平板上)）在发布目录的维护 RAM 镜像中进行。开始前请通读全文。本流程已在测试机上按 v0.2.0 完整执行过一次。
 
 ## 先读
 
@@ -36,7 +34,7 @@ v0.2 只能手工安装，尚无安装器；写入新分区表（[第 6 步](#6-
 | 发布目录 | 同一版本的全部文件，不与其他版本混用 |
 | 主机可用空间 | 约 40 GB：备份（测试机 16 GB）、发布目录（约 9 GB）与数据镜像 |
 
-v0.2.0 当前是主机本地构建目录 `out/release-v0.2.0`，尚未上传发布附件。使用完整目录，不能混入 preview 的文件；在设置下面的 RELEASE 后校验全部 SHA256。
+发布目录按[项目首页「手动安装」](../README.zh-CN.md#手动安装)从发布附件还原；只用同一版本的完整目录，不要混入其他版本的文件。
 
 REPO 为发布记录提交的集成仓检出目录的绝对路径，RELEASE 为解压后的发布目录，WORK 为仓库之外的私有安装工作目录。后续主机命令均在 WORK 中执行；源码工具使用 `"$REPO/tools/NAME"`，发布文件使用 `"$RELEASE/PATH"`。
 每个使用的主机终端都需设置这些路径。下一次校验检查 RELEASE 中的全部文件。
@@ -54,7 +52,7 @@ sh "$REPO/tools/fetch-aosp-mkbootimg.sh"
 发布目录包含 `boot/`（A 槽的 Ubuntu 启动镜像组、`boot-ram-check.img` 和 `boot-ram-maintenance.img`）、`rootfs/root.sparse.img`（60 GiB 根）、
 `debs/`、`tools/piano-switch.py` 和 KernelSU 模块，内容说明见 [RELEASE.md](RELEASE.md)（英文）。
 
-本版预装 `linux-image-7.2.6-piano9`、`piano-device-support`、`piano-local-firmware` 0.5（含 Iris）、`piano-mesa`、`piano-mipps-auth`、`piano-ubuntu-desktop`、`piano-snap-graphics`、`piano-sensors` 和 `piano-iio-sensor-proxy`。GStreamer good/bad 插件及命令行工具已装入，提供 `h264parse` / `v4l2h264dec`；浏览器自动硬解仍未验证。snap provider 随 deb 内嵌，首次启动完成 snap seeding 后自动安装和连接。传感器仅带空默认种子，没有任何设备的私有 registry；默认标定的精度尚未验收。
+镜像预装内核包和全部项目软件包（设备支持、固件、Mesa、桌面默认设置、snap 显卡供应方、MiPPS 认证、传感器），版本以发布说明为准。GStreamer good/bad 插件已装入；传感器只带默认标定，没有任何设备的私有标定。
 
 ## 1. 解锁并核对原厂版本
 
@@ -296,7 +294,6 @@ piano-maint fastboot                                    # 重启进入 Fastboot
   打开的 telnet 会话只在连着线时才阻止计时。
 - 如果 `piano-maint fastboot` 提示 `nvmem-reboot-mode is not bound`，它不会重启；请按电源 + 音量下。
 
-这些真机结果来自 2026-10-10 的早期维护与发布构建：USB 连接、LUN 检查、原样重写既有 GPT、定时返回 Fastboot，以及预置本机文件。它们不代表本发布目录中的维护或启动镜像已经验证；这里的新安装镜像使用已验收的 7.2.6-piano9 内核包，但整套全新安装仍待验证。第 8a 步生成分区映射仅经过离线检查。
 
 ## 7. 写入文件系统（Fastboot）
 
@@ -321,15 +318,9 @@ fastboot -s <SERIAL> flash linux_data data.sparse.img                      # 数
 # 预期每个 Sending 与 Writing 行均为 "OKAY"，最后 "Finished."
 ```
 
-平板写入稀疏镜像的 RAW 与 FILL 块，跳过 DONT_CARE 块。根镜像只写文件系统用到的块（7.2.6-piano6 构建：8.2 GiB 数据加 1.1 GiB
-置零的 inode 表与日志，共 10.1 GB；51 GiB 空闲空间为 DONT_CARE）。自 7.2.6-piano7 构建起，镜像构建还会丢弃移除 Ubuntu
-通用内核后释放的块，共约 8.7 GB（在该根的一次试构建上离线测得）；上面的 `summary` 行给出你的镜像的实际数值。
-`img2simg -s` 同样不写 `data.sparse.img` 的空闲块（6 MB 数据，日志填充至多 1 GiB）。
+平板只写稀疏镜像中实际使用的块（约 9 GB），跳过空闲块；`img2simg -s` 同样不写 `data.sparse.img` 的空闲块。
 
-**`OKAY` 不代表写入已完成。** 引导程序在数据传完时即应答，随后在后台以约 30 MB/s 继续写 FILL 块；下一条 Fastboot
-命令会等它写完。命令等待期间不要拔线、复位或关机，已返回 `OKAY` 的写入不要重复。（测试机 2026-10-10：本预览的早期镜像把根的
-空闲空间存成 51.8 GiB FILL，`flash linux_rootfs` 41 s 返回 `OKAY`，随后只有 6 MB 的 `flash linux_data` 到 1839 s 才返回，
-等的是根镜像的 FILL 写入；含 1 GiB FILL 的数据盘镜像使下一次 `fastboot boot` 多用约 30 s。）
+**`OKAY` 不代表写入已完成。** 引导程序在数据传完时即应答，随后在后台继续写入；下一条 Fastboot 命令会等它写完。命令等待期间不要拔线、复位或关机，已返回 `OKAY` 的写入不要重复。
 Android 下次启动时重建 `userdata` 与 `metadata`；全部 Android 数据（包括 root 管理器的配置）都会丢失。
 
 ## 8. 可选：不写 A 槽先试启动
@@ -346,7 +337,7 @@ fastboot -s <SERIAL> boot "$RELEASE/boot/boot-ram-check.img"     # 预期 "Booti
 可以用[第 6 步](#6-写入分区表平板上)的维护镜像，在 Ubuntu 首次启动前生成分区映射，把它与触控标定、地址一起放进新根，并打开开发者模式。
 这样初始设置中触控可用，账户建好后主机即可经 SSH 连接平板。不做本步时，初始设置使用磁吸键盘，并在第 10 步复制文件。
 
-boot-profile.json 与 boot-signing.pem 留在主机上，到第 10 步再安装，以便在 Android 恢复镜像组准备好之后重建启动镜像组。本发布版已包含 piano-device-support 0.1+20261012.piano9，早期的 serial-mismatch 故障已经修复。
+boot-profile.json 与 boot-signing.pem 留在主机上，到第 10 步再安装，以便在 Android 恢复镜像组准备好之后重建启动镜像组。
 
 平板处于 Fastboot，主机当前目录里有第 3 步的文件：
 
@@ -401,8 +392,6 @@ piano-maint fastboot
 
 此环境中 `lsblk` 不显示分区标签，上面的循环从 sysfs 读取。该符号链接就是 `piano-devmode on` 所创建的。
 
-这些真机结果来自 2026-10-10 的早期维护与发布构建：USB 连接、LUN 检查、原样重写既有 GPT、定时返回 Fastboot，以及预置本机文件。它们不代表本发布目录中的维护或启动镜像已经验证；这里的新安装镜像使用已验收的 7.2.6-piano9 内核包，但整套全新安装仍待验证。第 8a 步生成分区映射仅经过离线检查。
-离线时，发布版 BusyBox 的 `nc` 在分区表结束时关闭连接，主机的 `nc -l` 随即退出，工具从测试机 LUN 4 的 GPT 重建出其映射。
 
 ## 9. 写入 A 槽并首次启动
 
@@ -418,12 +407,9 @@ fastboot -s <SERIAL> reboot
 - **GNOME 初始设置**创建第一个账户。做过[第 8a 步](#8a-推荐首次启动前安装本机文件)时触控可用；否则使用磁吸键盘（第 10 步之前触控不可用）。
   跳过网络页面。必须有人在平板旁：账户建好且开发者模式打开（第 8a 或 10 步）之前，主机无法连接平板
   （开发者模式需要账户且拒绝 root 登录），唯一的退路是电源 + 音量下。
-- **计算机名。**账户页的“计算机”栏默认填入你的用户名，初始设置把它设为主机名，替换镜像的 `xiaomipad-8pro`（7.2.6-piano7 构建）；
+- **计算机名。**账户页的“计算机”栏默认填入你的用户名，初始设置把它设为主机名，替换镜像的 `xiaomipad-8pro`；
   需要别的名字时修改该栏，或之后运行 `sudo hostnamectl hostname --static <名字>`。蓝牙显示的友好名称“Xiaomi Pad 8 Pro”保持不变。
-- **时钟。**硬件时钟不可写。本发布版的 piano-ubuntu-desktop 0.1+20261010.7 配置为恢复上次关机或每小时保存的时间
-  （`fake-hwclock`），因此慢了平板关机或停留在 Android 的时长。没有该措施的镜像从 systemd 内置日期 2026-04-15 开始。
-  chrony 配置为联网后校时，包括路由器自己应答 NTP 的情况，代价是 NTS 不可用时接受未认证的时间（`authselectmode ignore`）。
-  这些时钟措施尚未在平板上验证。其他情况请手动设置：`sudo date -s 'YYYY-MM-DD HH:MM'`。
+- **时钟。**硬件时钟不可写：启动时恢复上次关机时保存的时间，联网后自动校时；没有网络时手动设置 `sudo date -s 'YYYY-MM-DD HH:MM'`。
 - 启动完成后该槽被标记为启动成功：`sudo piano-slot-success --check` 应报告 `"state": "already-successful"`。
 
 第 10 步之前：没有蓝牙，Wi-Fi 使用随机 MAC，不能从 Ubuntu 切换，内核更新也不会改写 A 槽（地址由该步重建的启动镜像组带入）。只有做过第 8a 步，首次启动起触控才可用。
@@ -462,9 +448,7 @@ python3 "$REPO/tools/extract-boot-partitions.py" --input boot-lun.json --profile
 # 预期 init_boot_a 8388608 B，vendor_boot_a 与 boot_a 各 100663296 B
 ```
 
-此方式取代本指南旧版的手写映射，尚未在平板上运行。
-
-本发布版已包含 piano-device-support 0.1+20261012.piano9。全新安装无需构建、复制或安装支持包：下面的 scp 命令已移除该软件包，也无需执行 dpkg 命令。boot-profile.json 与 boot-signing.pem 留在主机上，到第 10 步再安装，以便在 Android 恢复镜像组准备好之后重建启动镜像组。serial-mismatch 故障影响包含 0.1+20261010.3 的早期镜像，本发布版已经修复。
+全新安装无需单独安装支持包，它已在镜像中。boot-profile.json 与 boot-signing.pem 留在主机上，到本步再安装，以便在 Android 恢复镜像组准备好之后重建启动镜像组。
 
 **复制文件：**
 
@@ -501,27 +485,20 @@ sudo piano-devmode off
 piano-devmode status       # 预期 "developer mode: disabled, inactive"
 ```
 
-需要主机连接时用 `sudo piano-devmode on` 再次打开。开启期间它经 USB 线接受所有设有密码的本地账户，如需仅允许 SSH 密钥，见
-[device/devmode](../device/devmode/README.md)。自 piano-device-support 0.1+20261012.piano9 起，其 SSH 套接字通过
-`FreeBind=yes` 监听 `192.168.88.2:22`，可在 USB 接口和地址出现之前启动。
-它不监听 Wi-Fi 地址，但地址绑定不会过滤入站接口：有到 `192.168.88.2` 路由的 Wi-Fi 对端仍能访问。
+需要主机连接时用 `sudo piano-devmode on` 再次打开。开启期间它经 USB 线接受所有设有密码的本地账户，如需仅允许 SSH 密钥，见 [device/devmode](../device/devmode/README.md)。它只监听 USB 网络地址 `192.168.88.2`。
 
 如果重建的镜像组无法启动：按电源 + 音量下，从主机写回发布目录的 `boot/` 镜像组（[FLASHING.zh-CN.md](FLASHING.zh-CN.md#从主机piano-switchpy)）。
 
 ## 安装之后
 
 - **切换与恢复：**[FLASHING.zh-CN.md](FLASHING.zh-CN.md)。
-- **软件包：**第一次 `apt install` 之前先运行 `sudo apt update`。镜像不带其软件源的索引（7.2.6-piano7 构建起完全不带），
-  这时 apt 只报 “Unable to locate package”，不会提示 `apt update`。7.2.6-piano7 构建还移除了 Ubuntu 通用内核，
-  连带移除 C 库头文件：编译软件前先安装 `build-essential`。
-- **内核更新：**用 `dpkg -i` 安装新的 `linux-image-<release>` 包；它会重建启动镜像组，A 槽为 Ubuntu 时改写该槽。
-  详见 [AGENT-GUIDE.zh-CN.md](AGENT-GUIDE.zh-CN.md) §5。7.2.6-piano7 构建的根使用 zram 交换（`systemd-zram-generator`）；
-  在这样的根上启动不含 `CONFIG_ZRAM` 的内核（7.2.6-piano6 及更早，例如较旧的回退镜像组），会为等待 `/dev/zram0` 多用约 90 s（QEMU 中测得）。
+- **软件包：**第一次 `apt install` 之前先运行 `sudo apt update`，镜像不带软件源索引。镜像只装项目内核，没有 Ubuntu 通用内核和 C 库头文件；编译软件前先安装 `build-essential`。
+- **内核更新：**见 [UPGRADE.zh-CN.md](UPGRADE.zh-CN.md)。
 - **Android：**首次启动 Android 会重建数据，需要几分钟。如需 root，请重新安装 root 管理器应用；
   A 槽中已打补丁的 `init_boot_a` 不变。更换 A 槽的 root 补丁后，要刷新存储的 Android 镜像组（[FLASHING.zh-CN.md](FLASHING.zh-CN.md#镜像组)）。
 - **已知问题与支持状态：**[README](../README.zh-CN.md#硬件支持)及发布目录中的 `RELEASE-NOTES.md`。
 
-## v0.1 中尚无项目工具的步骤
+## 尚无项目工具的步骤
 
 | 步骤 | 现状 |
 |---|---|

@@ -127,8 +127,8 @@ prepare-boot-dtb 将指定磁盘 DTBO 引用的符号指向 disabled 父节点�
 追加内容仍须真机验证，不能将离线合成结果称为实际运行 FDT。
 2026-09-24 的 P01 已证明仅验证磁盘 DTBO 不够覆盖 ABL 行为，不应原样反复试机。
 后续静态分析在本机 RM 的主 VM 3 路径发现 arch_timer 外部引用及 always-on 修改；
-P02 只补齐这一映射，参考 ABL 核心的双 overlay 契约测试通过，随后本机交接/PID1/正常超时退出已证。
-P04/P05 随后经 NCM 取得精确身份与运行 FDT；P04 对照显示既有外设/保留区未被板级 overlay 改写。
+首个候选只补齐这一映射，参考 ABL 核心的双 overlay 契约测试通过，随后本机交接/PID1/正常超时退出已证。
+随后经 USB 网络取得精确身份与运行时 FDT，对照显示既有外设/保留区未被板级 overlay 改写。
 完整原始运行时 DTBO 未取得，跨重启日志损坏仍未解决，不混同于已完整回传的实时日志。
 
 build-boot 使用本机已接受的 header v2 容器。默认 --diagnostic console 保留 pstore-only 模式；
@@ -301,7 +301,7 @@ python3 tools/build-kernel-deb.py --kernel-source /path/to/linux \
 包名沿用上游 builddeb 与 Ubuntu 的 `linux-image-<kernelrelease>`，SOURCE_DATE_EPOCH 取内核提交时间；同输入重建字节一致。
 上游 tag 由 `tools/kernel_tag.py` 按该提交顶层 Makefile 的 VERSION/PATCHLEVEL/SUBLEVEL/EXTRAVERSION 得出（如 `v7.2.6`），
 须存在且是该提交的祖先；build-kernel.sh 的 OUT 身份与打包器的版本都用它。原先的 `git describe --match 'v[0-9]*'`
-会选中内核仓更近的项目 tag `v0.1.0-preview`（指向 piano5），使 piano5 之后的内核全部被打包器拒绝。
+会选中内核仓更近的项目 tag `v0.1.0-preview`（指向较早的内核），使其后的内核全部被打包器拒绝。
 
 **唯一 release。** 可安装内核的 release 为 `<内核版本>-piano<ABI>`（如 `7.2.6-piano1`）：
 `arch/arm64/configs/piano-release.config` 最后合并，设 `CONFIG_LOCALVERSION="-piano<ABI>"` 并关闭
