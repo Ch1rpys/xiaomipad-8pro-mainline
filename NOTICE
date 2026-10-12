@@ -316,16 +316,17 @@ QRTR nameservice lookup diagnostic
 SensorProxy SSC startup and availability
 - Upstream iio-sensor-proxy: https://gitlab.freedesktop.org/hadess/iio-sensor-proxy.git
   at 0085ddf8ecb173a1c5fcf2344aa40e561125354f.
-- The unchanged coldplug, pending-claim cancellation and availability patches in
+- The unchanged coldplug, serialized SSC accelerometer polling, pending-claim cancellation and availability patches in
   device/sensors/libssc/sensorproxy-patches/ are reused from the independent
   liuqin integration snapshot 7df47f82f6e6ca5a04ab02fbcc4a3486c6a259be,
   device/sensors/patches/0003-iio-sensor-proxy-start-preclaimed-coldplug-sensor.patch
+  0004-iio-sensor-proxy-serialize-ssc-accel-polling.patch,
   0005-iio-sensor-proxy-cancel-released-pending-claims.patch and
   0006-iio-sensor-proxy-broadcast-sensor-availability.patch.
   Original patch author headers are retained; the snapshot commit, not a
   synthetic mail header hash, identifies the source. No board parameters,
   sensor matrix, firmware, service policy or dependency on that workspace is copied.
-- The modified upstream src/iio-sensor-proxy.c is GPL-3.0-only, copyright
+- The modified upstream src/iio-sensor-proxy.c and src/drv-ssc-accel.c are GPL-3.0-only, copyright
   2014-2016 Bastien Nocera. License text: LICENSES/hexagonrpc-GPL-3.0.txt.
 - The local discovery-notification regression patch modifies tests/ssc-test.py,
   retaining its GPL-2.0-or-later notices and upstream authors (Martin Pitt and
