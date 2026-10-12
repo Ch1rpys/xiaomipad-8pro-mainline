@@ -254,38 +254,85 @@ filesystem as the root image build. Layout, contents and installation: [RELEASE.
 each application with a deb. The existing Mozilla Firefox deb policy is unchanged;
 `mesa-2404` stays installed for rollback. The provider uses the desktop's exact
 `mesa/source.json` commit and patch, compiled against the separately locked
-`mesa/snap/core24-sdk.json` ABI. Imported tooling provenance and its GPL-2.0-only
-licence are recorded in `mesa/snap/provenance.json`.
+`mesa/snap/core24-sdk.json` ABI and overlaid on the complete ARM64 mesa-2404 rev 1166
+locked in `mesa/snap/mesa-2404.json`. This full content contract matters: consumers
+run Canonical's gpu-2404 cleanup and omit libraries supplied by mesa-2404, including
+non-Mesa X11/XML dependencies. A Mesa-only provider passed its own pixel test but
+broke Thunderbird and App Center on the device (2026-10-12). The packager now
+rejects missing stock files or changes outside the Mesa overlay and snap metadata.
+All stock wrapper/hooks, component metadata, runtime files and notices are retained.
+The slot exports only `$SNAP`; the optional kernel-content directory is not a
+second export on piano. Mesa uses release / `-O3` / `b_ndebug=true` / LTO off.
+The earlier assertion-enabled provider aborted while compiling application GLSL
+(`ir_constant::is_value`); a clear-only pixel test did not exercise that path.
+Imported tooling provenance and its GPL-2.0-only licence are recorded in `mesa/snap/provenance.json`.
 
 ```bash
 python3 tools/build-mesa-root.py --target gpu-2404 --native-nir \
+  --base-snap <mesa-2404_1166.snap> \
   --mesa-source <Mesa Git checkout> --cache out/gpu-snap-inputs \
   --work out/gpu-snap-build --output out/gpu-snap-package --jobs 6
 python3 tools/validate-mesa-snap.py --build out/gpu-snap-package \
-  --sdk-root out/gpu-snap-build/root \
+  --sdk-root out/gpu-snap-build/root --stock-provider <mesa-2404_1166.snap> \
   --base out/gpu-snap-inputs/ubuntu-base-24.04.4-base-arm64.tar.gz \
-  --output out/gpu-snap-validation --core24 <frozen-core24-arm64.snap>
+  --output out/gpu-snap-validation --core24 <frozen-core24-arm64.snap> \
+  --consumer <thunderbird_1045.snap> --consumer <snap-store_1368.snap> \
+  --gnome-runtime <gnome-46-2404_154.snap>
 python3 tools/build-device-debs.py --snap-graphics-only \
   --snap-graphics-build out/gpu-snap-package --output out/gpu-snap-deb \
   --version 0.1+<YYYYMMDD>.<n>
 ```
 
-The build needs qemu-user ARM64 binfmt and unprivileged user namespaces; native
-NIR generation needs the SDK Python minor version (3.12), Mako, MarkupSafe and
+Obtain the locked ARM64 provider with `snap download mesa-2404 --revision=1166`
+on ARM64, or extract `var/lib/snapd/seed/snaps/mesa-2404_1166.snap` from the frozen
+Desktop SquashFS; always check the lock's SHA-256. For a packaging-only correction,
+`tools/package-mesa-snap.py --reuse-mesa-build <previous-build> --base-snap <snap>
+--output <new-output>` reuses only Mesa files verified against the previous build
+and snap receipts, preserving the same source/patch without recompilation. The
+stock component monitor and hooks remain upstream; the install hook disables
+that monitor when its optional kernel content plug is disconnected.
+
+Packaging/validation need Python 3, PyYAML and squashfs-tools. The build needs
+qemu-user ARM64 binfmt and unprivileged user namespaces; native NIR generation needs the SDK Python minor version (3.12), Mako, MarkupSafe and
 Ninja on the host (`--ninja /path/to/ninja` if it is not on PATH). Target compilation stays in the pinned ARM64 SDK. `--resume`
 continues that attempt's frozen recipe, without changing its inputs. The offline
 pixel check explicitly requires softpipe and is not a GPU or sandbox test.
+Validation uses the actual seeded core24 runtime, checks every provider ELF,
+and can check Thunderbird/App Center binaries plus their dlopened graphics/proxy
+libraries with the GNOME runtime. `--old-provider <previous.snap>` first reproduces
+the missing-library failure. These checks do not launch the GUI or prove confinement.
+
+Also run the GLSL regression against the final snap. It compiles a shader with
+integer constants and nested min/max through the provider's mapped libgallium,
+then checks the rendered pixel. `--old-provider` is optional; when supplied it
+must reproduce exit 134 at `ir.cpp:1603`, while the new provider must compile,
+link and draw without an assertion. Shader caching is disabled. Only the small
+probe is built; neither Mesa nor the provider snap is rebuilt:
+
+```bash
+python3 tools/test-snap-graphics-glsl.py \
+  --provider <new-piano-mesa-2404.snap> --old-provider <piano2.snap> \
+  --core24 <frozen-core24-arm64.snap> --sdk-root out/gpu-snap-build/root \
+  --output out/gpu-snap-glsl
+```
+
+This is a softpipe/qemu-user regression, not application, confinement or A830
+acceptance. Matching release flags avoids the observed assertion; it does not
+claim to fix the underlying Mesa assertion logic. `--keep-build` on the Mesa
+builder retains unstripped objects for later crash analysis.
 
 Pass the resulting deb as one additional `--deb` to `build-rootfs-image.py` along
 with the existing device packages. Its postinst only enables the unit. On the
 first boot, `piano-snap-graphics.service` waits for `snapd.seeded.service`, installs
-the local snap with `--dangerous`, then connects all installed `gpu-2404` plugs. After each new connection succeeds,
-it disconnects that plug from its previous slots: content connections are additive,
-and leaving both providers attached can move the new mount to `gpu-2404-2`, which
-the consumer wrapper does not use. The previous provider snaps stay installed.
+the local snap with `--dangerous`, then processes each installed `gpu-2404` plug:
+disconnect previous slots first, connect piano if needed, then run
+`/usr/lib/snapd/snap-discard-ns` for that consumer. Content connections are additive;
+the previous connect-first order could leave a stale `gpu-2404-2` mount. Discard
+also runs for an already connected consumer so its next launch recreates the
+namespace with one content mount. The previous provider snaps stay installed.
 It records completion only after success, has a five-minute bound and no retries.
-After installing a new snap, run `sudo piano-snap-graphics-connect`, then close
-and reopen that application. Consumer refreshes retain manual connections;
+After installing a new snap, close affected applications, run
+`sudo piano-snap-graphics-connect`, then reopen them. Consumer refreshes retain manual connections;
 new consumers are not automatically intercepted. When consumers move to
 `gpu-2604`/core26, rebuild a provider for that ABI/interface before connecting them;
 this core24 provider does not serve `gpu-2604`. Retire it when the distribution

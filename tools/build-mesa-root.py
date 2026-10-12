@@ -94,6 +94,7 @@ def main():
     parser.add_argument('--cache', type=Path, default=WS / 'cache/mesa')
     parser.add_argument('--jobs', type=int, default=6)
     parser.add_argument('--target', choices=('gpu-2404',), default='gpu-2404')
+    parser.add_argument('--base-snap', type=Path, required=True, help='Stock mesa-2404 pinned by mesa/snap/mesa-2404.json')
     parser.add_argument('--mesa-source', type=Path, required=True,
                         help='Mesa Git checkout containing mesa/source.json commit')
     parser.add_argument('--resume', action='store_true',
@@ -102,9 +103,12 @@ def main():
                         help='run the NIR Python generator on the host using its original Ninja command; '
                              'requires the SDK Python minor version and Mako on the host')
     parser.add_argument('--ninja', default='ninja', help='native Ninja executable for --native-nir')
+    parser.add_argument('--keep-build', action='store_true', help='Retain unstripped build objects for crash symbolization')
     parser.add_argument('--clean', action='store_true',
                         help='remove the work directory, build root included, after success')
     args = parser.parse_args()
+    if args.keep_build and args.clean:
+        parser.error('--keep-build and --clean are mutually exclusive')
     if not 1 <= args.jobs <= 8:
         parser.error('--jobs must be between 1 and 8, the limit of tools/build-mesa.py')
     if shutil.which('unshare') is None:
@@ -114,6 +118,9 @@ def main():
     if not root_tools.HOST_CA.is_file():
         die(f'{root_tools.HOST_CA} is required for TLS to the snapshot service')
 
+    stock = json.loads((INPUTS / 'snap/mesa-2404.json').read_text())
+    if root_tools.sha256(args.base_snap) != stock['sha256']:
+        die('stock mesa-2404 does not match its lock')
     source = json.loads((INPUTS / 'source.json').read_text())
     pinfile = INPUTS / 'snap/core24-sdk.json'
     pins = json.loads(pinfile.read_text())
@@ -166,6 +173,7 @@ def main():
                 shutil.copy2(path, build / 'recipe' / name)
         (build / 'inputs').mkdir(exist_ok=True)
         shutil.copyfile(archive, build / 'inputs' / source['archive'])
+        shutil.copyfile(args.base_snap, build / 'inputs' / stock['file'])
         for entry, path in (() if args.resume else bootstrap):
             shutil.copyfile(path, build / 'inputs' / entry['file'])
             inside = '/build/inputs/' + entry['file']
@@ -192,7 +200,7 @@ def main():
         root_tools.chroot(root, (
             f'python3 -u /build/recipe/tools/build-mesa.py --profile {args.target} --jobs {args.jobs} '
             f'--source-archive /build/inputs/{source["archive"]} --output /build/out\n'
-            f'python3 -u /build/recipe/tools/{packager} --build-output /build/out --output /build/debs\n'),
+            f'python3 -u /build/recipe/tools/{packager} --build-output /build/out --base-snap /build/inputs/{stock['file']} --output /build/debs\n'),
             log=log)
 
         installed = root_tools.capture(root, "dpkg-query -W -f='${Package} ${Version}\\n'").splitlines()
@@ -202,7 +210,8 @@ def main():
         if root_tools.sha256(package) != manifest['package']['sha256']:
             die('the package does not match its manifest')
         for path in (package, build / 'debs/manifest.json', build / 'out/input.json',
-                     build / 'out/build-result.json', build / 'out/build/meson-logs/meson-log.txt'):
+                     build / 'out/build-result.json', build / 'out/build/meson-logs/meson-log.txt',
+                     build / 'out/build/meson-info/intro-buildoptions.json'):
             shutil.copy2(path, output / path.name)
         # One entry per recipe file, keyed by its repository path.
         frozen = build / 'recipe'
@@ -220,7 +229,8 @@ def main():
         if native:
             record['native_generator'] = native
         (output / 'build-root.json').write_text(json.dumps(record, indent=2) + '\n')
-        shutil.rmtree(build)
+        if not args.keep_build:
+            shutil.rmtree(build)
     if args.clean:
         shutil.rmtree(work)
     print(json.dumps(manifest['package']))

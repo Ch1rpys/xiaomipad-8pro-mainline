@@ -57,7 +57,8 @@ def main():
         libdir = 'lib/aarch64-linux-gnu' if content else 'lib'
         drivers = 'freedreno,softpipe' if content else 'freedreno'
         flags = [f'--prefix={prefix}', f'--libdir={libdir}', '--buildtype=release',
-                 '--wrap-mode=nofallback', '-Db_ndebug=false',
+                 '--wrap-mode=nofallback', '-Db_ndebug=true' if content else '-Db_ndebug=false',
+                 '-Doptimization=3', '-Db_lto=false',
                  f'-Dgallium-drivers={drivers}', '-Degl=enabled',
                  '-Dgbm=enabled', '-Dgles1=disabled', '-Dgles2=enabled',
                  '-Dllvm=disabled', '-Dgallium-va=disabled', '-Dvideo-codecs=[]',

@@ -433,8 +433,8 @@ Third-party files placed in locally generated packages (tools/build-device-debs.
   corresponding source is the Ubuntu busybox source package of the same version.
   Packages built before this change lack these files.
 
-Mesa core24 provider build tools and wrapper
-------------------------------------------
+Mesa core24 provider build tools
+-------------------------------
 Adapted from onepluspad-2pro-mainline commit 70588c971d260b0d0955242f226791725664c8b1,
 author yzddmr6. The imported files retain GPL-2.0-only (not this repository MIT);
 see mesa/snap/provenance.json and LICENSES/oneplus-mesa-tools-GPL-2.0-only.txt.
@@ -454,3 +454,14 @@ Changes: connect to the logged-in uid's bus, use the screenshot portal's
 noninteractive permission-store flow, link ScreenCast for absolute/touch
 coordinates, provide a command-line interface and bounded resource cleanup.
 There is no runtime dependency on the source workspace.
+
+Stock mesa-2404 content used by the piano provider
+------------------------------------------------
+The complete ARM64 mesa-2404 revision 1166 (25.0.7-snap211), published by
+Canonical, is the runtime base; https://github.com/canonical/mesa-2404.
+Its SHA-256, seed location, embedded source/manifest hashes and MIT snap licence
+are recorded in mesa/snap/mesa-2404.json. The aggregate contains libraries under
+their own licences; all original usr/share/doc/*/copyright notices are retained.
+Only the pinned piano Mesa payload is overlaid; the Canonical wrapper, component
+hooks and non-Mesa files are unchanged. Snap metadata changes only name/version.
+The superseded imported minimal wrapper is no longer shipped.
