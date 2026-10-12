@@ -3,14 +3,14 @@
 This directory holds the AudioReach topologies and the UCM profile (`ucm2/`) of
 the piano sound card that the desktop DTB declares.
 
-- `Xiaomi-Pad-8-Pro.m4` (with `piano/`): the card `Xiaomi-Pad-8-Pro` of kernel
-  branch `piano/speakers-20261010`: speaker playback on MultiMedia1 (PCM 0) to
+- `Xiaomi-Pad-8-Pro.m4` (with `piano/`): the kernel card `Xiaomi-Pad-8-Pro`:
+  speaker playback on MultiMedia1 (PCM 0) to
   the secondary LPAIF TDM interface, and the VA microphone capture below on
   MultiMedia3 (PCM 2). Identity in `card.json`. Nothing here has played on the
   tablet yet.
-- `Piano-Capture-Diag.m4`: the capture-only card `Piano-Capture-Diag` of
-  7.2.6-piano5 and earlier desktop DTBs (identity in `diagnostic.json`, shipped
-  by firmware 0.3). The UCM tree no longer names that card.
+- `Piano-Capture-Diag.m4`: the capture-only card `Piano-Capture-Diag` declared
+  by the capture-only desktop DTBs (identity in `diagnostic.json`, shipped
+  by the corresponding firmware package). The UCM tree no longer names that card.
 
 ## Speakers
 
@@ -33,7 +33,7 @@ The playback stream subgraph is `piano/subgraph-stream-playback.m4`, a copy of t
 upstream `audioreach/subgraph-stream-playback.m4` with the WR_SH output port set to 1. Upstream
 passes 0 there, so the kernel's topology loader (it keeps a link only when source port,
 destination instance and destination port are all non-zero) gives the DSP a WR_SH that is not
-connected to the PCM decoder; on piano (speakers-1, 2026-10-10) the ADSP rejected
+connected to the PCM decoder; in a piano playback test the ADSP rejected
 APM_CMD_GRAPH_OPEN of that graph with error 1 before any TDM, clock or amplifier step. The
 vol-playback variant every upstream board uses has port 1. `tools/check-audioreach-tplg.py`
 reports such dropped links from the compiled binary.
@@ -80,8 +80,8 @@ divider as stock with the upstream driver structure. It differs from Android's
 normal-recording backend (TX3); that route stays available in Git history
 (topology `2727c427...`) if VA fails on the tablet.
 
-The matching DT change is kernel commit `79dee9cc9b2a` on branch
-`piano/mic-va-20261010`: a VA dai-link, the four DMIC pin pairs on the VA macro
+The matching DT change is kernel commit `79dee9cc9b2a`: a VA dai-link, the four
+DMIC pin pairs on the VA macro
 at 4 mA and `qcom,dmic-sample-rate = <2400000>` (9.6 MHz / 4). **This topology
 and UCM require that DTB.** Desktop DTBs from earlier kernels and the
 `piano/diag` mic-diag DTB use TX3 and pair only with the earlier graph; do not
@@ -94,8 +94,8 @@ ship one without the other.
 `Qualcomm/sm8750/Xiaomi-Pad-8-Pro/Xiaomi-Pad-8-Pro.conf`, which loads
 `HiFi.conf`. Install the tree under `/usr/share/alsa/ucm2/` keeping the symlink.
 `Qualcomm/sm8750/Piano-Capture-Diag/` with its own `conf.d` entry keeps the
-capture-only profile of kernels up to 7.2.6-piano5, whose card is still named
-`Piano-Capture-Diag`, so falling back to such a kernel keeps its microphone
+capture-only profile for kernels whose card is named `Piano-Capture-Diag`,
+so falling back to such a kernel keeps its microphone
 profile; it sets no speaker route.
 The verb enables the `SECONDARY_TDM_RX_0 Audio Mixer MultiMedia1` and
 `MultiMedia3 Mixer VA_CODEC_DMA_TX_0` routes. The `Speaker` device (PCM 0,
@@ -114,7 +114,7 @@ Mic (`CapturePCM hw:0,2`, two channels). The speaker control names are the
 kernel's (`SECONDARY_TDM_RX_0 Audio Mixer MultiMedia1` in the decoded
 topology; `<sound-name-prefix> Amp Volume` from the FS19xx driver) and have not
 been read back from a card. All cset
-names and values exist in the real piano control readback of P24-03 (VA
+names and values exist in a piano control readback (VA
 controls) or in the decoded topology (the MultiMedia3 route). The sequences
 have not run against the card.
 
@@ -180,8 +180,8 @@ checks a known source. Audibility of speech needs a person.
 
 `diagnostic.json` keeps the explicit RAM-probe module order, excluded
 consumers and the compiled topology identity used by `build-boot.py` and
-`build-firmware-deb.py`. The P23/P24 hardware probe results remain those of the
-earlier TX3 graph.
+`build-firmware-deb.py`. The ADSP and microphone RAM-probe results apply only
+to the TX3 graph.
 
 The upstream BSD-3-Clause macros are consumed from their pinned checkout. See
 `NOTICE`, `LICENSES/audioreach-BSD-3-Clause.txt`, `LICENSES/debian-piano-MIT.txt`

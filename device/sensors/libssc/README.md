@@ -23,21 +23,20 @@ and broadcast availability to observers before claims. Releasing a pending
 claim completes that sender's call with a cancellation error while retaining
 other clients' claims. Measurement notifications remain directed to claimants.
 The accelerometer patch serializes polling transitions while libssc synchronous
-operations dispatch nested Claim/Release calls. On 2026-10-12 it applied cleanly
-with the full pinned series; the existing ARM64 QEMU SensorProxy suite (four
-groups, including two release cases) and all three polling cases passed again.
+operations dispatch nested Claim/Release calls. The full pinned series passes
+the ARM64 QEMU SensorProxy suite (four groups, including two release cases)
+and all three polling cases.
 No board identity, SLPI service policy, calibration
 or mounting matrix is imported. The test patch waits for the resulting capability
 notification using the existing assertion deadline, keeping functional checks
 and the upstream disabled tests.
 
-The original full Ubuntu test stopped during startup/APT preparation. A later
-QEMU-only runtime used the same checked package data directly: seven libssc
-protocol groups and two software matrix/orientation groups passed. After the
-startup fixes, three targeted SensorProxy checks passed: an early light claim
+The full Ubuntu test stopped during startup/APT preparation. A QEMU-only
+runtime using the checked package data directly passes seven libssc protocol
+groups and two software matrix/orientation groups. Three targeted SensorProxy
+checks pass: an early light claim
 starts sampling once, light readings reach D-Bus, and compass availability is
 announced. Unclaimed broadcasts are checked to contain no light/heading readings.
-The earlier library checks were not repeated; the library/test bytes are unchanged.
 
 The pending-release fix also passes two scenarios on the upstream synthetic IIO
 buffer: cancel before the first reading and reopen, and cancel one of two clients

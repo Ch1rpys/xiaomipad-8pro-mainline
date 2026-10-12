@@ -13,8 +13,9 @@ sudo apt-get install python3 kmod v4l-utils gstreamer1.0-tools \
   gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad
 ```
 
-The test requires the prepared piano8 debug RAM boot and starts before uptime
-420 s, leaving room for its 120 s total budget and the 600 s return timer.
+The test requires a debug RAM boot matching the kernel release enforced by
+[`iris-check.py`](iris-check.py) and starts before uptime 420 s, leaving room
+for its 120 s total budget and the 600 s return timer.
 It selects the `qcom-iris-decoder` node with `qcom,sm8750-iris` DT identity,
 prints both V4L2 format queues, and uses only `v4l2h264dec device=...`.
 It sets a fresh RAM GStreamer registry so hardware elements are probed for
