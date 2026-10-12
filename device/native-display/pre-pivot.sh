@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-only
 # Sourced by dracut, only in the explicitly prepared RAM display experiment.
-case " $(cat /proc/cmdline) " in *' piano.native_display=1 '*) ;; *) return 0;; esac
+case " $(cat /proc/cmdline) " in *' piano.native_display=1 '*|*' piano.ram_modules=1 '*) ;; *) return 0;; esac
 case " $(cat /proc/cmdline) " in *' piano.debug=1 '*) ;; *) die "native display requires the debug boot";; esac
 
 piano_display_handoff() (

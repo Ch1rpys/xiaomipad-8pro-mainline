@@ -252,6 +252,8 @@ def main():
     desktop = stages / 'piano-ubuntu-desktop'
     shutil.copytree(repo / 'packaging/piano-ubuntu-desktop', desktop, ignore=untracked)
     tree(repo / 'packaging/piano-ubuntu-desktop', desktop, '.')
+    copy(repo / 'device/keyboard/README.md', desktop,
+         'usr/share/doc/piano-ubuntu-desktop/keyboard.md')
     # ALSA UCM for the internal-microphone card (device/audio/ucm2, MIT/BSD-3-Clause, see NOTICE);
     # its conf.d entry is a relative symlink, kept as one.
     shutil.copytree(repo / 'device/audio/ucm2', desktop / 'usr/share/alsa/ucm2', symlinks=True)

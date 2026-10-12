@@ -454,3 +454,11 @@ Changes: connect to the logged-in uid's bus, use the screenshot portal's
 noninteractive permission-store flow, link ScreenCast for absolute/touch
 coordinates, provide a command-line interface and bounded resource cleanup.
 There is no runtime dependency on the source workspace.
+
+Keyboard integration (device/keyboard)
+------------------------------------
+The kernel imports blu-sharky/linux-piano f8afe7ff7127f46f5339fdaf5c24ecbffbfbb92b
+(GPL-2.0-only, map220v, ianchb, bluseliu50); its implementation remains solely in
+the kernel repository. Community debian-piano a75f8c5d5fa099d65c171ac839c2e3bb6c63ec45
+keyboard overlay/service were reviewed, not copied: standard udev OF autoload
+makes their manual module startup unnecessary. See device/keyboard/README.md.

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-only
-"""Repack an explicitly hash-pinned piano dracut initrd for one RAM display boot.
+"""Repack an explicitly hash-pinned piano dracut initrd for one bounded RAM hardware test.
 
 MODULES_DIR (or --modules-dir) must be stage-kernel-modules.py --all output.
 No package, root image or device is changed. The existing dracut/debug flow is
@@ -25,6 +25,7 @@ SUPPORT = REPO / 'packaging/piano-device-support'
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument('--purpose', choices=('native-display', 'keyboard'), default='native-display')
     ap.add_argument('--base-initrd', type=Path, required=True)
     ap.add_argument('--base-sha256', required=True)
     ap.add_argument('--kernel-out', type=Path, required=True)
@@ -103,7 +104,8 @@ def main():
     hook = stage / 'var/lib/dracut/hooks/pre-pivot/50-piano-native-display.sh'
     shutil.copyfile(REPO / 'device/native-display/pre-pivot.sh', hook)
     hook.chmod(0o755)
-    receipt = {'state': 'OFFLINE_NATIVE_DISPLAY_INITRD_NOT_DEVICE_TESTED',
+    receipt = {'state': 'OFFLINE_' + a.purpose.upper().replace('-', '_') + '_INITRD_NOT_DEVICE_TESTED',
+               'purpose': a.purpose,
                'base_initrd_sha256': a.base_sha256, 'kernel_commit': build['kernel_commit'],
                'kernel_release': release, 'kernel_sha256': build['files']['arch/arm64/boot/Image'],
                'config_sha256': build['files']['.config'], 'modules': modules, 'firmware': rows,

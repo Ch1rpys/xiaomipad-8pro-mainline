@@ -71,6 +71,28 @@ def build(d, *options, output='out'):
 
 
 class RootAndSerial(unittest.TestCase):
+    def test_keyboard_requires_bounded_debug_before_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            fake_inputs(d)
+            for extra in ((), ('--debug', '--debug-timeout', '599'),
+                          ('--debug', '--debug-timeout', '600', '--module-blacklist', 'hid_nanosic_wn8030')):
+                result = build(d, '--root-partlabel', 'linux_rootfs', '--no-serial',
+                               '--keyboard-transport', *extra)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('RAM experiment requires --debug --debug-timeout 600', result.stderr)
+                self.assertFalse((d / 'out').exists())
+
+    def test_ram_experiments_are_exclusive(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            fake_inputs(d)
+            result = build(d, '--root-partlabel', 'linux_rootfs', '--no-serial',
+                           '--native-display', '--keyboard-transport')
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('Select one RAM experiment', result.stderr)
+            self.assertFalse((d / 'out').exists())
+
     def test_ram_size_limit_includes_header_and_page_padding(self):
         with tempfile.TemporaryDirectory() as tmp:
             d = Path(tmp)

@@ -102,6 +102,8 @@ def main():
     p.add_argument('--debug-timeout', type=int, default=0)
     p.add_argument('--native-display', action='store_true',
                    help='RAM display experiment: require the complete matching debug initrd and 600 s timeout')
+    p.add_argument('--keyboard-transport', action='store_true',
+                   help='RAM keyboard experiment: same full-module handoff and 600 s guard')
     p.add_argument('--module-blacklist', help='Explicit comma-separated module control for a debug boot')
     p.add_argument('--modprobe-blacklist',
                    help='Debug boot only: kmod modprobe.blacklist= (stops alias autoload; an explicit insmod still loads)')
@@ -136,9 +138,11 @@ def main():
         if profile[name]['header_version'] != 4 or profile[name]['capacity'] <= 0:
             p.error('Expected verified stock v4 geometry')
     ram_image_size(a.kernel, a.initrd, a.dtb, profile)
-    if a.native_display:
+    if a.native_display and a.keyboard_transport:
+        p.error('Select one RAM experiment')
+    if a.native_display or a.keyboard_transport:
         if not a.debug or a.debug_timeout != 600 or a.module_blacklist or a.modprobe_blacklist:
-            p.error('--native-display requires --debug --debug-timeout 600 and no module blacklist')
+            p.error('RAM experiment requires --debug --debug-timeout 600 and no module blacklist')
         compressed = a.initrd.read_bytes()
         if compressed.startswith(b'\xfd7zXZ\0'):
             decoder = lzma.LZMADecompressor(format=lzma.FORMAT_XZ)
@@ -156,8 +160,10 @@ def main():
                 info['config_sha256'] != hashlib.sha256(config).hexdigest() or
                 info['modules'].get('selection') != 'all'):
             p.error('Native display initrd/kernel/config/complete-module identity mismatch')
-        for option in (initrd_decoder, 'DRM_MSM', 'DRM_MSM_DPU', 'DRM_MSM_DSI', 'SM_DISPCC_8750', 'DRM_PANEL_NOVATEK_NT36532',
-                       'BACKLIGHT_KTZ8866', 'BACKLIGHT_CLASS_DEVICE'):
+        options = ((initrd_decoder, 'SM_DISPCC_8750') if a.keyboard_transport else
+                   (initrd_decoder, 'DRM_MSM', 'DRM_MSM_DPU', 'DRM_MSM_DSI', 'SM_DISPCC_8750',
+                    'DRM_PANEL_NOVATEK_NT36532', 'BACKLIGHT_KTZ8866', 'BACKLIGHT_CLASS_DEVICE'))
+        for option in options:
             if f'CONFIG_{option}=y'.encode() not in config.splitlines():
                 p.error(f'Native display requires built-in {option}')
         for name, digest in info['modules']['files'].items():
@@ -177,16 +183,34 @@ def main():
         hook = regular_file(entries, 'var/lib/dracut/hooks/pre-pivot/50-piano-native-display.sh')
         if hashlib.sha256(hook).hexdigest() != info['pre_pivot_sha256']:
             p.error('Native display handoff hook differs from its manifest')
-        mdss = '/soc@0/display-subsystem@ae00000'
-        for node in (mdss, mdss + '/display-controller@ae01000', mdss + '/dsi@ae94000', mdss + '/dsi@ae96000',
-                     mdss + '/phy@ae95000', mdss + '/phy@ae97000'):
-            status = subprocess.check_output(['fdtget', '-t', 's', str(a.dtb), node, 'status'], text=True).strip()
-            if status != 'okay':
-                p.error(f'Native display node is not enabled: {node}')
-        compatible = subprocess.check_output(['fdtget', '-t', 's', str(a.dtb),
-                                              mdss + '/dsi@ae94000/panel@0', 'compatible'], text=True).strip()
-        if compatible != 'xiaomi,piano-boe-nt36532 novatek,nt36532':
-            p.error('Native display candidate must use the selected P81 42-02-0a profile')
+        if a.keyboard_transport:
+            if info.get('purpose') != 'keyboard':
+                p.error('Require an explicitly prepared keyboard initrd')
+            if b'CONFIG_HID_NANOSIC_WN8030=m' not in config.splitlines():
+                p.error('Keyboard transport must be a module')
+            if any(line.startswith(b'CONFIG_HID_NANOSIC=') for line in config.splitlines()):
+                p.error('Duplicate keyboard transport is enabled')
+            keyboard = '/soc@0/geniqup@ac0000/i2c@a98000/keyboard@4c'
+            for prop, expected in (('compatible', 'nanosic,wn8030-piano'),
+                                   ('status', 'okay'),
+                                   ('firmware-name', 'nanosic/piano/MCU_Upgrade.bin')):
+                actual = subprocess.check_output(['fdtget', '-t', 's', str(a.dtb), keyboard, prop], text=True).strip()
+                if actual != expected:
+                    p.error(f'Keyboard DT property mismatch: {prop}')
+            subprocess.run(['fdtget', str(a.dtb), keyboard, 'nanosic,no-touchpad'], check=True)
+            module_path = f'usr/lib/modules/{release}/kernel/drivers/hid/hid-nanosic-wn8030.ko'
+            regular_file(entries, module_path)
+        else:
+            mdss = '/soc@0/display-subsystem@ae00000'
+            for node in (mdss, mdss + '/display-controller@ae01000', mdss + '/dsi@ae94000', mdss + '/dsi@ae96000',
+                         mdss + '/phy@ae95000', mdss + '/phy@ae97000'):
+                status = subprocess.check_output(['fdtget', '-t', 's', str(a.dtb), node, 'status'], text=True).strip()
+                if status != 'okay':
+                    p.error(f'Native display node is not enabled: {node}')
+            compatible = subprocess.check_output(['fdtget', '-t', 's', str(a.dtb),
+                                                  mdss + '/dsi@ae94000/panel@0', 'compatible'], text=True).strip()
+            if compatible != 'xiaomi,piano-boe-nt36532 novatek,nt36532':
+                p.error('Native display candidate must use the selected P81 42-02-0a profile')
     a.output.mkdir(parents=True, exist_ok=False)
     out = a.output.resolve()
     shutil.copyfile(a.profile, out / 'profile.json')
@@ -227,6 +251,8 @@ def main():
                f'msm.separate_gpu_kms={gpu_kms} piano.boot=persistent systemd.gpt_auto=0 bootconfig')
     if a.native_display:
         cmdline += ' piano.native_display=1'
+    if a.keyboard_transport:
+        cmdline += ' piano.ram_modules=1'
     # V4 may expose the firmware serial only in bootconfig. Keep the explicit
     # development gadget bound to the locally verified installation profile.
     # ABL also appends androidboot.serialno to the kernel command line it
@@ -300,6 +326,8 @@ def main():
                 'scope': 'Image construction only; cold boot and recovery must be verified on piano'}
     if a.debug_boot_trace:
         manifest['debug_boot_trace'] = DEBUG_BOOT_TRACE
+    if a.keyboard_transport:
+        manifest['keyboard_transport'] = True
     if a.native_display:
         manifest['native_display'] = True
         manifest['scope'] = ('RAM display candidate only; do not install the generated triplet. '
@@ -315,7 +343,7 @@ def maintenance(p, a):
     """boot-ram-maintenance.img: kernel, DTB and maintenance initramfs; the kernel stays in the initramfs."""
     unit = [n for n in ('root_partuuid', 'root_partlabel', 'bt_address_file', 'wlan_address_file',
                         'module_blacklist', 'modprobe_blacklist', 'avbtool', 'key') if getattr(a, n) is not None]
-    if unit or a.debug or a.debug_timeout or a.debug_boot_trace or a.native_display:
+    if unit or a.debug or a.debug_timeout or a.debug_boot_trace or a.native_display or a.keyboard_transport:
         p.error('--maintenance takes no root, address, AVB or debug option')
     if not 30 <= a.maintenance_idle <= 3600:
         p.error('--maintenance-idle must be 30-3600 seconds')
