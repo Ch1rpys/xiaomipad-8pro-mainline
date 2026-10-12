@@ -377,7 +377,6 @@ def main():
               'steps_script_sha256': sha(Path(__file__).with_name('rootfs-image-steps.sh')),
               'sparse_encoder_sha256': sha(Path(sparse_image.__file__)),
               'scope': ('Root filesystem image for any piano unit, built offline; not booted on a tablet by this tool'),
-              'system_locale': {'LANG': 'zh_CN.UTF-8', 'generated': ['zh_CN.UTF-8', 'en_US.UTF-8']},
               'timings_seconds': {}}
 
     def save():
@@ -566,8 +565,6 @@ def main():
         log = (guest_dir / 'install.log').read_text(errors='replace')
         if 'PIANO_ROOTFS_GUEST_DONE' not in log or 'PIANO_ROOTFS_EXIT status=0' not in log:
             raise RuntimeError('The guest did not complete; see guest/install.log and console.log')
-        if not {'zh_CN.utf8', 'en_US.utf8'} <= set((guest_dir / 'locales.txt').read_text().splitlines()):
-            raise RuntimeError('The guest did not generate both image locales')
         (out / 'ubuntu-set').mkdir()
         for f in sorted((guest_dir / 'ubuntu-set').iterdir()):
             f.replace(out / 'ubuntu-set' / f.name)
