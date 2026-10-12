@@ -439,3 +439,18 @@ Adapted from onepluspad-2pro-mainline commit 70588c971d260b0d0955242f22679172566
 author yzddmr6. The imported files retain GPL-2.0-only (not this repository MIT);
 see mesa/snap/provenance.json and LICENSES/oneplus-mesa-tools-GPL-2.0-only.txt.
 Mesa source and A830 patch are shared with the desktop lock in mesa/source.json.
+
+GNOME desktop-drive diagnostic tool
+----------------------------------
+tools/piano-desktop-drive.py adapts the Gio session-call helper, GetWindows and
+Mutter RemoteDesktop Notify* input logic from onepluspad-2pro-mainline:
+  tools/gpu-app-coverage-probe.py at 43d38623312ee4d2edc4d2660c06ae0c25bcd5cf
+  (SHA-256 cbf0752b9075ec2d4f600f6955e3e4e212fffb19dcc66ec8fffaaabb35b0487d)
+  tools/gpu-desktop-probe.py at cdb808739d7f7048234fe4a306bc72d2b9ac60e2
+  (SHA-256 a51d5b34ad11d4bbe316dd9b18a6e171d0deaced6548e2254a7efd05676cc422)
+Original author Erwin; GPL-2.0-only, retained by the adapted file. The licence
+text is already in LICENSES/oneplus-mesa-tools-GPL-2.0-only.txt.
+Changes: connect to the logged-in uid's bus, use the screenshot portal's
+noninteractive permission-store flow, link ScreenCast for absolute/touch
+coordinates, provide a command-line interface and bounded resource cleanup.
+There is no runtime dependency on the source workspace.
