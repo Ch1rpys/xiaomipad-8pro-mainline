@@ -55,7 +55,7 @@ BUILD_MODULES=1 KERNEL_SOURCE=../linux OUT_DIR="$PWD/out/kernel-release" bash to
 - The upstream base is the tag of the version in the kernel's top-level Makefile
   (`python3 tools/kernel_tag.py ../linux` prints `v7.2.6`); it must exist and be an ancestor of HEAD.
   `build-kernel.sh` and `build-kernel-deb.py` both use it, so project tags on the kernel repository
-  such as `v0.1.0-preview` are never taken for the upstream version.
+  are never taken for the upstream version.
 - Reuse the OUT directory for incremental builds (ccache is used when installed); a different
   toolchain or source location needs a new one.
 - Without `piano-release.config` the release keeps a diagnostic suffix and cannot be packaged.
@@ -77,7 +77,7 @@ reuse or lower it.
 
 ABL applies the stock DTBO to the boot DTB. `prepare-boot-dtb.py` prepares the desktop DTB against
 your stock base DTB (from `vendor_boot_a`) and DTBO entry (from `dtbo_a`); extracting these two from
-the backup is manual in v0.1.
+the backup is manual.
 
 ```bash
 python3 tools/prepare-boot-dtb.py \
@@ -193,9 +193,9 @@ snapd state remain untouched during construction. After first-boot seeding, the 
 and has a five-minute timeout. It does not delay the display manager. The dock uses `firefox.desktop`;
 Thunderbird remains a snap. Snap removal and Firefox GPU rendering require a device test.
 
-`fake-hwclock` is a dependency of piano-ubuntu-desktop 0.1+20261010.6. Download
-`systemd-zram-generator` only for a kernel with `CONFIG_ZRAM` (7.2.6-piano7 and later): without the
-module the boot waits 90 s for `/dev/zram0` (QEMU, 7.2.6-piano6), and `build-rootfs-image.py`
+`fake-hwclock` is a dependency of the current piano-ubuntu-desktop package. Download
+`systemd-zram-generator` only for a kernel with `CONFIG_ZRAM`: without the
+module the boot waits 90 s for `/dev/zram0` (QEMU), and `build-rootfs-image.py`
 refuses the mismatch. The guest also purges Ubuntu's generic kernels and `kdump-tools`, sets the
 hostname `xiaomipad-8pro`, deletes the base's APT indexes and ends with `fstrim`
 ([RELEASE.md](RELEASE.md#what-the-image-contains)).
@@ -213,7 +213,7 @@ reproduces the TAR/SquashFS merge above and verifies the final `35f9b475…` has
 SquashFS is cached, keyed by the ISO and recipe. It builds e2fsprogs 1.47.4 with libarchive/NLS
 and checks the filesystem configuration hash; host package versions and tool hashes accompany
 the result. [root-image.json](../ubuntu/root-image.json) locks the APT snapshot and release debs;
-desktop policy is built from the workflow revision as 0.1+20261010.8. Firefox uses its own lock.
+desktop policy is built from the workflow revision. Firefox uses its own lock.
 
 The job invokes `sudo …build-rootfs-image.py --backend chroot`. This backend accepts only native
 `aarch64` with EUID 0 and runs the shared package steps in a loop-mounted ext4, with private
@@ -258,7 +258,7 @@ each application with a deb. The existing Mozilla Firefox deb policy is unchange
 locked in `mesa/snap/mesa-2404.json`. This full content contract matters: consumers
 run Canonical's gpu-2404 cleanup and omit libraries supplied by mesa-2404, including
 non-Mesa X11/XML dependencies. A Mesa-only provider passed its own pixel test but
-broke Thunderbird and App Center on the device (2026-10-12). The packager now
+broke Thunderbird and App Center on the device. The packager now
 rejects missing stock files or changes outside the Mesa overlay and snap metadata.
 All stock wrapper/hooks, component metadata, runtime files and notices are retained.
 The slot exports only `$SNAP`; the optional kernel-content directory is not a
@@ -311,7 +311,7 @@ probe is built; neither Mesa nor the provider snap is rebuilt:
 
 ```bash
 python3 tools/test-snap-graphics-glsl.py \
-  --provider <new-piano-mesa-2404.snap> --old-provider <piano2.snap> \
+  --provider <new-piano-mesa-2404.snap> --old-provider <previous-provider.snap> \
   --core24 <frozen-core24-arm64.snap> --sdk-root out/gpu-snap-build/root \
   --output out/gpu-snap-glsl
 ```
