@@ -5,6 +5,7 @@ import importlib.util
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import unittest
 
 spec = importlib.util.spec_from_file_location('ssc_run', Path(__file__).with_name('run.py'))
@@ -72,6 +73,27 @@ class Results(unittest.TestCase):
         finally:
             if child.poll() is None:
                 child.kill(); child.wait()
+
+    def test_registry_copy_is_private_and_fresh_each_time(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); pristine = root/'pristine'; pristine.mkdir()
+            (pristine/'calibration').write_bytes(b'original-device-data')
+            before = run.copy_registry(pristine, root/'run1')
+            (root/'run1/calibration').write_bytes(b'changed-in-scratch')
+            self.assertEqual(run.registry_hashes(pristine), before)
+            self.assertEqual(run.copy_registry(pristine, root/'run2'), before)
+            self.assertEqual((root/'run2/calibration').read_bytes(), b'original-device-data')
+            with self.assertRaises(FileExistsError):
+                run.copy_registry(pristine, root/'run2')
+
+    def test_registry_symlink_is_rejected_before_copy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); pristine = root/'pristine'; pristine.mkdir()
+            (root/'outside').write_bytes(b'must-not-touch')
+            (pristine/'link').symlink_to(root/'outside')
+            with self.assertRaises(RuntimeError):
+                run.copy_registry(pristine, root/'scratch')
+            self.assertFalse((root/'scratch').exists())
 
 
 if __name__ == '__main__':

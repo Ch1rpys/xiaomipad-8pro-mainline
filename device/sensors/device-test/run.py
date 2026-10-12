@@ -112,6 +112,33 @@ def kernel_log(out, when):
         (out/('kernel-' + when + '.log')).write_text(str(exc) + '\n')
 
 
+def registry_hashes(root):
+    hashes = {}
+    for f in sorted(root.rglob('*')):
+        if f.is_symlink() or (not f.is_dir() and not f.is_file()):
+            raise RuntimeError('non-regular registry entry: ' + str(f))
+        if f.is_file():
+            with f.open('rb') as stream:
+                hashes[str(f.relative_to(root))] = hashlib.file_digest(stream, 'sha256').hexdigest()
+    return hashes
+
+
+def copy_registry(pristine, scratch):
+    """Create new inodes; never link writes back to the pristine bundle/backup."""
+    before = registry_hashes(pristine)
+    scratch.mkdir(mode=0o700, parents=False, exist_ok=False)
+    for name in before:
+        dest = scratch/name
+        dest.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        shutil.copy2(pristine/name, dest)
+        dest.chmod(0o600)
+        if (pristine/name).stat().st_ino == dest.stat().st_ino and (pristine/name).stat().st_dev == dest.stat().st_dev:
+            raise RuntimeError('registry copy shares an inode with pristine input')
+    if registry_hashes(scratch) != before or registry_hashes(pristine) != before:
+        raise RuntimeError('registry changed while making the scratch copy')
+    return before
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, default=Path('/var/tmp/ssc-test'))
@@ -122,6 +149,7 @@ def main():
         parser.error('output must be /var/tmp/ssc-test, its child, or below /run')
     if os.geteuid() != 0:
         parser.error('run as root; no services or packages will be installed')
+    os.umask(0o077)
     base.mkdir(parents=True, exist_ok=True)
     lock = open('/run/ssc-device-test.lock', 'w')
     try:
@@ -133,6 +161,7 @@ def main():
     print('SSC_OUTPUT=' + str(out), flush=True)
     print('SSC_CRITERION=' + CRITERION, flush=True)
     children, streams, readers = [], [], []
+    pristine = scratch = pristine_hashes = None
     summary = dict(result='FAIL', reason='test interrupted before completion', accel_samples=0,
                    accel_first_m_s2=None, accel_median_m_s2=None)
     def interrupted(sig, frame):
@@ -179,7 +208,7 @@ def main():
         # Lookup failure is diagnostic; libssc has its own QRTR discovery path.
         manifest = json.loads((bundle/'payload.json').read_text())
         source = bundle/'private-input/hexagonfs'
-        required = [source/'sensors/config/json.lst', source/'sensors/sns_reg.conf']
+        required = [source/'sensors/odm/config/json.lst', source/'sensors/sns_reg.conf']
         if not all(p.is_file() for p in required) or not any((source/'sensors/registry').glob('*')):
             summary.update(result='UNAVAILABLE', reason='missing local stock config/sns_reg.conf/runtime registry; see README')
             return 2
@@ -188,7 +217,20 @@ def main():
             if f.is_symlink() or hashlib.file_digest(f.open('rb'), 'sha256').hexdigest() != digest:
                 raise RuntimeError('payload hash mismatch: ' + name)
         root = out/'hexagonfs'
-        shutil.copytree(source, root)
+        # The daemon's ordinary mapped files remain read-only. The explicit -w
+        # mapping is a fresh private scratch copy on every invocation.
+        shutil.copytree(source, root, ignore=lambda d, names: ['registry'] if Path(d) == source/'sensors' else [])
+        scratch_parent = base/'scratch'
+        scratch_parent.mkdir(mode=0o700, exist_ok=True)
+        if scratch_parent.is_symlink() or scratch_parent.resolve().parent != base:
+            raise RuntimeError('scratch parent must be a real directory under output')
+        scratch_run = scratch_parent/out.name
+        scratch_run.mkdir(mode=0o700, exist_ok=False)
+        pristine, scratch = source/'sensors/registry', scratch_run/'registry'
+        pristine_hashes = copy_registry(pristine, scratch)
+        (out/'registry-pristine.json').write_text(json.dumps(pristine_hashes, indent=2)+'\n')
+        (out/'registry-before.json').write_text(json.dumps(registry_hashes(scratch), indent=2)+'\n')
+        print('SSC_SCRATCH=' + str(scratch), flush=True)
         (root/'socinfo').mkdir(exist_ok=True)
         for name in ('soc_id', 'revision', 'machine', 'family', 'platform_subtype', 'platform_subtype_id', 'platform_version', 'hw_platform'):
             p = Path('/sys/devices/soc0') / name
@@ -206,7 +248,7 @@ def main():
         master, slave = os.openpty()
         try:
             daemon = subprocess.Popen(['timeout', '--signal=TERM', '--kill-after=2s', '60s', *loader,
-                                       str(bundle/'bin/hexagonrpcd'), '-f', '/dev/fastrpc-adsp-secure', '-d', 'adsp', '-s', '-R', str(root)],
+                                       str(bundle/'bin/hexagonrpcd'), '-f', '/dev/fastrpc-adsp-secure', '-d', 'adsp', '-s', '-R', str(root), '-w', str(scratch)],
                                       stdin=subprocess.DEVNULL, stdout=slave, stderr=slave, env=env, start_new_session=True)
         except BaseException:
             os.close(master)
@@ -255,6 +297,20 @@ def main():
             reader.join(timeout=3)
         for stream in streams:
             stream.close()
+        if pristine_hashes is not None:
+            try:
+                after = registry_hashes(scratch)
+                unchanged = registry_hashes(pristine) == pristine_hashes
+                (out/'registry-after.json').write_text(json.dumps(after, indent=2)+'\n')
+                summary['registry_pristine_unchanged'] = unchanged
+                summary['scratch'] = str(scratch)
+                summary['registry_changed_files'] = sorted(n for n in set(after) | set(pristine_hashes)
+                    if after.get(n) != pristine_hashes.get(n))
+                print('SSC_REGISTRY_PRISTINE_UNCHANGED=' + ('YES' if unchanged else 'NO'), flush=True)
+                if not unchanged:
+                    summary.update(result='FAIL', reason='pristine registry changed; preserve all evidence')
+            except Exception as exc:
+                summary.update(result='FAIL', reason='registry audit: ' + str(exc))
         kernel_log(out, 'after')
         summary['started_pids'] = [c.pid for c in children]
         summary['processes_after_cleanup'] = [c.returncode for c in children]

@@ -10,8 +10,16 @@
     {
       "path": "patches/0002-avoid-unaligned-metadata-store-and-null-test-comparison.patch",
       "sha256": "09d8873f144a2201b7451bac5c27f5ae9e43b05223a34517cc4918d2b55164db"
+    },
+    {
+      "path": "patches/0003-serve-odm-and-explicit-scratch-registry.patch",
+      "sha256": "0669e7917756c18c5a7f2a074f31e76951da156a8639cd33311bd03b778f3716",
+      "license": "GPL-3.0-or-later",
+      "protocol_reference": "https://github.com/linux-msm/hexagonrpc/pull/21",
+      "protocol_reference_commit": "9f987970f9bc3e72081b7966a1f4e766ce6af6f7",
+      "changes": "Actual scoped registry IO and ODM mapping; not the upstream PR fake-success stubs"
     }
   ],
-  "scope": "Offline-tested upstream fixes; no installed service or piano sensor support claim",
+  "scope": "Piano sensorspd file requests reached userspace in v1; explicit scratch registry IO and ODM mappings offline-tested for v2. Physical samples still unverified.",
   "exit_condition": "Drop local patches after an upstream release covers these fixes and the same regressions pass."
 }

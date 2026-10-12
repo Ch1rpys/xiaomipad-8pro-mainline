@@ -482,3 +482,22 @@ Authors: ianchb <i@4t.pw>, bluseliu50
 No root LICENSE was supplied; this import includes only the explicitly
 licensed script. Local patch, hashes and exit condition: source.json in that
 directory. The systemd/udev packaging here is project MIT integration.
+
+SSC device-test v2 file service
+- device/sensors/hexagonrpc/patches/0003-serve-odm-and-explicit-scratch-registry.patch
+  extends linux-msm/hexagonrpc 598b591ae9da6a6cfe2ca5ea78998019ca6395ea
+  in its original GPL-3.0-or-later files and adds a GPL-3.0-or-later regression.
+- Protocol reference: Luca Weiss, linux-msm/hexagonrpc PR #21,
+  https://github.com/linux-msm/hexagonrpc/pull/21, pinned head
+  9f987970f9bc3e72081b7966a1f4e766ce6af6f7, methods 5/24. The implementation
+  performs actual confined file I/O and does not import the PR's fake-success
+  write/remove or unverified fd-method stubs.
+- ABI checked against Qualcomm fastrpc v1.0.7 inc/apps_std.h and
+  src/apps_std_imp.c (https://github.com/qualcomm/fastrpc/tree/v1.0.7).
+  Those files were references, not bundled code.
+- Reviewed liuqin 7df47f82 registry version/property patches and upstream SDM845
+  file-layout examples; no board data or property shim imported. Reviewed
+  blu-sharky/piano-sensors 65a92202db65ad13493b43fbf15d6abb3b7bcf92's
+  ODM/persist-copy design; no Qualcomm adsprpcd or product services imported.
+- stage-input.py and the test orchestration are original MIT integration code.
+  Stock config and per-device registry remain private local inputs.

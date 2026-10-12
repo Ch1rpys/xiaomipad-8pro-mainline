@@ -1,7 +1,7 @@
 # HexagonRPC reference input
 
 Use the upstream project at the commit in `source.json`, with the listed patches
-in order. These are fixes to the original marshaller and tests, not a replacement
+in order. These extend the original marshaller and file service, not a replacement
 sensor protocol implementation. There is no firmware, calibration or installed
 piano service in this directory.
 
@@ -27,11 +27,23 @@ For host memory checks, use a separate native build with
 and as ARM64 binaries under qemu-user. The original source fails the new sequence
 regressions. No test opens a DSP device; the full sensor service is not validated.
 
+The third patch adds read-only ODM and additional vendor sensor paths and an
+explicit `-w DIR` registry mapping. Only that copied directory permits real
+create/write/append/update/remove operations; links and non-regular write targets
+are rejected, and other mappings remain read-only. Its new test drives the real
+apps_std method handlers and checks actual file bytes and confinement. The
+Qualcomm method ABI and upstream PR #21 informed the patch; fake-success stubs
+are not used. See `../device-test/README.zh-CN.md` for the bounded test contract.
+All 15 tests now pass under ARM64 qemu-user and native ASan/UBSan (leak checking
+is excluded for the upstream process-lifetime virtual directory tree).
+
 Keep the upstream library, daemon and service files under their own build and
 packaging. A native distribution package recipe can consume the staging tree;
 piano-specific firmware/registry inputs and permission policy are separate.
 The staged upstream services have not been enabled or accepted as product policy.
-P23 deliberately omits FastRPC, so it cannot exercise this daemon yet.
+P23 deliberately omitted FastRPC. The later piano8 v1 device run reached this
+daemon through the secure ADSP sensorspd node, but registry initialization failed
+at file-service gaps. V2 file-service fixes are offline-tested, not device-tested.
 
 Licenses remain per upstream file: the marshaller source is LGPL-3.0-or-later;
 its public header, tests and reverse-tunnel code are GPL-3.0-or-later. The new test
