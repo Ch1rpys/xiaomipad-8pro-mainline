@@ -3,8 +3,10 @@
 """Emit a bounded native-display capture for the existing debug-console runner,
 or judge saved captures. This tool itself never connects to a device.
 
-The external scanout probe is the existing internal piano-scanout-probe.py.
-Its splash colours are retained as historical data, never native frame proof.
+script() defaults to a gated native INTF/TOP0 counter probe. An external
+legacy scanout probe can still be supplied; its splash colours are historical
+data, never native frame proof. cold_boot_script() adds piano8 registration
+and sound-card readings for the persistent cold-boot tool.
 """
 import argparse
 import json
@@ -122,7 +124,73 @@ print('NATIVE_JSON=' + json.dumps(result, sort_keys=True))
 '''
 
 
-def script(probe):
+# Native KMS needs only frame/interrupt counters, not the old firmware splash.
+# Register offsets: dpu_hw_intf.c / dpu_hw_interrupts.c, SM8750 INTF1/2.
+# This payload is executed only inside script()'s existing runtime/genpd gate.
+NATIVE_SCANOUT = r'''import mmap, os, struct, time
+fd = os.open('/dev/mem', os.O_RDONLY | os.O_SYNC)
+def read(addr):
+    with mmap.mmap(fd, 4096, mmap.MAP_SHARED, mmap.PROT_READ,
+                   offset=addr & ~4095) as page:
+        return struct.unpack_from('<I', page, addr & 4095)[0]
+try:
+    for name, base in (('INTF1', 0x0ae36000), ('INTF2', 0x0ae37000)):
+        enabled = read(base)
+        first, intr1 = read(base + 0xac), read(base + 0x1c4)
+        time.sleep(0.5)
+        last, intr2 = read(base + 0xac), read(base + 0x1c4)
+        print(f'{name} timing_en={enabled} frame_count {first}->{last} '
+              f'(+{(last-first) & 0xffffffff} in 0.5s) '
+              f'intr_status {intr1:#x}->{intr2:#x}')
+    enabled, first = read(0x0ae01010), read(0x0ae01014)
+    time.sleep(0.5)
+    last = read(0x0ae01014)
+    print(f'TOP0 intr_en={enabled:#010x} intr_status {first:#010x}->{last:#010x}')
+finally:
+    os.close(fd)
+'''
+
+# Extracted from the piano8 runner's integration-check.sh (2026-10-12).
+PIANO8_INTEGRATION = r'''echo '== piano8 combined device registration and login'
+printf 'PIANO8_RELEASE='; uname -r
+cat /proc/bus/input/devices
+printf 'PIANO8_KEYBOARD_MODULE='; if test -d /sys/module/hid_nanosic_wn8030; then echo present; else echo missing; fi
+printf 'PIANO8_MCA_MODULE='; if test -d /sys/module/xiaomi_mca; then echo present; else echo missing; fi
+printf 'PIANO8_MCA_SUPPLY='; if test -d /sys/class/power_supply/xiaomi-mca-usb; then echo present; else echo missing; fi
+for name in charge_policy hv_charge charge_current mipps_auth cp_charge; do
+    f=/sys/module/xiaomi_mca/parameters/$name
+    test -f "$f" && printf '%s=' "$f" && cat "$f"
+done
+printf 'PIANO8_CLOCK_WARNINGS='
+if kernel_log=$(dmesg); then
+    printf '%s\n' "$kernel_log" | grep -cE 'WARNING:|already (disabled|unprepared)|DSI.*lock failed|rcg didn.t update|dsi_err_worker' || :
+else
+    echo UNAVAILABLE
+fi
+loginctl list-sessions --no-legend --no-pager
+wayland_users=0
+for sid in $(loginctl list-sessions --no-legend --no-pager | awk '{print $1}'); do
+    session_state=$(loginctl show-session "$sid" -p Active -p Class -p Type -p User)
+    printf '%s\n' "$session_state"
+    if printf '%s\n' "$session_state" | awk -F= '/^Active=/{a=$2} /^Class=/{c=$2} /^Type=/{t=$2} END{exit !(a=="yes" && c=="user" && t=="wayland")}'; then
+        wayland_users=$((wayland_users + 1))
+    fi
+done
+printf 'PIANO8_ACTIVE_WAYLAND_USERS=%s\n' "$wayland_users"
+echo 'PIANO8_INTEGRATION_DONE'
+'''
+
+
+def cold_boot_script():
+    """The shared native capture plus piano8 registration and ALSA evidence."""
+    return (script() + PIANO8_INTEGRATION +
+            '\necho "== sound"\ncat /proc/asound/cards\n' +
+            'echo COLD_BOOT_CAPTURE_DONE\n')
+
+
+def script(probe=None):
+    if probe is None:
+        probe = NATIVE_SCANOUT
     if '\nPIANO_NATIVE_PROBE\n' in '\n' + probe + '\n':
         raise ValueError('Probe contains the heredoc delimiter')
     # No expanded register dump: the earlier broad MDSS dump caused a TZ
