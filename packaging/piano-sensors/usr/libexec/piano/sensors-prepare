@@ -1,0 +1,95 @@
+#!/usr/bin/python3
+# SPDX-License-Identifier: MIT
+"""systemd integration: readiness, immutable seed -> state, HexagonFS view."""
+import json
+import os
+from pathlib import Path
+import shutil
+import stat
+import sys
+
+from qrtr import lookup
+
+
+def seed_registry(share, state):
+    dest = state / 'registry'
+    if dest.is_symlink():
+        raise ValueError('registry state must not be a symlink')
+    if dest.exists():
+        if not (dest / 'registry').is_dir():
+            raise ValueError('incomplete registry state; preserve it for diagnosis')
+        return 'existing-state'
+    private = share / 'registry-private'
+    source = private if private.exists() else share / 'registry'
+    if source.is_symlink() or not (source / 'registry').is_dir():
+        raise ValueError('invalid pristine registry tree')
+    for path in source.rglob('*'):
+        if not (stat.S_ISREG(path.lstat().st_mode) or stat.S_ISDIR(path.lstat().st_mode)):
+            raise ValueError('pristine registry contains link/special file')
+    # Rename only the completed copy. Interrupted copies never become live state.
+    tmp = state / 'registry.new'
+    if tmp.exists():
+        shutil.rmtree(tmp)
+    shutil.copytree(source, tmp)
+    for path in tmp.rglob('*'):
+        path.chmod(0o700 if path.is_dir() else 0o600)
+    tmp.chmod(0o700)
+    tmp.rename(dest)
+    return 'private-calibration' if source == private else 'stock-default-calibration'
+
+
+def prepare_view(share, runtime, socinfo):
+    root = runtime / 'hexagonfs'
+    root.mkdir()
+    sensors = root / 'sensors'
+    sensors.mkdir()
+    for name in ('odm', 'vendor'):
+        (sensors / name).symlink_to(share / name, target_is_directory=True)
+    (sensors / 'config').symlink_to(share / 'vendor/config', target_is_directory=True)
+    (sensors / 'sns_reg.conf').symlink_to(share / 'vendor/sns_reg_config')
+    (root / 'socinfo').mkdir()
+    for name in ('soc_id', 'revision', 'machine', 'family', 'platform_subtype',
+                 'platform_subtype_id', 'platform_version', 'hw_platform'):
+        path = socinfo / name
+        if path.is_file():
+            (root / 'socinfo' / name).write_bytes(path.read_bytes())
+    # The validated v4 sensor PD uses its loaded ADSP image, no host DSP .so.
+    (root / 'dsp/adsp').mkdir(parents=True)
+    (root / 'acdb').mkdir()
+
+
+def main():
+    compatible = Path('/sys/firmware/devicetree/base/compatible').read_bytes().split(b'\0')
+    if b'xiaomi,piano' not in compatible:
+        raise RuntimeError('piano device tree required')
+    dev = Path('/dev/fastrpc-adsp-secure')
+    if not dev.is_char_device():
+        raise RuntimeError('secure ADSP FastRPC character device missing')
+    # This kernel's misc device has no parent link. Identify ADSP from the
+    # remoteproc platform DT compatible rather than assuming remoteproc0.
+    rprocs = []
+    for rproc in Path('/sys/class/remoteproc').glob('remoteproc*'):
+        compatible = rproc / 'device/of_node/compatible'
+        if compatible.is_file() and b'qcom,sm8750-adsp-pas' in compatible.read_bytes().split(b'\0'):
+            rprocs.append(rproc)
+    if len(rprocs) != 1 or (rprocs[0] / 'state').read_text().strip() != 'running':
+        raise RuntimeError('piano ADSP remoteproc is not running')
+    services = lookup(seconds=5, wait_for_service=True)
+    if not services:
+        raise RuntimeError('SSC QRTR service 400 unavailable after 5 seconds')
+    print('SSC_QRTR_400=' + json.dumps(services), flush=True)
+    share = Path('/usr/share/piano/sensors')
+    state = Path(os.environ['STATE_DIRECTORY'])
+    calibration = seed_registry(share, state)
+    print('SSC_REGISTRY=' + calibration, flush=True)
+    if calibration == 'stock-default-calibration':
+        print('No private factory calibration; using ODM defaults. Accuracy is unverified.', flush=True)
+    prepare_view(share, Path(os.environ['RUNTIME_DIRECTORY']), Path('/sys/devices/soc0'))
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (OSError, ValueError, RuntimeError) as error:
+        print('piano-sensors: ' + str(error), file=sys.stderr)
+        sys.exit(1)

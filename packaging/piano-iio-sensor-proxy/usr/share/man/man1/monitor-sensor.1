@@ -1,0 +1,23 @@
+.\" SPDX-License-Identifier: MIT
+.TH MONITOR-SENSOR 1 "October 2026" "iio-sensor-proxy 3.9" "User Commands"
+.SH NAME
+monitor-sensor \- monitor standard SensorProxy readings
+.SH SYNOPSIS
+.B monitor-sensor
+.RI [ options ]
+.SH DESCRIPTION
+Claim sensors through the net.hadess.SensorProxy system D-Bus service and print
+reading changes until interrupted. The piano package includes the upstream
+monitor without changes.
+.SH OPTIONS
+.TP
+.B --accel
+Monitor accelerometer orientation.
+.TP
+.B --light
+Monitor ambient light.
+.TP
+.B --help
+Show all options implemented by this upstream version.
+.SH SEE ALSO
+.BR piano-sensors-check (1)

@@ -93,6 +93,7 @@ def main():
             copied.add(name); pending.append(found)
     for name in ('run.sh', 'run.py', 'qrtr-lookup.py', 'README.zh-CN.md'):
         shutil.copyfile(here/name, out/name)
+    shutil.copyfile(here.parent/'qrtr.py', out/'qrtr.py')
     (out/'run.sh').chmod(0o755)
     shutil.copytree(args.private_input, out/'private-input')
     # No links to original private inputs or host sysroot are allowed in output.

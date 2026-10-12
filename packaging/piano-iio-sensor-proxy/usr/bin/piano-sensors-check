@@ -1,0 +1,19 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Run after a normal fresh boot; consumes standard SensorProxy D-Bus only.
+set -u
+result=0
+printf 'Boot ID: '
+cat /proc/sys/kernel/random/boot_id
+uname -r
+systemctl --no-pager --full status piano-hexagonrpcd-sns.service iio-sensor-proxy.service || result=1
+printf '\nmonitor-sensor --accel (5 seconds):\n'
+rc=0
+timeout --signal=TERM --kill-after=2s 5s stdbuf -oL -eL monitor-sensor --accel || rc=$?
+case "$rc" in 0|124) ;; *) result=1 ;; esac
+for property in HasAccelerometer AccelerometerOrientation HasAmbientLight LightLevel LightLevelUnit; do
+    printf '\n%s: ' "$property"
+    busctl --system get-property net.hadess.SensorProxy /net/hadess/SensorProxy net.hadess.SensorProxy "$property" || result=1
+done
+printf '\nLight readings require a consumer: monitor-sensor --light. Rotate/lux response need physical verification.\n'
+exit "$result"

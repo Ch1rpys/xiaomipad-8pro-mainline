@@ -1,0 +1,18 @@
+.\" SPDX-License-Identifier: MIT
+.TH PIANO-SENSORS-CHECK 1 "October 2026" "piano" "User Commands"
+.SH NAME
+piano-sensors-check \- report piano SensorProxy state after a fresh boot
+.SH SYNOPSIS
+.B piano-sensors-check
+.SH DESCRIPTION
+Print the boot identity, sensor service status, five seconds of accelerometer
+monitor output, and standard SensorProxy acceleration and ambient light
+properties. Rotate the upright tablet and vary illumination to verify actual
+hardware and GNOME behavior separately.
+.SH EXIT STATUS
+Zero means the reporting commands completed. It is not a hardware acceptance
+result. A nonzero status indicates a failed service or reporting command.
+.SH SEE ALSO
+.BR monitor-sensor (1),
+.BR busctl (1),
+.BR systemctl (1)

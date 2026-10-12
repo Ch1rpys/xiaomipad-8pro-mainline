@@ -8,6 +8,6 @@
       "sha256": "19f705efb23edb0370227b52eb0ad1c895c3debe047d7f36e6bdb533e3fff285"
     }
   ],
-  "scope": "ARM64 build, wrapper exit-status regression and seven upstream QRTR/SSC mock test groups passed. No physical DSP/sensor or installed service claim.",
+  "scope": "ARM64 build and synthetic SSC groups tested; user fresh-boot V4 on 7.2.6-piano8 sampled acceleration/gyro/light/proximity on 2026-10-12. Packaged GNOME rotation/light behavior is not yet device-validated.",
   "exit_condition": "Use the distribution package when it includes the required SSC support; drop the wrapper patch once upstream propagates child failures correctly."
 }
