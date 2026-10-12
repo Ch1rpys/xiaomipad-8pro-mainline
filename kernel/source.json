@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "purpose": "Piano10: restore the NT36532E THP stream after shared TDDI panel power cycles; offline candidate, hardware acceptance pending.",
+  "purpose": "Piano11: start NT36532E THP after panel enable; disabled-panel opens wait successfully. Offline candidate; hardware acceptance pending.",
   "upstream_url": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git",
   "upstream_tag": "v7.2.6",
   "upstream_commit": "500df175a7f9e6bc1a9c328590ca5150f84f9ff0",
   "url": "https://github.com/yzddmr6/linux-sm8750-piano",
-  "commit": "770e5fdd47de019a26992d91b79c69c7f13dde61",
+  "commit": "9ab0942f973489419d58caf5f69c17afee61df53",
   "branch": "piano/thp-panel-follower",
   "config": "arch/arm64/configs/piano-diagnostic.config",
   "release_config_fragments": [
@@ -15,5 +15,5 @@
     "arch/arm64/configs/piano-release.config"
   ],
   "note": "The kernel release fragments remain in the kernel source and are merged in order. tools/build-kernel.sh then applies kernel_release to CONFIG_LOCALVERSION for package ABI allocation without a kernel-only release commit; all other configuration remains unchanged. kernel/abi.json binds the final commit and .config.",
-  "kernel_release": "7.2.6-piano10"
+  "kernel_release": "7.2.6-piano11"
 }

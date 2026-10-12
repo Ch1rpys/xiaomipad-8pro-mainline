@@ -1,5 +1,9 @@
 # Piano10: touch recovery after panel power cycles
 
+Review correction: [piano11](PIANO11.md) moves startup to panel enable and lets
+disabled-panel opens wait successfully. Piano10 is retained as an early
+comparison candidate; the details below describe its original behavior.
+
 Piano10 is an offline candidate, not a hardware-accepted release. It follows
 piano9 (7.2.6, ABI 9) with ABI 10 and the NT36532E DRM panel follower.
 Kernel source is `770e5fdd47de019a26992d91b79c69c7f13dde61`.

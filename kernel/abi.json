@@ -62,6 +62,12 @@
       "kernel_commit": "770e5fdd47de019a26992d91b79c69c7f13dde61",
       "config_sha256": "2342e923bddc58e33f9bf508fc94d8057e9f99187d45ad9e1a5019d8dd0f3c4c",
       "upload": 1
+    },
+    {
+      "kernel_release": "7.2.6-piano11",
+      "kernel_commit": "9ab0942f973489419d58caf5f69c17afee61df53",
+      "config_sha256": "55c9cc298362bd3c313dcde4d8ef3c8f71200b5ad65f81b84b8d9d713a96dbab",
+      "upload": 1
     }
   ]
 }
