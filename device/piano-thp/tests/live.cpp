@@ -157,6 +157,55 @@ void framing() {
     }
 }
 
+void midStreamEpoch() {
+    auto twoTouches = [](uint16_t counter) {
+        auto payload = packet(counter, true);
+        for (int y = -1; y <= 1; ++y)
+            for (int x = -1; x <= 1; ++x)
+                put(payload, 64 + 2 * ((30 + y) * nvt::kColumns + 45 + x),
+                    10000 + (!x && !y ? 1000 : (!x || !y ? 500 : 250)), 2);
+        checksum(payload);
+        return payload;
+    };
+    // A restart can first deliver either finger data or a startup packet.
+    for (const uint8_t type : {3, 14}) {
+        Fixture f;
+        f.feed(packet(0, false, 3, 2), nvt::kStreamValid | nvt::kStreamEpoch);
+        for (uint16_t counter = 1; counter <= 6; ++counter)
+            f.feed(twoTouches(counter));
+        check(f.visible.size() == 2, "mid-stream EPOCH setup needs two contacts");
+        const auto reports = f.reports;
+        const auto processed = f.pipeline.stats.processed;
+        const auto baselines = f.pipeline.stats.baselines;
+        // Sequence, time and firmware counter are deliberately contiguous:
+        // only EPOCH can distinguish this first frame from the previous run.
+        auto first = twoTouches(7);
+        first[56] = type;
+        checksum(first);
+        f.feed(first, nvt::kStreamValid | nvt::kStreamEpoch, 1);
+        check(f.visible.empty() && f.reports == reports + 1,
+              "mid-stream EPOCH did not release all contacts exactly once");
+        check(f.pipeline.stats.processed == processed &&
+              f.pipeline.stats.baselines == baselines,
+              "mid-stream EPOCH first frame reused the old baseline");
+        for (uint16_t counter = 8; counter <= 17; ++counter)
+            f.feed(twoTouches(counter));
+        check(f.visible.empty() && f.pipeline.stats.processed == processed &&
+              f.pipeline.stats.baselines == baselines,
+              "mid-stream EPOCH did not wait for a fresh baseline");
+        f.feed(packet(18, false, 3, 2));
+        check(f.pipeline.stats.baselines == baselines + 1 && f.visible.empty(),
+              "mid-stream EPOCH baseline did not restart processing");
+        for (uint16_t counter = 19; counter <= 24; ++counter)
+            f.feed(twoTouches(counter));
+        check(f.visible.size() == 2 && !f.pipeline.stats.invalid &&
+              f.pipeline.stats.discontinuities == 2,
+              "mid-stream EPOCH did not resume with fresh contacts");
+        f.reader.finish();
+    }
+    std::cout << "PASS: mid-stream EPOCH releases two contacts, waits for baseline and resumes\n";
+}
+
 void lifecycle() {
     Fixture f;
     f.activate();
@@ -302,6 +351,7 @@ int main(int argc, char **argv) {
         if (argc != 1 && argc != 3)
             throw std::runtime_error("Usage: test-live [CALIBRATION.json STOCK_RECORDS.bin]");
         framing();
+        midStreamEpoch();
         lifecycle();
         orientation();
         std::cout << "PASS: synthetic NTP1 splits/bounds, contact release lifecycle, P15 corner and "
