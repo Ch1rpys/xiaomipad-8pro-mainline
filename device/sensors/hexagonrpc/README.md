@@ -57,3 +57,14 @@ entries. Both `-R .../sensors/registry` and explicit `-w DIR` now describe the
 whole parent containing `registry/`, `sns_reg_version` and `parsed_file_list.csv`.
 The existing write confinement is retained; tests replay the actual sibling
 paths and 108 temporary-file opens. V2 source and evidence remain historical.
+
+V4 imports upstream PR #27 commit f0dfd5095d3b7defc3b368f227337bfc6d6aef42
+unchanged as patch 0005 (original author/date/Sign-off retained). It fetches
+reverse-listener input beyond the 256-byte prefix with get_in_bufs2, method 5.
+This was cleanly cherry-picked onto 598b591a in an isolated source repository;
+it is not claimed to be merged upstream. Patch 0006 adds length validation,
+partial-buffer cleanup, consistent empty error-reply sizing and ioctl-boundary
+file-write regressions. 4 KiB/64 KiB are read back from real scratch files;
+24 ARM64 tests pass. No custom ION path is introduced: fd=-1 invoke arguments
+use the inspected kernel's copied DMA-backed payload path, as the existing
+marshaller does for input/output buffers. Real DSP/DMA acceptance remains untested.

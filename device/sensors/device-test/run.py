@@ -17,12 +17,14 @@ import subprocess
 import sys
 import threading
 import time
+import uuid
 
 TYPES = {'accelerometer': 'accel', 'gyroscope': 'gyro', 'light': 'ambient_light', 'proximity': 'proximity'}
 CRITERION = 'Resting tablet: |a| approximately 9.8 m/s^2; require >=2 samples, median 7.8..11.8 m/s^2. SSC_ACCEL_G is m/s^2, not multiples of g.'
 SENSOR_POLL_SECONDS = 30
 CLIENT_SECONDS = 70  # registry <=30 + physical discovery <=30 + samples/close
 DAEMON_SECONDS = 75
+BOOT_STATE = Path('/var/tmp/ssc-test')
 
 
 def parse_sensor(kind, text, returncode):
@@ -225,9 +227,51 @@ def copy_registry(pristine, scratch):
     return before
 
 
+def claim_boot(boot_id, state_dir, force=False):
+    """Under the session flock, consume a boot before any DSP interaction.
+
+    No history cannot establish freshness for legacy v1-v3 runs: enroll that
+    boot and fail closed once. A different subsequent boot is admissible.
+    """
+    boot_id = str(uuid.UUID(boot_id.strip()))
+    state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    history = state_dir/'boot-history.json'
+    last = state_dir/'last-boot-id'
+    seen = set()
+    if history.exists():
+        data = json.loads(history.read_text())
+        if (not isinstance(data, dict) or data.get('schema') != 1 or
+                not isinstance(data.get('seen_boot_ids'), list) or
+                any(not isinstance(value, str) for value in data['seen_boot_ids'])):
+            raise ValueError('invalid shared boot history')
+        seen.update(str(uuid.UUID(value)) for value in data['seen_boot_ids'])
+    if last.exists():
+        seen.add(str(uuid.UUID(last.read_text().strip())))
+    first_use = not seen
+    fresh = not first_use and boot_id not in seen
+    reason = ('no earlier boot identity; recorded baseline, normal reboot required' if first_use else
+              'this boot was already consumed by an SSC run' if boot_id in seen else
+              'boot differs from all recorded SSC boots')
+    seen.add(boot_id)
+    for path, text in [(history, json.dumps({'schema': 1, 'seen_boot_ids': sorted(seen)}, indent=2)+'\n'),
+                       (last, boot_id+'\n')]:
+        temp = path.with_name(path.name+'.tmp')
+        with temp.open('w') as stream:
+            stream.write(text); stream.flush(); os.fsync(stream.fileno())
+        temp.replace(path)
+    directory = os.open(state_dir, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(directory)
+    finally:
+        os.close(directory)
+    return dict(boot_id=boot_id, fresh=fresh, allowed=fresh or force, forced=force,
+                first_use=first_use, reason=reason)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, default=Path('/var/tmp/ssc-test'))
+    parser.add_argument('--force', action='store_true', help='allow an unverified/reused boot; still print SSC_FRESH_BOOT=NO')
     args = parser.parse_args()
     bundle = Path(__file__).resolve().parent
     base = args.output.resolve()
@@ -249,6 +293,7 @@ def main():
     print('SSC_TIMING=registry<=30s empty-SUID-poll<=30s samples~5s client<=70s daemon<=75s', flush=True)
     children, streams, readers = [], [], []
     pristine = scratch = pristine_hashes = None
+    admission = None
     summary = dict(result='FAIL', reason='test interrupted before completion', accel_samples=0,
                    accel_first_m_s2=None, accel_median_m_s2=None)
     def interrupted(sig, frame):
@@ -257,6 +302,7 @@ def main():
     signal.signal(signal.SIGINT, interrupted)
     try:
         facts = {'kernel': platform.release(), 'machine': platform.machine()}
+        facts['boot_id'] = Path('/proc/sys/kernel/random/boot_id').read_text().strip()
         facts['proc_version'] = Path('/proc/version').read_text().strip()
         notes = Path('/sys/kernel/notes')
         if notes.is_file():
@@ -281,6 +327,16 @@ def main():
                     raise RuntimeError('existing sensor process: ' + str(comm.parent))
             except FileNotFoundError:
                 pass
+        try:
+            admission = claim_boot(facts['boot_id'], BOOT_STATE, args.force)
+        except (OSError, ValueError, TypeError) as exc:
+            admission = dict(boot_id=facts['boot_id'], fresh=False, allowed=False,
+                             forced=args.force, reason='shared boot history error: ' + str(exc))
+        print('SSC_FRESH_BOOT=' + ('YES' if admission['fresh'] else 'NO'), flush=True)
+        (out/'fresh-boot.json').write_text(json.dumps(admission, indent=2)+'\n')
+        if not admission['allowed']:
+            summary.update(result='UNAVAILABLE', reason=admission['reason'])
+            return 2
         try:
             qrtr = subprocess.run([sys.executable, str(bundle/'qrtr-lookup.py')], capture_output=True, text=True, timeout=5)
             (out/'qrtr.log').write_text(qrtr.stdout + qrtr.stderr)
@@ -386,6 +442,8 @@ def main():
             except Exception as exc:
                 summary.update(result='FAIL', reason='registry audit: ' + str(exc))
         kernel_log(out, 'after')
+        if admission is not None:
+            summary['fresh_boot'] = admission
         summary['started_pids'] = [c.pid for c in children]
         summary['processes_after_cleanup'] = [c.returncode for c in children]
         (out/'result.json').write_text(json.dumps(summary, indent=2, allow_nan=False)+'\n')

@@ -1,18 +1,30 @@
-# SSC 一次性检查 v3（7.2.6-piano8）
+# SSC 一次性检查 v4（7.2.6-piano8）
 
-v2 真机已能发现 registry，但尚无默认 accel。完整 567 行日志定位到：可写目录仅覆盖内层
-`registry/registry/`，外层的 `sns_reg_version`、`fstempfile`、`parsed_file_list.csv` 仍无法写入或缺失。
-**v3 将整个 registry 父目录及其 registry/ 子目录映射到每轮 scratch**，并携带同机 persist
-备份中已有的版本文件和解析清单（不是生成占位文件）。尚无 v3 piano 样本 PASS。
+v3 在用户正常重启后已通过 registry scratch 写入，随后在大块 fstempfile 写请求处退出：
+`Large (>256B) input buffers aren't implemented`。同一次 ADSP 启动内重启 hexagonrpcd 不会重置
+sensors PD；旧启动下零文件请求不能拿来评价新包。**v4 修复 listener 大包续取，并强制共享 boot_id 准入。**
 
-仍用原 HexagonRPC `598b591a` + 四项局部补丁；libssc `54dd13e3` 与 ssccli 二进制保持不变。
-在已有 one-shot runner 内，只对 ssccli 的明确空 SUID 结果重查，每次空回复后间隔 1 秒、从第一次空回复起最多
-30 秒；registry 超时、GLib 错误、其他退出码不重试。四类并发，daemon 始终保留。
-每次请求/失败日志保存为 `<类型>.attempt-NN.log`，常规 `<类型>.log` 和 JSON 取最后一次，
-避免早先的 `UNKNOWN` 初始化错误污染后来成功的样本。发现类型后允许完成约 5 秒采样。
+固定基线仍为 HexagonRPC `598b591a`，先保留本项目原四项补丁，再原样导入上游 PR #27 的
+[`f0dfd5095d3b7defc3b368f227337bfc6d6aef42`](https://github.com/linux-msm/hexagonrpc/commit/f0dfd5095d3b7defc3b368f227337bfc6d6aef42)。
+它是 PR 提交，未声称已进入 upstream main；原作者 Fady、日期和 Signed-off-by 保留，已在隔离
+源码仓对固定基线 clean cherry-pick。另有本地第六项最小校验/回归补丁，详见 source.json/NOTICE。
+libssc/ssccli 不变，保留空 SUID 30 秒重查、5 秒采样、客户端 70 秒/daemon 75 秒的上限。
 
-registry 本来有 30 秒等待；为覆盖两阶段，客户端总限时 70 秒、daemon 75 秒（TERM 后 2 秒 KILL）。
-结束回收全部自启进程，保留日志和副本；不重启 daemon/ADSP/设备，不安装服务、不改内核。
+### 256 B 与真正的 FastRPC ABI
+
+这是 DSP→AP listener 的首段容量。超过 256 B，必须用同一 rctx 调用
+`adsp_listener_get_in_bufs2`（method 5、offset=256）获取余段，重组后才解码和调用真实 fwrite。
+不是把栈数组任意改大，也不是将 DSP 指针当作主机指针。
+
+这些“输入”对 AP 发起的 get_in_bufs2 RPC 而言是**输出参数**。本库现有 marshaller 使用
+`FASTRPC_IOCTL_INVOKE`、参数 fd=-1；所核 piano 内核的 `fastrpc_get_args()` 会为这一路径分配
+DMA/remote-heap 载荷、填写物理页描述，`fastrpc_put_args()` 将输出复制回用户缓冲区。
+源码没有“超过 256 B 必须提供 ION fd”的分支。因此复用现有映射机制，无新增 /dev/ion、DMA heap
+依赖或内核修改。参照 [Qualcomm listener_android.c](https://github.com/qualcomm/fastrpc/blob/v1.0.7/src/listener_android.c)
+和 [adsp_listener.h](https://github.com/qualcomm/fastrpc/blob/v1.0.7/inc/adsp_listener.h)。
+
+上游续取限制为 16 MiB；本地补充返回长度上界检查、失败释放与空错误回复编码长度修正。
+未知 RPC 仍回真正的 AEE 错误，不伪造成功。scratch 的目录、链接和文件类型约束保持。
 
 ## 精确传输与运行
 
@@ -23,15 +35,29 @@ SSH，并透传 stdin。tar 二进制流不要加 `-t`。
 ```sh
 : "${PIANO_SERIAL:?先设置本机 piano 的序列号}"
 set -o pipefail
-tar -C out/ssc-device-test-20261012-3 -cf - . |
+tar -C out/ssc-device-test-20261012-4 -cf - . |
   python3 public/xiaomipad-8pro-mainline/tools/piano-devmode-ssh.py \
     --serial "$PIANO_SERIAL" root \
-    'umask 077; mkdir -p /var/tmp/ssc-test/bundle-20261012-3; tar -xf - -C /var/tmp/ssc-test/bundle-20261012-3'
+    'umask 077; mkdir -p /var/tmp/ssc-test/bundle-20261012-4; tar -xf - -C /var/tmp/ssc-test/bundle-20261012-4'
 
 python3 public/xiaomipad-8pro-mainline/tools/piano-devmode-ssh.py \
   --serial "$PIANO_SERIAL" root \
-  '/var/tmp/ssc-test/bundle-20261012-3/run.sh'
+  '/var/tmp/ssc-test/bundle-20261012-4/run.sh'
 ```
+
+**首次启用守卫：上面的第一次运行会仅登记当前 boot_id，打印 `SSC_FRESH_BOOT=NO` 并返回 2，
+不会查询 QRTR 或启动 daemon/CLI。请先在当前 Ubuntu 启动完成这次登记，再正常重启回 Ubuntu，
+重新执行上面的运行命令。**若已经有另一轮 v4 的历史，重启后的正常运行会直接得到 YES。
+
+原因是 v1–v3 没有记录 boot_id，首次空历史不能证明当前 ADSP 是否已被它们使用。守卫采用
+`/proc/sys/kernel/random/boot_id`，状态固定放在跨版本共享的 `/var/tmp/ssc-test/last-boot-id` 和
+`boot-history.json`，不随 bundle 路径或 --output 改变。任何已记录的 boot ID 都拒绝，不仅是最后一个；
+在 DSP 接触前先落盘，实验失败也不解除标记。`fresh-boot.json`、facts 和 result 都记录实际判定。
+
+显式诊断可用 `run.sh --force` 覆盖首次/重复启动拒绝，但仍打印 `SSC_FRESH_BOOT=NO`、记录 forced=true；
+其结果不构成新启动验收。损坏或无法落盘的历史会明确报错，不静默重置。
+boot_id 只覆盖经本守卫登记的调用，不能识别用户另行运行旧版/其他 listener 的行为或 DSP 内部重启；
+可判定的试验应正常重启后首先运行本包。脚本不替用户重启系统/ADSP。
 
 静置平板，观察窗口最长约 75 秒。脚本打印本轮 `SSC_OUTPUT` 与 `SSC_SCRATCH`，不要混入旧会话。
 输出默认在 `/var/tmp/ssc-test/run-…/`，可写 registry 在
@@ -40,6 +66,7 @@ python3 public/xiaomipad-8pro-mainline/tools/piano-devmode-ssh.py \
 不自动重启设备/ADSP、不停已有传感器服务；发现已有 hexagonrpcd/ssccli/iio-sensor-proxy 会拒绝运行。
 
 ```text
+SSC_FRESH_BOOT=YES
 SSC_QRTR_400=[{"service": 400, ...}]
 SSC_SCRATCH=/var/tmp/ssc-test/scratch/run-.../registry
 SSC_SENSOR=accelerometer RESULT=PASS SAMPLES=...
@@ -88,7 +115,7 @@ adsprpcd；本包继续原 HexagonRPC。详细文件/来源/hash/退出条件见
 `oemconfig.so`：保存的 stock tree 中没有该文件；v1 本机日志在它 ENOENT 后继续到 registry/config
 文件读取，所以**就已观察的初始化序列而言是可选探测，不是当前最早阻塞**。保留真实 ENOENT，
 不放空 ELF、不借用其他设备库。现有 persist 已解析 registry 是本次输入；不能凭其他端口的成功
-保证 piano 的全部 OEM 初始化功能。如果 v3 文件链通过后仍失败，按新日志裁定。
+保证 piano 的全部 OEM 初始化功能。如果 v4 文件链通过后仍失败，按新日志裁定。
 
 ## 本包原厂输入和实际路径
 
@@ -107,7 +134,7 @@ adsprpcd；本包继续原 HexagonRPC。详细文件/来源/hash/退出条件见
 
 整个父目录共 228 文件：内层原 226 项，加同一备份中 9 B 的 sns_reg_version 和 10,908 B 的
 parsed_file_list.csv。都从既有已核 SHA 的 persist 备份离线提取；内层与 v2 pristine 逐项同 SHA。
-不从 v2 已修改的 scratch 生成 v3，不重新读设备、不写真实备份。
+不使用任何已运行的 scratch 生成新输入，不重新读设备、不写真实备份。
 69 行 ODM `json.lst` 中 53 项有现存原厂文件，已全部提供；余 16 项在本机保存的**整个** stock tree
 中也没有同名文件。提取记录确认 vendor_a/odm_a 为完整 EROFS 提取，故它们在该原厂快照中不存在；
 v2 日志在各 ENOENT 后继续解析，缺项被容忍。未新增它们，原列表不改。精确名单和搜索结果在 `private-input/input-status.json`。
@@ -136,7 +163,7 @@ QMI debug 的 `translated = ERROR` 仅保留为 trace_diagnostics；真实 GLib 
 ```sh
 python3 public/xiaomipad-8pro-mainline/tools/piano-devmode-ssh.py \
   --serial "$PIANO_SERIAL" root \
-  'tar -C /var/tmp/ssc-test -cf - run-实际本次目录 scratch/run-实际本次目录' > out/ssc-device-test-v3-results.tar
+  'tar -C /var/tmp/ssc-test -cf - run-实际本次目录 scratch/run-实际本次目录' > out/ssc-device-test-v4-results.tar
 ```
 
 如仍无 registry，看**最早失败的文件/method**；不要把 QRTR 400、daemon 存活或 QMI ACK 当样本通过。
@@ -147,17 +174,17 @@ python3 public/xiaomipad-8pro-mainline/tools/piano-devmode-ssh.py \
 
 先用 `stage-input.py --stock-root <保存的vendor/odm根> --registry <已核备份提取的完整sensors/registry父目录>
 --output <新私有输入目录>` 装配同机数据。`build-bundle.py` 接口保持不变，输入新私有目录，
-新 output 为 `out/ssc-device-test-20261012-3/`。它校验固定 source.json/patch SHA 并用原 Meson 构建，
+新 output 为 `out/ssc-device-test-20261012-4/`。它校验固定 source.json/patch SHA 并用原 Meson 构建，
 动态库/loader 随包携带，不替换系统库。沿用原交叉 sysroot、native protoc/Meson 与 qemu-user 环境。
 
-新增 `tests/test_registry_io.c` 直接调用真实 apps_std handlers（模拟 DSP 请求，无 ioctl），
-核对路径字节、写入/追加/截断/更新/删除、只读默认、越界路径、软/硬链接以及错误返回。
-v2 负对照在相同外层 sns_reg_version 写打开返回 EROFS。v3 回放 295 个原厂文件（原 293 加两份
-外层元数据），实际创建/更新 DIR 与三个外层路径，原件 SHA 保持不变。ARM64/native ASan/UBSan
-15 项通过；ASan 不含 leak 检查，因为上游虚拟目录树仍为进程生命周期分配，不能称无泄漏审计。
-原五条编译告警保留。扩展 QEMU QRTR mock 验证先空 SUID、后出现的传感器能采样，永久缺失类型
-等待完整 30 秒后才 UNAVAILABLE，同一模拟 SSC 服务在重查期间保留；实际 FastRPC daemon 的
-75 秒监督与不重启策略由 runner 执行，未在本轮访问真机。备份原本已有内容为 `DIR` 的 3 B 内层
-文件，回放重写相同字节，其 SHA 不变；此前“新增 DIR”的表述不准确，实际内容变化为三个外层路径。
-精确结果/失败记录见 offline-validation.json。
-这些都是离线回放，不是本机 v3 样本 PASS。
+原 registry-io 和目录边界用例保留。新增 `test_listener_large.c` 只模拟 ioctl 的 DSP 响应，实际执行
+libhexagonrpc marshaller → next2/get_in_bufs2 → decoder → apps_std fwrite → HexagonFS → scratch 文件。
+校验同一 context、offset=256、标量/缓冲区长度和 fd=-1 ABI；4 KiB、64 KiB 含零字节载荷逐字节读回。
+还覆盖编码总长 256/257 B 边界、续取错误、长度异常、16 MiB 上限、截断包、真实 unsupported 回复。
+这比旧的直接调用 apps_std 小缓冲区回放多覆盖了发生故障的 listener 层。
+
+v3 的同一 4 KiB/64 KiB 负对照复现旧错误；v4 ARM64 24/24、native ASan/UBSan 24/24、runner/守卫
+20/20。ASan 延续不含上游进程生命周期目录树 leak 审计的范围；原五条编译告警保留。
+这里验证的是 ioctl 参数和实际用户态文件操作，未模拟真实 DMA/安全固件接受过程，不是真机 PASS。
+输入 registry/config 和 16 个缺项处置与 v3 相同，未补造 oemconfig.so 或 JSON。
+精确来源、cherry-pick 身份、输入与失败/最终日志 SHA 见本地 offline-validation.json。

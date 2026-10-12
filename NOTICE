@@ -512,3 +512,17 @@ SSC device-test v3
 - late-suid-server.py is a GPL-3.0-or-later QEMU-only availability gate around
   the pinned upstream SSC mock. The mock retains all QMI/QRTR/protobuf encoding;
   the gate hides accel for two queries and then exposes its existing fixture.
+
+SSC device-test v4 large reverse-listener requests
+- Unchanged upstream patch: linux-msm/hexagonrpc
+  f0dfd5095d3b7defc3b368f227337bfc6d6aef42, Fady <me@fadyackad.dev>,
+  2026-09-19, from https://github.com/linux-msm/hexagonrpc/pull/27.
+  Original author/date/Signed-off-by are retained in patch 0005. License:
+  GPL-3.0-or-later, per the original listener and interface file headers.
+- Local patch 0006 adds validation/cleanup and GPL-3.0-or-later regressions.
+  Its empty-reply sizing correction follows the same upstream PR's
+  40e50412812adce9dddc2be9a4510ebce05eef89 iobuffer correction.
+  ABI/required-length reference: Qualcomm fastrpc v1.0.7,
+  inc/adsp_listener.h and src/listener_android.c. No Qualcomm code bundled.
+- The MIT runner boot-id ledger is local test bookkeeping, not a DSP reset
+  mechanism. First-use baseline enrollment does not access the DSP.

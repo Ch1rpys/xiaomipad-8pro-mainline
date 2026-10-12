@@ -24,8 +24,23 @@
       "sha256": "271097c6466e9b07a528038502676440b01baa6ed266a9add76fde08dd655cc5",
       "license": "GPL-3.0-or-later",
       "changes": "Map outer registry parent and inner registry data to one per-run copy; retain write confinement and replay v2 paths"
+    },
+    {
+      "path": "patches/0005-upstream-fetch-large-listener-inputs.patch",
+      "sha256": "21414c6d27ca93fb561b4d6291e576dc8f29a1ae8284da550c6f6618d2aa3d56",
+      "source_repository": "https://github.com/linux-msm/hexagonrpc.git",
+      "source_commit": "f0dfd5095d3b7defc3b368f227337bfc6d6aef42",
+      "source_pr": "https://github.com/linux-msm/hexagonrpc/pull/27",
+      "license": "GPL-3.0-or-later",
+      "changes": "Unchanged upstream commit, clean cherry-pick onto pinned base; original authorship retained"
+    },
+    {
+      "path": "patches/0006-test-and-validate-large-listener-inputs.patch",
+      "sha256": "65b3581903426ac9a59693c2e18ef4fe970240e9f730c00c107e70627ad82bd9",
+      "license": "GPL-3.0-or-later",
+      "changes": "Length/error cleanup and ioctl-boundary apps_std 4 KiB/64 KiB regressions; upstream implementation remains separate"
     }
   ],
-  "scope": "V2 reached registry SUID but no physical samples; V3 covers the full registry parent, including saved version/cache siblings. Offline tests do not establish physical sensor availability.",
+  "scope": "V3 fresh-boot device run reached large-file writes but the listener stopped above 256 B. V4 imports upstream method-5 continuation and verifies 4 KiB/64 KiB writes offline; physical V4 samples unverified.",
   "exit_condition": "Drop local patches after an upstream release covers these fixes and the same regressions pass."
 }

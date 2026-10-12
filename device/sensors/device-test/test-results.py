@@ -141,6 +141,37 @@ print('Accelerometer sensor measurement: X=0 Y=0 Z=-9.81 m/s²')
             self.assertEqual(rows['accelerometer']['result'], 'UNAVAILABLE')
             self.assertTrue(all(p.poll() is not None for p in children))
 
+    def test_fresh_boot_enrollment_and_history(self):
+        a = '11111111-1111-4111-8111-111111111111'
+        b = '22222222-2222-4222-8222-222222222222'
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp)
+            self.assertFalse(run.claim_boot(a, state)['allowed'])
+            self.assertFalse(run.claim_boot(a, state)['fresh'])
+            self.assertTrue(run.claim_boot(b, state)['fresh'])
+            self.assertFalse(run.claim_boot(b, state)['allowed'])
+            self.assertFalse(run.claim_boot(a, state)['allowed'])  # any earlier boot, not only last
+            forced = run.claim_boot(a, state, True)
+            self.assertTrue(forced['allowed'])
+            self.assertFalse(forced['fresh'])
+            self.assertTrue(forced['forced'])
+
+    def test_fresh_boot_imports_shared_last_id(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp)
+            (state/'last-boot-id').write_text('11111111-1111-4111-8111-111111111111\n')
+            self.assertFalse(run.claim_boot('11111111-1111-4111-8111-111111111111', state)['allowed'])
+            self.assertTrue(run.claim_boot('22222222-2222-4222-8222-222222222222', state)['allowed'])
+
+    def test_boot_history_corruption_is_not_reset(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp)
+            for text in ('{broken', '[]', '{"schema":1,"seen_boot_ids":[123]}'):
+                (state/'boot-history.json').write_text(text)
+                with self.assertRaises(ValueError):
+                    run.claim_boot('11111111-1111-4111-8111-111111111111', state, True)
+                self.assertEqual((state/'boot-history.json').read_text(), text)
+
 
 if __name__ == '__main__':
     unittest.main()
