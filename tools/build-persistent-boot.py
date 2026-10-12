@@ -200,6 +200,9 @@ def main():
         for name, digest in info['runtime_units'].items():
             if hashlib.sha256(regular_file(entries, 'etc/piano-native-display/systemd/' + name)).hexdigest() != digest:
                 p.error(f'Native display runtime unit mismatch: {name}')
+        for name, digest in info.get('return_files', {}).items():
+            if hashlib.sha256(regular_file(entries, name)).hexdigest() != digest:
+                p.error(f'Native display bounded-return file mismatch: {name}')
         hook = regular_file(entries, 'var/lib/dracut/hooks/pre-pivot/50-piano-native-display.sh')
         if hashlib.sha256(hook).hexdigest() != info['pre_pivot_sha256']:
             p.error('Native display handoff hook differs from its manifest')

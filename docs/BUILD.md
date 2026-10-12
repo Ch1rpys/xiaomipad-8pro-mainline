@@ -337,3 +337,50 @@ new consumers are not automatically intercepted. When consumers move to
 `gpu-2604`/core26, rebuild a provider for that ABI/interface before connecting them;
 this core24 provider does not serve `gpu-2604`. Retire it when the distribution
 provider supports A830 and passes the same hardware/confinement checks.
+
+## Bounded RAM return regression
+
+`piano-debug-timeout.service` uses the kernel-uptime `piano.debug_timeout`
+deadline (600 seconds for RAM hardware checks). Its helper stops the display
+manager and user slice, syncs, and requests a normal systemd reboot with
+`--reboot-argument=bootloader`. PID1 stops services and systemd-shutdown
+unmounts/remounts the ext4 root read-only. The host still waits for Fastboot
+and performs its existing recovery; capture and image-size limits are unchanged.
+
+A child armed before any blocking shutdown work forces the same bootloader
+reboot after 45 seconds. `DefaultDependencies=no` and
+`SurviveFinalKillSignal=yes` (systemd >=255; Ubuntu 26.04 supplies 259) keep it
+alive through shutdown. Explicitly stopping the timeout unit still cancels its
+whole control group. A forced fallback can leave a dirty journal if filesystem
+shutdown was blocked. The clean path must finish before that fallback.
+
+New `build-native-display-initrd.py` builds refresh the helper/unit from this
+source and carry them through `/run` into the installed root; they do not depend
+on that root already containing the fix. Existing frozen RAM images stay unchanged.
+
+Run the ARM64 exit/journal regression on the host, with a clean disposable-input
+Ubuntu ext4 image and a kernel with built-in VirtIO block/ext4 support:
+
+```sh
+python3 tools/test-debug-timeout-qemu.py \
+  --kernel /path/to/Image --rootfs /path/to/ubuntu.ext4 \
+  --qemu /path/to/qemu-system-aarch64 --busybox /path/to/arm64/busybox \
+  --gen-init-cpio /path/to/linux-out/usr/gen_init_cpio \
+  --debugfs /path/to/debugfs --e2fsck /path/to/e2fsck \
+  --output /path/to/new-test-output
+```
+
+This uses the same virt/TCG, serial and `-no-reboot` exit method as the Ubuntu
+handoff harness. It pivots from RAM into a writable ext4 copy and exercises real
+Ubuntu PID1 with test display-manager/user-slice services. It retains guest disk
+writes and asserts `e2fsck -n` reports clean **and** `needs_recovery` is clear;
+it never replays the journal to make a test pass. It also checks the unchanged
+`bootloader` reboot reason and both fixture stop markers. This is not a GDM,
+Fastboot or tablet hardware test.
+
+`--scenario old-force` is a negative control that must detect a dirty journal.
+`--scenario blocked-stop` holds a stop job; `--scenario blocked-shutdown` holds
+an executable systemd-shutdown hook after the final kill and filesystem cleanup.
+Both must force a bootloader reboot at the 45-second bound; the latter must
+still have a clean journal. `--seconds 60` can shorten these failure fixtures
+without changing the production 600-second budget.

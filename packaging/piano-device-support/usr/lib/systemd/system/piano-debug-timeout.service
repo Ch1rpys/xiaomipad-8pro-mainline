@@ -5,6 +5,8 @@ ConditionKernelCommandLine=piano.debug=1
 ConditionKernelCommandLine=piano.debug_timeout
 Before=initrd-switch-root.target
 Conflicts=initrd-switch-root.target
+IgnoreOnIsolate=yes
+SurviveFinalKillSignal=yes
 [Service]
 Type=simple
 ExecStart=/usr/libexec/piano/debug-timeout
