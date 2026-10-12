@@ -8,12 +8,18 @@ The local v0.2.0 fresh-install candidate is described in [INSTALL](docs/INSTALL.
 
 ## 📮 Follow & Discuss
 
-Progress updates, usage tips and AI discussions (primarily in Chinese) are published here first — issue feedback is welcome.
+Long-form technical articles, write-ups and progress updates are published on the WeChat official account; the community group is on Xiaohongshu — scan to join. Both are in Chinese, and installation feedback is welcome in either place.
 
-| WeChat: 熵减矩阵 | Xiaohongshu: yzddmr6 |
-|:---:|:---:|
-| <img src="docs/assets/gzh-qr.png" width="200" alt="WeChat: 熵减矩阵"> | <img src="docs/assets/xhs-qr.jpg" width="200" alt="Xiaohongshu: yzddmr6"> |
-| Updates · Tips · AI talks | Sharing · Feedback |
+<div align="center">
+<table>
+<tr><th>WeChat: 熵减矩阵</th><th>Xiaohongshu: yzddmr6</th></tr>
+<tr>
+<td align="center"><img src="docs/assets/gzh-qr.png" width="300" alt="WeChat: 熵减矩阵"></td>
+<td align="center"><img src="docs/assets/xhs-qr.jpg" width="300" alt="Xiaohongshu: yzddmr6"></td>
+</tr>
+<tr><td align="center">Long-form articles · Write-ups · Updates</td><td align="center">Community group · Feedback</td></tr>
+</table>
+</div>
 
 ## ⚠️ Read Before Installing
 

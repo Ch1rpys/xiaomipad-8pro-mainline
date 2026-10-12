@@ -8,12 +8,18 @@ v0.2.0 本地全新安装候选见 [INSTALL](docs/INSTALL.zh-CN.md)；尚未发�
 
 ## 📮 关注与交流
 
-最新进展动态、使用技巧和 AI 讨论会先在公众号和小红书更新；刷机遇到问题也欢迎反馈。
+技术长文、经验分享和进展动态在公众号；交流群在小红书，扫码进群交流。刷机问题也欢迎在这两处反馈。
 
-| 公众号：熵减矩阵 | 小红书：yzddmr6 |
-|:---:|:---:|
-| <img src="docs/assets/gzh-qr.png" width="200" alt="公众号：熵减矩阵"> | <img src="docs/assets/xhs-qr.jpg" width="200" alt="小红书：yzddmr6"> |
-| 进展动态 · 使用技巧 · AI 讨论 | 使用分享 · 问题反馈 |
+<div align="center">
+<table>
+<tr><th>公众号：熵减矩阵</th><th>小红书：yzddmr6</th></tr>
+<tr>
+<td align="center"><img src="docs/assets/gzh-qr.png" width="300" alt="公众号：熵减矩阵"></td>
+<td align="center"><img src="docs/assets/xhs-qr.jpg" width="300" alt="小红书：yzddmr6"></td>
+</tr>
+<tr><td align="center">技术长文 · 经验分享 · 进展动态</td><td align="center">进群交流 · 问题反馈</td></tr>
+</table>
+</div>
 
 ## ⚠️ 安装前请阅读
 
