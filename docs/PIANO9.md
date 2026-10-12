@@ -1,9 +1,26 @@
-# Piano9 packaged candidate
+# Piano9 release and device acceptance
 
-Piano9 pins kernel `3ef018a0e9d5ac6e9a1b22ae85dd8e7b5c243166`: the installed
-piano8 source plus Iris and read-only SDAM2. The preceding Iris RAM test decoded
-150/150 1080p H.264 frames with matching hashes. That result does not establish
-device acceptance of this newly packaged ABI.
+**2026-10-12: 7.2.6-piano9 (ABI 9) is installed and cold-boot accepted on piano.**
+It was installed from piano8 with the independent `piano9-rollback` set retained.
+[Cold-boot acceptance](STATUS.md#cold-boot-acceptance) passed with simpledrm at
+0.18 s, switch_root at 6.0 s, GDM at 12.7 s, GMU at 0.87 s, dual INTF at
+144 Hz and zero clock/DSI/GPU errors over 200 s.
+
+Piano9 pins kernel `3ef018a0e9d5ac6e9a1b22ae85dd8e7b5c243166`: the piano8
+source plus Iris and read-only SDAM2. The Iris RAM check used piano8 modules
+and decoded 1080p H.264 bit-exactly against software. The installed piano9
+root exposes decoder/encoder nodes `/dev/video0/1`; application-level playback
+is unverified and encoding is untested. Do not attribute the RAM decode result
+to the piano9 module build.
+
+Native DSI KMS (`msm_dpu`) drives 3200×2136 at 144 Hz, with Mutter backlight
+control and hardware-verified DPMS off/on; simpledrm is only for first light.
+Slot-A image-set rotation and the Android KernelSU switch module are verified,
+including the fix for clean shutdown on RAM-check return. The
+[support matrix](../README.md#support-matrix) and [status](STATUS.md) record
+the remaining limits, including unverified net charging, the pending wall-charger
+and physical four-orientation tests, disabled suspend (D3) and the unsettable
+RTC (TD-022).
 
 `kernel/source.json` selects `7.2.6-piano9`; the existing kernel builder applies
 that release to `CONFIG_LOCALVERSION` after the kernel-owned configuration
@@ -23,6 +40,17 @@ The accompanying packages contain:
   write does not mark successful authentication as a failed unit.
 - `piano-local-firmware` 0.5: locked signed VPU35 firmware in addition to the
   existing firmware and audio topologies.
+
+Sensor support uses the separate `piano-sensors` and `piano-iio-sensor-proxy`
+packages. SSC accelerometer/gyro/light/proximity samples and SensorProxy
+orientation are verified. Stage private registry calibration from your own
+backup with [tools/stage-sensor-registry.py](../tools/stage-sensor-registry.py);
+see the [sensor instructions](../device/sensors/README.zh-CN.md). GNOME
+auto-rotation is enabled only with the keyboard detached under Mutter's
+tablet-mode rule; physical four-orientation acceptance remains pending.
+
+The steps below describe the upgrade and acceptance procedure used for this
+release; the recorded pass applies to the tested piano only.
 
 ## A. RAM check from Android
 
@@ -76,4 +104,3 @@ separate acceptance tasks.
 
 On failure preserve evidence, then use `piano-boot-switch import-ubuntu --from
 /var/lib/piano/piano9-rollback` and the standard verified switch/recovery path.
-This build task performs no device access, installation, slot writes or tags.
