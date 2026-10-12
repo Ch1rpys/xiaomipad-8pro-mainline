@@ -3,14 +3,58 @@
   Initial Setup and accounts without their own ~/.config/monitors.xml.
   Mutter reads monitors.xml in each XDG system configuration directory as a
   system configuration; a user's configuration for the same monitors replaces
-  it, and Mutter never copies it into a home directory.  The panel is the
-  firmware framebuffer (simpledrm), which reports no physical size, so Mutter
-  would choose 100 %.  Mutter names its connector None-1 and, without EDID,
-  reports vendor, product and serial as "unknown".  Both layout modes are
-  listed because the configuration key includes the mode.
-  Remove once the native display driver reports the panel's size.
+  it, and Mutter never copies it into a home directory.  The native DSI-1 panel
+  now reports a physical size (250x177 mm), but we still pin 200 % and 144 Hz
+  as the product default; 144 Hz matches the stock OS.  Keep None-1 at 200 %
+  and 60 Hz for the firmware-scanout fallback (simpledrm, no physical size).
+  Neither connector has EDID, so vendor, product and serial are "unknown".
+  Both layout modes are listed because the configuration key includes the mode.
 -->
 <monitors version="2">
+  <configuration>
+    <layoutmode>logical</layoutmode>
+    <logicalmonitor>
+      <x>0</x>
+      <y>0</y>
+      <scale>2</scale>
+      <primary>yes</primary>
+      <monitor>
+        <monitorspec>
+          <connector>DSI-1</connector>
+          <vendor>unknown</vendor>
+          <product>unknown</product>
+          <serial>unknown</serial>
+        </monitorspec>
+        <mode>
+          <width>3200</width>
+          <height>2136</height>
+          <rate>144.000</rate>
+        </mode>
+      </monitor>
+    </logicalmonitor>
+  </configuration>
+  <configuration>
+    <layoutmode>physical</layoutmode>
+    <logicalmonitor>
+      <x>0</x>
+      <y>0</y>
+      <scale>2</scale>
+      <primary>yes</primary>
+      <monitor>
+        <monitorspec>
+          <connector>DSI-1</connector>
+          <vendor>unknown</vendor>
+          <product>unknown</product>
+          <serial>unknown</serial>
+        </monitorspec>
+        <mode>
+          <width>3200</width>
+          <height>2136</height>
+          <rate>144.000</rate>
+        </mode>
+      </monitor>
+    </logicalmonitor>
+  </configuration>
   <configuration>
     <layoutmode>logical</layoutmode>
     <logicalmonitor>
