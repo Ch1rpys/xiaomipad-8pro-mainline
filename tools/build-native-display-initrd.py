@@ -25,7 +25,7 @@ SUPPORT = REPO / 'packaging/piano-device-support'
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--purpose', choices=('native-display', 'keyboard'), default='native-display')
+    ap.add_argument('--purpose', choices=('native-display', 'keyboard', 'iris'), default='native-display')
     ap.add_argument('--base-initrd', type=Path, required=True)
     ap.add_argument('--base-sha256', required=True)
     ap.add_argument('--kernel-out', type=Path, required=True)
@@ -82,6 +82,12 @@ def main():
     (target / 'modules.sha256').write_text(''.join(
         f'{digest}  {name.removeprefix("lib/modules/")}\n'
         for name, digest in sorted(modules['files'].items())))
+    if a.purpose == 'iris':
+        iris = [r for r in rows if r['path'] == 'qcom/sm8750/vpu35_4v.mbn']
+        if len(iris) != 1:
+            raise ValueError('Iris RAM check requires the locked VPU35 firmware')
+        (target / 'iris-firmware.sha256').write_text(
+            f'{iris[0]["sha256"]}  {iris[0]["path"]}\n')
     units = target / 'systemd'
     units.mkdir()
     # Reuse the developer SSH listener/authentication, with ownership assigned

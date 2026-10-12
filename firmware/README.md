@@ -15,6 +15,7 @@ Per-unit data is excluded (see below).
 | `qcom/sm8750/piano/` | 56: `adsp.mdt`, `adsp.b01`–`adsp.b54` (no `b27`), `adsp_dtb.mdt`, `adsp_dtb.b01` | `qcom_q6v5_pas` (audio DSP) | `modem_a` FAT, `image/` | `piano-os3.0.303.0.json` |
 | `qcom/` | `gen80000_sqe.fw`, `gen80000_gmu.bin`, `gen80000_aqe.fw` | `msm` (Adreno 830) | `vendor_a`, `firmware/` | `piano-gpu.json` |
 | `qcom/sm8750/xiaomi/piano/` | `gen80000_zap.mbn` (signed for this model) | `msm` zap shader | `odm_a`, `firmware/` | `piano-gpu.json` |
+| `qcom/sm8750/` | `vpu35_4v.mbn` (signed ELF32) | `qcom-iris` (SM8750 VPU35) | `odm_a`, `firmware/vpu35_4v.mbn` | `piano-iris.json` |
 | `qca/` | 27: `gngbtfw20.mbn`, `gngbtnv20.bin` and 25 board-specific `gngbtnv20.bXX` | `hci_qca` (WCN7860 Bluetooth, ROM 0x20) | `bluetooth_a` FAT, `image/` | `piano-bluetooth-rom20.json` |
 | `ath12k/WCN7860/hw2.0/` | `amss.bin`, `m3.bin`, `aux_ucode.bin`, `regdb.bin`, `qdss.cfg`, `board.bin` | `ath12k` (WCN7860 Wi-Fi) | `modem_a` FAT, `image/peach/` | `piano-wlan.json` |
 | `novatek/piano/` | `novatek_nt36532_piano_fw_csot.bin` | `nt36532e-thp` (touch) | `odm_a`, `firmware/` | `piano-input.json` |
@@ -29,7 +30,7 @@ other regions use a different stock board file.
 **Not included:**
 - touch calibration, which `tools/extract-thp-calibration.py` generates per device;
 - the Bluetooth address, the Wi-Fi MAC address (`persist`) and other per-unit calibration;
-- stock files the current kernel does not load (CDSP, video, other board files and panel variants);
+- stock files the current kernel does not load (CDSP, other board files and panel variants);
 - the audio capture topology `qcom/sm8750/Piano-Capture-Diag-tplg.bin`, which is built from
   [`device/audio`](../device/audio/README.md).
 

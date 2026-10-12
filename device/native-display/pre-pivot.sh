@@ -21,6 +21,16 @@ piano_display_handoff() (
         > /run/piano-native-display/modules-verified.txt || exit 1
     "$B" mount -o bind /run/piano-native-display/modules /sysroot/usr/lib/modules || exit 1
     "$B" mount -o remount,bind,ro /sysroot/usr/lib/modules || exit 1
+    # Iris firmware is requested on open, which root services may do before
+    # the decoder test starts. Keep its locked bytes available across pivot.
+    if [ -f /etc/piano-native-display/iris-firmware.sha256 ]; then
+        fw=/run/piano-native-display/firmware
+        "$B" mkdir -p "$fw/qcom/sm8750" || exit 1
+        "$B" cp /usr/lib/firmware/qcom/sm8750/vpu35_4v.mbn "$fw/qcom/sm8750/" || exit 1
+        (cd "$fw" && "$B" sha256sum -c /etc/piano-native-display/iris-firmware.sha256) || exit 1
+        printf '%s\n' "$fw" > /sys/module/firmware_class/parameters/path || exit 1
+        echo 'PIANO_IRIS_FIRMWARE_HANDOFF verified=sha256 location=RAM' > /dev/kmsg
+    fi
     "$B" cp -a /etc/piano-native-display/systemd/. /run/systemd/system/ || exit 1
     "$B" cp /etc/piano-native-display/manifest.json /run/piano-native-display/ || exit 1
     echo "PIANO_NATIVE_DISPLAY_HANDOFF release=$r modules=complete root=bind-readonly" > /dev/kmsg
