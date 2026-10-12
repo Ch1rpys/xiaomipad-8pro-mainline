@@ -100,8 +100,8 @@ piano-boot-switch import-ubuntu  [--from DIR] [--dry-run]
   Fastboot install of a set that is not in the store.
 - Writes are logged to the journal (`journalctl -t piano-boot-switch`),
   `switch.log` and `state.json`.
-- From `piano-device-support` 0.1+20261012.1, before requesting a reboot the
-  tool lists logind's `shutdown` inhibitors in `block` mode with their who/why.
+- Before requesting a reboot, the current `piano-device-support` tool lists
+  logind's `shutdown` inhibitors in `block` mode with their who/why.
   `handle-*` and delay inhibitors are not shutdown blocks. `systemctl` stderr
   is printed verbatim, including on success. If reboot fails, the tool exits 1
   and explicitly names the set still in slot A and the next boot's OS; the
@@ -118,8 +118,8 @@ The app grid entry **Switch to Android** (切换到 Android) runs
 argument and asks for administrator authentication (`auth_admin_keep`).
 This entry uses `--force`, not a GNOME logout dialog: save your work first;
 unsaved changes may be lost. Both the entry's comment and the polkit prompt
-state this policy (authentication may be cached). Before 0.1+20261012.1 it
-used `--desktop` alone and hit the same inhibitor failure as the SSH command.
+state this policy (authentication may be cached). Using `--desktop` alone
+respects inhibitors, as the SSH command does.
 With `--desktop` a reboot is requested once slot A holds the Android set;
 a failure is sent to the caller's notification service, including systemctl's
 error and the next boot's OS. GNOME's own restart-into-another-system needs
@@ -171,12 +171,13 @@ clock controller built as a module, `clk_disable_unused` switched
 traffic then stayed throttled (a 256 MiB copy at 36–47 MB/s instead of over
 5 GB/s, GMU initialisation timing out), with the same software as a normal
 boot. `tools/piano_boot_acceptance.py` keeps the acceptance criteria and their
-budgets as data and evaluates them from saved captures:
+budgets as data and evaluates them from saved captures. Replace `<release>`
+with the kernel release being checked:
 
 ```sh
 python3 tools/piano_boot_acceptance.py criteria           # criteria, budgets, profiles
-python3 tools/piano_boot_acceptance.py evaluate --dir EVIDENCE --release 7.2.6-piano2 --json verdict.json
-python3 tools/piano_boot_acceptance.py live --user USER --sudo --profile cold --release 7.2.6-piano2 \
+python3 tools/piano_boot_acceptance.py evaluate --dir EVIDENCE --release <release> --json verdict.json
+python3 tools/piano_boot_acceptance.py live --user USER --sudo --profile cold --release <release> \
   --save EVIDENCE [--scanout-probe piano-scanout-probe.py]
 python3 tools/piano_boot_acceptance.py script [--initrd]  # the device-side read scripts
 ```
@@ -218,9 +219,9 @@ python3 tools/piano_boot_acceptance.py script [--initrd]  # the device-side read
   `devmem`) and copy a 256 MiB buffer in RAM; the initrd script mounts debugfs
   if it is absent.
 - `tools/test-piano-boot-acceptance.py` replays two scrubbed captures in
-  `tools/fixtures/boot-acceptance/`: the 7.2.6-piano2 validation boot of
-  2026-10-09 (PASS) and a slow boot of the 2026-10-08 image with dispcc as a
-  module (FAIL on the classification, simpledrm, the initrd clock hold,
+  `tools/fixtures/boot-acceptance/`: a validation boot (PASS) and a slow boot
+  with dispcc as a module (FAIL on the classification, simpledrm, the initrd
+  clock hold,
   switch-root, gdm, GMU, GPU errors, the copy, scanout, touch errors and the
   dispcc configuration).
 

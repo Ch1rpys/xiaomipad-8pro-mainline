@@ -10,10 +10,10 @@ Conventions:
 - Host commands run from the root of this repository on a Linux x86_64 host. Commands marked
   *on the tablet* run in a shell on the tablet.
 - `<SERIAL>` is the tablet's serial number (`adb devices`, `fastboot devices`), `<USER>` an account
-  on the tablet, `<release>` a kernel release such as `7.2.6-piano2`, `<N>` its ABI number.
+  on the tablet, `<release>` the project kernel package release, `<N>` its ABI number.
 - `# expect` comments give the expected output.
 - Status words: *verified on the test unit*; *not yet verified on the device*; *not yet available*
-  (no tool exists); *manual in v0.1* (standard commands, no project tool yet).
+  (no tool exists); *manual steps* (standard commands, no project tool yet).
 
 ## 1. Scope and safety rules
 
@@ -144,7 +144,7 @@ another build. Raise `upload` only to repackage the identical build with differe
 
 ABL applies the stock DTBO to the boot DTB; `prepare-boot-dtb.py` prepares the desktop DTB for it.
 It needs your tablet's stock base DTB (from `vendor_boot_a`) and DTBO entry (from `dtbo_a`);
-extracting these two from the backup images is manual in v0.1.
+extracting these two from the backup images is a manual step.
 
 ```bash
 python3 tools/prepare-boot-dtb.py \
@@ -262,7 +262,7 @@ SHA-256 of `build-result.json` and of `.config` (the `kernel/abi.json` entry); t
 build manifest; the image set's `manifest.json` and `SHA256SUMS`; the SHA-256 of the initrd. dracut
 initrds are not reproducible, so `vendor_boot.img` differs between builds with otherwise equal inputs.
 
-## 4. Fresh install (manual in v0.1)
+## 4. Fresh install (manual steps)
 
 The partitioning and root filesystem installer is not yet available. These steps reproduce the
 installation of the test unit (512 GB UFS) with standard commands. With a release directory, the
@@ -285,7 +285,7 @@ fastboot -s <SERIAL> reboot
 
 Android root (Magisk or KernelSU-Next in a patched `init_boot_a`) is needed to read partitions.
 
-### 4.2 Back up (manual in v0.1)
+### 4.2 Back up (manual steps)
 
 Back up every partition except `userdata` and both GPT copies of each UFS LUN. `adb exec-out` is
 binary-safe; `adb shell` output is not.
@@ -315,12 +315,12 @@ adb -s <SERIAL> exec-out su -c 'dd if=/dev/block/sdX bs=4096 skip=<blocks-34> 2>
 | File | Source | Command |
 |---|---|---|
 | `bluetooth-address` | stock Android | `adb -s <SERIAL> shell settings get secure bluetooth_address > bluetooth-address` (one `XX:XX:XX:XX:XX:XX` line; `piano-boot-update` requires it) |
-| `wlan-address` (optional) | `wlan/wlan_mac.bin` on the stock `persist` partition | manual in v0.1: one unicast `XX:XX:XX:XX:XX:XX` line; `piano-boot-update` uses it when present |
+| `wlan-address` (optional) | `wlan/wlan_mac.bin` on the stock `persist` partition | manual steps: one unicast `XX:XX:XX:XX:XX:XX` line; `piano-boot-update` uses it when present |
 | `thp-calibration.json` | `piano_nova_csot_thp_config.ini` from the stock ODM partition (the CSOT panel of the test unit; use the file your panel's stock driver loads) | `python3 tools/extract-thp-calibration.py --input <ini> --output thp-calibration.json` |
 | `boot-signing.pem` | new owner key | `openssl genrsa -out boot-signing.pem 4096` |
-| `boot-profile.json` | stock `boot_a`, `init_boot_a`, `vendor_boot_a` | manual in v0.1, below |
+| `boot-profile.json` | stock `boot_a`, `init_boot_a`, `vendor_boot_a` | manual steps, below |
 | `boot-partitions.json` | `sfdisk --json` of the boot LUN (LUN 4: the one whose GPT holds `boot_a` and `boot_b`) | `python3 tools/extract-boot-partitions.py --input <sfdisk json> --profile boot-profile.json --output boot-partitions.json` (§4.8; INSTALL step 8a reads the table in the maintenance image) |
-| stock base DTB, DTBO entry | `vendor_boot_a`, `dtbo_a` | manual in v0.1 (§3.3) |
+| stock base DTB, DTBO entry | `vendor_boot_a`, `dtbo_a` | manual steps (§3.3) |
 
 The boot profile is read by `build-persistent-boot.py`; its generator is not yet available:
 
@@ -364,7 +364,7 @@ e2fsck -f out/install/root.ext4 && resize2fs out/install/root.ext4 60G
 # expect "The filesystem on out/install/root.ext4 is now 15728640 (4k) blocks long."
 ```
 
-Install the packages in an ARM64 chroot (manual in v0.1; an x86_64 host needs `qemu-user-static`
+Install the packages in an ARM64 chroot (manual steps; an x86_64 host needs `qemu-user-static`
 with binfmt):
 
 ```bash
@@ -393,8 +393,8 @@ sudo cp backup/vendor_boot_a.img $A/vendor_boot.img
 
 sudo chroot $R dpkg-query -W dracut python3 openssl device-tree-compiler gdm3 linux-base
 # every name must be listed; fetch missing packages with their dependencies, plus openssh-server
-# for developer mode (§7.1), fake-hwclock (a dependency of piano-ubuntu-desktop 0.1+20261010.6) and,
-# only for a kernel with CONFIG_ZRAM (7.2.6-piano7 and later), systemd-zram-generator, from the
+# for developer mode (§7.1), fake-hwclock (a dependency of the current desktop package) and,
+# only for a kernel with CONFIG_ZRAM, systemd-zram-generator, from the
 # signed snapshot:
 python3 tools/prepare-ubuntu-apt.py --rootfs out/ubuntu-desktop-pristine/ubuntu-desktop.squashfs \
   --snapshot <YYYYMMDDTHHMMSSZ> --output out/apt-extra \
@@ -409,7 +409,7 @@ sudo chroot $R dpkg --audit                    # expect no output
 ```
 
 Without `systemd-zram-generator` on a kernel with zram there is no swap; with it on a kernel without
-`CONFIG_ZRAM` (7.2.6-piano6 and earlier) the boot waits 90 s for `/dev/zram0` (QEMU). Then, as
+`CONFIG_ZRAM` the boot waits 90 s for `/dev/zram0` (QEMU). Then, as
 [tools/rootfs-image-guest.sh](../tools/rootfs-image-guest.sh) does for the release root, name the
 tablet, purge the base's generic kernels and kdump, whose packages would be updated and get initrds
 without ever booting (the names of the 26.04 Desktop base; the guest selects them by pattern), and
@@ -458,14 +458,14 @@ mkfs.ext4 -U "$DATA_UUID" out/install/data.ext4 && img2simg -s out/install/data.
 
 Plain `img2simg` stores zero blocks as FILL chunks, which Fastboot writes in full: about 55 GB for
 the root, committed by the bootloader at about 30 MB/s after it has answered `OKAY` (1839 s on the
-test unit, 2026-10-10). `encode-ext4` makes only the free blocks DONT_CARE and keeps zero used blocks
+test unit). `encode-ext4` makes only the free blocks DONT_CARE and keeps zero used blocks
 (inode tables, journal) as FILL: about 9.4 GiB written for the release root. `-s` leaves the unused
 blocks of the data image out. Check the totals with `python3 tools/sparse_image.py summary` before
 flashing; keep the root image as built (its bytes are the release's). `encode-ext4` stores only zero
-free blocks as DONT_CARE, so without the `fstrim` the purged kernels stay RAW (a 7.2.6-piano7 check
+free blocks as DONT_CARE, so without the `fstrim` the purged kernels stay RAW (a sample
 build of the release root: 10.14 GB written without it, 8.73 GB with it).
 
-### 4.5 New LUN 0 GPT (host, manual in v0.1)
+### 4.5 New LUN 0 GPT (host, manual steps)
 
 Entry 34 `userdata` keeps its start, type GUID, unique GUID and attributes and shrinks to 200 GiB;
 entries 35 `linux_rootfs` (60 GiB) and 36 `linux_data` (the remainder) are new. All other entries
@@ -508,7 +508,7 @@ sha256sum new-primary.bin new-backup.bin
 sudo losetup -d "$LOOP"
 ```
 
-### 4.6 Write the GPT (tablet, manual in v0.1)
+### 4.6 Write the GPT (tablet, manual steps)
 
 Run it in the maintenance RAM image: the release's `boot/boot-ram-maintenance.img`, or one built
 for another kernel package. It stays in the initramfs (`piano.diag=maintenance` of
@@ -542,7 +542,7 @@ running Android, with `userdata` mounted, is not verified.
 
 For a script driving the session: do not send `stty -echo`. BusyBox ash then reads the typed-ahead
 lines through stdio, and an applet that reads standard input at the end of a pipeline (`cut`,
-`head`) receives the following lines instead of its pipe (seen on the test unit, 2026-10-10).
+`head`) receives the following lines instead of its pipe (seen on the test unit).
 
 *On the tablet* (`fastboot boot` the image, `telnet 192.168.88.2 2323`; the login prints the LUN
 table and LUN 0's `sgdisk -p`; serve the two files with `python3 -m http.server --bind 192.168.88.10 8000`):
@@ -686,7 +686,7 @@ sudo piano-boot-switch verify                     # expect exit status 0
 The hook rebuilds `/var/lib/piano/switch/ubuntu/`, moves the previous set to `ubuntu.prev/` and,
 when slot A holds an Ubuntu set, rewrites slot A in place, so the next boot uses the new kernel.
 Without `boot-profile.json` and `boot-signing.pem`, and on a persistent boot also without
-`boot-partitions.json` (piano-device-support 0.1+20261010.6 and later), it changes neither the store
+`boot-partitions.json`, it changes neither the store
 nor slot A, exits 0 and prints which file to install before running `piano-boot-update <release>`.
 When slot A holds Android, write the new set later with `sudo piano-boot-switch to-ubuntu` from a
 running Ubuntu (§5.4), from Android with the KernelSU module (§6.2), or from the host (§6.3).
@@ -706,7 +706,7 @@ release cold boot (§8.4).
 
 ### 5.4 Validate before writing the slot
 
-Recommended for kernels with boot-relevant changes; this is the sequence verified for 7.2.6-piano2.
+Recommended for kernels with boot-relevant changes; this sequence is device-verified.
 
 1. Install the package while slot A holds Android, so that the hook reports `skipped` (for example
    in a debug RAM boot of the current kernel).
@@ -764,7 +764,7 @@ sudo apt-get purge linux-image-<old release>    # removes the leftover depmod in
 - Verified on the test unit: `status`, `verify`, both imports, `to-ubuntu`, `to-android --reboot`.
   Not yet verified on the device: the app-grid entry **Switch to Android** (`pkexec
   /usr/sbin/piano-boot-switch to-android --desktop --force`) and the rollback after a failed write.
-  From support 0.1+20261012.1 the desktop entry explicitly ignores reboot inhibitors;
+  The current desktop entry explicitly ignores reboot inhibitors;
   save work first. The CLI respects them unless `--force` is given with `--reboot`.
   See [reboot failures and the next boot's OS](FLASHING.md#from-ubuntu-piano-boot-switch).
 
@@ -898,7 +898,7 @@ python3 tools/piano-devmode-ssh.py -t <USER> sudo piano-reboot-bootloader
 - Verified on the test unit in a release cold boot.
 - Default: off in the release image. The installation turns it on ([INSTALL.md](INSTALL.md) step 8a
   or 10) and step 10 ends with `sudo piano-devmode off`, the owner's choice for the release.
-- From piano-device-support 0.1+20261010.7 the socket has `BindToDevice=usb0` (the NCM function's
+- The current device support package socket has `BindToDevice=usb0` (the NCM function's
   network device) and starts after `sys-subsystem-net-devices-usb0.device`: the address alone also
   accepted connections that reached 192.168.88.2 over Wi-Fi. In QEMU a peer routing to that address
   over another interface is refused; not yet checked on the tablet. If the NCM device gets another

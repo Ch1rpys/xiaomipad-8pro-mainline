@@ -4,8 +4,8 @@ A KernelSU-Next module for stock Android on piano. Its action button writes the
 Ubuntu boot set into the active A slot and reboots. The module holds scripts
 only; the images come from the Ubuntu root filesystem.
 
-Status: the host tests pass. On the test unit (2026-10-10) the release module
-`piano-switch-ksu-v0.1.0.zip` was installed with `ksud module install`,
+Status: the host tests pass. On the test unit the release module
+was installed with `ksud module install`,
 `--check` reported `CHECK OK`, and the action wrote the Ubuntu set into slot A
 (readbacks ok, slot attributes unchanged) and rebooted into Ubuntu.
 
@@ -126,7 +126,7 @@ You can also install from the Modules page of the KernelSU Next manager.
    - The device reboots into Ubuntu.
    - Fastboot `slot-successful:a` and `slot-retry-count:a` are unchanged.
 
-### 2026-10-08 read-only results (module not installed)
+### Read-only validation (module not installed)
 
 Shell root came from KernelSU-Next v3.4.0 LKM (`uid=0`, `u:r:ksu:s0`). Nothing
 was written to a partition, and the device did not reboot.
@@ -154,5 +154,5 @@ was written to a partition, and the device did not reboot.
   image, while slot A holds the KernelSU init_boot. After the refusal the
   filesystem was unmounted and the lock was released.
 
-The module install, `--check` and the action were then run for real on
-2026-10-10, as described under Status.
+Module installation, `--check` and switching have also passed on the test
+unit, as described under Status.

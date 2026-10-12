@@ -41,9 +41,10 @@ Keep the upstream library, daemon and service files under their own build and
 packaging. A native distribution package recipe can consume the staging tree;
 piano-specific firmware/registry inputs and permission policy are separate.
 The staged upstream services have not been enabled or accepted as product policy.
-P23 deliberately omitted FastRPC. The later piano8 v1 device run reached this
-daemon through the secure ADSP sensorspd node, but registry initialization failed
-at file-service gaps. V2 file-service fixes are offline-tested, not device-tested.
+The ADSP baseline diagnostic omits FastRPC. A separate device test reached
+this daemon through the secure ADSP sensorspd node but failed registry
+initialization at file-service gaps. The file-service patch checks described
+here are offline tests, not device validation.
 
 Licenses remain per upstream file: the marshaller source is LGPL-3.0-or-later;
 its public header, tests and reverse-tunnel code are GPL-3.0-or-later. The new test
@@ -51,15 +52,15 @@ is GPL-3.0-or-later. See the retained file headers, `NOTICE`, and `LICENSES`.
 Drop the local patches when upstream contains the fixes and the same regressions
 pass; do not maintain an independent copy of the source tree here.
 
-V3 adds a fourth patch after the v2 device log showed that version, temporary
-registry output and parsed-file cache live one level above the inner registry
-entries. Both `-R .../sensors/registry` and explicit `-w DIR` now describe the
+The fourth patch maps version, temporary registry output and parsed-file
+cache one level above the inner registry entries, matching the device log.
+Both `-R .../sensors/registry` and explicit `-w DIR` describe the
 whole parent containing `registry/`, `sns_reg_version` and `parsed_file_list.csv`.
 The existing write confinement is retained; tests replay the actual sibling
-paths and 108 temporary-file opens. V2 source and evidence remain historical.
+paths and 108 temporary-file opens.
 
-V4 imports upstream PR #27 commit f0dfd5095d3b7defc3b368f227337bfc6d6aef42
-unchanged as patch 0005 (original author/date/Sign-off retained). It fetches
+Patch 0005 imports upstream PR #27 commit f0dfd5095d3b7defc3b368f227337bfc6d6aef42
+unchanged (original author/date/Sign-off retained). It fetches
 reverse-listener input beyond the 256-byte prefix with get_in_bufs2, method 5.
 This was cleanly cherry-picked onto 598b591a in an isolated source repository;
 it is not claimed to be merged upstream. Patch 0006 adds length validation,

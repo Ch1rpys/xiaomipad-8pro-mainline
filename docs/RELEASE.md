@@ -1,85 +1,74 @@
 # Release artefacts
 
-How a release directory (v0.1.0-preview and later) is built from pinned inputs, what it contains,
-what each owner adds, and how it is installed. The tools write local files only: nothing is uploaded,
-no GitHub release is created and no tablet is accessed. v0.1.0-preview is published at
-https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.1.0-preview: the release directory as `piano-v0.1.0-preview.tar.zst.part*` (restore with
-`cat piano-v0.1.0-preview.tar.zst.part* | zstd -d | tar -x`), the small files as separate assets, `SHA256SUMS.assets` and the Ubuntu
-BusyBox source package.
+How a release is built from pinned inputs, what it contains, and how it is published. The tools
+write local files only; publishing is a separate, manual step.
 
-## Contents
+## What a release contains
 
-| Path in the release directory | Content |
+A release directory (built by `tools/build-release.py`) has this layout; the published assets are
+a repackaging of exactly these files (see [Publishing](#publishing)).
+
+| Path | Content |
 |---|---|
 | `boot/boot.img`, `boot/init_boot.img`, `boot/vendor_boot.img` | Ubuntu boot image set for slot A, AVB-signed with a release key; `boot/SHA256SUMS` lists them |
-| `boot/boot-ram-check.img` | v2 image with the same kernel, initrd, DTB and command line, for `fastboot boot` before writing slot A |
-| `boot/boot-ram-maintenance.img`, `boot/maintenance-manifest.json` | v2 RAM image with the same kernel and DTB and the maintenance initramfs: a root shell over USB with nothing mounted, for writing the partition table ([INSTALL.md step 6](INSTALL.md#6-write-the-partition-table-on-the-tablet)); its inputs and command line |
-| `boot/manifest.json`, `boot/boot-profile.json`, `boot/piano-boot.dtb` | set inputs and outputs; the boot profile holds only stock-build fields; the DTB the set carries |
+| `boot/boot-ram-check.img` | same kernel, initrd, DTB and command line as the set, for `fastboot boot` before writing slot A |
+| `boot/boot-ram-maintenance.img` | RAM-only maintenance system: a root shell over USB with nothing mounted, for writing the partition table ([INSTALL.md step 6](INSTALL.md#6-write-the-partition-table-on-the-tablet)) |
+| `boot/manifest.json`, `boot/boot-profile.json`, `boot/piano-boot.dtb`, `boot/maintenance-manifest.json` | inputs and outputs of the set; the boot profile holds only stock-build fields; the DTB the set carries |
 | `rootfs/root.sparse.img` | the 60 GiB `linux_rootfs` ext4 as an Android sparse image, for `fastboot flash linux_rootfs` |
-| `rootfs/manifest.json`, `rootfs/verification.json`, `rootfs/qemu-boot-check.json` | every input hash and package version; the offline checks; the QEMU boot result |
-| `debs/` | the piano packages installed in the image: `linux-image-<release>`, `piano-device-support`, `piano-local-firmware`, `piano-mesa`, `piano-ubuntu-desktop` |
-| `tools/piano-switch.py`, `tools/piano-switch-ksu-<version>.zip` | host Fastboot switching and recovery; the Android KernelSU module (not yet verified on the device) |
-| `RELEASE-NOTES.md`, `release-manifest.json`, `SHA256SUMS` | generated from `packaging/release/RELEASE-NOTES.md.in`; release identity and checks; every file |
+| `rootfs/manifest.json`, `rootfs/verification.json` | every input hash and package version; the offline checks |
+| `debs/` | the project packages installed in the image: kernel, device support, firmware, Mesa, desktop defaults, snap graphics provider, MiPPS authentication, sensors |
+| `tools/piano-switch.py`, `tools/piano-switch-ksu-<version>.zip` | host Fastboot switching and recovery; the Android KernelSU switch module |
+| `RELEASE-NOTES.md`, `release-manifest.json`, `SHA256SUMS` | the release notes (also the GitHub release body); identity and checks of every input; every file's hash |
 
-The `linux_data` (`/home`) filesystem is not shipped; it is created at install time (below).
+The `linux_data` (`/home`) filesystem is not shipped; it is created at install time
+([INSTALL.md step 7](INSTALL.md#7-write-the-filesystems-fastboot)).
 
 ## What the image contains
 
-- Ubuntu 26.04 Desktop ARM64 (the two official ISO layers merged unchanged, [build.zh-CN.md](build.zh-CN.md)),
-  with the APT sources of [ubuntu/26.04.sources](../ubuntu/26.04.sources), cloud-init disabled and the
-  CD-ROM source removed (the policy of `build-ubuntu-ext4.py`).
-- The piano packages above, `openssh-server` for developer mode, and the updated `dracut`, all
-  installed by `dpkg --install` in a chroot with `policy-rc.d` and `SYSTEMD_OFFLINE=1`
-  ([AGENT-GUIDE.md](AGENT-GUIDE.md) §4.4). The kernel postinst runs Ubuntu's dracut hook
-  (initrd with the `99piano` module) and the piano hook. Userspace packages are installed first,
-  the generic kernels/kdump and their hooks are then purged, and the piano kernel is installed last.
-  The existing temporary `update_initramfs=no` suppresses the dracut upgrade trigger; the kernel
-  postinst generates exactly one initrd. `guest/install.log` and `guest/dpkg.log` record the transaction.
-- `/etc/fstab` and `/etc/piano/layout.json` naming the fixed GPT partitions, so the image fits any unit:
+- Ubuntu 26.04 Desktop ARM64 (the two official ISO layers merged unchanged, [BUILD.md](BUILD.md)),
+  with the APT sources of [ubuntu/26.04.sources](../ubuntu/26.04.sources), cloud-init disabled and
+  the CD-ROM source removed.
+- The project packages above, `openssh-server` for developer mode, and the updated `dracut`,
+  installed in a chroot ([AGENT-GUIDE.md](AGENT-GUIDE.md) §4.4). Only the project kernel is
+  installed: Ubuntu's generic kernel, its headers and `kdump-tools` are purged so that updates do
+  not fetch kernels that cannot boot (this also removes `libc6-dev`; install `build-essential`
+  before compiling). `linux-firmware` stays.
+- `/etc/fstab` and `/etc/piano/layout.json` name the partitions by GPT label, so the image fits any
+  unit:
   ```
   PARTLABEL=linux_rootfs / ext4 defaults,noatime 0 1
   PARTLABEL=linux_data /home ext4 defaults,noatime 0 2
   ```
 - The boot set in `/var/lib/piano/switch/ubuntu/`, the same files as `boot/`.
-- From the 7.2.6-piano7 build: the hostname `xiaomipad-8pro` with the pretty name "Xiaomi Pad 8 Pro"
-  (`/etc/machine-info`; GNOME Initial Setup replaces the static name with its *Computer* field);
-  only the piano kernel: Ubuntu's generic HWE kernel, its headers, tools and zfs modules and
-  `kdump-tools` are purged with `apt-get --purge --autoremove` (47 packages and 903 MiB on the
-  7.2.6-piano6 root, including `libc6-dev` and `flash-kernel`; `linux-firmware` is kept); no
-  `/var/lib/apt/lists` indexes (the base's were of the build machine's mirror; users run
-  `apt update` first); zram swap through `systemd-zram-generator` and the piano-ubuntu-desktop
-  drop-in (half the memory up to 8 GiB, zstd, priority 100); and `fstrim` of the target at the end
-  of the guest.
+- Hostname `xiaomipad-8pro` (GNOME Initial Setup replaces it with its *Computer* field), zram swap
+  (half the memory up to 8 GiB), `fake-hwclock` for the unwritable RTC, no APT indexes (run
+  `apt update` first), Chinese locale default.
 
-It has no user account (GNOME Initial Setup creates the first one; GDM has no automatic login), an
-empty `/etc/machine-id`, no SSH host keys (developer mode creates them), Ubuntu's `ssh.socket` and
-developer mode off (the installation turns developer mode on and [INSTALL.md](INSTALL.md) step 10
-off again; from piano-device-support 0.1+20261010.7 its socket accepts connections on `usb0` only),
-no journal or APT caches, and no file of any unit in `/etc/piano`.
+It has no user account (Initial Setup creates the first one), an empty `/etc/machine-id`, no SSH
+host keys, developer mode off, no journal or APT caches, and no per-unit file in `/etc/piano`.
 
-The boot set is address-free: `build-persistent-boot.py --root-partlabel linux_rootfs --no-serial`
-without `--bt-address-file` or `--wlan-address-file`. Its command line is
+The boot set is address-free: its command line is
 
 ```
 root=PARTLABEL=linux_rootfs rootfstype=ext4 rw rootwait console=ttyMSM0,115200n8 log_buf_len=2M panic=15
-msm.separate_gpu_kms=1 piano.boot=persistent systemd.gpt_auto=0 bootconfig
+msm.separate_gpu_kms=0 piano.boot=persistent systemd.gpt_auto=0 bootconfig
 ```
 
-ABL appends `androidboot.serialno` and its other parameters itself, as on every boot. The DTB has
-no `local-bd-address` or `local-mac-address` property. The boot profile keeps only the fields of
-the stock build (header version, partition sizes, rollback indices, AVB properties, `vendor_boot`
-page size and load addresses).
+ABL appends `androidboot.serialno` and its other parameters itself. The DTB has no
+`local-bd-address` or `local-mac-address` property. The boot profile keeps only the fields of the
+stock build (header version, partition sizes, rollback indices, AVB properties, `vendor_boot` page
+size and load addresses).
 
 ## Per-unit and per-build inputs
 
 | Input | Scope | Where it goes | Without it |
 |---|---|---|---|
 | `bluetooth-address` | this unit | `/etc/piano/` | the Bluetooth controller stays unconfigured |
-| `wlan-address` | this unit (`wlan/wlan_mac.bin` on `persist`) | `/etc/piano/` | a random Wi-Fi MAC address on every boot: the WCN7860 reports an all-zero address and ath12k (7.2.6-piano4 and later) falls back to a random one unless the boot DTB carries the address |
+| `wlan-address` | this unit (`wlan/wlan_mac.bin` on `persist`) | `/etc/piano/` | a random Wi-Fi MAC address on every boot |
 | `thp-calibration.json` | this unit's panel | `/etc/piano/` | no touch input |
 | `boot-profile.json` | this unit (`serial`) and its stock build (the rest) | `/etc/piano/` | `piano-boot-update` keeps the prebuilt set; `piano-boot-switch` refuses |
 | `boot-signing.pem` | the owner | `/etc/piano/` | `piano-boot-update` keeps the prebuilt set |
-| `boot-partitions.json` | this unit's GPT (`tools/extract-boot-partitions.py`) | `/etc/piano/` | `piano-boot-switch` refuses; on a persistent boot, kernel and initrd updates leave the set and slot A unchanged (piano-device-support 0.1+20261010.6 and later) |
+| `boot-partitions.json` | this unit's GPT (`tools/extract-boot-partitions.py`) | `/etc/piano/` | `piano-boot-switch` refuses; kernel and initrd updates leave the set and slot A unchanged |
 | Android set (`boot_a`, root-patched `init_boot_a`, `vendor_boot_a`) | this unit | `/var/lib/piano/switch/android/` | switching to Android from Ubuntu is refused; use Fastboot |
 | stock base DTB (`vendor_boot_a`) and DTBO entry (`dtbo_a`) | the stock build | `prepare-boot-dtb.py`, then the kernel package | needed only to build a kernel package |
 
@@ -90,28 +79,27 @@ another stock build, prepare the DTB and the set from your own images.
 ## Building a release
 
 Host tools, none run as root: `dpkg-deb`, `python3-debian`, `img2simg`, `sgdisk`, `openssl`, `zip`,
-QEMU `qemu-system-aarch64` (TCG), squashfs-tools-ng 1.2 `sqfs2tar`, and e2fsprogs 1.47.4
-`mke2fs`/`e2fsck`/`debugfs`/`dumpe2fs` built with libarchive (the identity is recorded in the manifests).
+`zstd`, QEMU `qemu-system-aarch64` (TCG), squashfs-tools-ng 1.2 `sqfs2tar`, and e2fsprogs 1.47.4
+`mke2fs`/`e2fsck`/`debugfs`/`dumpe2fs` built with libarchive (the identity is recorded in the
+manifests). A full root image build takes about 45 minutes on an eight-core host.
 
 ```bash
-# 1. Ubuntu packages added to the base, from a signed snapshot; fake-hwclock is a dependency of
-#    piano-ubuntu-desktop 0.1+20261010.6, systemd-zram-generator only for a kernel with CONFIG_ZRAM
-#    (7.2.6-piano7 and later; build-rootfs-image.py refuses a mismatch)
+# 1. Ubuntu packages added to the base, from a signed snapshot
 python3 tools/prepare-ubuntu-apt.py --rootfs out/ubuntu-desktop-pristine/ubuntu-desktop.squashfs \
-  --snapshot 20261001T000000Z --output out/apt-release --mozilla-firefox \
+  --snapshot <YYYYMMDDT000000Z> --output out/apt-release --mozilla-firefox \
   --download dracut device-tree-compiler openssh-server fake-hwclock systemd-zram-generator
-# 2. The piano packages (AGENT-GUIDE.md §3.4, §3.5)
-# 3. The root image and the boot set; measured stage times are recorded below
+# 2. The project packages (AGENT-GUIDE.md §3.4, §3.5)
+# 3. The root image and the boot set
 python3 tools/build-rootfs-image.py \
   --squashfs out/ubuntu-desktop-pristine/ubuntu-desktop.squashfs --squashfs-sha256 <sha256> \
   --sqfs2tar <sqfs2tar> --mke2fs <mke2fs> --mke2fs-config <mke2fs.conf> --e2fsck <e2fsck> --debugfs <debugfs> \
-  --dumpe2fs <dumpe2fs> --qemu <qemu-system-aarch64> --kernel-deb out/kernel-deb-<N>/linux-image-<release>_*.deb \
-  --deb <piano-device-support.deb> --deb <piano-local-firmware.deb> --deb <piano-mesa.deb> --deb <piano-ubuntu-desktop.deb> \
+  --dumpe2fs <dumpe2fs> --qemu <qemu-system-aarch64> --kernel-deb <linux-image deb> \
+  --deb <each project deb> ... \
   --apt-manifest out/apt-release/manifest.json \
   --boot-profile <boot-profile.json read from a stock unit> --boot-key <release signing key> \
   --output out/rootfs-<version>
 # expect "state": "ROOT_IMAGE_BUILT_OFFLINE_CHECKS_PASS_NOT_BOOTED"
-# 4. Boot the image in QEMU towards multi-user.target (optional; under TCG, snap seeding exceeds 20 minutes)
+# 4. Boot the image in QEMU towards multi-user.target (optional; slow under TCG)
 python3 tools/check-rootfs-boot.py --rootfs-build out/rootfs-<version> --qemu <qemu-system-aarch64> \
   --debugfs <debugfs> --mke2fs <mke2fs> --output out/rootfs-<version>-boot
 # 5. The maintenance RAM image of the same kernel package (AGENT-GUIDE.md §4.6), address-free
@@ -119,174 +107,60 @@ python3 tools/build-persistent-boot.py --maintenance --no-serial --kernel <vmlin
   --kernel-release <release> --dtb <piano-boot.dtb of the package> --initrd out/maintenance-initramfs/initramfs.cpio.gz \
   --profile out/rootfs-<version>/boot-profile.json --mkbootimg tools/local/aosp-mkbootimg/mkbootimg.py \
   --output out/maintenance-ram-<version>
-# 6. The release directory
+# 6. The release directory, with the hand-written change list for the notes
 python3 tools/build-release.py --rootfs-build out/rootfs-<version> \
   --boot-check out/rootfs-<version>-boot/result.json --maintenance out/maintenance-ram-<version> \
+  --changes packaging/release/changes/<version>.md \
   --forbid-file <your bluetooth-address> --forbid-file <your wlan-address> --forbid-file <your boot-profile.json> \
   --output out/release-<version>
 (cd out/release-<version> && sha256sum -c SHA256SUMS)
 ```
 
-- `build-rootfs-image.py` streams the SquashFS through `sqfs2tar` into `mke2fs -d -` at the full
-  partition size, then boots a QEMU ARM64 guest whose root is the same SquashFS, read-only. The guest
-  runs [tools/rootfs-image-guest.sh](../tools/rootfs-image-guest.sh) as root on the target attached as
-  a second disk, which never boots. The release key reaches the guest only on a temporary input disk
-  and a tmpfs; the input disk is deleted afterwards.
-- The boot profile you pass is reduced to the stock-build fields before use; the unit's serial,
-  slot observations and image hashes are dropped and its hash is not recorded.
-- The tool then runs `e2fsck -fn`, checks the finished image with `debugfs` (`verification.json`:
-  packages, accounts, machine ID, SSH host keys, `/etc/piano`, fstab, units, kernel files, the store set,
-  file capabilities; from the 7.2.6-piano7 build also `only_piano_kernel`, `boot_only_piano_files`,
-  `zram_generator_matches_kernel`, `device_hostnames`, `fake_hwclock_data`, `apt_lists_empty` and the
-  fake-hwclock units; the guest itself fails if another kernel package, `/boot` file or modules tree
-  remains or `apt autoremove` would still remove a package), and writes `root.sparse.img`,
-  `SHA256SUMS` and `manifest.json`. Root identity is the SHA-256 of `root.sparse.img`;
-  `outputs["root.ext4"]` records only raw size and allocated bytes, and `SHA256SUMS` lists only
-  the sparse image. The optional QEMU receipt uses `rootfs_sparse_sha256`, which release assembly
-  compares with `outputs["root.sparse.img"]["sha256"]`; old raw-hash receipts must be regenerated.
-  The image is not byte-reproducible: dpkg and dracut record times,
-  and dracut initrds differ between runs.
-- `--forbid-file` makes `build-release.py` scan every output for identifiers of your unit (serial,
-  Bluetooth and Wi-Fi address in text and binary forms). The files are read, never copied or recorded;
-  the scan does not see inside compressed files.
-- `root.sparse.img` comes from [tools/sparse_image.py](../tools/sparse_image.py) `encode-ext4`: the
-  holes of `root.ext4` are made exactly its zero free blocks (zeros are written into holes of used
-  blocks such as the inode tables and journal, which ext4 trusts to be zero). The encoder reads
-  8 MiB at a time and writes the same RAW/FILL/DONT_CARE bytes as `img2simg -s`, merging runs
-  across read boundaries and filling in chunk headers after streaming their payload; the bytes of `root.ext4` do not change. Fastboot writes RAW and FILL
-  blocks only, so the tablet writes the used blocks (about 9.4 GiB for v0.1.0-preview) instead of
-  60 GiB. Blocks freed in the guest keep their old content and would be RAW, so the guest ends with
-  `fstrim` on the target, which QEMU opens with `discard=unmap`: on the root of a 7.2.6-piano7 check
-  build, 51.9 GiB trimmed, RAW on free blocks 0, device writes 8.73 GB instead of 10.14 GB without the
-  trim (7.2.6-piano6 root: 10.07 GB). The build stops if a DONT_CARE block is in use or more than
-  64 MiB of FILL lies on free blocks, and records the summary in `manifest.json` (`sparse`).
-- `build-release.py` prints what Fastboot writes for every image and stops on the same rules (for the
-  root, the recorded summary must match the file's chunks; `--allow-fill` only reports). Before
-  flashing, `python3 tools/sparse_image.py summary <image>...` prints the same totals. It hard-links
-  the root image, so the release directory must be on the same filesystem as the build.
+- `build-rootfs-image.py` streams the SquashFS into `mke2fs -d -` at the full partition size,
+  then boots a QEMU ARM64 guest that installs the packages into the target disk
+  ([tools/rootfs-image-guest.sh](../tools/rootfs-image-guest.sh)). The release key reaches the
+  guest only on a temporary input disk that is deleted afterwards. The boot profile is reduced to
+  the stock-build fields; the unit's serial and observations are dropped.
+- The tool runs `e2fsck -fn`, checks the finished image with `debugfs` (`verification.json`:
+  packages, accounts, machine ID, SSH host keys, `/etc/piano`, fstab, units, kernel files, the store
+  set, only the project kernel, no APT indexes), trims the free blocks, and writes `root.sparse.img`
+  with [tools/sparse_image.py](../tools/sparse_image.py): free blocks become DONT_CARE, so Fastboot
+  writes only the used blocks (about 9 GB) instead of 60 GiB. The build stops if a DONT_CARE block
+  is in use or more than 64 MiB of FILL lies on free blocks. The image is not byte-reproducible
+  (dpkg and dracut record times).
+- `build-release.py` checks that the boot set carries no unit identity (no serial on the command
+  line, no address properties in the DTB, stock-only profile), prints what Fastboot writes for every
+  image, and with `--forbid-file` scans every output for your unit's serial and addresses (the
+  files are read, never copied or recorded; the scan does not see inside compressed files). It
+  hard-links the root image, so the release directory must be on the same filesystem as the build.
 
-## Installing the release
+Before publishing, install the release from scratch on a tablet following INSTALL and run
+`tools/piano-cold-boot-accept.py` against the installed system; the result is recorded in
+[STATUS.md](STATUS.md).
 
-Manual in v0.1. The owner's step-by-step guide is [INSTALL.md](INSTALL.md); it follows
-[AGENT-GUIDE.md](AGENT-GUIDE.md) §4 with these changes:
+## Publishing
 
-1. §4.1–§4.3 unchanged: prerequisites, backup, and your per-unit inputs.
-2. §4.4 is replaced by the release files: no root build on the host. Create the data image for your
-   `linux_data` size (`fastboot getvar partition-size:linux_data`):
-   ```bash
-   truncate -s <linux_data bytes> data.ext4
-   mkfs.ext4 -L linux_data data.ext4 && img2simg -s data.ext4 data.sparse.img
-   ```
-3. §4.5–§4.6 unchanged (§4.6 in `boot/boot-ram-maintenance.img`), except that the GUIDs of `linux_rootfs` and `linux_data` may be any new
-   values: the release finds both partitions by name. The names must be exactly `linux_rootfs` and
-   `linux_data`.
-4. §4.7 with `rootfs/root.sparse.img` for `linux_rootfs` and `data.sparse.img` for `linux_data`.
-5. Optionally `fastboot -s <SERIAL> boot boot/boot-ram-check.img` to check the installed root before
-   writing slot A (a normal boot without a debug console; it returns to Fastboot only by Power + Volume Down).
-6. §4.9 from the host: `python3 tools/piano-switch.py --serial <SERIAL> --images boot --rollback <android-set>`,
-   then `fastboot -s <SERIAL> reboot`. GNOME Initial Setup creates the first account; the slot is
-   marked successful after the boot (the release set is in the store).
-7. In Ubuntu, install your files (root, mode 0600) and the Android set, then rebuild the boot set:
-   ```bash
-   sudo install -m 600 bluetooth-address wlan-address thp-calibration.json boot-profile.json \
-     boot-signing.pem boot-partitions.json /etc/piano/          # boot-partitions.json: §4.8
-   sudo piano-boot-switch import-android --from <android-set>
-   sudo piano-boot-update <release>
-   # expect "Piano boot image set prepared for <release>" and "Slot A now holds store/ubuntu"
-   ```
-   The new set carries your addresses, serial and key; the release set becomes `ubuntu.prev`.
-   Reboot, then `sudo piano-boot-switch verify`.
+GitHub limits a release asset to 2 GiB, so the release directory is repackaged into a fixed set of
+assets by `tools/package-release-assets.py`:
 
-Until step 7, Bluetooth, touch and switching from Ubuntu are unavailable, Wi-Fi uses a random MAC
-address, and kernel package updates leave the boot set unchanged. Use the magnetic keyboard for Initial Setup.
+| Asset | Content |
+|---|---|
+| `piano-ubuntu-<version>-boot.zip` | `boot/` (the slot-A set, the RAM check and maintenance images, manifests) and the directory's `SHA256SUMS` |
+| `piano-ubuntu-<version>-tools.zip` | `tools/` (`piano-switch.py`, the KernelSU module) |
+| `piano-ubuntu-<version>-packages.zip` | `debs/` (the upgrade package, see [UPGRADE.md](UPGRADE.md)) |
+| `piano-ubuntu-<version>-rootfs.img.zst.part0`, `.part1`, … | `rootfs/root.sparse.img`, zstd-compressed and split below 2 GiB |
+| `SHA256SUMS.assets` | hashes of the assets above |
 
-## Verification status
+```bash
+python3 tools/package-release-assets.py --release out/release-<version> --output out/release-<version>-assets
+python3 tools/package-release-assets.py verify --assets out/release-<version>-assets   # restores and checks the directory
+git tag -a <version> -m "<version>"; git push origin <version>
+gh release create <version> --title "Ubuntu for Xiaomi Pad 8 Pro <version>" \
+  --notes-file out/release-<version>/RELEASE-NOTES.md out/release-<version>-assets/*
+```
 
-- v0.1.0-preview is built from 7.2.6-piano5. Its offline checks (`rootfs/verification.json`) and the
-  identity scan cover the image and the boot set as files.
-- On the test unit, 7.2.6-piano4 booted as a RAM boot with the partition-name root and the
-  serial-free command line of an address-free set, and the random Wi-Fi MAC fallback worked; Wi-Fi
-  scanning found 2.4 GHz and 5 GHz networks.
-- QEMU: no boot was run for the piano5 build. An earlier build of the same pipeline with
-  7.2.6-piano3 (TCG, `apparmor=0`, 20 minutes) found and checked `linux_rootfs` by name and mounted
-  `/home` from `linux_data`; the only failed unit was `piano-slot-success` (expected: QEMU is not
-  piano), and `multi-user.target` was still waiting for Ubuntu's first-boot `snapd.seeded.service`.
-- On the test unit (2026-10-10), `boot/boot-ram-maintenance.img` (`21f3a043…`, 7.2.6-piano5,
-  serial-free) booted from RAM: NCM link after 4 s, six LUNs, LUN 0's `sgdisk -p`, `sfdisk --json` and
-  `sgdisk --verify` matching the installed table, nothing mounted, and the idle timer rebooted it
-  into Fastboot by itself. No write was run from it.
-- On the test unit (2026-10-10), the release's `boot/boot-ram-check.img` (7.2.6-piano5, address-free,
-  serial-free) booted from RAM against the installed root: developer-mode SSH after 16 s, root
-  `/dev/sda35` found by `PARTLABEL=linux_rootfs`, `/home` on `linux_data`, no `local-mac-address` or
-  `local-bd-address` in the live devicetree, ath12k "using a random one" for the all-zero MAC, system
-  running with 0 failed units; the acceptance tool (profile debug) passed every criterion except
-  `hci0_up`, expected without a Bluetooth address. It returned to Fastboot with
-  `piano-reboot-bootloader`.
-- 2026-10-11, offline: a check build of the root with 7.2.6-piano7, piano-device-support
-  0.1+20261010.7 and piano-ubuntu-desktop 0.1+20261010.6 (integration `26b3a8e`) passed every offline
-  check (`ROOT_IMAGE_BUILT_OFFLINE_CHECKS_PASS_NOT_BOOTED`); the `fstrim` step (`391ab9c`) was measured
-  on that build's `root.ext4`.
-- 2026-10-11, offline: the first complete build of this pipeline with 7.2.6-piano7,
-  piano-device-support 0.1+20261010.7 and piano-ubuntu-desktop 0.1+20261010.7 (root built at
-  integration `e2807ba`) passed every offline check; Fastboot writes 8,752,504,832 B for its
-  `root.sparse.img` (`4dec44ac…`; no FILL and 18.6 MB of RAW on free blocks). It has not been booted,
-  in QEMU or on a tablet.
-- The v0.1.0-preview release artefacts (piano5 root) were installed from scratch on the test unit twice on 2026-10-10 (INSTALL steps 1, 6, 7, 8a, 9, 10, Initial Setup, switching, cold-boot acceptance); the piano7 build above has not been flashed yet.
-
-## Measured root build time (2026-10-11)
-
-The SPEED2 build used the same preview-5 inputs: Desktop SquashFS `35f9b475e79de3ba…`,
-APT snapshot `20261001T000000Z` (manifest `b62fc78752154a7e…`), kernel 7.2.6-piano7,
-support 0.1+20261010.8, desktop 0.1+20261010.7, firmware 0.4+os3.0.303.0, and Mesa
-0.1+20261010.4. Input hashes and the complete 1,717-row dpkg inventory matched.
-The host used ARM64 full-system TCG, eight virtual CPUs and 4096 MiB guest RAM.
-Other host jobs and changing disk load make this an observed comparison, not an isolated benchmark.
-Only one complete SPEED2 build was run; there is no distro cache layer.
-
-The builder prints host laps and guest milestones. `guest-profile.jsonl` uses the host monotonic
-clock for package/trigger/dracut boundaries; `manifest.json` retains the stage times.
-
-| Stage | Prior instrumented build (s) | SPEED2 (s) |
-|---|---:|---:|
-| Base scan | 21.4 | 23.2 |
-| Populate ext4 | 415.1 | 116.8 |
-| Guest, including input preparation/startup/shutdown | 1864.5 | 2315.6 |
-| e2fsck | 1.1 | 1.4 |
-| Root checks | 1.2 | 1.9 |
-| Sparse conversion | 173.1 | 155.6 |
-| Image hashes | 175.4 | 25.3 |
-| Total | 2662.4 | 2650.9 |
-
-**The 25-minute target was missed:** 44 min 10.9 s, only 11.5 s less than the prior build.
-The total includes input verification outside the listed laps. The guest took 451.1 s longer;
-its purge stage was 509.5 s (previously about 414.5 s), and its one dracut generation took
-979.1 s (the previous kernel trigger including dracut took about 850 s).
-Reordering did not remove that cost. Both builds generated one piano7 initrd; the new build
-proves that all 47 removed packages reached `not-installed` before the piano kernel installation.
-`dpkg.log` has no separate `purge` action for packages without remaining conffiles.
-
-The root now hashes only `root.sparse.img`: the hash lap fell from 175.4 s to 25.3 s.
-A separate full-image encoder comparison on the same expanded preview-5 `root.ext4` took
-402.324 s with `git show main:tools/sparse_image.py` and 355.745 s with the new encoder
-(excluding the subsequent SHA comparison). Both outputs were 7,580,046,304 bytes with SHA-256
-`09726cacf654666b02aaa9510f349df01e2bae35ac3f3d740c219aaa9d71eea7`.
-The encoder preserves libsparse's 64 MiB RAW/FILL chunk limit as well as its block classification.
-The finished SPEED2 root passed all 31 checks (the original 29 plus main's two locale checks),
-with zero FILL bytes on free blocks and zero DONT_CARE bytes on used blocks.
-
-The performance reference predates main's Chinese locale default (`c0c17fb`). SPEED2 retains
-that default; it cannot be described as differing from preview-5 only in console-setup's random
-tmpkbd filename. The full filesystem comparison also found the two empty kernel-trigger directories
-left by installing the piano kernel last, plus build logs/time data and generated boot files.
-The initrd lost ten non-tmpkbd members formerly supplied by purged packages: `kexec`, `fsck.ubifs`,
-`liblzo2` and development-library links, and the generic-kernel blacklist; its `ld.so.cache` changed.
-The requested strict content identity gate therefore did not pass.
-
-Cold QEMU boot with each image's own kernel/initrd and GPT partition labels was tested before
-and after the change, using the isolated `kernel-command-line.target`. The preview-5 control
-passed in 323.9 s. The first SPEED2 boot mounted root and enabled zram, but timed out waiting
-for `linux_data` and entered emergency mode. A single replay with the same immutable disks
-and identical QEMU settings passed in 286.9 s, with root/home mounted, zero failed units and a
-clean poweroff. The first failure remains evidence; repeatability and its cause are unresolved.
-Neither full GNOME/multi-user startup nor any tablet behavior was verified in this task.
-No release was published, and the performance/content gates are not declared accepted.
+Users restore the directory with the commands in the release notes and verify it with
+`sha256sum -c SHA256SUMS`. Nothing else is uploaded: the packages are inside `packages.zip`, and
+the BusyBox source for the maintenance image is referenced by its Ubuntu source package in the
+notes. Tag the kernel repository with the same version at the commit recorded in
+`kernel/source.json`.

@@ -1,17 +1,17 @@
 # piano 传感器产品集成
 
-适用于 Ubuntu 26.04 ARM64、带 secure ADSP FastRPC/QRTR 的 piano 内核（本次用户原始 SSC 验证为
-`7.2.6-piano8`）。2026-10-12 用户在全新启动上用 v4 获得加速度/陀螺各 132 样本、光感 2、
-距离 1，静止加速度模长中位数 9.86 m/s²，pristine registry 未变。本包是该实现的产品集成，
-用户已证实 `.1` 两服务启动、`HasAccelerometer=true`；底座横屏时方向错误为 `right-up`、
-`PanelOrientationManaged=false`，光感未发现。`.2` 修正显示坐标矩阵；**四向旋转、脱离底座后的门控
-和自动亮度仍待用户真机验证**。本次修正仅在主机验证。
+适用于 Ubuntu 26.04 ARM64、带 secure ADSP FastRPC/QRTR 的项目内核。独立 SSC 检查在
+全新启动上获得加速度/陀螺各 132 个样本、光感 2 个、距离 1 个；静止加速度模长中位数为
+9.86 m/s²，pristine registry 未变。产品集成的设备检查确认两个服务可启动，
+`HasAccelerometer=true`，但底座横屏方向错误为 `right-up`、`PanelOrientationManaged=false`，
+且未发现光感。当前版本修正了显示坐标矩阵，该修正仅通过主机验证；
+**四向旋转、脱离底座后的门控和自动亮度仍需真机验证**。
 
 ## 包和边界
 
-- `piano-sensors 0.1+20261012.2`：上游 hexagonrpc 0.5.0 固定提交及六个锁定补丁，包含原样导入的
+- `piano-sensors`：上游 hexagonrpc 0.5.0 固定提交及六个锁定补丁，包含原样导入的
   `f0dfd5095d3b7defc3b368f227337bfc6d6aef42` large-in-bufs 提交；独立的 systemd/udev 集成。
-- `piano-iio-sensor-proxy 3.9+piano20261012.2`：固定 iio-sensor-proxy 3.9、libssc 0.4.4，保留
+- `piano-iio-sensor-proxy`：固定 iio-sensor-proxy 3.9、libssc 0.4.4，保留
   `libssc/sensorproxy.json` 全部五个补丁（现有文件编号为 0003、0004、0005、0006、0001，未重编号，
   0004 保留）。标准 `net.hadess.SensorProxy`、`iio-sensor-proxy.service` 和 `monitor-sensor` 不改名。
   使用 `Provides: iio-sensor-proxy (= 3.9)`、`Conflicts/Replaces: iio-sensor-proxy` 接管同一服务，
@@ -27,9 +27,9 @@
 
 `firmware/sensors/` 的 66 个文件来自 OS3.0.303.0.WPYCNXM ROM 的 ODM/vendor 配置树。
 已检查它们为静态配置而非 persist 数据；没有序列号/MAC，配置中的 fac_cal 是 ROM 默认值。
-按 2026-10-12 用户要求沿用 `firmware/` 政策公开：**没有已确立的再分发许可，应权利方要求移除**，
+经设备所有者授权，沿用 `firmware/` 政策公开：**没有已确立的再分发许可，应权利方要求移除**，
 它们不因集成仓 MIT 而被重新授权。逐文件来源/hash 在 `firmware/sensors/source.json`。
-不额外装 Android Java HAL 库；v4 中缺失的 oemconfig.so/部分 json 仍可能有非致命日志，不伪造文件。
+不额外装 Android Java HAL 库；诊断中缺失的 oemconfig.so/部分 json 仍可能有非致命日志，不伪造文件。
 
 persist registry 即使不含序列号/MAC，也含每台设备唯一的传感器 `fac_cal`，**不能入公开仓、通用包，
 也不能借用其他平板的副本**。可选工具 `tools/stage-sensor-registry.py` 只消费用户自己的已提取备份，
@@ -82,10 +82,10 @@ sudo reboot
 不使用私有标定也须 `sudo reboot` 后再测。若已经生成状态，先停止两个服务，将旧状态目录移到自己选定的
 备份位置，再装私有种子并正常重启；不要删除原备份、不要把含校准的目录发到公开 issue。
 
-## 从 .1 升级与一次检查脚本
+## 升级与检查脚本
 
 矩阵的唯一权威位置是 `packaging/piano-sensors/usr/lib/udev/rules.d/81-piano-sensors.rules`，
-所以要升级 **两个包**：`piano-sensors .2` 更新规则，`piano-iio-sensor-proxy .2` 更新检查脚本及精确依赖。
+所以要升级 **两个包**：`piano-sensors` 更新规则，`piano-iio-sensor-proxy` 更新检查脚本及精确依赖。
 代理/SSC/hexagonrpc 的 ELF 和原厂配置字节不变；不修改触控、Mutter 或键盘开关。
 在平板交付目录执行：
 
@@ -106,7 +106,7 @@ sudo reboot
 ```
 
 同一用户的 SSH 终端也可运行，脚本按当前 UID 选择用户 bus 并核对 seat0 的活动 Wayland 会话。
-它只为输入设备信息/开关 ioctl/libinput/system journal 请求 sudo，修正此前普通用户读 event3 的权限失败；
+它只为输入设备信息/开关 ioctl/libinput/system journal 请求 sudo，以取得所需读取权限；
 不抓取按键、不设置开关、不改 gsettings、不重启服务。日志留在本地，不直接公开。
 `libinput list-devices` 是独立上下文的能力检查，并非读取 Mutter 私有 seat；最终以 Mutter 属性及实屏为准。
 缺少 `libinput-tools` 会标为未采集并返回非零，不伪报通过。
@@ -170,11 +170,11 @@ Ubuntu 已保存的 systemd 259.5 `udev-builtin-input_id.c` 按 MT 坐标和 dir
 现有证据没有其实际 udev/libinput 输出，所以保留脚本验证；不加入无证据的强制分类规则。
 若未来证实确有缺项，THP 服务及输入规则的所有者是 `piano-device-support`，不是传感器代理。
 
-## 显示坐标矩阵：.2 的修正与剩余不确定性
+## 显示坐标矩阵与验证边界
 
 SensorProxy 按行计算 `a_display = M * a_SSC`。以给定底座样本 `(7.1,-0.1,4.9)` 为例：
 旧 `diag(-1,-1,+1)` 得 `(-7.1,0.1,4.9)`，因此为 right-up；应当使主分量成为显示的负 Y。
-`.2` 使用绕 Z 的正交旋转（det=+1，保留 Z）：
+当前版本使用绕 Z 的正交旋转（det=+1，保留 Z）：
 
 ```text
 ACCEL_MOUNT_MATRIX="0, 1, 0; -1, 0, 0; 0, 0, 1"
@@ -186,7 +186,7 @@ Z =  z
 
 这里只修正 **SSC 已输出的坐标→Linux 原生横屏**，不更改 Android JSON，不重复叠加 Android
 `diag(-1,-1,+1)`。原厂 Android 的显示坐标约定不能直接用作 Linux 的最终矩阵。
-输入的约数本身模长约 8.63；v4 全序列的 9.86 是另一个统计值，不把两者当作同一精确样本。
+输入的约数本身模长约 8.63；独立 SSC 检查全序列的 9.86 是另一个统计值，不把两者当作同一精确样本。
 
 单个几乎 y=0 的姿态约束 `Y=-x`，不足以实测确认 `X=+y` 还是 `X=-y`；两者在此姿态均可 normal，
 却会交换 left-up/right-up。保留 `Z=+z` 且要求右手纯旋转时，`X=+y` 是 det=+1 的选择；
@@ -194,9 +194,9 @@ Z =  z
 不能只凭一次姿态断言左右已经正确。若 top/bottom 正确而 left/right 互换，保存四向结果后再修正符号。
 触控历史的 90° 修正不是本矩阵证据；若仅触点偏转，独立定位触控坐标，不盲改传感器补偿。
 
-`HasAmbientLight=false` 是当前包的独立未闭合发现问题；`.2` 不宣称修复。服务 active 或早期 SSC
+`HasAmbientLight=false` 是当前包尚未解决的传感器发现问题；坐标矩阵修正不解决该问题。服务 active 或早期 SSC
 取得一份 light 样本并不保证 SensorProxy light discovery 成功。可另保留
-`monitor-sensor --light` 与 journal，在后续光感任务定位；本轮不据此改变旋转结论。
+`monitor-sensor --light` 与 journal，供光感问题定位；旋转行为需独立验证。
 
 服务由 secure FastRPC udev 事件或正常启动触发；准备程序核对 piano DT、ADSP running、最多等待
 QRTR 400 五秒。失败时保留 journal 后正常重启，不用自动重试或反复重启 hexagonrpcd。
@@ -236,4 +236,4 @@ python3 tools/build-sensors-debs.py \
 ARM64 GLib/QMI/protobuf-c/GUdev/polkit 开发库及主机 protoc/protoc-gen-c/GLib 生成工具；
 SensorProxy Python 模拟测试在 ARM64 guest 中运行，需 gi/dbusmock/psutil/UMockdev。完整 source commit/patch/config hash、工具版本和
 包文件清单在输出 `manifest.json`；构建日志在 `build/`。不自动安装到主机、不访问设备。
-本次离线结果另见交付目录 `verification.json`；模拟传感器与 QEMU 结果不等于 GNOME 真机验收。
+离线验证结果见交付目录 `verification.json`；模拟传感器与 QEMU 结果不等于 GNOME 真机验收。

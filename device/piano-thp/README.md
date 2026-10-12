@@ -15,7 +15,7 @@ The pinned kernel now contains an experimental `nt36532e-thp` misc transport,
 with its NTP1 contract and source provenance documented beside the driver.
 Firmware parsing and simulated register downloads pass ARM64 KUnit with the
 user-supplied piano image. The default board nodes do not enable it; only the
-supervised diagnostic DTB variant does, and with it P15 streamed 120 Hz frames
+supervised diagnostic DTB variant does; a device test with it streamed 120 Hz frames
 over physical SPI and IRQs. Neither this program nor a successful build enables
 hardware in a default image.
 
@@ -97,14 +97,14 @@ does not keep a stale finger down, and old queued records do not replay clicks.
 NTP1 timestamps must use the same CLOCK_BOOTTIME as the running Linux kernel.
 
 Input ranges come from the supplied calibration, transformed to the panel by
-`src/orientation.hpp`. In a supervised piano session (2026-10-07, landscape, USB
+`src/orientation.hpp`. In a supervised piano test (landscape, USB
 port on the right) a one-finger swipe from the left edge to the right edge raised
 processor X at constant Y, and a swipe from the top edge to the bottom edge lowered
 processor Y at constant X. The device therefore reports `ABS_MT_POSITION_X = X`
 along the 3200-pixel side (range `0..column_maximum - 1`) and
 `ABS_MT_POSITION_Y = row_maximum - 1 - Y` along the 2136-pixel side (range
-`0..row_maximum - 1`). An earlier reading of four corner taps had these two outputs
-swapped; the swipes replace it. This is a linear full-range mapping; edge linearity
+`0..row_maximum - 1`). The mapping follows the observed swipe directions.
+This is a linear full-range mapping; edge linearity
 and accuracy are unmeasured, and the corrected mapping has not yet been run on the
 device. If a later test contradicts the swipe evidence, `panelContact()` is the
 single place to change. Tracking IDs are allocated within 0..65535 without colliding with held contacts. Twelve

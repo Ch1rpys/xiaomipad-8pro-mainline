@@ -43,4 +43,4 @@ The installed rules start a bounded oneshot on a Xiaomi online edge; the
 kernel also emits an event when the SVID becomes available. Unknown SVID is
 left untouched. The charging policy belongs to the single `xiaomi_mca` kernel
 client. USBC_PAN ACKs belong to `pmic_glink_altmode`; no second owner is added.
-See [the one-boot test](../../../docs/CHARGING-TEST.md) for limits and recovery.
+Charging control is unverified; see [docs/STATUS.md](../../../docs/STATUS.md).

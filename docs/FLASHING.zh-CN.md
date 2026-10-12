@@ -55,8 +55,6 @@ telnet 192.168.88.2 2323                                              # root she
 工具：`sgdisk`、`sfdisk`、`lsblk`、`partx`、`blockdev`（Ubuntu 26.04 二进制）、BusyBox `dd`、`sha256sum` 和 `wget`。
 所有命令以 root 运行：你让 `dd`、`sgdisk`、`sfdisk` 写盘时它们就会写盘。
 
-这些真机结果来自 2026-10-10 的早期维护与发布构建：USB 连接、LUN 检查、原样重写既有 GPT、定时返回 Fastboot，以及预置本机文件。它们不代表本发布目录中的维护或启动镜像已经验证；这里的镜像使用 7.2.6-piano7，尚未在平板上启动。INSTALL.zh-CN.md 第 8a 步生成分区映射仅经过离线检查。
-
 ## 镜像组
 
 镜像组是一个目录，含 `boot.img`、`init_boot.img`、`vendor_boot.img`（均为完整分区大小）和列出这三个文件的 `SHA256SUMS`。
@@ -104,28 +102,23 @@ A 槽的 Android root 补丁变化后（例如从 Magisk 换成 KernelSU），�
 | `sudo piano-boot-switch import-android --from DIR` | 存储 | `"result": "imported"`；替换 `android/` |
 | `sudo piano-boot-switch import-ubuntu [--from DIR]` | 存储 | `imported`；原 `ubuntu/` 变为 `ubuntu.prev/` |
 
-- 本发布版的 piano-device-support 0.1+20261010.7 已包含所需修复。请完成 [INSTALL.zh-CN.md 第 10 步](INSTALL.zh-CN.md#10-安装本机文件)，安装本机文件。
+- 需要先完成 [INSTALL.zh-CN.md 第 10 步](INSTALL.zh-CN.md#10-安装本机文件)，装入本机文件。
 - 需要 `/etc/piano/` 中有本机的 `boot-profile.json` 和 `boot-partitions.json`；只在 A 槽为已知镜像组时写入，
   该镜像组同时作为回滚。每个分区都完整写入并读回；失败时写回原镜像组。
 - `"result": "refused"` 表示什么都没写，`code` 与 `message` 说明原因。
   `rollback-failed` 或 `final-mismatch`：不要重启，从 Fastboot 恢复（见下文）。
-- support 0.1+20261012.1 起，重启前列出 shutdown block inhibitor 的 who/why，
-  原样输出 systemctl 的 stderr。重启被拒时退出 1：A 槽仍为 Android，下一次启动将进入 Android。
-  保存工作后正常重启，或追加 `--reboot --force` 重跑以忽略 inhibitor（`systemctl reboot -i`）。
-  桌面入口使用 `--desktop --force`，入口说明和 polkit 提示均提醒先保存工作；不经过 GNOME 注销对话框。
-  本修复仅离线验证，未上机。
+- 重启前会列出阻止关机的进程（inhibitor）；重启被拒时退出 1，此时 A 槽已写入 Android，下一次启动将进入 Android。保存工作后正常重启，或用 `--reboot --force` 忽略 inhibitor。应用网格中的 **切换到 Android** 调用同一工具。
 - 测试机已验证：`status`、`verify`、两种导入、`to-ubuntu`、`to-android --reboot`。
-  应用网格中的 **切换到 Android** 调用同一工具，尚未验证。
 
 ## 在 Android 中：KernelSU 模块
 
-[硬件支持表](../README.zh-CN.md#硬件支持)中 Android 侧模块仍为未验证；验证前请使用下面的主机方式。
-发布目录中的 `tools/piano-switch-ksu-v0.1.0.zip` 需要带 shell root 的 KernelSU-Next、与 A 槽一致的已存储
+Android 侧切换已在测试机验证。
+发布目录中的 `tools/piano-switch-ksu-v0.2.0.zip` 需要带 shell root 的 KernelSU-Next、与 A 槽一致的已存储
 `android/` 镜像组，以及 Ubuntu 正常关机。
 
 ```bash
-adb -s <SERIAL> push "$RELEASE/tools/piano-switch-ksu-v0.1.0.zip" /data/local/tmp/
-adb -s <SERIAL> shell su -c '/data/adb/ksud module install /data/local/tmp/piano-switch-ksu-v0.1.0.zip'
+adb -s <SERIAL> push "$RELEASE/tools/piano-switch-ksu-v0.2.0.zip" /data/local/tmp/
+adb -s <SERIAL> shell su -c '/data/adb/ksud module install /data/local/tmp/piano-switch-ksu-v0.2.0.zip'
 adb -s <SERIAL> reboot
 adb -s <SERIAL> shell su -c 'sh /data/adb/modules/piano-switch/piano-switch.sh --check'
 # 预期 "CHECK OK: slot A holds the android set and the ubuntu set is ready; nothing written"
@@ -188,5 +181,5 @@ fastboot -s <SERIAL> getvar slot-retry-count:a    # 主机写入后为 7，每�
 
 ## 恢复原布局
 
-v0.1 中移除 Ubuntu 并恢复原分区表既无工具，也无已验证的流程；这类写入所需的环境是[维护 RAM 镜像](#维护-ram-镜像)。请保留 [INSTALL.zh-CN.md](INSTALL.zh-CN.md#2-备份)
+移除 Ubuntu 并恢复原分区表目前既无工具，也无已验证的流程；这类写入所需的环境是[维护 RAM 镜像](#维护-ram-镜像)。请保留 [INSTALL.zh-CN.md](INSTALL.zh-CN.md#2-备份)
 中的分区表备份和完整分区备份。

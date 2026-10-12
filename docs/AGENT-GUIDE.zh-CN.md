@@ -9,10 +9,10 @@
 
 - 主机命令在 Linux x86_64 主机上、于本仓库根目录执行。标为*平板上*的命令在平板的 shell 中执行。
 - `<SERIAL>` 为平板序列号（`adb devices`、`fastboot devices`），`<USER>` 为平板上的账户，
-  `<release>` 为内核 release（如 `7.2.6-piano2`），`<N>` 为其 ABI 编号。
+  `<release>` 为项目内核包的 release，`<N>` 为其 ABI 编号。
 - `# 预期` 注释给出预期输出。
 - 状态用语：*已在测试机上验证*；*尚未在设备上验证*；*尚不可用*（没有相应工具）；
-  *v0.1 手工步骤*（使用标准命令，尚无项目工具）。
+  *手工步骤*（使用标准命令，尚无项目工具）。
 
 ## 1. 范围与安全规则
 
@@ -127,7 +127,7 @@ release 为 `<version>-piano<ABI>`。被打包内核的提交或最终 `.config`
 ### 3.3 启动 DTB
 
 ABL 把原厂 DTBO 叠加到启动 DTB 上；`prepare-boot-dtb.py` 为此处理桌面 DTB。它需要本机的原厂基础 DTB
-（来自 `vendor_boot_a`）和 DTBO 条目（来自 `dtbo_a`）；从备份镜像中提取这两项是 v0.1 手工步骤。
+（来自 `vendor_boot_a`）和 DTBO 条目（来自 `dtbo_a`）；从备份镜像中提取这两项是 手工步骤。
 
 ```bash
 python3 tools/prepare-boot-dtb.py \
@@ -237,7 +237,7 @@ python3 tools/build-persistent-boot.py \
 Mesa 构建 manifest；镜像组的 `manifest.json` 与 `SHA256SUMS`；initrd 的 SHA-256。dracut initrd 不可复现，
 因此其余输入相同时 `vendor_boot.img` 在不同构建间也不同。
 
-## 4. 全新安装（v0.1 手工步骤）
+## 4. 全新安装（手工步骤）
 
 分区与根文件系统安装器尚不可用。以下步骤用标准命令复现测试机（512 GB UFS）的安装。使用发布目录时，发布的根文件系统镜像与启动镜像组代替 §4.4 和 §3.6 的镜像组，改动见 [RELEASE.md](RELEASE.md#installing-the-release)。
 
@@ -257,7 +257,7 @@ fastboot -s <SERIAL> reboot
 
 读取分区需要 Android root（Magisk 或 KernelSU-Next，位于已修补的 `init_boot_a`）。
 
-### 4.2 备份（v0.1 手工步骤）
+### 4.2 备份（手工步骤）
 
 备份除 `userdata` 外的全部分区，以及每个 UFS LUN 的两份 GPT。`adb exec-out` 可安全传输二进制，`adb shell` 不行。
 
@@ -285,12 +285,12 @@ adb -s <SERIAL> exec-out su -c 'dd if=/dev/block/sdX bs=4096 skip=<blocks-34> 2>
 | 文件 | 来源 | 命令 |
 |---|---|---|
 | `bluetooth-address` | 原厂 Android | `adb -s <SERIAL> shell settings get secure bluetooth_address > bluetooth-address`（一行 `XX:XX:XX:XX:XX:XX`；`piano-boot-update` 必需） |
-| `wlan-address`（可选） | 原厂 `persist` 分区中的 `wlan/wlan_mac.bin` | v0.1 手工步骤：一行单播 `XX:XX:XX:XX:XX:XX`；存在时 `piano-boot-update` 使用它 |
+| `wlan-address`（可选） | 原厂 `persist` 分区中的 `wlan/wlan_mac.bin` | 手工步骤：一行单播 `XX:XX:XX:XX:XX:XX`；存在时 `piano-boot-update` 使用它 |
 | `thp-calibration.json` | 原厂 ODM 分区中的 `piano_nova_csot_thp_config.ini`（测试机为 CSOT 面板；使用本机原厂驱动加载的那份） | `python3 tools/extract-thp-calibration.py --input <ini> --output thp-calibration.json` |
 | `boot-signing.pem` | 所有者新生成的密钥 | `openssl genrsa -out boot-signing.pem 4096` |
-| `boot-profile.json` | 原厂 `boot_a`、`init_boot_a`、`vendor_boot_a` | v0.1 手工步骤，见下 |
+| `boot-profile.json` | 原厂 `boot_a`、`init_boot_a`、`vendor_boot_a` | 手工步骤，见下 |
 | `boot-partitions.json` | 启动 LUN（LUN 4，即 GPT 含 `boot_a` 与 `boot_b` 的 LUN）的 `sfdisk --json` | `python3 tools/extract-boot-partitions.py --input <sfdisk json> --profile boot-profile.json --output boot-partitions.json`（§4.8；INSTALL 第 8a 步在维护镜像中读取分区表） |
-| 原厂基础 DTB、DTBO 条目 | `vendor_boot_a`、`dtbo_a` | v0.1 手工步骤（§3.3） |
+| 原厂基础 DTB、DTBO 条目 | `vendor_boot_a`、`dtbo_a` | 手工步骤（§3.3） |
 
 启动配置由 `build-persistent-boot.py` 读取；其生成工具尚不可用：
 
@@ -333,7 +333,7 @@ e2fsck -f out/install/root.ext4 && resize2fs out/install/root.ext4 60G
 # 预期 "The filesystem on out/install/root.ext4 is now 15728640 (4k) blocks long."
 ```
 
-在 ARM64 chroot 中安装软件包（v0.1 手工步骤；
+在 ARM64 chroot 中安装软件包（手工步骤；
 x86_64 主机需要带 binfmt 的 `qemu-user-static`）：
 
 ```bash
@@ -362,8 +362,8 @@ sudo cp backup/vendor_boot_a.img $A/vendor_boot.img
 
 sudo chroot $R dpkg-query -W dracut python3 openssl device-tree-compiler gdm3 linux-base
 # 须列出全部包名；缺少的包及其依赖，连同开发者模式（§7.1）所需的 openssh-server、
-# piano-ubuntu-desktop 0.1+20261010.6 依赖的 fake-hwclock，以及仅在内核含 CONFIG_ZRAM 时
-# （7.2.6-piano7 及以后）需要的 systemd-zram-generator，从签名快照下载：
+# 当前桌面包依赖的 fake-hwclock，以及仅在内核含 CONFIG_ZRAM 时
+# 需要的 systemd-zram-generator，从签名快照下载：
 python3 tools/prepare-ubuntu-apt.py --rootfs out/ubuntu-desktop-pristine/ubuntu-desktop.squashfs \
   --snapshot <YYYYMMDDTHHMMSSZ> --output out/apt-extra \
   --download device-tree-compiler openssh-server fake-hwclock systemd-zram-generator
@@ -376,7 +376,7 @@ sudo chroot $R env SYSTEMD_OFFLINE=1 DEBIAN_FRONTEND=noninteractive dpkg --insta
 sudo chroot $R dpkg --audit                    # 预期无输出
 ```
 
-内核有 zram 而未装 `systemd-zram-generator` 时没有交换；内核不含 `CONFIG_ZRAM`（7.2.6-piano6 及更早）却装了它时，
+内核有 zram 而未装 `systemd-zram-generator` 时没有交换；内核不含 `CONFIG_ZRAM` 却装了它时，
 启动为等待 `/dev/zram0` 多用 90 s（QEMU）。随后按 [tools/rootfs-image-guest.sh](../tools/rootfs-image-guest.sh) 对发布根的做法，
 设置平板主机名，清除底层的通用内核与 kdump（这些包会被更新并生成 initrd，却永远不会启动；下列为 26.04 Desktop 底层的包名，
 guest 按模式选取），并删除属于构建机镜像源的底层软件包索引：
@@ -421,12 +421,12 @@ mkfs.ext4 -U "$DATA_UUID" out/install/data.ext4 && img2simg -s out/install/data.
 ```
 
 不带参数的 `img2simg` 把全零块存为 FILL 块，Fastboot 仍会完整写入：根约 55 GB，引导程序回 `OKAY` 后在后台以约 30 MB/s
-写入（测试机 2026-10-10 为 1839 s）。`encode-ext4` 只把空闲块设为 DONT_CARE，已用的全零块（inode 表、日志）保留为 FILL：
+写入（测试机耗时 1839 s）。`encode-ext4` 只把空闲块设为 DONT_CARE，已用的全零块（inode 表、日志）保留为 FILL：
 发布根约写 9.4 GiB。`-s` 不写数据盘镜像的未用块。刷写前用 `python3 tools/sparse_image.py summary` 核对合计；根镜像保持构建原样（其字节即发布物）。
-`encode-ext4` 只把全零的空闲块设为 DONT_CARE，不做 `fstrim` 时清除的内核仍按 RAW 写入（发布根的一次 7.2.6-piano7 试构建：
+`encode-ext4` 只把全零的空闲块设为 DONT_CARE，不做 `fstrim` 时清除的内核仍按 RAW 写入（发布根构建样本：
 不 trim 写 10.14 GB，trim 后 8.73 GB）。
 
-### 4.5 新的 LUN 0 GPT（主机，v0.1 手工步骤）
+### 4.5 新的 LUN 0 GPT（主机，手工步骤）
 
 34 号条目 `userdata` 保留起点、类型 GUID、唯一 GUID 和属性，缩小到 200 GiB；35 号 `linux_rootfs`（60 GiB）和
 36 号 `linux_data`（其余空间）为新条目。其他条目和 LUN 不变。512 GB 机型的 LUN 0 有 124,552,192 个 4096 字节块。
@@ -466,7 +466,7 @@ sha256sum new-primary.bin new-backup.bin
 sudo losetup -d "$LOOP"
 ```
 
-### 4.6 写入 GPT（平板，v0.1 手工步骤）
+### 4.6 写入 GPT（平板，手工步骤）
 
 在维护 RAM 镜像中执行：发布目录的 `boot/boot-ram-maintenance.img`，或为其他内核包构建的同类镜像。它停留在
 initramfs 中（[initramfs/init](../initramfs/init) 的 `piano.diag=maintenance`），不挂载任何 UFS 分区，经
@@ -495,7 +495,7 @@ MAINTENANCE_INITRAMFS=out/maintenance-initramfs/initramfs.cpio.gz python3 tools/
 在运行中、`userdata` 已挂载的 Android 里写 GPT 尚未验证。
 
 脚本驱动该会话时不要发送 `stty -echo`：此后 BusyBox ash 经 stdio 读取预先送入的各行，管道末尾读标准输入的 applet
-（`cut`、`head`）会读到后续命令行而不是管道内容（测试机 2026-10-10 实测）。
+（`cut`、`head`）会读到后续命令行而不是管道内容（测试机上可复现）。
 
 *平板上*（`fastboot boot` 该镜像后 `telnet 192.168.88.2 2323`；登录时打印 LUN 表和 LUN 0 的 `sgdisk -p`；
 主机用 `python3 -m http.server --bind 192.168.88.10 8000` 提供两个文件）：
@@ -632,8 +632,8 @@ sudo piano-boot-switch verify                     # 预期退出码 0
 ```
 
 钩子重建 `/var/lib/piano/switch/ubuntu/`，把旧组移到 `ubuntu.prev/`；A 槽为 Ubuntu 镜像组时原位重写 A 槽，
-下次启动即使用新内核。缺 `boot-profile.json` 或 `boot-signing.pem`，以及持久启动中缺 `boot-partitions.json` 时
-（piano-device-support 0.1+20261010.6 起），钩子不改存储和 A 槽，退出码 0，并提示装好哪个文件后运行 `piano-boot-update <release>`。
+下次启动即使用新内核。缺 `boot-profile.json` 或 `boot-signing.pem`，以及持久启动中缺 `boot-partitions.json` 时，
+钩子不改存储和 A 槽，退出码 0，并提示装好哪个文件后运行 `piano-boot-update <release>`。
 A 槽为 Android 时，之后用 `sudo piano-boot-switch to-ubuntu` 写入新组：在运行中的 Ubuntu 中（§5.4）、在 Android 中用 KernelSU 模块（§6.2），或从主机写入（§6.3）。
 
 ### 5.3 重启并核对
@@ -650,7 +650,7 @@ sudo piano-slot-success --check       # 预期 "state": "already-successful"
 
 ### 5.4 写槽前先验证
 
-内核含启动相关改动时推荐；这是 7.2.6-piano2 验证过的顺序。
+内核含启动相关改动时推荐；这是经真机验证的顺序。
 
 1. 在 A 槽为 Android 时安装新包，钩子报告 `skipped`（例如在当前内核的调试 RAM 启动中安装）。
 2. 把 `/boot/vmlinuz-<new>`、`/boot/initrd.img-<new>`（平板上生成的 initrd）和
@@ -698,7 +698,7 @@ sudo apt-get purge linux-image-<old release>    # 删除残留的 depmod 索引�
   RAM 会话中执行 `sudo piano-boot-switch import-android`。否则 `to-android` 会写回旧的 `init_boot`。
 - 已在测试机上验证：`status`、`verify`、两种 import、`to-ubuntu`、`to-android --reboot`。尚未在设备上验证：
   应用网格中的 **切换到 Android**（`pkexec /usr/sbin/piano-boot-switch to-android --desktop --force`）以及写入失败后的回退。
-  support 0.1+20261012.1 起，桌面入口显式忽略重启 inhibitor，请先保存工作；CLI 默认尊重 inhibitor，
+  当前桌面入口显式忽略重启 inhibitor，请先保存工作；CLI 默认尊重 inhibitor，
   仅 `--reboot --force` 忽略。重启失败与下一次启动目标见[切换说明](FLASHING.zh-CN.md#在-ubuntu-中piano-boot-switch)。
 
 ### 6.2 在 Android 中：KernelSU 模块（尚未在设备上验证）
@@ -821,7 +821,7 @@ python3 tools/piano-devmode-ssh.py -t <USER> sudo piano-reboot-bootloader
 - 已在测试机的正式冷启动中验证。
 - 默认：发布镜像中关闭。安装过程打开它（[INSTALL.zh-CN.md](INSTALL.zh-CN.md) 第 8a 或 10 步），第 10 步最后执行
   `sudo piano-devmode off`，这是所有者为发布版定的做法。
-- 自 piano-device-support 0.1+20261010.7 起，套接字带 `BindToDevice=usb0`（NCM 功能的网络设备），并在
+- 当前设备支持包的套接字带 `BindToDevice=usb0`（NCM 功能的网络设备），并在
   `sys-subsystem-net-devices-usb0.device` 之后启动：仅凭地址时，经 Wi-Fi 到达 192.168.88.2 的连接也会被接受。
   QEMU 中经其他接口路由到该地址的对端被拒绝；尚未在平板上核对。NCM 设备若不叫 usb0，套接字不会启动（`piano-devmode status` 显示 inactive）。
 
