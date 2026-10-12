@@ -44,7 +44,7 @@ Steps that use standard commands because no project tool exists yet are marked *
 v0.2.0 is currently a locally built directory, `out/release-v0.2.0`; no download assets have been published. Use the complete directory without mixing preview files, and verify its SHA256SUMS after setting RELEASE below.
 
 REPO is the absolute path to the integration checkout at the release’s recorded commit. RELEASE is the extracted release directory. WORK is a private installation directory outside the checkout. Run subsequent host commands from WORK; use `"$REPO/tools/NAME"` for source tools and `"$RELEASE/PATH"` for release files.
-Set these paths in each host terminal you use. The download assets above are outside RELEASE; the next check validates the extracted files.
+Set these paths in each host terminal you use. The next check validates every file in RELEASE.
 
 ```bash
 REPO=/absolute/path/to/xiaomipad-8pro-mainline

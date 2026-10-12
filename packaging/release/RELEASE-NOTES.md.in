@@ -21,6 +21,8 @@ Follow `docs/INSTALL.md` or `docs/INSTALL.zh-CN.md` in the integration checkout 
 
 The preview-5 root manifest records the merged SquashFS hash, not a download URL. `ubuntu/desktop-layers.json` pins its official ISO URL, ISO/layer/TAR hashes and merge tools; the same pristine image was reconstructed and its final hash checked. The preview-5 manifest contains the Mesa deb but **no snap provider or first-boot connect package**. This release retains its Mesa deb and adds the requested provider/service from the later verified GPU work.
 
+The original `piano-snap-graphics 0.1+20261012.3` deb was absent after cleanup. It was repacked from the recorded `c14de88` source (contained in `4c15551`) and the unchanged provider snap. The original recorded deb SHA256 is `85b5562a465688eae69919d0ec6a3b4b39146b08caf32b1733e8aaf9c19a24ba`; this repack is `a4d24a119663084b445233dbe2f412208a5743190958518a5ba4407c2ec5dd97`. All seven payload files were checked against that build receipt and source; provider, helper and service bytes are unchanged. This archive has host packaging verification, not a new device-install claim. All five piano9 debs, both sensor debs and the preview-5 Mesa deb are reused byte-for-byte.
+
 ## Changes since v0.1.0-preview-5
 
 Each line states the verification level of the component, not acceptance of this new installation image.
