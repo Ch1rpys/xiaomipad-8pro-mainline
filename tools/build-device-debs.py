@@ -146,7 +146,7 @@ def main():
         metadata = json.loads(subprocess.check_output(['unsquashfs', '-cat', str(snap), 'meta/snap.yaml']))
         if (metadata['name'] != 'piano-mesa-2404' or metadata['base'] != 'core24'
                 or metadata['architectures'] != ['arm64'] or metadata['version'] != manifest['version']
-                or metadata['slots'] != {'gpu-2404': {'interface': 'content', 'read': ['$SNAP', '$SNAP_DATA/kernel-gpu-2404']}}):
+                or metadata['slots'] != {'gpu-2404': {'interface': 'content', 'read': ['$SNAP']}}):
             raise ValueError('incompatible snap provider metadata')
         graphics = stages / 'piano-snap-graphics'
         shutil.copytree(repo / 'packaging/piano-snap-graphics', graphics, ignore=untracked)

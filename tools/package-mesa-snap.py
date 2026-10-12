@@ -143,6 +143,9 @@ def main():
         # install hook disables the inherited monitor when no kernel component is connected.
         metadata['name'] = 'piano-mesa-2404'
         metadata['version'] = version
+        # Piano uses the system kernel, not an optional kernel content snap.
+        # Export one directory so gpu-2404-2 cannot be created by our own slot.
+        metadata['slots']['gpu-2404']['read'] = ['$SNAP']
         (root / 'meta/snap.yaml').write_text(json.dumps(metadata, indent=2) + '\n')
         after = inventory(root)
         missing = sorted(set(original) - set(after))

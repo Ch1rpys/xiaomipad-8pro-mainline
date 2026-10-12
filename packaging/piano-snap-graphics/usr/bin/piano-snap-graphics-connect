@@ -10,6 +10,7 @@ import re
 import subprocess
 
 PROVIDER = 'piano-mesa-2404:gpu-2404'
+DISCARD_NS = '/usr/lib/snapd/snap-discard-ns'
 MARKER = Path('/var/lib/piano/snap-graphics-configured')
 PAYLOAD = Path('/usr/share/piano/snaps')
 
@@ -64,14 +65,19 @@ def main():
     if args.install:
         install()
     for plug, slots in connections(snap('connections', '--all').stdout).items():
-        if PROVIDER not in slots:
-            print(f'Connecting {plug} to {PROVIDER}', flush=True)
-            print(snap('connect', plug, PROVIDER).stdout, end='', flush=True)
-        # content is many-to-many: leaving an old slot connected can mount the
-        # new provider at gpu-2404-2, outside the consumer wrapper's fixed path.
+        # Remove old content first; overlapping providers otherwise clash at
+        # gpu-2404 and snapd can retain a renamed mount in the saved namespace.
         for slot in sorted(slots - {'-', PROVIDER}):
             print(f'Disconnecting previous content slot {plug} -> {slot}', flush=True)
             print(snap('disconnect', plug, slot).stdout, end='', flush=True)
+        if PROVIDER not in slots:
+            print(f'Connecting {plug} to {PROVIDER}', flush=True)
+            print(snap('connect', plug, PROVIDER).stdout, end='', flush=True)
+        # Do this even for an existing connection, to clear piano2's saved
+        # namespace and its former second content export. The next launch
+        # creates a namespace from the final connection set.
+        subprocess.run([DISCARD_NS, plug.split(':', 1)[0]], check=True,
+                       text=True, capture_output=True)
     if args.install:
         MARKER.parent.mkdir(parents=True, exist_ok=True)
         MARKER.touch()

@@ -57,7 +57,7 @@ def main():
     metadata = json.loads(run(['unsquashfs', '-cat', snap, 'meta/snap.yaml']))
     assert metadata['name'] == 'piano-mesa-2404' and metadata['base'] == 'core24'
     assert metadata['architectures'] == ['arm64'] and metadata['confinement'] == 'strict'
-    assert metadata['slots'] == {'gpu-2404': {'interface': 'content', 'read': ['$SNAP', '$SNAP_DATA/kernel-gpu-2404']}}
+    assert metadata['slots'] == {'gpu-2404': {'interface': 'content', 'read': ['$SNAP']}}
     (out / 'snap.json').write_text(json.dumps(metadata, indent=2)+'\n')
     root = out / 'runtime'
     # No SDK/APT libraries enter this root. Skip device nodes/xattrs during extraction;
@@ -90,6 +90,7 @@ def main():
     (out / 'stock-content-diff.json').write_text(json.dumps(content_diff, indent=2)+'\n')
     assert not missing and not missing_paths and not unexpected, content_diff
     stock_metadata = yaml.safe_load((stock / 'meta/snap.yaml').read_text())
+    stock_metadata['slots']['gpu-2404']['read'] = ['$SNAP']
     assert {k:v for k,v in metadata.items() if k not in ('name','version')} == {
         k:v for k,v in stock_metadata.items() if k not in ('name','version')}
     consumers = {}

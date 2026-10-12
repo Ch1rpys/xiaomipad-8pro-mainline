@@ -259,8 +259,12 @@ locked in `mesa/snap/mesa-2404.json`. This full content contract matters: consum
 run Canonical's gpu-2404 cleanup and omit libraries supplied by mesa-2404, including
 non-Mesa X11/XML dependencies. A Mesa-only provider passed its own pixel test but
 broke Thunderbird and App Center on the device (2026-10-12). The packager now
-rejects missing stock files or changes outside the Mesa overlay and name/version.
+rejects missing stock files or changes outside the Mesa overlay and snap metadata.
 All stock wrapper/hooks, component metadata, runtime files and notices are retained.
+The slot exports only `$SNAP`; the optional kernel-content directory is not a
+second export on piano. Mesa uses release / `-O3` / `b_ndebug=true` / LTO off.
+The earlier assertion-enabled provider aborted while compiling application GLSL
+(`ir_constant::is_value`); a clear-only pixel test did not exercise that path.
 Imported tooling provenance and its GPL-2.0-only licence are recorded in `mesa/snap/provenance.json`.
 
 ```bash
@@ -298,16 +302,37 @@ and can check Thunderbird/App Center binaries plus their dlopened graphics/proxy
 libraries with the GNOME runtime. `--old-provider <previous.snap>` first reproduces
 the missing-library failure. These checks do not launch the GUI or prove confinement.
 
+Also run the GLSL regression against the final snap. It compiles a shader with
+integer constants and nested min/max through the provider's mapped libgallium,
+then checks the rendered pixel. `--old-provider` is optional; when supplied it
+must reproduce exit 134 at `ir.cpp:1603`, while the new provider must compile,
+link and draw without an assertion. Shader caching is disabled. Only the small
+probe is built; neither Mesa nor the provider snap is rebuilt:
+
+```bash
+python3 tools/test-snap-graphics-glsl.py \
+  --provider <new-piano-mesa-2404.snap> --old-provider <piano2.snap> \
+  --core24 <frozen-core24-arm64.snap> --sdk-root out/gpu-snap-build/root \
+  --output out/gpu-snap-glsl
+```
+
+This is a softpipe/qemu-user regression, not application, confinement or A830
+acceptance. Matching release flags avoids the observed assertion; it does not
+claim to fix the underlying Mesa assertion logic. `--keep-build` on the Mesa
+builder retains unstripped objects for later crash analysis.
+
 Pass the resulting deb as one additional `--deb` to `build-rootfs-image.py` along
 with the existing device packages. Its postinst only enables the unit. On the
 first boot, `piano-snap-graphics.service` waits for `snapd.seeded.service`, installs
-the local snap with `--dangerous`, then connects all installed `gpu-2404` plugs. After each new connection succeeds,
-it disconnects that plug from its previous slots: content connections are additive,
-and leaving both providers attached can move the new mount to `gpu-2404-2`, which
-the consumer wrapper does not use. The previous provider snaps stay installed.
+the local snap with `--dangerous`, then processes each installed `gpu-2404` plug:
+disconnect previous slots first, connect piano if needed, then run
+`/usr/lib/snapd/snap-discard-ns` for that consumer. Content connections are additive;
+the previous connect-first order could leave a stale `gpu-2404-2` mount. Discard
+also runs for an already connected consumer so its next launch recreates the
+namespace with one content mount. The previous provider snaps stay installed.
 It records completion only after success, has a five-minute bound and no retries.
-After installing a new snap, run `sudo piano-snap-graphics-connect`, then close
-and reopen that application. Consumer refreshes retain manual connections;
+After installing a new snap, close affected applications, run
+`sudo piano-snap-graphics-connect`, then reopen them. Consumer refreshes retain manual connections;
 new consumers are not automatically intercepted. When consumers move to
 `gpu-2604`/core26, rebuild a provider for that ABI/interface before connecting them;
 this core24 provider does not serve `gpu-2604`. Retire it when the distribution

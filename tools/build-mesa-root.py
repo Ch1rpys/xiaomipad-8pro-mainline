@@ -103,9 +103,12 @@ def main():
                         help='run the NIR Python generator on the host using its original Ninja command; '
                              'requires the SDK Python minor version and Mako on the host')
     parser.add_argument('--ninja', default='ninja', help='native Ninja executable for --native-nir')
+    parser.add_argument('--keep-build', action='store_true', help='Retain unstripped build objects for crash symbolization')
     parser.add_argument('--clean', action='store_true',
                         help='remove the work directory, build root included, after success')
     args = parser.parse_args()
+    if args.keep_build and args.clean:
+        parser.error('--keep-build and --clean are mutually exclusive')
     if not 1 <= args.jobs <= 8:
         parser.error('--jobs must be between 1 and 8, the limit of tools/build-mesa.py')
     if shutil.which('unshare') is None:
@@ -207,7 +210,8 @@ def main():
         if root_tools.sha256(package) != manifest['package']['sha256']:
             die('the package does not match its manifest')
         for path in (package, build / 'debs/manifest.json', build / 'out/input.json',
-                     build / 'out/build-result.json', build / 'out/build/meson-logs/meson-log.txt'):
+                     build / 'out/build-result.json', build / 'out/build/meson-logs/meson-log.txt',
+                     build / 'out/build/meson-info/intro-buildoptions.json'):
             shutil.copy2(path, output / path.name)
         # One entry per recipe file, keyed by its repository path.
         frozen = build / 'recipe'
@@ -225,7 +229,8 @@ def main():
         if native:
             record['native_generator'] = native
         (output / 'build-root.json').write_text(json.dumps(record, indent=2) + '\n')
-        shutil.rmtree(build)
+        if not args.keep_build:
+            shutil.rmtree(build)
     if args.clean:
         shutil.rmtree(work)
     print(json.dumps(manifest['package']))
