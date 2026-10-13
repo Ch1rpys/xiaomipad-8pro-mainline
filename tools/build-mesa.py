@@ -37,9 +37,15 @@ def main():
     parser.add_argument('--configure-only', action='store_true',
                         help='prepare the verified source and Ninja rules without compiling')
     parser.add_argument('--profile', choices=('probe', 'desktop', 'gpu-2404'), default='probe')
+    parser.add_argument('--cross-file', type=Path,
+                        help='Meson cross file for an ARM64 SDK; compilation runs on the build host')
+    parser.add_argument('--target-root', type=Path,
+                        help='Debian SDK sysroot used by --cross-file, for recording target packages')
     args = parser.parse_args()
-    if platform.machine() not in ('aarch64', 'arm64'):
-        parser.error('this recipe currently requires a native arm64 build environment')
+    if bool(args.cross_file) != bool(args.target_root):
+        parser.error('--cross-file and --target-root must be supplied together')
+    if not args.cross_file and platform.machine() not in ('aarch64', 'arm64'):
+        parser.error('use a native arm64 environment or an ARM64 Meson cross file and SDK root')
     if not 1 <= args.jobs <= 8:
         parser.error('--jobs must be between 1 and 8')
     lock = json.loads((INPUTS / 'source.json').read_text())
@@ -83,6 +89,11 @@ def main():
                     'recipe_sha256': sha(__file__),
                     'native_packages': packages.splitlines(),
                     'tools': {name: version([name, '--version']) for name in ('gcc', 'g++', 'meson', 'ninja')}}
+        if args.cross_file:
+            identity['cross_file_sha256'] = sha(args.cross_file)
+            identity['target_packages'] = subprocess.check_output(
+                ['dpkg-query', '--admindir=' + str(args.target_root.resolve() / 'var/lib/dpkg'),
+                 '-W', '-f=${Package} ${Version}\\n'], text=True).splitlines()
         identity_file = out / 'input.json'
         if identity_file.exists() and json.loads(identity_file.read_text()) != identity:
             parser.error('build inputs changed; select a new output directory')
@@ -105,7 +116,12 @@ def main():
                    CFLAGS=f'-ffile-prefix-map={src}=/mesa', CXXFLAGS=f'-ffile-prefix-map={src}=/mesa')
         build = out / 'build'
         if not (build / 'build.ninja').exists():
-            run(['meson', 'setup', build, src, *flags], env=env)
+            cross = ['--cross-file', args.cross_file.resolve()] if args.cross_file else []
+            run(['meson', 'setup', build, src, *flags, *cross], env=env)
+        machines = json.loads(subprocess.check_output(
+            ['meson', 'introspect', '--machines', str(build)], text=True))
+        if machines['host']['cpu_family'] != 'aarch64':
+            parser.error('the configured Mesa target must be ARM64')
         if args.configure_only:
             return
         run(['meson', 'compile', '-C', build, '-j', args.jobs], env=env)

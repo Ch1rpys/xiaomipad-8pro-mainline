@@ -17,6 +17,7 @@ from pathlib import Path
 import shlex
 import shutil
 import subprocess
+import sys
 import tempfile
 
 REPO = Path(__file__).resolve().parents[1]
@@ -102,6 +103,9 @@ def main():
     parser.add_argument('--native-nir', action='store_true',
                         help='run the NIR Python generator on the host using its original Ninja command; '
                              'requires the SDK Python minor version and Mako on the host')
+    parser.add_argument('--cross-file', type=Path,
+                        help='ARM64 Meson cross file using WORK/root as sysroot; run compilation '
+                             'and packaging natively, retaining the pinned target SDK')
     parser.add_argument('--ninja', default='ninja', help='native Ninja executable for --native-nir')
     parser.add_argument('--keep-build', action='store_true', help='Retain unstripped build objects for crash symbolization')
     parser.add_argument('--clean', action='store_true',
@@ -109,6 +113,8 @@ def main():
     args = parser.parse_args()
     if args.keep_build and args.clean:
         parser.error('--keep-build and --clean are mutually exclusive')
+    if args.cross_file and args.native_nir:
+        parser.error('--cross-file already runs all build generators natively')
     if not 1 <= args.jobs <= 8:
         parser.error('--jobs must be between 1 and 8, the limit of tools/build-mesa.py')
     if shutil.which('unshare') is None:
@@ -186,8 +192,9 @@ def main():
                                  'chmod 755 /usr/local/bin/meson\n', log=log)
             else:
                 die('unknown build tool format: ' + entry['kind'])
+        mode = 'with the native cross-toolchain' if args.cross_file else 'under qemu-user'
         print(f'  building Mesa {source["version"]} ({args.target} profile) and packaging it '
-              f'under qemu-user; progress in {log}', flush=True)
+              f'{mode}; progress in {log}', flush=True)
         packager = 'package-mesa-snap.py'
         native = None
         if args.native_nir:
@@ -197,11 +204,34 @@ def main():
                     f'--source-archive /build/inputs/{source["archive"]} --output /build/out --configure-only\n'),
                     log=log)
             native = native_nir(build, args.ninja, log)
-        root_tools.chroot(root, (
-            f'python3 -u /build/recipe/tools/build-mesa.py --profile {args.target} --jobs {args.jobs} '
-            f'--source-archive /build/inputs/{source["archive"]} --output /build/out\n'
-            f'python3 -u /build/recipe/tools/{packager} --build-output /build/out --base-snap /build/inputs/{stock['file']} --output /build/debs\n'),
-            log=log)
+        if args.cross_file:
+            # The SDK's pinned Meson is pure Python and can run on the build host.
+            host_bin = work / 'host-bin'
+            host_bin.mkdir(exist_ok=True)
+            meson = host_bin / 'meson'
+            meson.write_text('#!/bin/sh\nPYTHONPATH=' + shlex.quote(str(root / 'opt/piano-meson')) +
+                             ' exec ' + shlex.quote(sys.executable) +
+                             ' -m mesonbuild.mesonmain "$@"\n')
+            meson.chmod(0o755)
+            env = dict(os.environ, PATH=str(host_bin) + os.pathsep + os.environ['PATH'])
+            with log.open('a') as output_log:
+                subprocess.run([sys.executable, '-u', str(build / 'recipe/tools/build-mesa.py'),
+                                '--profile', args.target, '--jobs', str(args.jobs),
+                                '--cross-file', str(args.cross_file.resolve()), '--target-root', str(root),
+                                '--source-archive', str(build / 'inputs' / source['archive']),
+                                '--output', str(build / 'out')], check=True, env=env,
+                               stdout=output_log, stderr=subprocess.STDOUT)
+                subprocess.run([sys.executable, str(build / 'recipe/tools' / packager),
+                                '--build-output', str(build / 'out'),
+                                '--base-snap', str(build / 'inputs' / stock['file']),
+                                '--output', str(build / 'debs')], check=True, env=env,
+                               stdout=output_log, stderr=subprocess.STDOUT)
+        else:
+            root_tools.chroot(root, (
+                f'python3 -u /build/recipe/tools/build-mesa.py --profile {args.target} --jobs {args.jobs} '
+                f'--source-archive /build/inputs/{source["archive"]} --output /build/out\n'
+                f'python3 -u /build/recipe/tools/{packager} --build-output /build/out --base-snap /build/inputs/{stock['file']} --output /build/debs\n'),
+                log=log)
 
         installed = root_tools.capture(root, "dpkg-query -W -f='${Package} ${Version}\\n'").splitlines()
         output.mkdir(parents=True)
@@ -226,6 +256,9 @@ def main():
                   'build_tools': pins.get('build_tools', []),
                   'recipe_sha256': recipe, 'interpreter': interpreter(),
                   'build_packages': installed, 'package': manifest['package']}
+        if args.cross_file:
+            record['cross_file_sha256'] = root_tools.sha256(args.cross_file)
+            record['compilation'] = 'native cross-toolchain; pinned ARM64 SDK libraries and headers'
         if native:
             record['native_generator'] = native
         (output / 'build-root.json').write_text(json.dumps(record, indent=2) + '\n')

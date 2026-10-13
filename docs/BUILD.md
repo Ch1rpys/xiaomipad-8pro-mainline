@@ -294,7 +294,21 @@ that monitor when its optional kernel content plug is disconnected.
 
 Packaging/validation need Python 3, PyYAML and squashfs-tools. The build needs
 qemu-user ARM64 binfmt and unprivileged user namespaces; native NIR generation needs the SDK Python minor version (3.12), Mako, MarkupSafe and
-Ninja on the host (`--ninja /path/to/ninja` if it is not on PATH). Target compilation stays in the pinned ARM64 SDK. `--resume`
+Ninja on the host (`--ninja /path/to/ninja` if it is not on PATH). By default, target compilation runs in the pinned ARM64 SDK.
+
+With an ARM64 cross-toolchain, replace `--native-nir` above with
+`--cross-file <arm64-core24.ini>` to run generators, compilation and packaging
+on the build host. The standard Meson cross file must point its sysroot,
+target pkg-config directories, C/C++ headers and library paths at `root/`
+under this build's `--work`, rather than a desktop Ubuntu sysroot. The host
+needs the compiler, Mako, PyYAML, Ninja, native wayland-scanner and
+glslangValidator; the builder reuses the pinned Meson wheel. QEMU remains
+necessary for SDK preparation. The build records the cross-file SHA-256 and
+target package versions and checks that Meson configured an ARM64 target.
+Do not combine this option with `--native-nir`. Both paths use the same Mesa
+source, patch and profile options, with core24 target headers and libraries.
+
+`--resume`
 continues that attempt's frozen recipe, without changing its inputs. The offline
 pixel check explicitly requires softpipe and is not a GPU or sandbox test.
 Validation uses the actual seeded core24 runtime, checks every provider ELF,

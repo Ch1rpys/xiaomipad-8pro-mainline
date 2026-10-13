@@ -272,7 +272,16 @@ Desktop SquashFS 提取 `var/lib/snapd/seed/snaps/mesa-2404_1166.snap`，并核�
 
 打包与验证需要 Python 3、PyYAML、squashfs-tools。构建需要 qemu-user ARM64 binfmt 和非特权
 用户命名空间；原生 NIR 生成需要与 SDK 相同的小版本 Python（3.12）、Mako、MarkupSafe、Ninja。
-Ninja 不在 PATH 时用 `--ninja /path/to/ninja` 指定。目标编译仍在固定 ARM64 SDK 内进行。
+Ninja 不在 PATH 时用 `--ninja /path/to/ninja` 指定。默认的目标编译在固定 ARM64 SDK 内进行。
+
+有 ARM64 交叉工具链时，建议将上述 `--native-nir` 换为 `--cross-file <arm64-core24.ini>`。
+使用标准 Meson cross file，将 `sys_root`、目标 pkg-config 搜索目录、C/C++ 头文件及链接目录
+指向本次 `--work` 下的 `root/`，不要引用桌面 Ubuntu 的 sysroot。主机需有编译器、Mako、
+PyYAML、Ninja、原生 wayland-scanner 和 glslangValidator；构建器复用锁定的 Meson wheel。
+此方式仅在准备 SDK 时使用 QEMU，生成器、编译和打包在主机执行；目标仍使用固定 core24 的
+头文件与库。构建记录包含 cross file 的 SHA-256 和目标包版本，配置后核对 ARM64 目标。
+不要同时传 `--native-nir`；两条路径使用相同的 Mesa 源码、补丁和 profile 选项。
+
 `--resume` 沿用原构建配方和输入。离线像素检查要求 softpipe；验证器检查实际 core24 运行时、
 provider ELF，以及可选的 Thunderbird/App Center 和 GNOME 运行库，不替代 GUI、GPU 或沙箱验证。
 
