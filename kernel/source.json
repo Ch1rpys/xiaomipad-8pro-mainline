@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "purpose": "Release kernel for v0.2.0: NT36532E THP input follows the panel power sequence.",
+  "purpose": "THP stream PM lifecycle fix; cold boot and DPMS tested. Device-stage PM was tested in a separate diagnostic build; whole-system sleep remains disabled pending platform/WLAN recovery fixes.",
   "upstream_url": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git",
   "upstream_tag": "v7.2.6",
   "upstream_commit": "500df175a7f9e6bc1a9c328590ca5150f84f9ff0",
   "url": "https://github.com/yzddmr6/linux-sm8750-piano",
-  "commit": "9ab0942f973489419d58caf5f69c17afee61df53",
+  "commit": "e98efd36010062095d20023e012c1542397230f4",
   "branch": "piano/dev",
   "config": "arch/arm64/configs/piano-diagnostic.config",
   "release_config_fragments": [
@@ -15,5 +15,5 @@
     "arch/arm64/configs/piano-release.config"
   ],
   "note": "The kernel release fragments remain in the kernel source and are merged in order. tools/build-kernel.sh then applies kernel_release to CONFIG_LOCALVERSION for package ABI allocation without a kernel-only release commit; all other configuration remains unchanged. kernel/abi.json binds the final commit and .config.",
-  "kernel_release": "7.2.6-piano11"
+  "kernel_release": "7.2.6-piano12"
 }

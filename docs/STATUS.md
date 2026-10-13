@@ -15,6 +15,15 @@ Bluetooth initialization now has a bounded MGMT helper using the unit address
 already installed before first boot. This removes the dependency on rebuilding
 a device-specific boot image before BlueZ can see an unconfigured controller.
 It does not establish pairing, audio or wake support.
+The generic-DTB path was tested on the tablet: the DT address property was
+absent, the helper configured the controller, and BlueZ used the installed
+unit address.
+
+An open touchscreen stream now survives the device suspend/resume stage.
+Full system sleep remains disabled: actual s2idle rebooted the tablet and a
+later diagnostic exposed a Wi-Fi resume timeout. Power-button suspend is not
+advertised as fixed. GNOME hides the rotation toggle while the keyboard is
+attached and hides the power-button selector for tablet chassis.
 
 ## Test configuration
 
