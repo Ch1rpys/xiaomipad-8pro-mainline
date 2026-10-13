@@ -32,7 +32,7 @@ sh tools/fetch-busybox-arm64.sh        # expect ".../usr/bin/busybox: OK"
 |---|---|
 | Kernel | [linux-sm8750-piano](https://github.com/yzddmr6/linux-sm8750-piano), branch `piano/dev`; commit and configuration fragments in [kernel/source.json](../kernel/source.json), releases in [kernel/abi.json](../kernel/abi.json) |
 | Firmware | [firmware/](../firmware/README.md), locked by `firmware/piano-*.json` |
-| Mesa | 26.2.0 and `mesa/a830-speedbin.patch`, [mesa/source.json](../mesa/source.json) |
+| Mesa | 26.2.0 and `mesa/piano-fixes.patch`, [mesa/source.json](../mesa/source.json) |
 | Ubuntu | 26.04 Desktop ARM64 ISO, SHA-256 `c2afd538d66fdd77377d03f1ed2ac76a34f1c116baecc9a8170d68f833121f57`; [ubuntu/26.04.sources](../ubuntu/26.04.sources); packages from a dated [snapshot](https://snapshot.ubuntu.com/) |
 | Device userspace | `device/*/source.json` |
 

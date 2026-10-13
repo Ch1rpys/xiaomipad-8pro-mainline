@@ -69,12 +69,15 @@ def main():
     select = ap.add_mutually_exclusive_group()
     select.add_argument('--support-only', action='store_true', help='Rebuild only the small device integration package')
     select.add_argument('--desktop-only', action='store_true', help='Build desktop policy without rebuilding locked support/Mesa inputs')
+    select.add_argument('--mesa-only', action='store_true', help='Build only the verified desktop Mesa package')
     select.add_argument('--snap-graphics-only', action='store_true', help='Build only piano-snap-graphics')
     select.add_argument('--mipps-auth-only', action='store_true', help='Build only the pinned MiPPS authentication package')
     a = ap.parse_args()
     if a.snap_graphics_only and not a.snap_graphics_build:
         ap.error('--snap-graphics-only requires --snap-graphics-build')
-    if not (a.desktop_only or a.snap_graphics_only or a.mipps_auth_only):
+    if a.mesa_only and not a.mesa_build:
+        ap.error('--mesa-only requires --mesa-build')
+    if not (a.desktop_only or a.snap_graphics_only or a.mipps_auth_only or a.mesa_only):
         for name in ('thp_live', 'mesa_build', 'busybox', 'avbtool'):
             if getattr(a, name) is None:
                 ap.error('--' + name.replace('_', '-') + ' is required unless --desktop-only, --snap-graphics-only or --mipps-auth-only')
@@ -180,7 +183,7 @@ def main():
             (a.output / 'manifest.json').write_text(json.dumps(receipts, indent=2) + '\n')
             return
 
-    if not a.desktop_only:
+    if not (a.desktop_only or a.mesa_only):
         auth = stages / 'piano-mipps-auth'
         shutil.copytree(repo / 'packaging/piano-mipps-auth', auth, ignore=untracked)
         tree(repo / 'packaging/piano-mipps-auth', auth, '.')
@@ -208,7 +211,7 @@ def main():
             (a.output / 'manifest.json').write_text(json.dumps(receipts, indent=2) + '\n')
             return
 
-    if not a.desktop_only:
+    if not (a.desktop_only or a.mesa_only):
         support = stages / 'piano-device-support'
         shutil.copytree(repo / 'packaging/piano-device-support', support, ignore=untracked)
         tree(repo / 'packaging/piano-device-support', support, '.')
@@ -268,6 +271,7 @@ def main():
             (a.output / 'manifest.json').write_text(json.dumps(receipts, indent=2) + '\n')
             return
 
+    if not a.desktop_only:
         mesa = stages / 'piano-mesa'
         subprocess.run(['python3', str(repo / 'tools/prepare-mesa-initramfs.py'), '--mesa-build', str(a.mesa_build),
                         '--stage', str(mesa)], stdout=subprocess.DEVNULL, check=True)
@@ -278,6 +282,9 @@ def main():
                               'MIT', f'Mesa {mesa_source["tag"]} ({mesa_source["url"]}, commit {mesa_source["commit"]})\n'
                               f'with {mesa_source["patch"]} from this repository. Most of Mesa is MIT; some files\n'
                               'carry other permissive licences, listed in docs/license.rst of that source.')])
+        if a.mesa_only:
+            (a.output / 'manifest.json').write_text(json.dumps(receipts, indent=2) + '\n')
+            return
 
     desktop = stages / 'piano-ubuntu-desktop'
     shutil.copytree(repo / 'packaging/piano-ubuntu-desktop', desktop, ignore=untracked)

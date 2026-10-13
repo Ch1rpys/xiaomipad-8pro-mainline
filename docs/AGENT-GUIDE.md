@@ -59,7 +59,7 @@ Conventions:
 | Integration | this repository | the checked-out commit |
 | Kernel | `https://github.com/yzddmr6/linux-sm8750-piano`, branch `piano/dev` | [`kernel/source.json`](../kernel/source.json) (`commit`, `config`, `release_config_fragments`), [`kernel/abi.json`](../kernel/abi.json) |
 | Firmware | [`firmware/`](../firmware/README.md): stock OS3.0.303.0.WPYCNXM files in `/usr/lib/firmware` layout | identity locks `firmware/piano-*.json` (names, sizes, SHA-256) |
-| Mesa | upstream Mesa 26.2.0 | [`mesa/source.json`](../mesa/source.json), `mesa/a830-speedbin.patch` |
+| Mesa | upstream Mesa 26.2.0 | [`mesa/source.json`](../mesa/source.json), `mesa/piano-fixes.patch` |
 | Ubuntu | 26.04 Desktop ARM64 ISO | SHA-256 `c2afd538d66fdd77377d03f1ed2ac76a34f1c116baecc9a8170d68f833121f57`; `ubuntu/26.04.sources` |
 | AOSP mkbootimg | `tools/fetch-aosp-mkbootimg.sh` | commit `954bc3ead5e679005fddf3484d247f2557b3c2c9` |
 | BusyBox (ARM64) | `tools/fetch-busybox-arm64.sh` | `busybox-static_1.36.1-6ubuntu3.1_arm64.deb` |

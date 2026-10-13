@@ -32,7 +32,7 @@ sh tools/fetch-busybox-arm64.sh        # 预期 ".../usr/bin/busybox: OK"
 |---|---|
 | 内核 | [linux-sm8750-piano](https://github.com/yzddmr6/linux-sm8750-piano)，分支 `piano/dev`；提交和配置片段见 [kernel/source.json](../kernel/source.json)，release 见 [kernel/abi.json](../kernel/abi.json) |
 | 固件 | [firmware/](../firmware/README.md)，由 `firmware/piano-*.json` 锁定 |
-| Mesa | 26.2.0 与 `mesa/a830-speedbin.patch`，见 [mesa/source.json](../mesa/source.json) |
+| Mesa | 26.2.0 与 `mesa/piano-fixes.patch`，见 [mesa/source.json](../mesa/source.json) |
 | Ubuntu | 26.04 Desktop ARM64 ISO，SHA-256 `c2afd538d66fdd77377d03f1ed2ac76a34f1c116baecc9a8170d68f833121f57`；[ubuntu/26.04.sources](../ubuntu/26.04.sources)；软件包取自指定日期的[快照](https://snapshot.ubuntu.com/) |
 | 设备用户态 | `device/*/source.json` |
 
