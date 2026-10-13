@@ -1,20 +1,16 @@
 #!/usr/bin/python3
 # SPDX-License-Identifier: MIT
-"""Supply Piano's factory address only to an unconfigured onboard controller.
+"""Configure an unconfigured Piano controller from its installed unit address.
 
-Uses the Linux Bluetooth MGMT API; exits before BlueZ normally starts. The
-factory partition is mounted read-only without journal replay, never modified.
+The Linux Bluetooth MGMT API preserves the normal hci_qca/BlueZ lifecycle.
+This is a bounded initialization step, independent of the boot image format.
 """
 import argparse
 import ctypes
-import hashlib
 from pathlib import Path
 import socket
-import stat
 import struct
-import subprocess
 import sys
-import tempfile
 import time
 
 INDEX_NONE = 0xffff
@@ -23,8 +19,7 @@ READ_INDEX_LIST = 0x0003
 READ_UNCONFIGURED = 0x0036
 READ_CONFIG = 0x0037
 SET_PUBLIC_ADDRESS = 0x0039
-FACTORY_PARTITION = Path('/dev/disk/by-partlabel/persist')
-COMPATIBLES = {b'qcom,wcn7850-bt', b'qcom,wcn7861-bt'}
+COMPATIBLES = {b'qcom,wcn7860-bt'}
 
 
 def onboard(index):
@@ -85,7 +80,7 @@ class Management:
                         raise RuntimeError(f'Bluetooth MGMT command {opcode:#06x} failed ({status:#04x})')
                     return data[3:]
             elif event == 2 and len(data) >= 3:
-                status, reply = struct.unpack_from('<BH', data)
+                reply, status = struct.unpack_from('<HB', data)
                 if reply == opcode and status:
                     raise RuntimeError(f'Bluetooth MGMT command {opcode:#06x} rejected ({status:#04x})')
 
@@ -99,57 +94,20 @@ class Management:
         return struct.unpack_from('<' + 'H' * count, data, 2)
 
 
-def factory_address():
-    if not stat.S_ISBLK(FACTORY_PARTITION.stat().st_mode):
-        raise ValueError('Factory persist is not a block device')
-    with tempfile.TemporaryDirectory(prefix='piano-bt-', dir='/run') as directory:
-        subprocess.run(['mount', '-t', 'ext4', '-o',
-                        'ro,noload,nodev,nosuid,noexec',
-                        str(FACTORY_PARTITION), directory], check=True,
-                       stdout=subprocess.DEVNULL)
-        try:
-            with (Path(directory) / 'bluetooth/.bt_nv.bin').open('rb') as stream:
-                raw = stream.read(7)
-        finally:
-            subprocess.run(['umount', directory], check=True)
-    if len(raw) != 6 or raw in (b'\0' * 6, b'\xff' * 6) or raw[0] & 3:
-        raise ValueError('Invalid factory public Bluetooth address')
-    # The stock persist file is MSB-first; MGMT bdaddr_t is LSB-first.
+def installed_address(path):
+    text = path.read_text().strip()
+    parts = text.split(':')
+    if len(parts) != 6 or any(len(p) != 2 or
+            any(c not in '0123456789abcdefABCDEF' for c in p) for p in parts):
+        raise ValueError('Expected one six-octet Bluetooth address in the unit file')
+    raw = bytes(int(p, 16) for p in parts)
+    if raw in (b'\0' * 6, b'\xff' * 6):
+        raise ValueError('Invalid unit Bluetooth address')
+    # File is MSB-first text; MGMT bdaddr_t is LSB-first.
     return raw[::-1]
 
 
-def device_address():
-    # qcom_socinfo exposes the boot firmware's SMEM chip serial, not an
-    # installation-specific machine-id or a value embedded in our DTB.
-    candidates = [p for p in Path('/sys/devices').glob('soc*')
-                  if (p / 'family').is_file() and
-                  (p / 'family').read_text().strip() == 'Snapdragon']
-    if len(candidates) != 1:
-        raise ValueError('Cannot identify the Snapdragon SoC identity provider')
-    node = candidates[0]
-    serial = int((node / 'serial_number').read_text().strip(), 10)
-    soc = int((node / 'soc_id').read_text().strip(), 10)
-    if not 0 < serial < 0xffffffff or not 0 < soc < 0xffffffff:
-        raise ValueError('No valid SoC identity for a stable Bluetooth address')
-    digest = hashlib.sha256(b'SunUEFI piano Bluetooth address v1\0' +
-                            struct.pack('<II', soc, serial)).digest()
-    raw = bytearray(digest[:6])
-    raw[0] = (raw[0] & 0xfc) | 2
-    return bytes(raw[::-1])
-
-
-def identity_address():
-    try:
-        address = factory_address()
-    except (OSError, ValueError, subprocess.SubprocessError):
-        address = device_address()
-        print('Factory Bluetooth address unavailable; using stable SoC-derived identity.')
-    else:
-        print('Using the original Bluetooth address from factory persist.')
-    return address
-
-
-def configure(timeout):
+def configure(timeout, address_file):
     mgmt = Management(timeout)
     try:
         while True:
@@ -167,7 +125,7 @@ def configure(timeout):
                 _, supported, missing = struct.unpack('<HII', data)
                 if missing != PUBLIC_ADDRESS or not supported & PUBLIC_ADDRESS:
                     raise RuntimeError('Onboard Bluetooth needs configuration beyond its public address')
-                result = mgmt.command(SET_PUBLIC_ADDRESS, index, identity_address())
+                result = mgmt.command(SET_PUBLIC_ADDRESS, index, installed_address(address_file))
                 if len(result) != 4 or struct.unpack('<I', result)[0]:
                     raise RuntimeError('Onboard Bluetooth remains unconfigured after address submission')
                 print('Bluetooth address supplied; waiting for controller readiness.')
@@ -190,6 +148,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--timeout', type=float, default=20,
                         help='total controller initialization timeout in seconds')
+    parser.add_argument('--address-file', type=Path, default=Path('/etc/piano/bluetooth-address'))
     parser.add_argument('--check-source', action='store_true',
                         help='only validate the available identity source; do not configure Bluetooth')
     args = parser.parse_args()
@@ -198,15 +157,15 @@ def main():
     if b'xiaomi,piano' not in Path('/proc/device-tree/compatible').read_bytes().split(b'\0'):
         raise ValueError('This helper is for Xiaomi piano only')
     if args.check_source:
-        identity_address()
+        installed_address(args.address_file)
         print('Bluetooth identity source is readable and valid.')
     else:
-        configure(args.timeout)
+        configure(args.timeout, args.address_file)
 
 
 if __name__ == '__main__':
     try:
         main()
-    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+    except (OSError, ValueError, RuntimeError) as error:
         print(f'Bluetooth factory address: {error}', file=sys.stderr)
         sys.exit(1)

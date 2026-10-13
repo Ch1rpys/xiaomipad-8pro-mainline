@@ -547,3 +547,15 @@ Piano sensor packages (2026-10-12)
   package/service/udev integration and registry staging are project MIT code.
 - tools/build-sensors-debs.py preserves upstream Meson builds and records
   sources/tool versions/hashes; no third-party source is rebranded as original.
+device/bluetooth/bluetooth-address.py:
+  Imported from slwyts/Project-SunUEFI, commit
+  6a8763d010adb00b18911d6d12e6dd02869f98b9 (2026-10-10),
+  linux/bsp/common/usr/lib/piano/bluetooth-address.py, author slwyts, MIT.
+  Source: https://github.com/slwyts/Project-SunUEFI
+  Changes: use the already provisioned /etc/piano/bluetooth-address file,
+  match piano's qcom,wcn7860-bt, omit persist mounts and derived identities,
+  and decode MGMT command-status as opcode followed by status.
+  An ExecStartPre in the distribution's bluetooth.service runs this bounded
+  helper. Existing configured controllers and their addresses stay unchanged.
+  No additional resident radio manager, boot-image dependency or service.
+  device/bluetooth/test_address.py is new MIT test code.

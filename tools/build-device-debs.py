@@ -224,6 +224,7 @@ def main():
         copy(a.thp_live, support, 'usr/libexec/piano/piano-thp-live', 0o755)
         copy(a.busybox, support, 'usr/libexec/piano/busybox', 0o755)
         copy(repo / 'device/platform/piano-physical-platform', support, 'usr/libexec/piano/piano-physical-platform', 0o755)
+        copy(repo / 'device/bluetooth/bluetooth-address.py', support, 'usr/libexec/piano/bluetooth-address', 0o755)
         copy(repo / 'initramfs/usb-diag', support, 'usr/libexec/piano/usb-diag', 0o755)
         network = json.loads((repo / 'initramfs/network.json').read_text())
         (support / 'etc/piano-network').write_text(''.join(f'PIANO_{k.upper()}={v}\n' for k, v in network.items()))
@@ -241,6 +242,9 @@ def main():
         busybox = re.search(r'^package=busybox-static_(\S+)_arm64\.deb$',
                             (repo / 'tools/fetch-busybox-arm64.sh').read_text(), re.M).group(1)
         support_third_party = [
+            (('usr/libexec/piano/bluetooth-address',), 'slwyts and piano mainline contributors', 'MIT',
+             'Adapted from slwyts/Project-SunUEFI 6a8763d010adb00b18911d6d12e6dd02869f98b9;\n'
+             'linux/bsp/common/usr/lib/piano/bluetooth-address.py (see NOTICE).'),
             (('usr/lib/piano/boot/mkbootimg.py', 'usr/lib/piano/boot/gki/*'), 'The Android Open Source Project',
              'Apache-2.0', 'AOSP platform/system/tools/mkbootimg, the checkout pinned by tools/fetch-aosp-mkbootimg.sh;\n'
              'unmodified, tests excluded.'),

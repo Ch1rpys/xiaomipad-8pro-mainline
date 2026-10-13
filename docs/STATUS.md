@@ -4,6 +4,18 @@ Current release: **v0.2.0**. The support matrix is in the [README](../README.md#
 and the [中文 README](../README.zh-CN.md#硬件支持). This page records what was verified, the
 remaining limitations and the upstreaming state.
 
+## Development fixes after v0.2.0
+
+The desktop Mesa package now fixes a shared-context creation race exposed by
+Settings video previews. A real-device EGL/GLES reproducer crashed on the old
+package and passed with the fix; hardware rendering remains enabled. The
+published v0.2.0 images and snap graphics provider still contain the old build.
+
+Bluetooth initialization now has a bounded MGMT helper using the unit address
+already installed before first boot. This removes the dependency on rebuilding
+a device-specific boot image before BlueZ can see an unconfigured controller.
+It does not establish pairing, audio or wake support.
+
 ## Test configuration
 
 All results belong to the one tested unit. They do not establish support for other units,
