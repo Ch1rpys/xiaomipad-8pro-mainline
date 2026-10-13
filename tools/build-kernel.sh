@@ -86,7 +86,7 @@ recipe=$({ cat "$src/arch/arm64/configs/defconfig" "${fragments[@]}"; printf '\n
 toolchain=$("${cross}gcc" --version | head -1)
 identity=$(printf '%s\n' "$src" "$base" "$toolchain" "$cross" "$KCFLAGS" "$KAFLAGS" | sha256sum | cut -d' ' -f1)
 if [[ -f $out/.build-input && $(cat "$out/.build-input") != "$identity" ]]; then
-	echo 'Toolchain/source location changed; select a new OUT_DIR.' >&2
+	echo 'Upstream version, toolchain or source/output location changed; select a new OUT_DIR.' >&2
 	exit 1
 fi
 printf '%s\n' "$identity" >"$out/.build-input"
