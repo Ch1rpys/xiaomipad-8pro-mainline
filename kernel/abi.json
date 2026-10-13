@@ -80,6 +80,18 @@
       "kernel_commit": "599b862e519367dc076ced42e7add6bdcb9dc77e",
       "config_sha256": "4796f9205f5065e10c11599f7f452cf87bcb3a59fe029f7cceefaedd2d06a249",
       "upload": 1
+    },
+    {
+      "kernel_release": "7.2.6-piano14",
+      "kernel_commit": "c632f17e4e9c952d7e95c254d30d10041ddea0e9",
+      "config_sha256": "b63d0f82730d2e53d5d787e2eab6c68a73dfc8496daaf918f16594279d44132e",
+      "upload": 1
+    },
+    {
+      "kernel_release": "7.2.6-piano15",
+      "kernel_commit": "31f73d72b1b88668d66785a65ee124cb167c4793",
+      "config_sha256": "b40cbd7637f0cd5e6c9cf5f6bcb08105f234c2c2e818e165f50b3ade80db0dea",
+      "upload": 1
     }
   ]
 }

@@ -257,10 +257,11 @@ partitions.
 
 ## Suspend is disabled in the first release
 
-Suspend and resume have not been validated on piano. The kernel offers
-`s2idle` and `deep`, but neither wake path has been exercised, and a stuck
-resume can only be cleared with a forced reboot. `piano-device-support`
-therefore ships one policy in two standard places:
+Bounded RTC wake tests have validated `s2idle` resume with the THP and PCIe
+power-domain fixes. Battery polling still needs a complete suspend lifecycle,
+and charging during sleep, physical power-key wake and `deep` sleep remain
+unverified. `piano-device-support` therefore keeps the default sleep policy
+disabled in two standard places:
 
 - `/usr/lib/systemd/sleep.conf.d/50-piano-first-release.conf` sets
   `AllowSuspend`, `AllowHibernation`, `AllowHybridSleep` and
