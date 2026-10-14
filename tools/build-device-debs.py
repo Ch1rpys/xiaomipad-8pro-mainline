@@ -311,11 +311,16 @@ def main():
     copy(repo / 'packaging/piano-ubuntu-desktop' / upmix, desktop,
          'usr/share/pipewire/client.conf.d/50-piano-speaker-upmix.conf')
     # fake-hwclock: the RTC cannot be set (TD-022); it restores the time saved at shutdown or hourly.
-    package('piano-ubuntu-desktop', desktop, 'piano-mesa, gdm3, gnome-shell (>= 50), fake-hwclock, python3, console-setup, snapd, init-system-helpers, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad',
+    package('piano-ubuntu-desktop', desktop, 'piano-mesa, gdm3, gnome-shell (>= 50), colord, colord-data, gir1.2-colord-1.0, python3-gi, fake-hwclock, python3, console-setup, snapd, init-system-helpers, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad',
             'Piano Ubuntu desktop defaults: graphics, clock without RTC, speaker up-mix and UCM, '
             'GNOME Shell 50 on-screen keyboard guard',
             '#!/bin/sh\nset -e\nif [ "$1" = configure ]; then\n'
-            ' deb-systemd-helper enable piano-firefox-snap-remove.service >/dev/null\nfi\n',
+            ' deb-systemd-helper enable piano-firefox-snap-remove.service >/dev/null\n'
+            ' deb-systemd-helper --user enable piano-panel-srgb.service >/dev/null\nfi\n',
+            prerm='#!/bin/sh\nset -e\nif [ "$1" = remove ]; then\n'
+                  ' deb-systemd-helper --user disable piano-panel-srgb.service >/dev/null\nfi\n',
+            postrm='#!/bin/sh\nset -e\nif [ "$1" = purge ]; then\n'
+                   ' deb-systemd-helper --user purge piano-panel-srgb.service >/dev/null\nfi\n',
             third_party=[(('usr/share/alsa/ucm2/*',),
                           '2026 bluseliu50 and piano mainline contributors; '
                           '2019 Advanced Linux Sound Architecture (ALSA) project', 'MIT AND BSD-3-Clause',
