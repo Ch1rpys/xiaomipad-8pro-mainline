@@ -1,10 +1,10 @@
 # Status
 
-Current release: **v0.2.0**. The support matrix is in the [README](../README.md#support-matrix)
+Current release: **v0.3.0**. The support matrix is in the [README](../README.md#support-matrix)
 and the [中文 README](../README.zh-CN.md#硬件支持). This page records what was verified, the
 remaining limitations and the upstreaming state.
 
-## Development fixes after v0.2.0
+## Included fixes since v0.2.0
 
 The desktop Mesa package now fixes a shared-context creation race exposed by
 Settings video previews. A real-device EGL/GLES reproducer crashed on the old
@@ -20,9 +20,8 @@ absent, the helper configured the controller, and BlueZ used the installed
 unit address.
 
 An open touchscreen stream now survives the device suspend/resume stage.
-Full system sleep remains disabled: actual s2idle rebooted the tablet and a
-later diagnostic exposed a Wi-Fi resume timeout. Power-button suspend is not
-advertised as fixed. GNOME hides the rotation toggle while the keyboard is
+System suspend is now enabled after the charging, battery, keyboard and display
+resume fixes passed tablet acceptance. GNOME hides the rotation toggle while the keyboard is
 attached and hides the power-button selector for tablet chassis.
 
 ## Test configuration
@@ -34,12 +33,12 @@ variants or accessories.
 |---|---|
 | Device | Xiaomi Pad 8 Pro (`piano`), model 25091RP04C (China), SoC SM8750P, 16 GB RAM, 512 GB UFS; bootloader unlocked |
 | Stock build | OS3.0.303.0.WPYCNXM on slot A |
-| Kernel | Linux 7.2.6 with the piano patches; the exact commit and configuration are pinned in [kernel/source.json](../kernel/source.json) and recorded in the release notes |
+| Kernel | Linux 7.2.10 with the piano patches; the exact commit and configuration are pinned in [kernel/source.json](../kernel/source.json) and recorded in the release notes |
 | Userspace | Ubuntu 26.04 Desktop ARM64; Mesa 26.2 as a deb and as a snap `gpu-2404` provider; GStreamer good/bad plugins |
 | Sensors | `piano-sensors` (hexagonrpcd) and `piano-iio-sensor-proxy` (libssc-backed SensorProxy) with the default calibration seed |
 | Installation | Fresh installation of the v0.2.0 images following `docs/INSTALL.md`; the cold-boot acceptance ran on an account created for the test before the first boot |
 
-## Cold-boot acceptance
+## Historical v0.2.0 cold-boot acceptance
 
 [tools/piano-cold-boot-accept.py](../tools/piano-cold-boot-accept.py) checks a cold boot of the
 installed system against fixed budgets. The v0.2.0 fresh installation passed:
@@ -56,44 +55,24 @@ installed system against fixed budgets. The v0.2.0 fresh installation passed:
 
 The firmware framebuffer is only the initial display path; native DSI KMS (`msm_dpu`) drives
 3200×2136 at 144 Hz. Backlight control and screen off/on through Mutter are verified, and touch
-input resumes after the screen is turned back on. This is not
-suspend/resume acceptance: suspend is disabled.
+input resumes after the screen is turned back on. These are historical v0.2.0 measurements; current suspend acceptance is listed below.
 
-## Verification scope
+## v0.3.0 verification scope
 
-| Area | Verified result and limit |
-|---|---|
-| Dual boot | Slot-A image-set rotation from Ubuntu (`piano-boot-switch`), from Android (KernelSU module) and from the host (`piano-switch.py`); clean shutdown before switching |
-| GPU | Adreno 830 with Mesa 26.2; GNOME Shell and Firefox (snap, through the `gpu-2404` provider) render on the GPU |
-| Video | Iris V4L2 decoder: 150 of 150 frames of a 1080p H.264 clip bit-exact against software decoding; encoder node present but untested; automatic hardware decoding by players unverified |
-| Wi-Fi | WCN7860 with ath12k: stable 2.4 GHz and 5 GHz 80 MHz links with Internet access and NTP |
-| Bluetooth | Controller up with the unit's address, scanning finds devices; pairing and audio unverified |
-| Speakers | FS19xx playback through PipeWire, gain capped; no speaker protection |
-| Microphones | PipeWire capture of a 1 kHz tone 29–36 dB above the noise floor |
-| Touch | NT36532E THP input and orientation confirmed by the user; the stream restarts after the panel is powered off and on; multi-finger gestures not tested systematically |
-| Keyboard | WN8030 keys confirmed by the user; the accessory has no touchpad and no backlight |
-| Sensors | Accelerometer, gyro, light and proximity samples through hexagonrpcd and libssc; SensorProxy reports orientation and ambient light; GNOME rotates with the keyboard detached (confirmed by the user) |
-| Charging | Read-only charger and battery reporting; no charging control, net charging unverified |
+The release incorporates tablet-tested dual-camera capture (fixed rear focus), H.264/H.265/VP9 slow-consumer decoding (150/150 each), 60/90/120/144 Hz display switching and DPMS, six RTC suspend/resume cycles, physical power/keyboard/cover-open wake, screen-off key wake and typing, and charging current-limit restoration. Cover closing does not wake the tablet.
 
-## Known issues
+Bluetooth pairing, file transfer and audio are available, with an intermittent data failure after reconnecting. Camera autofocus is disabled after the actuator failed to open; neither control readback nor driver presence is treated as lens movement.
 
-1. **Charging is unverified.** Charger state is reported; charging control and net charging are
-   not verified. Charge in Android and keep at least 40 % before switching.
-2. **No speaker protection.** Playback keeps a fixed gain cap.
-3. **Bluetooth is scan-only.** Pairing and Bluetooth audio are unverified.
-4. **Video acceptance is limited** to a command-line decode; players may not pick the hardware
-   decoder automatically, and the encoder is untested.
-5. **Suspend is disabled** and **the RTC cannot be written**; the time comes from the network.
-6. **Unsupported hardware:** cameras (no SM8750 camera subsystem), USB host and Type-C role
-   switching, USB-C DisplayPort, stylus, fingerprint.
-7. **Sensor calibration** ships as a default seed; the owner's stock calibration can be staged
-   from a backup but is per unit and must never be shared.
+## Known issues and remaining work
 
-## Roadmap
+- Touch can fail at 120/60 Hz; return to 144/90 Hz.
+- Bluetooth can reconnect without working data; AV1 decoding can lose its first frame.
+- Rear focus is fixed; color tuning and application-level camera/video integration remain limited.
+- Stylus, USB host, USB-C external display and fingerprint are unsupported.
+- Keep the speaker gain cap: speaker protection is absent. Disk hibernation is disabled; the hardware clock remains unwritable.
+- Sensor calibration ships as a default seed; per-unit calibration must never be shared.
 
-Charging control (wall-charger test), Bluetooth pairing and audio, application-level video
-playback and encoding, speaker protection, suspend, RTC, cameras, USB host and external display
-remain open. Installer automation is planned for a later release.
+See the [v0.3.0 release changes](../packaging/release/changes/v0.3.0.md) and [README support table](../README.md#hardware-support) for the user-facing scope.
 
 ## Upstreaming
 

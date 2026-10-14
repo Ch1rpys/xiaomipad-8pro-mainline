@@ -2,7 +2,7 @@
 
 在小米平板 8 Pro（代号 `piano`，骁龙 8 至尊版）上原生运行 Ubuntu 26.04 LTS GNOME 桌面，与 Android 双系统共存，内核基于上游 Linux 7.2 适配。不是容器，不是远程桌面。[English](README.md)
 
-**最新版本：[v0.2.0](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.2.0)。** 支持状态见[硬件支持](#硬件支持)，技术路线与同类项目的差异见 [docs/APPROACH.zh-CN.md](docs/APPROACH.zh-CN.md)。
+**最新版本：[v0.3.0](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.3.0)。** 支持状态见[硬件支持](#硬件支持)，技术路线与同类项目的差异见 [docs/APPROACH.zh-CN.md](docs/APPROACH.zh-CN.md)。
 
 ## 📮 关注与交流
 
@@ -26,9 +26,9 @@
 - **必须先解锁 Bootloader**（按小米官方流程），并取得 Android root（用于读取分区做备份）。
 - **只支持原厂版本 OS3.0.303.0.WPYCNXM，运行在 A 槽。** 启动镜像按这个版本的头部字段、回滚索引和 AVB 属性生成，其他版本不支持。
 - **先备份。** 任何写入之前，备份除 `userdata` 外的全部分区和每个 UFS LUN 的分区表。切回 Android 需要 A 槽原厂的 `boot`、`init_boot`、`vendor_boot`。
-- **Linux 下不能充电。** 充电控制尚未验证，请在 Android 中充电，切换前保持电量不低于 40%。
+- **切换系统前保持电量不低于 40%。** 充电控制与挂起限流恢复已验证，不同充电器兼容性仍有限。
 - **没有扬声器保护。** 扬声器可以播放，但音量上限受限，不要自行提高增益。
-- **不支持待机，时钟不保存。** 屏幕会关，系统不会睡眠；硬件时钟不可写，启动后联网自动校时。
+- **支持系统待机，不支持休眠到磁盘。** 电源键、键盘和开盖可唤醒；硬件时钟不可写，启动后联网自动校时。
 - **只在一台机器上验证过：** 型号 25091RP04C（国行），16 GB 内存，512 GB 存储。其他型号和容量未验证。
 - **恢复方法：** 无画面或无响应时，长按电源 + 音量下进入 Fastboot，用 `tools/piano-switch.py` 写回 Android，见[使用与维护](#使用与维护)。
 
@@ -46,10 +46,10 @@
 ```text
 我要在小米平板 8 Pro（代号 piano）上安装 Ubuntu，与 Android 双系统共存。请你作为操作助手，按下面的规则帮我完成。
 
-项目：https://github.com/yzddmr6/xiaomipad-8pro-mainline ，版本 v0.2.0。
+项目：https://github.com/yzddmr6/xiaomipad-8pro-mainline ，版本 v0.3.0。
 
-1. 先 git clone 该仓库并检出标签 v0.2.0，通读 README.zh-CN.md 的「安装前请阅读」、docs/INSTALL.zh-CN.md、docs/FLASHING.zh-CN.md，以及 docs/AGENT-GUIDE.zh-CN.md 第 1 节的安全规则，然后再开始。
-2. 从 GitHub Release v0.2.0 把全部附件下载到一个空目录，先执行 sha256sum -c SHA256SUMS.assets，再按 Release 说明还原发布目录并再次校验。
+1. 先 git clone 该仓库并检出标签 v0.3.0，通读 README.zh-CN.md 的「安装前请阅读」、docs/INSTALL.zh-CN.md、docs/FLASHING.zh-CN.md，以及 docs/AGENT-GUIDE.zh-CN.md 第 1 节的安全规则，然后再开始。
+2. 从 GitHub Release v0.3.0 把全部附件下载到一个空目录，先执行 sha256sum -c SHA256SUMS.assets，再按 Release 说明还原发布目录并再次校验。
 3. 检查主机工具（adb、fastboot、python3、zstd、sgdisk、sfdisk、img2simg 等，以 INSTALL 的「准备」表为准）和平板状态（型号 piano、原厂版本 OS3.0.303.0.WPYCNXM、当前 A 槽、已解锁、已 root、电量不低于 40%）。任何一项不符就停下来告诉我，不要绕过。
 4. 严格按 docs/INSTALL.zh-CN.md 的步骤顺序执行，每条设备命令都带上我的序列号。每一步开始前用一两句话告诉我这步做什么、会写哪里；凡是写入平板的操作（分区表、擦除、flash、写 A 槽），先列出将要执行的命令，等我回复「确认」再执行。
 5. 绝不写入 vbmeta、dtbo、任何 _b 分区、persist 或其他校准、基带、固件分区；绝不执行 fastboot --set-active=b；绝不使用别的平板的标定、地址或镜像。
@@ -61,12 +61,12 @@
 
 ### 手动安装
 
-1. 从 [v0.2.0 发布页](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.2.0)把全部附件下载到一个空目录，校验并还原发布目录：
+1. 从 [v0.3.0 发布页](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.3.0)把全部附件下载到一个空目录，校验并还原发布目录：
 
    ```bash
    sha256sum -c SHA256SUMS.assets
-   unzip piano-ubuntu-v0.2.0-boot.zip && unzip piano-ubuntu-v0.2.0-tools.zip && unzip piano-ubuntu-v0.2.0-packages.zip
-   mkdir -p rootfs && cat piano-ubuntu-v0.2.0-rootfs.img.zst.part* | zstd -d > rootfs/root.sparse.img
+   unzip piano-ubuntu-v0.3.0-boot.zip && unzip piano-ubuntu-v0.3.0-tools.zip && unzip piano-ubuntu-v0.3.0-packages.zip
+   mkdir -p rootfs && cat piano-ubuntu-v0.3.0-rootfs.img.zst.part* | zstd -d > rootfs/root.sparse.img
    sha256sum -c SHA256SUMS
    ```
 
@@ -82,7 +82,7 @@
 
 ## 硬件支持
 
-以下为 v0.2.0 在测试机上的状态。✅ 可用 · 🟡 部分支持 · ❌ 不支持 · 🧪 未验证。
+以下为 v0.3.0 在测试机上的状态。✅ 可用 · 🟡 部分支持 · ❌ 不支持 · 🧪 未验证。
 ✅ 表示已在真机验证所述功能，不代表所有应用和使用场景都测过。详细范围、已知问题与路线图见 [docs/STATUS.md](docs/STATUS.md)（英文）。
 
 ### 平台、显示与输入
@@ -92,12 +92,12 @@
 | SoC / CPU | 高通骁龙 8 至尊版（SM8750P） | ✅ 可用 | 八个核心均可调频 |
 | Android / Linux 双系统 | A 槽镜像组轮换 | ✅ 可用 | Ubuntu 内一条命令、Android 内 KernelSU 模块、主机 Fastboot 三种切换方式都已验证 |
 | 内置存储 | 铠侠 UFS / ext4 | ✅ 可用 | 60 GiB 根分区，约 201 GiB `/home` |
-| 内置显示 | 原生 DSI KMS（`msm_dpu`） | ✅ 可用 | 3200×2136、144 Hz，背光可调，关屏/亮屏正常 |
+| 内置显示 | 原生 DSI KMS（`msm_dpu`） | ✅ 可用 | 3200×2136，60/90/120/144 Hz 切换及关屏/亮屏通过；触控限制见下一行 |
 | GNOME 桌面 | Ubuntu 26.04 GNOME / Wayland / GDM | ✅ 可用 | 冷启动约 13 秒到登录界面 |
 | GPU | Adreno 830 / Mesa 26.2 | ✅ 可用 | 桌面与 snap 应用（含 Firefox）均走 GPU 渲染 |
-| 触摸屏 | Novatek NT36532E（THP，SPI） | ✅ 可用 | 触控与方向已验证；关屏后再亮屏会自动恢复；多指手势未系统测试 |
+| 触摸屏 | Novatek NT36532E（THP，SPI） | 🟡 部分支持 | 144/90 Hz 下可用；切到 120/60 Hz 后可能失效，切回 144/90 Hz 恢复；多指手势未系统测试 |
 | 手写笔 | — | ❌ 不支持 | 笔扫描已关闭 |
-| 磁吸键盘 | Nanosic WN8030 | ✅ 可用 | 按键已验证；该键盘本身没有触摸板和背光 |
+| 磁吸键盘 | Nanosic WN8030 | ✅ 可用 | 打字、熄屏按键唤醒和睡眠唤醒已验证；无触摸板、背光 |
 | 指纹 | — | ❌ 不支持 | 没有驱动 |
 
 ### 无线与 USB
@@ -105,7 +105,7 @@
 | 功能 | 器件 / 实现 | 状态 | 说明 |
 |---|---|---|---|
 | Wi-Fi | 高通 WCN7860 / ath12k | ✅ 可用 | 2.4 GHz 与 5 GHz 80 MHz 连接稳定 |
-| 蓝牙 | 高通 WCN7860 / `hci_qca` | 🟡 部分支持 | 扫描可用；配对与蓝牙音频未验证 |
+| 蓝牙 | 高通 WCN7860 / `hci_qca` | 🟡 部分支持 | 配对、文件传输和蓝牙音频可用；偶发重连成功后数据不通 |
 | USB 设备模式 | USB 2.0 网络（NCM） | ✅ 可用 | 开发者模式下经 USB 线 SSH 登录，默认关闭 |
 | USB 主机 / Type-C 角色切换 | — | ❌ 不支持 | 不能接 U 盘、键鼠等外设 |
 | USB-C 外接显示 | DisplayPort Alt Mode | ❌ 不支持 | |
@@ -116,9 +116,9 @@
 |---|---|---|---|
 | 扬声器 | FS19xx 四路功放 | 🟡 部分支持 | 可播放；没有扬声器保护，音量上限受限 |
 | 内置麦克风 | DMIC / ADSP / PipeWire | ✅ 可用 | 录音已验证 |
-| 视频硬解 | 高通 Iris / V4L2 | 🟡 部分支持 | 1080p H.264 硬解已验证；播放器自动调用硬解未验证 |
-| 视频硬编 | 高通 Iris / V4L2 | 🧪 未验证 | 编码节点存在，未测试 |
-| 摄像头 | 后摄 S5KJN1SQ03、前摄 OV32D40 | ❌ 不支持 | 缺少 SM8750 相机子系统支持 |
+| 视频硬解 | 高通 Iris / V4L2 | 🟡 部分支持 | H.264/H.265/VP9 慢消费各 150/150 帧通过；AV1 丢首帧；播放器自动调用仍有兼容性限制 |
+| 视频硬编 | 高通 Iris / V4L2 | ✅ 可用 | H.264/H.265 1080p、4K 编码已验证 |
+| 摄像头 | 后摄 S5KJN1SQ03、前摄 OV32D40 | ✅ 可用 | 双摄出图可用；后摄固定焦距、无自动对焦，近景可能偏虚；色彩调校仍有限 |
 | 加速度、陀螺、光感、距离 | SSC / hexagonrpcd / libssc | ✅ 可用 | SensorProxy 可报告方向和环境光 |
 | 自动旋转 | SensorProxy / Mutter | ✅ 可用 | 拆下键盘后自动旋转；装着键盘时按 GNOME 规则锁定 |
 
@@ -126,10 +126,10 @@
 
 | 功能 | 器件 / 实现 | 状态 | 说明 |
 |---|---|---|---|
-| 电源键 / 音量键 | 高通 PMIC | 🟡 部分支持 | 电源键可用；音量键未验证 |
+| 电源键 / 音量键 | 高通 PMIC | 🟡 部分支持 | 电源键及唤醒已验证；音量键未验证 |
 | 电量 / 温度 | 2 × TI BQ27Z561 / 温区 | ✅ 可用 | 电量、电压、电流和温度可读 |
-| 充电 | 只读 `xiaomi_mca` | 🟡 部分支持 | 能看到充电状态；充电控制和净充电未验证，请在 Android 充电 |
-| 待机 | — | ❌ 不支持 | 已禁用；屏幕会关，系统不睡眠 |
+| 充电 | `xiaomi_mca` / SC8541 | 🟡 部分支持 | 充电控制已接入，挂起限流及恢复正常；不同充电器兼容性仍需验证 |
+| 待机 | suspend-to-idle | ✅ 可用 | RTC、键盘、电源键、开盖唤醒通过；合盖不唤醒；启用系统默认空闲策略 |
 | 休眠到磁盘 | — | ❌ 不支持 | 没有 swap 分区 |
 | 实时时钟 | PMK8550 RTC | ❌ 不支持 | 不可写，启动后联网校时 |
 
@@ -163,7 +163,7 @@ fastboot -s <serial> reboot
 | 仓库 | 内容 |
 |---|---|
 | xiaomipad-8pro-mainline | 设备用户态、Ubuntu 集成、构建/打包/切换工具、固件、文档 |
-| [linux-sm8750-piano](https://github.com/yzddmr6/linux-sm8750-piano) | Linux 内核：在上游 v7.2.6 stable 之上维护驱动、设备树与配置，分支 `piano/dev` |
+| [linux-sm8750-piano](https://github.com/yzddmr6/linux-sm8750-piano) | Linux 内核：在上游 Linux 7.2 stable 之上维护驱动、设备树与配置；发布提交见输入锁 |
 
 [kernel/source.json](kernel/source.json) 锁定内核提交与配置片段。本机输入（标定、蓝牙和 Wi-Fi 地址、启动配置、签名密钥、备份）归各设备所有者所有，从不提交。
 
