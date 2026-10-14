@@ -273,6 +273,11 @@ class Check:
         return match.group(1) if match else None
 
     def execute(self):
+        # A module stuck in remove cannot service new opens; a userspace timeout
+        # cannot interrupt that kernel wait. Reject it before probing any codec.
+        self.remote_run('test ! -e /sys/module/qcom_iris/initstate || '
+                        'test "$(cat /sys/module/qcom_iris/initstate)" = live',
+                        'iris-live')
         for cmd in (self.a.ffmpeg, self.a.ffprobe):
             self.run([cmd, '-version'], Path(cmd).name + '-version')
         _, before, _ = self.remote_run(
