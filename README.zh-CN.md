@@ -93,6 +93,7 @@
 | Android / Linux 双系统 | A 槽镜像组轮换 | ✅ 可用 | Ubuntu 内一条命令、Android 内 KernelSU 模块、主机 Fastboot 三种切换方式都已验证 |
 | 内置存储 | 铠侠 UFS / ext4 | ✅ 可用 | 60 GiB 根分区，约 201 GiB `/home` |
 | 内置显示 | 原生 DSI KMS（`msm_dpu`） | ✅ 可用 | 3200×2136，60/90/120/144 Hz 切换及关屏/亮屏通过；触控限制见下一行 |
+| 夜灯 | GNOME / DPU 色温调整 | ✅ 可用 | 50 轮开关、关屏/亮屏和睡眠恢复通过 |
 | GNOME 桌面 | Ubuntu 26.04 GNOME / Wayland / GDM | ✅ 可用 | 冷启动约 13 秒到登录界面 |
 | GPU | Adreno 830 / Mesa 26.2 | ✅ 可用 | 桌面与 snap 应用（含 Firefox）均走 GPU 渲染 |
 | 触摸屏 | Novatek NT36532E（THP，SPI） | 🟡 部分支持 | 144/90 Hz 下可用；切到 120/60 Hz 后可能失效，切回 144/90 Hz 恢复；多指手势未系统测试 |

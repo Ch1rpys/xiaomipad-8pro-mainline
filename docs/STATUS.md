@@ -59,6 +59,8 @@ input resumes after the screen is turned back on. These are historical v0.2.0 me
 
 ## v0.3.0 verification scope
 
+GNOME Night Light passed 50 on/off cycles with 101 stable encoder-CRC endpoints, plus DPMS and suspend restoration. The session helper uses the distribution sRGB profile without overriding an existing user choice.
+
 The release incorporates tablet-tested dual-camera capture (fixed rear focus), H.264/H.265/VP9 slow-consumer decoding (150/150 each), 60/90/120/144 Hz display switching and DPMS, six RTC suspend/resume cycles, physical power/keyboard/cover-open wake, screen-off key wake and typing, and charging current-limit restoration. Cover closing does not wake the tablet.
 
 Bluetooth pairing, file transfer and audio are available, with an intermittent data failure after reconnecting. Camera autofocus is disabled after the actuator failed to open; neither control readback nor driver presence is treated as lens movement.

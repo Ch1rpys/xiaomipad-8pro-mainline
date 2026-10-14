@@ -95,6 +95,7 @@ State of v0.3.0 on the test unit. ✅ works · 🟡 partial · ❌ unsupported �
 | Android / Linux dual boot | Slot-A image-set rotation | ✅ works | Switching from Ubuntu (one command), from Android (KernelSU module) and from the host (Fastboot) all verified |
 | Internal storage | KIOXIA UFS / ext4 | ✅ works | 60 GiB root, about 201 GiB `/home` |
 | Internal display | Native DSI KMS (`msm_dpu`) | ✅ works | 3200×2136; 60/90/120/144 Hz changes and screen off/on verified; see touch limitation below |
+| Night Light | GNOME / DPU color temperature | ✅ works | 50 on/off cycles, screen off/on and suspend restoration verified |
 | GNOME desktop | Ubuntu 26.04 GNOME / Wayland / GDM | ✅ works | Cold boot to the login screen in about 13 s |
 | GPU | Adreno 830 / Mesa 26.2 | ✅ works | GPU rendering for the desktop and for snap applications including Firefox |
 | Touchscreen | Novatek NT36532E (THP over SPI) | 🟡 partial | Works at 144/90 Hz; touch can stop after switching to 120/60 Hz; switch back to 144/90 Hz to recover |
