@@ -2,12 +2,16 @@
 # SPDX-License-Identifier: MIT
 """Device-side GNOME/DSI mode and DPMS acceptance (root, invoked over SSH).
 
-Python standard library, busctl/loginctl and GNOME's existing libgio/glib.
+Python standard library, busctl/loginctl/gsettings and GNOME's existing libgio/glib.
 No package/service/driver changes or persistent monitor configuration. The only
 kernel write is selecting a DRM debugfs CRC source; data is opened read-only.
 Reports contain private device/session information: keep --output private.
 
 A moving pointer must change the layer-mixer CRC on BOTH bonded display halves.
+--nightlight N instead keeps the mode and pointer fixed, using encoder CRC to
+check N night-light on/off cycles. Prepare a static fullscreen colored image
+(no clock, blinking caret, notifications or animations) and leave input idle.
+The five changed GSettings are restored, including originally unset values.
 CRC is measured before DSI/panel output; PASS is the specified digital-path
 acceptance, not proof of panel light output. Run in a fresh recoverable RAM boot:
 a D-state DRM call cannot be cancelled by this program's userspace deadlines.
@@ -43,9 +47,17 @@ DC_PATH = '/org/gnome/Mutter/DisplayConfig'
 RD = 'org.gnome.Mutter.RemoteDesktop'
 RATES = (60, 90, 120, 144)
 APPLY_SIGNATURE = 'uua(iiduba(ssa{sv}))a{sv}'
+COLOR = 'org.gnome.SettingsDaemon.Color'
+COLOR_PATH = '/org/gnome/SettingsDaemon/Color'
+COLOR_SCHEMA = 'org.gnome.settings-daemon.plugins.color'
+NIGHT_KEYS = ('night-light-enabled', 'night-light-temperature',
+              'night-light-schedule-automatic', 'night-light-schedule-from',
+              'night-light-schedule-to')
+NIGHT_TEMPERATURE = 4000
 BAD_LOG = re.compile(
     r'dsi_err_worker|dsi.*fifo|underrun|underflow|\bWARNING\b|Call trace|'
     r'Overflow of CRC buffer|'
+    r'(?:regdma|lutdma).*?(?:fault|fail|error|time(?:d[ _-]*out|out)|unconfirmed|leak)|'
     r'(?:frame|vblank|vsync|pp_done).*?time(?:d[ _-]*out|out)|'
     r'(?:smmu|iommu).*?(?:fault|translation.*(?:fail|error))|'
     r'(?:pll|clock|clk|rcg).*?(?:stuck|time(?:d out|out)|fail|error|'
@@ -155,20 +167,22 @@ def parse_crc_line(line):
     return int(fields[0], 16), tuple(int(x, 16) for x in fields[1:])
 
 
-def crc_metrics(samples, expected_hz):
+def crc_metrics(samples, expected_hz, source='auto', stationary=False):
     """Samples: {time: host monotonic seconds, frame: uint32, values: [CRC]}.
 
     Rate uses FRAME delta, not line count. Gaps in CRC delivery are recorded;
     counter wrap is allowed, duplicate/backward/reset counters are rejected.
     """
+    per_channel_key = 'unique_per_encoder' if source == 'encoder' else 'unique_per_lm'
     result = {'status': 'FAIL', 'samples': len(samples), 'expected_hz': expected_hz,
-              'fps': None, 'unique_crc': 0, 'unique_per_lm': []}
+              'fps': None, 'unique_crc': 0, per_channel_key: [], 'source': source}
     if len(samples) < 2:
         result['reason'] = 'no advancing CRC stream'
         return result
     channels = {len(s['values']) for s in samples}
     if channels != {2}:
-        return dict(result, status='INCOMPLETE', reason='bonded DSI requires two LM CRC columns')
+        block = 'encoder' if source == 'encoder' else 'LM'
+        return dict(result, status='INCOMPLETE', reason=f'bonded DSI requires two {block} CRC columns')
     elapsed = samples[-1]['time'] - samples[0]['time']
     if elapsed < 0.5:
         return dict(result, status='INCOMPLETE', reason='insufficient timed CRC span')
@@ -180,11 +194,64 @@ def crc_metrics(samples, expected_hz):
     per_lm = [len({s['values'][i] for s in samples}) for i in range(2)]
     fps = frames / elapsed
     result.update(seconds=elapsed, frames=frames, fps=fps, unique_crc=unique,
-                  unique_per_lm=per_lm, max_frame_gap=max(deltas),
+                  max_frame_gap=max(deltas),
                   rate_ok=abs(fps - expected_hz) <= 0.15 * expected_hz + 1e-9,
-                  content_ok=unique >= 2 and all(n >= 2 for n in per_lm))
+                  content_ok=unique == 1 if stationary else unique >= 2 and all(n >= 2 for n in per_lm))
+    result[per_channel_key] = per_lm
+    if stationary:
+        result['stable_crc'] = list(samples[0]['values']) if unique == 1 else None
     result['status'] = 'PASS' if result['rate_ok'] and result['content_ok'] else 'FAIL'
     return result
+
+
+def nightlight_crc_matches(crc, enabled, baseline):
+    """Both endpoints must be stable; compare the complete bonded CRC tuple."""
+    if baseline is None or crc.get('status') != 'PASS' or crc.get('stable_crc') is None:
+        return False
+    return (crc['stable_crc'] != baseline) if enabled else (crc['stable_crc'] == baseline)
+
+
+def nightlight_schedule(hour):
+    # Middle of a 12-hour manual window, well clear of GSD's sunrise/sunset
+    # transition even across midnight. All settings are GVariant strings.
+    return {'night-light-enabled': 'false',
+            'night-light-schedule-automatic': 'false',
+            'night-light-schedule-from': repr((hour - 6) % 24),
+            'night-light-schedule-to': repr((hour + 6) % 24),
+            'night-light-temperature': f'uint32 {NIGHT_TEMPERATURE}'}
+
+
+def settings_snapshot_worker():
+    """Read effective AND user values via GSettings, without a python-gi dependency."""
+    schema, keys = json.loads(sys.argv[1])
+    gio = ctypes.CDLL('libgio-2.0.so.0')
+    glib = ctypes.CDLL('libglib-2.0.so.0')
+    gio.g_settings_new.argtypes = [ctypes.c_char_p]
+    gio.g_settings_new.restype = ctypes.c_void_p
+    for name in ('g_settings_get_value', 'g_settings_get_user_value'):
+        fn = getattr(gio, name)
+        fn.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+        fn.restype = ctypes.c_void_p
+    gio.g_settings_is_writable.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+    gio.g_settings_is_writable.restype = ctypes.c_int
+    glib.g_variant_print.argtypes = [ctypes.c_void_p, ctypes.c_int]
+    glib.g_variant_print.restype = ctypes.c_void_p
+    glib.g_variant_unref.argtypes = [ctypes.c_void_p]
+    glib.g_free.argtypes = [ctypes.c_void_p]
+    settings = gio.g_settings_new(schema.encode())
+    result = {}
+    for key in keys:
+        values = {'writable': bool(gio.g_settings_is_writable(settings, key.encode()))}
+        for label, name in [('effective', 'g_settings_get_value'), ('user', 'g_settings_get_user_value')]:
+            variant = getattr(gio, name)(settings, key.encode())
+            values[label] = None
+            if variant:
+                text = glib.g_variant_print(variant, True)
+                values[label] = ctypes.string_at(text).decode()
+                glib.g_free(text)
+                glib.g_variant_unref(variant)
+        result[key] = values
+    print(json.dumps(result), flush=True)
 
 
 def filter_kernel(lines):
@@ -288,7 +355,7 @@ class CRC:
                 (self.path / 'control').write_text(self.previous + '\n')
             except OSError as restore_error:
                 raise RuntimeError(f'CRC open: {error}; control restore: {restore_error}') from error
-            if error.errno in (errno.EOPNOTSUPP, errno.ENOSYS):
+            if error.errno in (errno.EOPNOTSUPP, errno.ENOSYS, errno.EINVAL):
                 raise Unsupported(f'CRC source unavailable: {error}') from error
             raise
         self.thread = threading.Thread(target=self.read, daemon=True)
@@ -469,6 +536,18 @@ class Check:
         self.user = self.env = self.original = self.pointer = self.log = None
         self.lock = None
         self.changed = False
+        self.settings = None
+        self.settings_changed = False
+        self.shell_original = None
+        self.baseline_crc = None
+        if args.nightlight:
+            self.result['criteria'].update(minimum_unique_crc=1, endpoint_must_be_constant=True,
+                                           every_off_equals_baseline=True, every_on_differs=True,
+                                           shell_pid_unchanged=True)
+            self.result['criteria'].pop('minimum_unique_per_lm')
+            self.result['nightlight'] = {'cycles': args.nightlight, 'temperature': NIGHT_TEMPERATURE}
+        elif args.crc_source == 'encoder':
+            self.result['criteria']['minimum_unique_per_encoder'] = self.result['criteria'].pop('minimum_unique_per_lm')
 
     def command(self, argv, user=False):
         with (self.out / 'commands.jsonl').open('a') as f:
@@ -499,6 +578,73 @@ class Check:
 
     def state(self):
         return parse_state(self.bus('GetCurrentState'))
+
+    def shell_identity(self):
+        owner = unwrap(self.bus('GetNameOwner', 's', ['org.gnome.Shell'],
+                                dest='org.freedesktop.DBus', path='/org/freedesktop/DBus',
+                                iface='org.freedesktop.DBus'))[0]
+        pid = unwrap(self.bus('GetConnectionUnixProcessID', 's', [owner],
+                              dest='org.freedesktop.DBus', path='/org/freedesktop/DBus',
+                              iface='org.freedesktop.DBus'))[0]
+        return {'pid': pid, 'bus_owner': owner}
+
+    def settings_snapshot(self):
+        source = ('import ctypes, json, sys\n' + inspect.getsource(settings_snapshot_worker)
+                  + '\nsettings_snapshot_worker()\n')
+        return json.loads(self.command([sys.executable, '-c', source,
+                                        json.dumps([COLOR_SCHEMA, NIGHT_KEYS])], user=True))
+
+    def setting(self, key, value):
+        self.settings_changed = True  # a timeout can still have changed dconf
+        argv = ['gsettings', 'reset' if value is None else 'set', COLOR_SCHEMA, key]
+        if value is not None:
+            argv.append(value)
+        self.command(argv, user=True)
+
+    def color_state(self):
+        return unwrap(self.bus('GetAll', 's', [COLOR], dest=COLOR, path=COLOR_PATH,
+                               iface='org.freedesktop.DBus.Properties'))[0]
+
+    def wait_color(self, enabled):
+        # GSD 50.1 smooths transitions over 5 seconds. Wait for its reported
+        # endpoint before measuring the downstream CRC; never change debug bits.
+        deadline = time.monotonic() + 15
+        expected = NIGHT_TEMPERATURE if enabled else 6500
+        while True:
+            state = self.color_state()
+            if (state.get('NightLightActive') is enabled
+                    and state.get('Temperature') == expected):
+                return state
+            if time.monotonic() >= deadline:
+                raise RuntimeError(f'GSD did not reach night-light endpoint {enabled}/{expected}K: {state}')
+            self.log.drain()
+            time.sleep(0.1)
+
+    def restore_settings(self, errors):
+        if not self.settings_changed or self.settings is None:
+            return
+        restored = self.result['restore']['gsettings'] = {}
+        # Disable while restoring the schedule, then restore the original
+        # enabled value last. Each operation runs even after another failed.
+        operations = [('night-light-enabled', 'false')]
+        operations += [(key, self.settings[key]['user']) for key in NIGHT_KEYS[1:]]
+        operations += [('night-light-enabled', self.settings['night-light-enabled']['user'])]
+        for key, value in operations:
+            try:
+                self.setting(key, value)
+                restored[key] = 'reset to default' if value is None else value
+            except Exception as error:
+                errors.append(f'GSettings {key}: {error}')
+        try:
+            after = self.settings_snapshot()
+            restored['readback'] = after
+            restored['matches_original'] = all(
+                after[key][field] == self.settings[key][field]
+                for key in NIGHT_KEYS for field in ('effective', 'user'))
+            if not restored['matches_original']:
+                errors.append('GSettings restoration differs from original values')
+        except Exception as error:
+            errors.append(f'GSettings restore readback: {error}')
 
     def session(self):
         sessions = []
@@ -551,6 +697,18 @@ class Check:
     def sample(self, state, step):
         path = discover_crc()
         step['crc_path'] = str(path)
+        if self.a.nightlight:
+            with CRC(path, 'encoder') as crc:
+                end = time.monotonic() + self.a.sample_seconds
+                while time.monotonic() < end:
+                    self.log.drain()
+                    time.sleep(max(0, min(0.1, end - time.monotonic())))
+            step['pointer_moves'] = 0
+            step['crc_samples'] = crc.samples
+            step['crc'] = crc_metrics(crc.samples, state['current']['hz'], 'encoder', stationary=True)
+            if crc.errors:
+                step['crc'].update(status='INCOMPLETE', reader_errors=crc.errors)
+            return step['crc']['status']
         width, height = state['current']['width'], state['current']['height']
         if state['transform'] % 2:
             width, height = height, width
@@ -575,13 +733,13 @@ class Check:
             step['pointer_moves'] = moves
         # Every CRC open starts a fresh kernel ring after the mode has settled.
         step['crc_samples'] = crc.samples
-        step['crc'] = crc_metrics(crc.samples, state['current']['hz'])
+        step['crc'] = crc_metrics(crc.samples, state['current']['hz'], self.a.crc_source)
         if crc.errors:
             step['crc']['reader_errors'] = crc.errors
             step['crc']['status'] = 'INCOMPLETE'
         return step['crc']['status']
 
-    def step(self, name, mode, action=None):
+    def step(self, name, mode, action=None, nightlight=None):
         step = {'name': name, 'requested_mode': mode, 'status': 'INCOMPLETE',
                 'start_monotonic': time.monotonic(), 'mode_matches': None,
                 'crc': {'status': 'INCOMPLETE', 'fps': None, 'unique_crc': 0}}
@@ -592,10 +750,17 @@ class Check:
                                      path='/org/gnome/ScreenSaver', iface='org.gnome.ScreenSaver'))[0]
             if locked:
                 raise Unsupported('GNOME session locked during test; no input sent')
+            if nightlight is not None:
+                step['nightlight_enabled'] = nightlight
+                step['shell_before'] = self.shell_identity()
+                if step['shell_before'] != self.shell_original:
+                    raise RuntimeError('GNOME Shell PID or bus owner changed')
             if action:
                 action()
+            if nightlight is not None:
+                step['color_state'] = self.wait_color(nightlight)
             observed = self.wait_mode(mode)
-            time.sleep(self.a.settle_seconds)
+            time.sleep(max(2, self.a.settle_seconds) if nightlight is not None else self.a.settle_seconds)
             step['observed'] = self.wait_mode(mode)
             step['mode_matches'] = True
             step['status'] = self.sample(observed, step)
@@ -603,6 +768,23 @@ class Check:
             step['mode_matches'] = mode_matches(after, self.original, mode) and self.power() == 0
             if not step['mode_matches']:
                 step['status'] = 'FAIL'
+            if nightlight is not None:
+                step['shell_after'] = self.shell_identity()
+                step['shell_unchanged'] = step['shell_after'] == self.shell_original
+                if not step['shell_unchanged']:
+                    step['status'] = 'FAIL'
+                step['color_after'] = self.color_state()
+                if (step['color_after'].get('NightLightActive') is not nightlight
+                        or step['color_after'].get('Temperature') != (NIGHT_TEMPERATURE if nightlight else 6500)):
+                    step['status'] = 'FAIL'
+                if step['crc']['status'] == 'PASS':
+                    if self.baseline_crc is None and not nightlight:
+                        self.baseline_crc = step['crc']['stable_crc']
+                        self.result['nightlight']['baseline_crc'] = self.baseline_crc
+                    step['crc_matches_endpoint'] = nightlight_crc_matches(
+                        step['crc'], nightlight, self.baseline_crc)
+                    if not step['crc_matches_endpoint']:
+                        step['status'] = 'FAIL'
         except Unsupported as error:
             step.update(error=str(error), crc={'status': 'UNSUPPORTED', 'fps': None, 'unique_crc': None})
         except Exception as error:
@@ -636,6 +818,54 @@ class Check:
         finally:
             self.power(0)
 
+    def nightlight_run(self):
+        if self.original['current']['properties'].get('refresh-rate-mode', 'fixed') != 'fixed':
+            raise Unsupported('night-light CRC requires a fixed refresh rate')
+        self.shell_original = self.shell_identity()
+        self.result['nightlight']['original_shell'] = self.shell_original
+        try:
+            self.result['nightlight']['original_color'] = self.color_state()
+            self.settings = self.settings_snapshot()
+        except Exception as error:
+            raise Unsupported(f'GSD Color/GSettings unavailable: {error}') from error
+        self.result['nightlight']['original_settings'] = self.settings
+        if self.result['nightlight']['original_color'].get('DisabledUntilTomorrow'):
+            raise Unsupported('night light is paused until tomorrow; existing pause was preserved')
+        if not all(value['writable'] for value in self.settings.values()):
+            raise Unsupported('night-light settings are locked by policy')
+        # Check CRC availability before changing preferences; there is no LM
+        # fallback because its tap is before GC and cannot prove color changes.
+        with CRC(discover_crc(), 'encoder'):
+            pass
+        self.pointer = Pointer(self.user, self.env)
+        width, height = self.original['current']['width'], self.original['current']['height']
+        if self.original['transform'] % 2:
+            width, height = height, width
+        if self.original['properties']['layout-mode'] == 1:
+            width, height = width / self.original['scale'], height / self.original['scale']
+        self.pointer.move(-2 * width, -2 * height)
+        self.pointer.move(width / 2, height / 2)
+        self.result['nightlight']['pointer_parked_monotonic'] = time.monotonic()
+        now = time.localtime()
+        schedule = nightlight_schedule(now.tm_hour + now.tm_min / 60 + now.tm_sec / 3600)
+        self.result['nightlight']['test_settings'] = schedule
+
+        def configure():
+            for key, value in schedule.items():
+                self.setting(key, value)
+
+        mode = self.original['current']
+        if not self.step('nightlight-baseline-off', mode, configure, nightlight=False):
+            return
+        for cycle in range(1, self.a.nightlight + 1):
+            for enabled in (True, False):
+                name = f'nightlight-{cycle:03d}-' + ('on' if enabled else 'off')
+                if not self.step(name, mode,
+                                 lambda on=enabled: self.setting('night-light-enabled', str(on).lower()),
+                                 nightlight=enabled):
+                    return
+        self.result['status'] = 'PASS'
+
     def run(self):
         try:
             if os.geteuid() != 0:
@@ -656,12 +886,15 @@ class Check:
             self.result['original_power_save_mode'] = self.power()
             if self.power() != 0:
                 raise Unsupported('start with the desktop awake (PowerSaveMode=0)')
-            modes = choose_modes(self.original)
-            self.result['selected_modes'] = modes
             try:
                 self.log = KernelLog()
             except OSError as error:
                 raise Unsupported(f'cannot capture new kernel messages: {error}') from error
+            if self.a.nightlight:
+                self.nightlight_run()
+                return
+            modes = choose_modes(self.original)
+            self.result['selected_modes'] = modes
             self.pointer = Pointer(self.user, self.env)
             if not self.step('original', self.original['current']):
                 return
@@ -695,7 +928,20 @@ class Check:
         errors = []
         mark = len(self.log.entries) if self.log else 0
         # Each cleanup is independent, so a failed Stop cannot skip screen restore.
-        if self.user and self.original:
+        if self.a.nightlight:
+            self.restore_settings(errors)
+            if self.settings_changed:
+                # Include the restored preferences' normal 5-second GSD ramp
+                # in the kernel-log window, including when interrupted.
+                time.sleep(6)
+            if self.shell_original:
+                try:
+                    self.result['restore']['shell'] = self.shell_identity()
+                    if self.result['restore']['shell'] != self.shell_original:
+                        errors.append('GNOME Shell PID or bus owner changed')
+                except Exception as error:
+                    errors.append(f'Shell restore readback: {error}')
+        elif self.user and self.original:
             for label, operation in [('power_on_before', lambda: self.power(0)),
                                      ('original_mode', lambda: self.apply(self.original['current'])
                                       if self.changed else 'unchanged; no mode/DPMS request issued'),
@@ -741,11 +987,21 @@ def main(argv=None):
     parser.add_argument('--serial', required=True, help='expected piano androidboot.serialno')
     parser.add_argument('--kernel', required=True, help='exact expected uname -r (baseline or candidate)')
     parser.add_argument('--label', default='display-mode-check')
-    parser.add_argument('--crc-source', choices=('auto', 'lm'), default='auto')
+    parser.add_argument('--crc-source', choices=('auto', 'lm', 'encoder'),
+                        help='default: encoder for --nightlight, auto for mode checks')
+    parser.add_argument('--nightlight', type=int, metavar='N',
+                        help='N on/off cycles at 4000 K; static scene, fixed mode, encoder CRC')
     parser.add_argument('--sample-seconds', type=float, default=3.0)
     parser.add_argument('--settle-seconds', type=float, default=1.0)
     parser.add_argument('--off-seconds', type=float, default=2.0)
     args = parser.parse_args(argv)
+    if args.nightlight is not None:
+        if not 1 <= args.nightlight <= 1000:
+            parser.error('--nightlight must be 1..1000 cycles')
+        if args.crc_source not in (None, 'encoder'):
+            parser.error('--nightlight requires --crc-source encoder (post-GC)')
+    if args.crc_source is None:
+        args.crc_source = 'encoder' if args.nightlight else 'auto'
     for key, lo, hi in [('sample_seconds', 1, 10), ('settle_seconds', 0.2, 5), ('off_seconds', 1, 5)]:
         value = getattr(args, key)
         if not math.isfinite(value) or not lo <= value <= hi:

@@ -98,9 +98,45 @@ class Parsers(unittest.TestCase):
                     'WARNING: CPU: 0', 'Call trace:',
                     'dsi0_phy_pll: lock failed', 'disp_cc clock stuck',
                     'clk_rcg2: rcg didn\'t update its configuration',
-                    'arm-smmu: Unhandled context fault', 'Overflow of CRC buffer, userspace reads too slow.']
+                    'arm-smmu: Unhandled context fault', 'Overflow of CRC buffer, userspace reads too slow.',
+                    'REGDMA ctl=1 timeout', 'REGDMA fault status=0x10',
+                    'REGDMA ctl=1 stop unconfirmed after 2 s; leaking DMA resources',
+                    'GC REGDMA submission failed: -110', 'lutdma reset timed out']
         clean = ['msm_dpu hardware revision: 0xc0000000', 'GC2 REGDMA completed ctl=1 status=0x8']
         self.assertEqual(check.filter_kernel(clean + failures), failures)
+
+    def test_stationary_encoder_endpoints(self):
+        off = check.crc_metrics(samples(frozen=True), 120, 'encoder', stationary=True)
+        self.assertEqual((off['status'], off['fps'], off['unique_crc']), ('PASS', 120, 1))
+        self.assertEqual(off['unique_per_encoder'], [1, 1])
+        self.assertEqual(off['stable_crc'], [1, 2])
+        on_samples = samples(frozen=True)
+        for sample in on_samples:
+            sample['values'] = (0x12345678, 0xabcdef01)
+        on = check.crc_metrics(on_samples, 120, 'encoder', stationary=True)
+        self.assertTrue(check.nightlight_crc_matches(on, True, off['stable_crc']))
+        self.assertTrue(check.nightlight_crc_matches(off, False, off['stable_crc']))
+        self.assertFalse(check.nightlight_crc_matches(off, True, off['stable_crc']))
+        self.assertFalse(check.nightlight_crc_matches(on, False, off['stable_crc']))
+        moving = check.crc_metrics(samples(), 120, 'encoder', stationary=True)
+        self.assertEqual(moving['status'], 'FAIL')
+        self.assertIsNone(moving['stable_crc'])
+        self.assertFalse(check.nightlight_crc_matches(moving, True, off['stable_crc']))
+        self.assertEqual(check.crc_metrics(samples(hz=60, frozen=True), 120,
+                                           'encoder', stationary=True)['status'], 'FAIL')
+        self.assertEqual(check.crc_metrics(samples(), 120, 'encoder')['status'], 'PASS')
+
+    def test_manual_schedule_and_color_reply(self):
+        for hour in (0.0, 5.5, 12.0, 23.999):
+            schedule = check.nightlight_schedule(hour)
+            start, end = (float(schedule['night-light-schedule-' + key]) for key in ('from', 'to'))
+            self.assertAlmostEqual((hour - start) % 24, 6)
+            self.assertAlmostEqual((end - hour) % 24, 6)
+            self.assertEqual(schedule['night-light-schedule-automatic'], 'false')
+            self.assertEqual(schedule['night-light-temperature'], 'uint32 4000')
+        reply = variant('a{sv}', [{'NightLightActive': variant('b', True),
+                                  'Temperature': variant('u', 4000)}])
+        self.assertEqual(check.unwrap(reply)[0], {'NightLightActive': True, 'Temperature': 4000})
 
     def test_drm_crtc_is_index_not_object_id(self):
         state = ('plane[44]: plane-0\n\tcrtc=crtc-2\n'
