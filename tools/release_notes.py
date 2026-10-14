@@ -69,8 +69,12 @@ def render_notes(rootfs, stock_build, integration_commit, kernel_source, changes
     # Same pinned Ubuntu binary used by the maintenance initramfs builder.
     busybox = re.search(r'^package=busybox-static_(\S+)_arm64\.deb$',
                        (REPO / 'tools/fetch-busybox-arm64.sh').read_text(), re.M).group(1)
+    # A handwritten changes file may hold Chinese and English separated by a line of
+    # '---'; each language section then gets its own half instead of both.
+    halves = re.split(r'^---[ \t]*$', changes, maxsplit=1, flags=re.M)
+    changes_zh, changes_en = (halves[0].strip() + '\n', halves[1].strip() + '\n') if len(halves) == 2 else (changes, changes)
     return string.Template((REPO / 'packaging/release/RELEASE-NOTES.md.in').read_text()).substitute(
-        release_name=version, prefix=asset_prefix(version), changes=changes,
+        release_name=version, prefix=asset_prefix(version), changes_zh=changes_zh, changes_en=changes_en,
         downloads_zh=download_table(version, 'zh'), downloads_en=download_table(version, 'en'),
         restore_commands=restore_commands(version), kernel_package=f'{kernel_name} {kernel["version"]}',
         stock_build=stock_build, apt_snapshot=rootfs['apt_snapshot'],

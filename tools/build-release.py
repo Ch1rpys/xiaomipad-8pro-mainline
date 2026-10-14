@@ -14,7 +14,8 @@ Layout of the output directory:
   tools/   piano-switch.py and the KernelSU module zip
   RELEASE-NOTES.md, release-manifest.json, SHA256SUMS
 The data partition is not shipped; follow docs/INSTALL.md to create it.
---changes embeds handwritten Markdown verbatim in both language sections of
+--changes embeds handwritten Markdown verbatim (a line of '---' splits its Chinese
+and English halves between the two language sections) in both language sections of
 the short user-facing notes. Put bilingual text in this file when needed.
 Package this directory with package-release-assets.py; its output notes fill
 in attachment sizes for the Release body, while the archived original stays
