@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "purpose": "Offline piano20 camera candidate with the reviewed MCA and keyboard lifecycle fixes; unverified rear AF disabled",
+  "purpose": "Offline piano21 integration: GT9764 AF candidate, Fable keyboard binding fix, VP9 metadata and Iris IRQ lifecycle fixes",
   "upstream_url": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git",
   "upstream_tag": "v7.2.10",
   "upstream_commit": "7b20d05fd38de8e0be168956f6fd241d750c7d69",
   "url": "https://github.com/yzddmr6/linux-sm8750-piano",
-  "commit": "f37c00a37078bd0eda2fb164780b4cb5972daec3",
+  "commit": "5a8bd27a559d6ada30e512a31f48e977a990975e",
   "branch": "codex/camera-20261014",
   "config": "arch/arm64/configs/piano-diagnostic.config",
   "release_config_fragments": [
@@ -15,5 +15,5 @@
     "arch/arm64/configs/piano-release.config"
   ],
   "note": "The kernel release fragments remain in the kernel source and are merged in order. tools/build-kernel.sh then applies kernel_release to CONFIG_LOCALVERSION for package ABI allocation without a kernel-only release commit; all other configuration remains unchanged. kernel/abi.json binds the final commit and .config.",
-  "kernel_release": "7.2.10-piano20"
+  "kernel_release": "7.2.10-piano21"
 }
