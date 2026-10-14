@@ -701,13 +701,30 @@ class Check:
         path = discover_crc()
         step['crc_path'] = str(path)
         if self.a.nightlight:
+            # gsd-color animates temperature changes and other transitions can follow a
+            # GSettings write. Wait (bounded) until the encoder CRC has been unchanged for
+            # 1.5 s, then judge only the following sample window.
             with CRC(path, 'encoder') as crc:
-                end = time.monotonic() + self.a.sample_seconds
+                started = time.monotonic()
+                while time.monotonic() < started + 12:
+                    self.log.drain()
+                    time.sleep(0.1)
+                    samples = crc.samples
+                    if len(samples) < 2:
+                        continue
+                    last = tuple(samples[-1]['values'])
+                    first_same = next((i for i in range(len(samples) - 1, -1, -1)
+                                       if tuple(samples[i]['values']) != last), -1) + 1
+                    if samples[-1]['time'] - samples[first_same]['time'] >= 1.5:
+                        break
+                window = time.monotonic()
+                end = window + self.a.sample_seconds
                 while time.monotonic() < end:
                     self.log.drain()
                     time.sleep(max(0, min(0.1, end - time.monotonic())))
             step['pointer_moves'] = 0
-            step['crc_samples'] = crc.samples
+            step['settle_wait_s'] = round(window - started, 3)
+            step['crc_samples'] = [x for x in crc.samples if x['time'] >= window]
             step['crc'] = crc_metrics(crc.samples, state['current']['hz'], 'encoder', stationary=True)
             if crc.errors:
                 step['crc'].update(status='INCOMPLETE', reader_errors=crc.errors)
