@@ -1,23 +1,16 @@
 #!/usr/bin/python3
 # SPDX-License-Identifier: MIT
-"""Give an unconfigured Piano DSI panel the distribution's standard sRGB profile."""
+"""Give an unconfigured Piano DSI panel the distribution's standard sRGB profile.
+
+Uses colord's system D-Bus API through GLib's Gio, which every GNOME session has,
+so no Colord GObject-introspection typelib is needed.
+"""
 import os
 from pathlib import Path
 import sys
 
 SRGB = '/usr/share/color/icc/colord/sRGB.icc'
-
-
-def unconfigured_panel(device):
-    # A disabled/inhibited device can have no *default* while still containing
-    # user profiles. Never replace that choice or enable color management.
-    return (device.get_owner() == os.getuid()
-            and device.get_embedded()
-            and device.get_metadata_item('XRANDR_name') == 'DSI-1'
-            and device.get_enabled()
-            and not device.get_profiling_inhibitors()
-            and not device.get_profiles()
-            and device.get_default_profile() is None)
+BUS, MANAGER, DEVICE = 'org.freedesktop.ColorManager', '/org/freedesktop/ColorManager', 'org.freedesktop.ColorManager.Device'
 
 
 def main():
@@ -28,39 +21,45 @@ def main():
     if not compatible.exists() or b'xiaomi,piano' not in compatible.read_bytes().split(b'\0'):
         return 0
 
-    import gi
-    gi.require_version('Colord', '1.0')
-    from gi.repository import Colord, GLib
+    from gi.repository import Gio, GLib
 
-    client = Colord.Client.new()
+    bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
+
+    def call(path, iface, method, args=None, reply=None):
+        return bus.call_sync(BUS, path, iface, method, args, GLib.VariantType(reply) if reply else None,
+                             Gio.DBusCallFlags.NONE, 10000, None).unpack()
+
+    def props(path):
+        return call(path, 'org.freedesktop.DBus.Properties', 'GetAll', GLib.Variant('(s)', (DEVICE,)), '(a{sv})')[0]
+
+    def panel(path):
+        p = props(path)
+        return (p.get('Kind') == 'display' and p.get('Owner') == os.getuid() and p.get('Embedded')
+                and p.get('Metadata', {}).get('XRANDR_name') == 'DSI-1'), p
+
+    def unconfigured(p):
+        # A disabled/inhibited device can have no default while still holding user
+        # profiles. Never replace that choice or enable color management.
+        return p.get('Enabled') and not p.get('ProfilingInhibitors') and not p.get('Profiles')
+
     loop = GLib.MainLoop()
-    completed = False
-    result = 0
+    state = {'done': False, 'result': 0}
 
-    def consider(_client, device):
-        nonlocal completed, result
-        if completed:
+    def consider(path):
+        if state['done']:
             return
         try:
-            device.connect_sync(None)
-            if (device.get_kind() != Colord.DeviceKind.DISPLAY
-                    or device.get_owner() != os.getuid()
-                    or not device.get_embedded()
-                    or device.get_metadata_item('XRANDR_name') != 'DSI-1'):
+            ours, p = panel(path)
+            if not ours:
                 return
-            if unconfigured_panel(device):
+            if unconfigured(p):
                 if not Path(SRGB).is_file():
                     raise RuntimeError(f'distribution sRGB profile missing: {SRGB}')
-                profile = client.find_profile_by_filename_sync(SRGB, None)
-                profile.connect_sync(None)
-                if profile.get_filename() != SRGB:
-                    raise RuntimeError('colord returned a different profile file')
-                # Refresh after profile lookup. Soft associations rank below
-                # user/system hard associations, including concurrent choices.
-                fresh = Colord.Device.new_with_object_path(device.get_object_path())
-                fresh.connect_sync(None)
-                if unconfigured_panel(fresh):
-                    fresh.add_profile_sync(Colord.DeviceRelation.SOFT, profile, None)
+                profile = call(MANAGER, BUS, 'FindProfileByFilename', GLib.Variant('(s)', (SRGB,)), '(o)')[0]
+                # Re-read after the lookup: soft associations rank below user/system
+                # hard associations, including a concurrent choice.
+                if unconfigured(props(path)):
+                    call(path, DEVICE, 'AddProfile', GLib.Variant('(so)', ('soft', profile)))
                     print('DSI-1: associated distribution sRGB (soft)', flush=True)
                 else:
                     print('DSI-1: preserved changed color configuration', flush=True)
@@ -68,20 +67,20 @@ def main():
                 print('DSI-1: preserved existing color configuration', flush=True)
         except (GLib.Error, OSError, RuntimeError) as error:
             print(f'panel-srgb: {error}', file=sys.stderr, flush=True)
-            result = 1
-        completed = True
+            state['result'] = 1
+        state['done'] = True
         loop.quit()
 
-    # Subscribe before enumerating so asynchronous Mutter device creation is
-    # not missed. The user unit bounds this startup-only wait to 30 seconds.
-    client.connect('device-added', consider)
-    client.connect_sync(None)
-    for device in client.get_devices_sync(None):
-        consider(client, device)
-    if not completed:
+    # Subscribe before enumerating so asynchronous Mutter device creation is not
+    # missed. The user unit bounds this startup-only wait to 30 seconds.
+    bus.signal_subscribe(BUS, BUS, 'DeviceAdded', MANAGER, None, Gio.DBusSignalFlags.NONE,
+                         lambda _c, _s, _p, _i, _n, params: consider(params.unpack()[0]))
+    for path in call(MANAGER, BUS, 'GetDevicesByKind', GLib.Variant('(s)', ('display',)), '(ao)')[0]:
+        consider(path)
+    if not state['done']:
         print('Waiting for the session DSI-1 colord device', flush=True)
         loop.run()
-    return result
+    return state['result']
 
 
 if __name__ == '__main__':

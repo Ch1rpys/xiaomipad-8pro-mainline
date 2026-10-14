@@ -104,7 +104,7 @@
       "url": "https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/download/v0.1.0-preview/piano-mesa_0.1%2B20261010.4_arm64.deb"
     }
   ],
-  "desktop_version": "0.1+20261012.2",
+  "desktop_version": "0.1+20261015.1",
   "e2fsprogs": {
     "url": "https://git.kernel.org/pub/scm/fs/ext2/e2fsprogs.git",
     "commit": "7ee1d505ef3b37831215f490411f346fe57e9053",

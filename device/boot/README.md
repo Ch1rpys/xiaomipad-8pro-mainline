@@ -255,29 +255,13 @@ Shell no longer offer Android, firmware, `persist` or modem volumes. GNOME's
 About page still reports the whole UFS, because it adds up disks, not
 partitions.
 
-## Suspend is disabled in the first release
+## Suspend-to-idle
 
-Bounded RTC wake tests have validated `s2idle` resume with the THP and PCIe
-power-domain fixes. Battery polling still needs a complete suspend lifecycle,
-and charging during sleep, physical power-key wake and `deep` sleep remain
-unverified. `piano-device-support` therefore keeps the default sleep policy
-disabled in two standard places:
+v0.3.0 enables system sleep using `SuspendState=freeze` in
+`/usr/lib/systemd/sleep.conf.d/50-piano-sleep.conf`. RTC resume, power-button,
+keyboard and cover-open wake have been validated; closing the cover does not
+wake the tablet. GNOME idle, power-button and lid actions use the distribution
+defaults. Existing per-user choices remain unchanged.
 
-- `/usr/lib/systemd/sleep.conf.d/50-piano-first-release.conf` sets
-  `AllowSuspend`, `AllowHibernation`, `AllowHybridSleep` and
-  `AllowSuspendThenHibernate` to `no`, so logind refuses every sleep request
-  from any desktop, key handler or command line.
-- `/usr/share/glib-2.0/schemas/50_piano-first-release.gschema.override` sets
-  the GNOME idle actions (`sleep-inactive-ac-type`,
-  `sleep-inactive-battery-type`) to `'nothing'`, so the session does not
-  request suspend. A GSettings vendor override is used because the GDM and
-  gnome-initial-setup dconf profiles have no system database; the distro
-  `glib-compile-schemas` trigger compiles it.
-
-Lock screen and power-button settings are unchanged. Ubuntu's power-button
-action is the interactive end-session dialog; a `suspend` action would fall
-back to that dialog because logind reports suspend as unavailable. UPower's
-critical-battery action falls back from hybrid sleep and hibernation to
-power-off. An administrator can re-enable sleep for testing with a same-named
-file in `/etc/systemd/sleep.conf.d/`. Both files are removed once s2idle and
-deep suspend/resume are validated on piano.
+Hibernation, hybrid sleep and suspend-then-hibernate remain disabled because
+there is no resumable swap area. Deep suspend is not selected by this policy.

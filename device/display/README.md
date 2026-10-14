@@ -29,8 +29,8 @@ puts hard mappings first; its [client default lookup](https://github.com/hughsie
 returns no default when disabled or inhibited, which is why checking only for
 an absent default would be insufficient.
 
-The package adds `colord`, `colord-data`, `python3-gi` and
-`gir1.2-colord-1.0` dependencies. For an already running RAM desktop, run
+The helper uses Gio to call colord's system D-Bus API. The package depends on
+`colord`, `colord-data` and `python3-gi`; it does not require the Colord typelib. For an already running RAM desktop, run
 `systemctl --user daemon-reload` and `systemctl --user start piano-panel-srgb.service`
 **as its logged-in user** after installing the package. Inspect that user's
 `journalctl --user -u piano-panel-srgb.service` and the colord default profile

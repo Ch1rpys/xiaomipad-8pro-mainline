@@ -311,7 +311,7 @@ def main():
     copy(repo / 'packaging/piano-ubuntu-desktop' / upmix, desktop,
          'usr/share/pipewire/client.conf.d/50-piano-speaker-upmix.conf')
     # fake-hwclock: the RTC cannot be set (TD-022); it restores the time saved at shutdown or hourly.
-    package('piano-ubuntu-desktop', desktop, 'piano-mesa, gdm3, gnome-shell (>= 50), colord, colord-data, gir1.2-colord-1.0, python3-gi, fake-hwclock, python3, console-setup, snapd, init-system-helpers, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad',
+    package('piano-ubuntu-desktop', desktop, 'piano-mesa, gdm3, gnome-shell (>= 50), colord, colord-data, python3-gi, fake-hwclock, python3, console-setup, snapd, init-system-helpers, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad',
             'Piano Ubuntu desktop defaults: graphics, clock without RTC, speaker up-mix and UCM, '
             'GNOME Shell 50 on-screen keyboard guard',
             '#!/bin/sh\nset -e\nif [ "$1" = configure ]; then\n'
