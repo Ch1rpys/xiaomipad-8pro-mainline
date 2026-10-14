@@ -31,6 +31,14 @@ Each completed item prints one JSON line with PASS/FAIL and its evidence path.
 fails. `runner.py` and `inputs.json` bind a run to the exact script bytes.
 For a focused audio investigation, `--skip-obex` omits file transfers and emits
 no OBEX verdict; the default always runs the full sequence.
+`--reconnect-only` omits both OBEX and audio but retains initial pairing and
+bidirectional pings before and after disconnect. `--reconnect-from host` selects
+the host as the initiator of the single reconnection (default: tablet). Both
+peers must already be bonded before this step; automatic fresh pairing after
+a failed setup must not be reported as successful reconnection.
+`--reconnect-count 2` or `3` captures a bounded intermittent failure after one
+pairing. Every cycle is reported separately; the first failed cycle stops the
+sequence without retrying it. The default remains one cycle.
 
 The sequence is power/discoverability, BR/EDR discovery, tablet-initiated
 NoInputNoOutput pairing, trust/connect, five l2ping packets in each direction,
@@ -65,6 +73,8 @@ advertised UUIDs, existing bonds, audio defaults/profiles/volumes, service state
 boot ID and the keyboard monitor PID/start time. A failed restoration remains
 FAIL; the tablet's temporary directory is retained for recovery and its path
 is recorded. No automatic reboot, controller reset or pairing retry is used.
+If the host's WirePlumber restart reapplies a different saved mixer volume,
+cleanup explicitly restores the original host node volumes and mute state.
 
 A PASS measures this host/tablet pair and this running boot. It does not certify
 GNOME's interactive pairing UI, cold boot, suspend, range, Wi-Fi under load,

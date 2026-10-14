@@ -262,6 +262,22 @@ def endpoint(args):
             names = {d["name"] for d in state["before"]["audio"]["devices"]}
             attempt(lambda: wait_for(lambda: names.issubset({d["name"] for d in audio_state()["devices"]})))
         if state["before"]:
+            # WirePlumber can reapply its saved mixer values after restarting.
+            # Restore the original host nodes explicitly when that changed them.
+            for old in (state["before"]["audio"]["nodes"] if state["wp_config"] else []):
+                if not old["props"]:
+                    continue
+                nodes = [o for o in pw() if o["type"].endswith(":Node") and
+                         o.get("info", {}).get("props", {}).get("node.name") == old["name"]]
+                if not nodes:
+                    continue
+                node = nodes[0]
+                values = {k: old["props"][0][k] for k in
+                          ("volume", "mute", "channelVolumes", "monitorVolumes", "monitorMute")
+                          if k in old["props"][0]}
+                current = node["info"].get("params", {}).get("Props", [{}])[0]
+                if any(current.get(k) != v for k, v in values.items()):
+                    attempt(lambda n=node, v=values: run(["pw-cli", "set-param", str(n["id"]), "Props", json.dumps(v)]))
             original = state["before"]["adapter"]
             for key in ("Discoverable", "Pairable", "DiscoverableTimeout", "PairableTimeout", "Powered"):
                 if key in original:
@@ -682,7 +698,9 @@ def main(args):
     source = Path(__file__).read_text()
     frozen_script = out / "runner.py"
     frozen_script.write_text(source)
-    (out / "inputs.json").write_text(json.dumps({"script_sha256": sha(frozen_script), "obex_requested": not args.skip_obex,
+    (out / "inputs.json").write_text(json.dumps({"script_sha256": sha(frozen_script), "obex_requested": not (args.skip_obex or args.reconnect_only),
+                                                "reconnect_only": args.reconnect_only, "reconnect_from": args.reconnect_from,
+                                                "reconnect_count": args.reconnect_count,
                                                 "started_unix": time.time()}, indent=2))
     run(ssh + ["cat > " + shlex.quote(remote_script)], input=source)
     host_work = out / "host"
@@ -743,7 +761,7 @@ def main(args):
                 value["pass"] = value["rc"] == 0 and "RSSI return value:" in value["stdout"]
                 return value
             report("rssi_" + side, rssi)
-        if not args.skip_obex:
+        if not args.skip_obex and not args.reconnect_only:
             for side in peers:
                 report("obex_setup_" + side, lambda s=side: peers[s].call("obex_start"))
             for source, target in (("tablet", "host"), ("host", "tablet")):
@@ -785,25 +803,33 @@ def main(args):
             evidence["pass"] = evidence["analysis"]["pass"] and all(evidence["transports"].values())
             save()
             return evidence
-        audio_result = report("a2dp", audio_check)
-        if audio_result["status"] != "PASS":
-            (out / "audio-failure-pw.json").write_text(json.dumps(both("pw"), indent=2))
-            (out / "audio-failure-transports.json").write_text(json.dumps(both("transports"), indent=2))
-        report("audio_stream_cleanup", lambda: both("audio_stop"))
+        if not args.reconnect_only:
+            audio_result = report("a2dp", audio_check)
+            if audio_result["status"] != "PASS":
+                (out / "audio-failure-pw.json").write_text(json.dumps(both("pw"), indent=2))
+                (out / "audio-failure-transports.json").write_text(json.dumps(both("transports"), indent=2))
+            report("audio_stream_cleanup", lambda: both("audio_stop"))
 
         def reconnect():
             prior = both("device")
+            if not all(d.get("Paired") and d.get("Bonded") for d in prior.values()):
+                raise RuntimeError("reconnect requires both peers already bonded; a new pairing is not a reconnect")
             peers["tablet"].call("disconnect")
             def disconnected_state():
                 states = both("device")
                 return states if not any(d["Connected"] for d in states.values()) else None
             disconnected = wait_for(disconnected_state, 15)
-            peers["tablet"].call("connect")
+            peers[args.reconnect_from].call("connect")
             after = both("device")
             return {"before": prior, "disconnected": disconnected, "after": after,
                     "pass": all(d.get("Paired") and d.get("Connected") for d in after.values())}
-        report("reconnect_without_pair", reconnect)
-        report("reconnect_l2ping", lambda: ping("tablet"))
+        for cycle in range(1, args.reconnect_count + 1):
+            suffix = "" if cycle == 1 else "_" + str(cycle)
+            control = report("reconnect_without_pair" + suffix, reconnect)
+            forward = report("reconnect_l2ping" + suffix, lambda: ping("tablet"))
+            reverse = report("reconnect_l2ping_host_tablet" + suffix, lambda: ping("host"))
+            if any(r["status"] != "PASS" for r in (control, forward, reverse)):
+                break  # Preserve the first failure; never reconnect to hide it.
     finally:
         for side, peer in peers.items():
             def restore(p=peer):
@@ -834,6 +860,9 @@ if __name__ == "__main__":
     parser.add_argument("--output", help="new PRIVATE evidence directory; contains Bluetooth addresses")
     parser.add_argument("--adapter", default="hci0")
     parser.add_argument("--skip-obex", action="store_true", help="omit file transfer when investigating audio; no OBEX PASS is emitted")
+    parser.add_argument("--reconnect-only", action="store_true", help="pair/connect and test bidirectional pings before/after reconnect; omit OBEX/audio")
+    parser.add_argument("--reconnect-from", choices=("tablet", "host"), default="tablet", help="peer initiating the single reconnection")
+    parser.add_argument("--reconnect-count", type=int, choices=(1, 2, 3), default=1, help="bounded intermittent-failure capture; stop at the first failed cycle")
     parser.add_argument("--endpoint", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--obex-endpoint", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--work", help=argparse.SUPPRESS)
