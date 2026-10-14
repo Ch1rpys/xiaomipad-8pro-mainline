@@ -725,7 +725,7 @@ class Check:
             step['pointer_moves'] = 0
             step['settle_wait_s'] = round(window - started, 3)
             step['crc_samples'] = [x for x in crc.samples if x['time'] >= window]
-            step['crc'] = crc_metrics(crc.samples, state['current']['hz'], 'encoder', stationary=True)
+            step['crc'] = crc_metrics(step['crc_samples'], state['current']['hz'], 'encoder', stationary=True)
             if crc.errors:
                 step['crc'].update(status='INCOMPLETE', reader_errors=crc.errors)
             return step['crc']['status']
