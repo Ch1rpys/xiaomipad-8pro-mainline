@@ -347,7 +347,15 @@ class Check:
             save(self.out / f'round-{row["number"]:02}.json', row)
 
     def guard(self, phase):
+        # Ordinary I/O passes through D briefly (the first piano17 run caught its own
+        # journalctl). Only a task that stays in D across ~2 s of samples blocks the test.
         blocked = d_tasks()
+        for _ in range(2):
+            if not blocked:
+                break
+            time.sleep(1)
+            again = {(t['tid'], t['starttime']) for t in d_tasks()}
+            blocked = [t for t in blocked if (t['tid'], t['starttime']) in again]
         if blocked:
             self.result.setdefault('d_state', []).append({'phase': phase, 'tasks': blocked, 'clocks': clock_sample()})
             self.persist()
