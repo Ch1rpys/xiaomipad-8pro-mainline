@@ -518,7 +518,11 @@ def main():
             for name, data in epoch_files.items():
                 add(name, data)
             for path, entry in debs:
-                directory = 'kernel/' if entry['package'] == kernel['Package'] else 'debs/'
+                # The prebuilt loopback depends on this exact kernel, and camerad
+                # depends on loopback. Configure them together after device support
+                # is installed and the generic distribution kernels are removed.
+                directory = 'kernel/' if entry['package'] in (
+                    kernel['Package'], 'piano-camerad', f'piano-camera-loopback-{release}') else 'debs/'
                 add(directory + path.name.replace('%3a', '_'), path=path)
         if a.backend == 'guest':
             result_disk = out / 'result.raw'
