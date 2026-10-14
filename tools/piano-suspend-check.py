@@ -103,18 +103,56 @@ def wake_irq(irq, interrupts):
 
 
 def physical_wake(source, expected=None):
-    name = source.get('name') or ''
-    if RTC_NAME.search(name):
+    # With interrupt deltas several candidates can rise (the keyboard bridge also
+    # talks during suspend entry); any RTC increment still means the alarm woke us.
+    names = [f['name'] for f in source.get('fired', [])] or [source.get('name') or '']
+    if any(RTC_NAME.search(n) for n in names):
         return 'NO_PHYSICAL_WAKE'
+    name = ' '.join(names)
     matches = [kind for kind, pattern in WAKE_NAMES.items() if re.search(pattern, name, re.I)]
     if expected:
         return 'PASS' if expected in matches else 'WRONG_WAKE_SOURCE'
     return 'PASS' if matches else 'UNKNOWN_PHYSICAL_WAKE'
 
 
+# Known, functionally harmless err-level lines. dwc3-qcom logs this on every suspend while the
+# USB device link to the test host is up (the HS PHY cannot enter L2 with VBUS and a configured
+# gadget); it costs suspend power with the cable attached, not resume correctness.
+BENIGN_KERNEL = re.compile(r'dwc3-qcom \S+: port-\d+ HS-PHY not in L2$')
+
+
 def kernel_errors(records):
-    return [r for r in records if KERNEL_ERROR.search(str(r.get('MESSAGE', ''))) or
-            (str(r.get('PRIORITY', '')).isdigit() and int(r['PRIORITY']) <= 3)]
+    return [r for r in records if not BENIGN_KERNEL.search(str(r.get('MESSAGE', '')).strip()) and
+            (KERNEL_ERROR.search(str(r.get('MESSAGE', ''))) or
+             (str(r.get('PRIORITY', '')).isdigit() and int(r['PRIORITY']) <= 3))]
+
+
+def irq_counts(interrupts):
+    counts = {}
+    for line in interrupts.splitlines():
+        m = re.match(r'\s*(\d+):\s*(.*)', line)
+        if not m:
+            continue
+        fields = m[2].split()
+        total = 0
+        while fields and fields[0].isdigit():
+            total += int(fields.pop(0))
+        counts[int(m[1])] = (total, ' '.join(fields))
+    return counts
+
+
+def wake_from_counts(before, after):
+    """Without CONFIG_PM_SLEEP_DEBUG there is no pm_wakeup_irq: name the candidate
+    wake interrupts (RTC alarm, power key, keyboard, lid) whose count rose across the sleep."""
+    a, b = irq_counts(before), irq_counts(after)
+    pattern = re.compile('|'.join([RTC_NAME.pattern] + list(WAKE_NAMES.values())), re.I)
+    fired = [{'irq': irq, 'name': b[irq][1], 'delta': b[irq][0] - a[irq][0]}
+             for irq in b if irq in a and b[irq][0] > a[irq][0] and pattern.search(b[irq][1])]
+    rtc = [f for f in fired if RTC_NAME.search(f['name'])]
+    # An RTC increment means the alarm fired; report it first so a physical round cannot pass.
+    first = (rtc or fired or [None])[0]
+    return {'irq': first['irq'] if first else None, 'name': first['name'] if first else None,
+            'method': 'proc_interrupts_delta', 'fired': fired}
 
 
 def journal_interval(text, cursor):
@@ -579,6 +617,7 @@ def run_round(check, number):
     check.persist()
     if a.physical:
         print('请按电源键/按键盘键/开盖（进入睡眠后操作；RTC 仅作安全兜底）', flush=True)
+    irq_before_sleep = Path('/proc/interrupts').read_text()
     check.sleep_in_flight = True
     try:
         # No D-state sampling during the transition: the freezer itself uses
@@ -602,7 +641,8 @@ def run_round(check, number):
         row['wake_source'] = wake_irq(Path('/sys/power/pm_wakeup_irq').read_text(),
                                       Path('/proc/interrupts').read_text())
     except OSError as e:
-        row['wake_source'] = {'irq': None, 'name': None, 'error': str(e)}
+        row['wake_source'] = wake_from_counts(irq_before_sleep, Path('/proc/interrupts').read_text())
+        row['wake_source']['pm_wakeup_irq_error'] = str(e)
     row['sleep'] = sleep_measurement(row['clock_before'], row['clock_after'], seconds, a.physical)
     row['physical_wake'] = 'NOT_REQUESTED'
     if a.physical:
