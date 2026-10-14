@@ -375,7 +375,10 @@ class CRC:
                     if not raw:
                         raise RuntimeError('CRC EOF during active sampling')
                     now = time.monotonic()
-                    for line in raw.decode('ascii').splitlines():
+                    # Each read returns one line; drm_debugfs_crc's LINE_LEN also copies the NUL.
+                    for line in raw.decode('ascii').replace('\x00', '').splitlines():
+                        if not line.strip():
+                            continue
                         frame, values = parse_crc_line(line)
                         self.samples.append({'time': now, 'frame': frame, 'values': values})
         except Exception as error:
