@@ -140,6 +140,12 @@
       "kernel_commit": "b5d910839ecc0e9dee793dacb21ed75789b0da5e",
       "config_sha256": "8ebb5b1e9a2aa192f4a15e3e0bf44bd772d94f002753239618b69ce12e9bec89",
       "upload": 1
+    },
+    {
+      "kernel_release": "7.2.10-piano24",
+      "kernel_commit": "9b211680836d6bf0048f4e361bda96659c1276fb",
+      "config_sha256": "e30bca78ae1a8ea4515bbdf14475f0263fd7cb2162b1208d3d969b7575612f27",
+      "upload": 1
     }
   ]
 }

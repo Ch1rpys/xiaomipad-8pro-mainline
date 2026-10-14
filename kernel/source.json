@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "purpose": "Offline piano23 candidate: piano22 display/camera/lid fixes plus GCv2/REGDMA night light with bounded teardown",
+  "purpose": "v0.3.0 release: validated piano23 baseline with the failing rear focus actuator disabled",
   "upstream_url": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git",
   "upstream_tag": "v7.2.10",
   "upstream_commit": "7b20d05fd38de8e0be168956f6fd241d750c7d69",
   "url": "https://github.com/yzddmr6/linux-sm8750-piano",
-  "commit": "b5d910839ecc0e9dee793dacb21ed75789b0da5e",
-  "branch": "codex/piano23-20261014",
+  "commit": "9b211680836d6bf0048f4e361bda96659c1276fb",
+  "branch": "release/v0.3.0",
   "config": "arch/arm64/configs/piano-diagnostic.config",
   "release_config_fragments": [
     "arch/arm64/configs/piano-diagnostic.config",
@@ -15,5 +15,5 @@
     "arch/arm64/configs/piano-release.config"
   ],
   "note": "The kernel release fragments remain in the kernel source and are merged in order. tools/build-kernel.sh then applies kernel_release to CONFIG_LOCALVERSION for package ABI allocation without a kernel-only release commit; all other configuration remains unchanged. kernel/abi.json binds the final commit and .config.",
-  "kernel_release": "7.2.10-piano23"
+  "kernel_release": "7.2.10-piano24"
 }
