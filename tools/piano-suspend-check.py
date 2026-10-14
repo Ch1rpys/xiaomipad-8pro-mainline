@@ -385,15 +385,23 @@ class Check:
             save(self.out / f'round-{row["number"]:02}.json', row)
 
     def guard(self, phase):
-        # Ordinary I/O passes through D briefly (the first piano17 run caught its own
-        # journalctl). Only a task that stays in D across ~2 s of samples blocks the test.
-        blocked = d_tasks()
+        # Busy threads pass through D all the time: the first piano17 run caught its own
+        # journalctl, piano22 the THP SPI IRQ thread reading 120 Hz frames. Block only a
+        # task that stays in D for ~2 s without a single context switch.
+        def switches(task):
+            try:
+                status = Path(f"/proc/{task['tgid']}/task/{task['tid']}/status").read_text()
+            except OSError:
+                return None
+            return sum(int(v) for v in re.findall(r'^(?:non)?voluntary_ctxt_switches:\s+(\d+)$', status, re.M))
+        blocked = [dict(t, switches=switches(t)) for t in d_tasks()]
         for _ in range(2):
             if not blocked:
                 break
             time.sleep(1)
-            again = {(t['tid'], t['starttime']) for t in d_tasks()}
-            blocked = [t for t in blocked if (t['tid'], t['starttime']) in again]
+            now = {(t['tid'], t['starttime']): t for t in d_tasks()}
+            blocked = [t for t in blocked if (t['tid'], t['starttime']) in now and
+                       t['switches'] is not None and switches(t) == t['switches']]
         if blocked:
             self.result.setdefault('d_state', []).append({'phase': phase, 'tasks': blocked, 'clocks': clock_sample()})
             self.persist()
