@@ -559,3 +559,10 @@ device/bluetooth/bluetooth-address.py:
   helper. Existing configured controllers and their addresses stay unchanged.
   No additional resident radio manager, boot-image dependency or service.
   device/bluetooth/test_address.py is new MIT test code.
+
+Camera: device/camera/piano-camerad.c is imported unmodified from
+blu-sharky/debian-piano a75f8c5 (fd6266d, 25babfe, 197c907), copyright
+2026 bluseliu50 and piano mainline contributors, MIT; see device/camera/LICENSE.
+The loopback options are from the same repository. v4l2loopback is built
+separately from pinned upstream v0.15.4, GPL-2.0-or-later; its COPYING is
+shipped with the matching-kernel module package. No camera firmware is added.
