@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: MIT
+[Unit]
+Description=Associate standard sRGB with an unconfigured Piano panel
+After=graphical-session-pre.target
+PartOf=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/piano/panel-srgb
+TimeoutStartSec=30
+RemainAfterExit=yes
+
+[Install]
+WantedBy=graphical-session.target
