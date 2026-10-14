@@ -8,10 +8,13 @@
       "25babfe3ff5d8ddee98b1e0ea88152d69a0c01b1",
       "197c907c4faacfb825450bbed27eb2890bc34caa"
     ],
-    "sha256": "c2ab6391fa41d21d1c3e4359dc0adf671261417dbda180724faf8b2758932d47",
+    "sha256": "edf5db1083f0df2fd7edaa2a0d6a65bbbd74a008e1dcd3d6fe560882284a0d31",
     "license": "MIT",
     "author": "bluseliu50",
-    "modifications": []
+    "modifications": [
+      "Use writable CCM payload for V4L2 S_EXT_CTRLS copy-back; retain the upstream matrix values."
+    ],
+    "upstream_sha256": "c2ab6391fa41d21d1c3e4359dc0adf671261417dbda180724faf8b2758932d47"
   },
   "loopback": {
     "url": "https://github.com/umlaeute/v4l2loopback.git",

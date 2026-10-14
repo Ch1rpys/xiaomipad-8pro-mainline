@@ -732,13 +732,16 @@ static int cam_start(struct cam *c)
 	apply_exposure(c);
 	apply_wb(c);
 	{
+		/* S_EXT_CTRLS copies the accepted matrix back to userspace. */
+		int32_t matrix[9];
 		struct v4l2_ext_control ec = {
 			.id = V4L2_CID_CAMSS_CCM,
-			.size = sizeof(cfg->ccm),
-			.p_s32 = (int32_t *)cfg->ccm,
+			.size = sizeof(matrix),
+			.p_s32 = matrix,
 		};
 		struct v4l2_ext_controls ecs = { .count = 1, .controls = &ec };
 
+		memcpy(matrix, cfg->ccm, sizeof(matrix));
 		if (xioctl(c->vfe_fd, VIDIOC_S_EXT_CTRLS, &ecs) < 0)
 			logmsg(c, "colour matrix: %s", strerror(errno));
 	}
