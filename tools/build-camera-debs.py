@@ -33,6 +33,8 @@ def main():
     p.add_argument('--loopback-source', type=Path, required=True)
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--cross-compile', default='aarch64-linux-gnu-')
+    p.add_argument('--loopback-only', action='store_true',
+                   help='Build only the new kernel module; retain an unchanged camerad deb')
     a = p.parse_args()
     os.umask(0o022)
     out = a.output.resolve()
@@ -60,9 +62,10 @@ def main():
         raise ValueError('v4l2loopback source must be clean')
     epoch = subprocess.check_output(['git', '-C', str(REPO), 'show', '-s', '--format=%ct', 'HEAD'], text=True).strip()
     os.environ['SOURCE_DATE_EPOCH'] = epoch
-    run(a.cross_compile + 'gcc', '-O2', '-Wall', '-Wextra',
-        '-ffile-prefix-map=' + str(REPO) + '=/piano',
-        source / 'piano-camerad.c', '-lm', '-o', out / 'piano-camerad')
+    if not a.loopback_only:
+        run(a.cross_compile + 'gcc', '-O2', '-Wall', '-Wextra',
+            '-ffile-prefix-map=' + str(REPO) + '=/piano',
+            source / 'piano-camerad.c', '-lm', '-o', out / 'piano-camerad')
     archive = out / 'loopback-source.tar'
     run('git', '-C', a.loopback_source, 'archive', '--format=tar', '-o', archive, actual)
     module = out / 'loopback'
@@ -99,6 +102,8 @@ def main():
             'usr/share/doc/' + module_name + '/source.json': (source / 'source.json', 0o644),
         }),
     ]:
+        if a.loopback_only and name == 'piano-camerad':
+            continue
         stage = out / (name + '.stage')
         stage.mkdir()
         for target, (path, mode) in files.items():
