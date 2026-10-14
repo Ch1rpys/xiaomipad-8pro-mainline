@@ -38,7 +38,8 @@ POLICY_TEXT = '[Sleep]\nAllowSuspend=yes\nSuspendState=freeze\n'
 TRACE_ROOT = Path('/sys/kernel/tracing/instances')
 MUTTER = 'org.gnome.Mutter.DisplayConfig'
 WAKE_NAMES = {'pwrkey': r'pwrkey|kpdpwr|power[-_ ]?key',
-              'keyboard': r'nanosic.*wake|keyboard.*wake', 'lid': r'\blid\b|lid[_-]|hall'}
+              # The I2C core also arms the data IRQ (nanosic_wn8030_irq) of a wakeup-source client.
+              'keyboard': r'nanosic|keyboard', 'lid': r'\blid\b|lid[_-]|hall'}
 RTC_NAME = re.compile(r'rtc', re.I)
 ERROR_WORD = r'\b(?:error|failed|failure|fault|timeout|timed out|crash|hang|stalled)\b|\b(?:err|ret)[=: ]+-[0-9]+'
 KERNEL_ERROR = re.compile(r'\bWARNING\b|Call trace:|\bBUG:|\bOops:|\btimeout\b|timed out|failed to resume|'
