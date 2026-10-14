@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 """Root-only, exclusive piano dual-camera NV12 capture; run only on the tablet.
 
-The community daemon is unchanged. This test owns a temporary loopback module
+This test owns a temporary loopback module
 and daemon, saves the CAMSS state they change, and restores it in finally.
 SIGINT/TERM are handled; SIGKILL or loss of power cannot run cleanup.
 """
@@ -100,7 +100,7 @@ def links(topology):
 
 
 def snapshot(table, name):
-    state = {'controls': [], 'formats': [], 'ccm': []}
+    state = {'controls': [], 'formats': [], 'ccm': [], 'warnings': []}
     for sensor, phy, csid, vfe, video in [CFG[name]]:
         sd, vd = find(table, sensor), find(table, vfe)
         # Refuse a sensor test pattern; generated patterns cannot pass a scene test.
@@ -125,7 +125,10 @@ def snapshot(table, name):
         state['formats'].append([dev, 4, 5, ioctl(dev, 4, request(208, 9)).hex()])
     lens = [d for n, d in table.items() if n.startswith('dw9768')]
     if name == 'rear' and len(lens) == 1:
-        state['controls'].append([lens[0], 0x009a090a, ctrl(lens[0], 0x009a090a)])
+        try:
+            state['controls'].append([lens[0], 0x009a090a, ctrl(lens[0], 0x009a090a)])
+        except OSError as e:
+            state['warnings'].append(f'Optional VCM unavailable: {e}; AF is not tested')
     return state
 
 
@@ -206,7 +209,8 @@ def capture(name, output, table, logpath):
     folder = output / name
     folder.mkdir()
     result = {'status': 'FAIL', 'frames': [], 'width': WIDTH, 'height': HEIGHT,
-              'format': 'NV12', 'metadata_scope': 'controls sampled after receipt; not frame-synchronous sensor metadata',
+              'format': 'NV12', 'luma_range': 'full (community JPEG colorspace)',
+              'metadata_scope': 'controls sampled after receipt; not frame-synchronous sensor metadata',
               'analogue_gain_unity': 1 if name == 'rear' else 256,
               'isp_digital_gain_unity': 1024,
               'bootstrap_frames_discarded': 0}
@@ -252,7 +256,8 @@ def capture(name, output, table, logpath):
                         path.write_bytes(frame)
                         result['frames'].append({'path': str(path), 'sha256': sha(path),
                             'bytes': len(frame), 'luma_mean': mean, 'luma_stddev': std,
-                            'nonblack_nonconstant': mean > 16.5 and std > 1,
+                            # JPEG NV12 uses full-range luma; 16 is not its black level.
+                            'nonblack_nonconstant': mean > 1 and std > 1,
                             'controls_monotonic_ns': time.monotonic_ns(),
                             'exposure_lines': ctrl(find(table, sensor), EXPOSURE),
                             'analogue_gain': ctrl(find(table, sensor), AGAIN),
@@ -305,7 +310,12 @@ def main():
         if subprocess.run(['pgrep', '-x', 'piano-camerad'], stdout=subprocess.DEVNULL).returncode == 0:
             raise RuntimeError('An existing camerad owns the cameras')
         receipt = Path('/usr/share/doc/linux-image-' + os.uname().release + '/build-result.json')
-        result['kernel_build'] = json.loads(receipt.read_text())
+        # RAM boot on an older installed root has no candidate package receipt.
+        result['kernel_build'] = json.loads(receipt.read_text()) if receipt.is_file() else None
+        if result['kernel_build'] and result['kernel_build']['kernel_release'] != os.uname().release:
+            raise RuntimeError('Installed kernel receipt does not match the running release')
+        result['kernel_version'] = os.uname().version
+        result['boot_id'] = Path('/proc/sys/kernel/random/boot_id').read_text().strip()
         result['dtb_sha256'] = sha(Path('/sys/firmware/fdt'))
         result['daemon_sha256'] = sha(Path('/usr/lib/piano/piano-camerad'))
         result['test_sha256'] = sha(Path(__file__))
@@ -327,7 +337,7 @@ def main():
         table = nodes()
         exclusive(set(table.values()) | {media})
         saved_links = links(topology)
-        state = {'controls': [], 'formats': [], 'ccm': []}
+        state = {'controls': [], 'formats': [], 'ccm': [], 'warnings': []}
         ready = []
         for name in CFG:
             try:
@@ -362,6 +372,9 @@ def main():
                     for name in ('front', 'rear'):
                         if name in ready:
                             result['cameras'][name] = capture(name, output, table, logpath)
+                            # Save before restoration, including a failed STREAMON.
+                            (output / (name + '-media-capture.txt')).write_text(
+                                command('media-ctl', '-d', media, '-p'))
     except Exception as e:
         result['error'] = str(e)
     finally:

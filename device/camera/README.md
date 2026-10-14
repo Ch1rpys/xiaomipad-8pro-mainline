@@ -1,9 +1,11 @@
 # Piano camera first-frame candidate
 
-The MIT `piano-camerad.c` is byte-for-byte from blu-sharky/debian-piano
+The MIT `piano-camerad.c` was imported byte-for-byte from blu-sharky/debian-piano
 `a75f8c5d5fa099d65c171ac839c2e3bb6c63ec45`, with its three original camera commits
-and author history retained. `source.json` pins the source and the GPL-2.0-or-later
-v4l2loopback v0.15.4 revision selected by that project's CI. `NOTICE` and `LICENSE`
+and author history retained. The separate local fixes provide a writable CCM
+payload and ACTIVE format/flip checks. `source.json` records the original and
+current hashes, the unchanged community WirePlumber policy, and the GPL-2.0-or-later
+v4l2loopback v0.15.4 revision selected by that project's CI. the repository `NOTICE` and camera `LICENSE`
 preserve attribution. The loopback module is compiled against the candidate's
 complete kernel OUT, not through DKMS. No camera firmware is required by this
 CAMSS/TFE/sensor path.
@@ -21,8 +23,12 @@ The output contains separate `piano-camerad` and
 runs depmod during installation/removal. Neither package starts a camera or
 enables a service. Normal OF coldplug loads camera drivers from the kernel
 package. The kernel uses translated DMA by default; the community overlay's
-manual IOMMU-domain switch is therefore unnecessary. No account, WirePlumber
-policy, global module blacklist, or Debian rootfs orchestration is imported.
+manual IOMMU-domain switch is therefore unnecessary. The unchanged community WirePlumber policy disables the libcamera monitor and
+hides raw CAMSS devices, leaving the loopbacks for applications. It is installed
+as vendor configuration under `/usr/share/wireplumber/wireplumber.conf.d/`.
+Reboot or restart each active user WirePlumber instance after installing it,
+including any GDM greeter instance, before starting camerad. No fixed account,
+global module blacklist or Debian rootfs orchestration is imported.
 
 After the project lead schedules device validation, keep the installed piano17
 kernel package and independently save its verified boot triplet on tablet and
@@ -32,17 +38,19 @@ three candidate debs together; the root must have Python 3, NumPy, v4l-utils,
 procps and kmod (normal distribution packages). Reboot into the exact new release.
 
 ```sh
-sudo piano-camera-test --expected-release 7.2.10-piano19 \
+sudo piano-camera-test --expected-release 7.2.10-piano20 \
   --output /var/tmp/piano-camera-first-frame
 ```
 
 Run on the tablet as root. The script checks ARM64, `xiaomi,piano`, the running
-release and translated CAMSS DMA domain. It enumerates every media graph, then
-uses the unchanged community daemon to drive the sensors/TFE and feed its two
+release and translated CAMSS DMA domain. The installed kernel build receipt is
+optional for RAM boot on the piano17 root; if present its release must match.
+The running kernel version, boot ID and live FDT hash are always recorded. It enumerates every media graph, then
+uses the community daemon with the recorded fixes to drive the sensors/TFE and feed its two
 1920×1440 NV12 loopbacks. It captures front and rear sequentially, 30 frames each,
 within 30 seconds per camera. Initial synthetic zero-luma loopback frames are
 excluded and one is retained as `bootstrap.nv12`; sensor test patterns are refused.
-Every counted frame must have luma mean >16.5 and standard deviation >1, and at
+Every counted full-range JPEG/NV12 frame must have luma mean >1 and standard deviation >1, and at
 least two frame hashes must differ. These thresholds require a lit, textured
 scene; a dark/flat scene can fail without indicating a driver defect.
 
@@ -56,8 +64,9 @@ not an AE/AWB/AF, image-quality, motion, concurrent-camera or desktop-app result
 The test requires exclusive access and no pre-existing loopback/camerad. It
 does not stop someone else's application/service. It stops its own capture and
 daemon, restores formats, selections, controls and media links with readback,
-then unloads its own loopback module. A restoration error fails the overall
-result. INT/TERM/HUP take the same cleanup path; SIGKILL, power loss or a wedged
+then unloads its own loopback module. An unavailable optional VCM is recorded as a warning and cannot prevent sensor
+capture; piano20 disables the unverified GT9764BA node and does not test AF.
+A restoration error fails the overall result. INT/TERM/HUP take the same cleanup path; SIGKILL, power loss or a wedged
 kernel cannot guarantee userspace cleanup. On an already running camera setup,
 close it explicitly before running this first-frame test.
 
