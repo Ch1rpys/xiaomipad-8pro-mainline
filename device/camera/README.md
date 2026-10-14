@@ -70,6 +70,34 @@ A restoration error fails the overall result. INT/TERM/HUP take the same cleanup
 kernel cannot guarantee userspace cleanup. On an already running camera setup,
 close it explicitly before running this first-frame test.
 
+For a kernel with the GT9764 actuator enabled, add `--focus-sweep`:
+
+```sh
+sudo piano-camera-test --expected-release 7.2.10-piano22 --focus-sweep \
+  --output /var/tmp/piano-camera-focus
+```
+
+Keep the tablet and a lit, textured subject stationary. After the usual captures,
+the test stops its own camerad so its AF/AE cannot compete, then captures the
+same rear CAMSS NV12 source directly with v4l2-ctl. It queries focus min/max/step,
+uses five legal positions including both legal endpoints, waits 100 ms per move,
+and discards four startup frames from each fresh stream before saving three.
+The wait exceeds the driver's default 6.65 ms move delay (+1 ms allowance) and
+the community AF's two 30 Hz frames; it is not a measured GT9764 settling bound.
+The lens fd stays open to prevent runtime-PM parking between positions.
+
+`cameras.rear.focus_sweep` records controls, frame paths/hashes, per-frame centre-third
+horizontal gradient energy divided by luma (the community AF metric), and the
+median at each position. Every write/readback must match, exposure/gain must
+remain fixed, and max/min sharpness must be at least 1.3 for PASS. Matching controls
+with a smaller ratio give FAIL: “执行器写入被接受但图像无变化”. Missing controls or failed
+writes/captures give FAIL. If all medians are below the conservative noise/texture
+gate of 1.0 in 8-bit metric units, the result is INCOMPLETE, never PASS. This gate
+is not calibrated sensor noise; motion/lighting changes can invalidate the scene.
+Overall INCOMPLETE exits nonzero, as does FAIL. The common restore restores and
+reads back the original focus and other state, including on a failed sweep.
+This test establishes focus-dependent image change, not autofocus accuracy.
+
 To roll back while Ubuntu still runs:
 
 ```sh

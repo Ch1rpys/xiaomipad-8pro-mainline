@@ -84,7 +84,6 @@ def main():
     if vermagic.split()[0] != release:
         raise ValueError('Loopback vermagic does not match the kernel')
     packages = []
-    version = '0.1+20261014.3'
     module_name = 'piano-camera-loopback-' + release
     for name, depends, files in [
         ('piano-camerad', 'libc6 (>= 2.38), python3, python3-numpy, v4l-utils, procps, kmod, piano-camera-loopback', {
@@ -104,6 +103,7 @@ def main():
     ]:
         if a.loopback_only and name == 'piano-camerad':
             continue
+        version = '0.1+20261014.4' if name == 'piano-camerad' else '0.1+20261014.3'
         stage = out / (name + '.stage')
         stage.mkdir()
         for target, (path, mode) in files.items():

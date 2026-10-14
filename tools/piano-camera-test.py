@@ -27,6 +27,19 @@ FRAME_SIZE = WIDTH * HEIGHT * 3 // 2
 USER = 0x00980900
 EXPOSURE, AGAIN, DGAIN, VBLANK = USER + 17, 0x009e0903, 0x009f0905, 0x009e0901
 HFLIP, VFLIP, CCM = USER + 20, USER + 21, USER | 0x1ff0
+FOCUS = 0x009a090a
+# piano21 dw9768.c (fc16bcb2fef9): default move delay 6.65 ms (+1 ms
+# scheduling allowance); GT9764 power/init waits run synchronously on open.
+# Community camerad a75f8c5 uses AF_SETTLE=2 frames at 30 Hz (~67 ms).
+# Use 100 ms after each S_CTRL, then start a fresh stream (no old queued frames).
+# This is a conservative test allowance, not a measured GT9764 settling time.
+FOCUS_SETTLE_SECONDS = 0.100
+FOCUS_FRAMES = 3
+FOCUS_RATIO = 1.3
+# Community gradient energy / luma, in 8-bit units. At mean 128, independent
+# noise with sigma=8 gives ~1.0; reject scores below this conservative texture
+# gate. This is a test threshold, not calibrated sensor noise or AF tuning.
+FOCUS_TEXTURE_FLOOR = 1.0
 CFG = {'rear': ('s5kjn1', 'msm_csiphy1', 'msm_csid0', 'msm_vfe0_pix', 'msm_vfe0_video3'),
        'front': ('ov32d40', 'msm_csiphy4', 'msm_csid1', 'msm_vfe1_pix', 'msm_vfe1_video3')}
 
@@ -126,7 +139,7 @@ def snapshot(table, name):
     lens = [d for n, d in table.items() if n.startswith('dw9768')]
     if name == 'rear' and len(lens) == 1:
         try:
-            state['controls'].append([lens[0], 0x009a090a, ctrl(lens[0], 0x009a090a)])
+            state['controls'].append([lens[0], FOCUS, ctrl(lens[0], FOCUS)])
         except OSError as e:
             state['warnings'].append(f'Optional VCM unavailable: {e}; AF is not tested')
     return state
@@ -277,10 +290,162 @@ def capture(name, output, table, logpath):
     return result
 
 
+def focus_positions(minimum, maximum, step):
+    """Five distinct, evenly spaced legal steps including both legal endpoints."""
+    if step <= 0 or maximum < minimum:
+        raise ValueError('Invalid focus control range/step')
+    steps = (maximum - minimum) // step
+    if steps < 4:
+        raise ValueError('Focus control has fewer than five positions')
+    return [minimum + ((i * steps + 2) // 4) * step for i in range(5)]
+
+
+def focus_sharpness(plane):
+    """Community af_sharpness(): centre-third horizontal energy / luma.
+
+    Input is one 8-bit intensity plane: NV12 Y on the tablet. A Bayer green
+    sublattice can exercise the same calculation offline, without demosaicing.
+    Cast before subtraction so uint8 data cannot wrap.
+    """
+    import numpy as np
+    plane = np.asarray(plane, dtype=np.float64)
+    if plane.ndim != 2 or min(plane.shape) < 12 or not np.isfinite(plane).all():
+        raise ValueError('Sharpness needs a finite 2D intensity plane >=12x12')
+    h, w = plane.shape
+    left = plane[h//3:2*h//3:4, w//3:2*w//3:2]
+    right = plane[h//3:2*h//3:4, w//3+2:2*w//3+2:2]
+    luma = float(left.sum())
+    return float(np.square(right-left).sum() / luma) if luma > 0 else 0.0
+
+
+def focus_verdict(samples):
+    import math
+    if len(samples) != 5 or any(s.get('error') or
+            s.get('readback') != s['position'] or
+            s.get('readback_after') != s['position'] for s in samples):
+        return {'status': 'FAIL', 'reason': 'Focus write/readback or capture failed'}
+    values = [s['sharpness'] for s in samples]
+    if not all(math.isfinite(v) and v >= 0 for v in values):
+        return {'status': 'FAIL', 'reason': 'Invalid sharpness evidence'}
+    low, high = min(values), max(values)
+    evidence = {'sharpness_min': low, 'sharpness_max': high,
+                'sharpness_ratio': high / low if low else None,
+                'ratio_is_infinite': low == 0 and high > 0}
+    if high < FOCUS_TEXTURE_FLOOR:
+        return dict(evidence, status='INCOMPLETE', reason='Insufficient scene texture above noise threshold')
+    if high >= FOCUS_RATIO * low:
+        return dict(evidence, status='PASS', reason='Focus-dependent image sharpness changed')
+    return dict(evidence, status='FAIL', reason='执行器写入被接受但图像无变化')
+
+
+def focus_sweep(output, table, state):
+    """Run after stopping our daemon: AF/AE must not compete with the sweep.
+
+    Read the same CAMSS NV12 buffers camerad normally copies to loopback. Keep
+    the lens fd open through all positions to prevent runtime-PM parking. The
+    pre-daemon focus value stays in state and is restored by the common finally.
+    """
+    import numpy as np
+    result = {'status': 'FAIL', 'samples': [], 'settle_seconds': FOCUS_SETTLE_SECONDS,
+              'settle_source': 'dw9768.c fc16bcb2fef9; camerad a75f8c5 AF_SETTLE=2 at 30 Hz',
+              'metric': 'community centre-third horizontal gradient energy / luma (8-bit)',
+              'texture_floor': FOCUS_TEXTURE_FLOOR, 'required_ratio': FOCUS_RATIO,
+              'frames_per_position': FOCUS_FRAMES, 'startup_frames_skipped': 4,
+              'format': 'NV12', 'capture_source': 'CAMSS, after camerad stopped; AE/AWB/AF fixed',
+              'metadata_scope': 'controls before/after capture, not frame-synchronous'}
+    fd = None
+    try:
+        lens = find(table, 'dw9768')
+        saved = [v for dev, cid, v in state['controls'] if dev == lens and cid == FOCUS]
+        if len(saved) != 1:
+            raise RuntimeError('Focus control missing/unreadable in original snapshot; cannot safely restore')
+        result.update(device=lens, original_position=saved[0])
+        exclusive(set(table.values()))
+        fd = os.open(lens, os.O_RDWR | os.O_NONBLOCK | os.O_CLOEXEC)
+        query = ioctl(lens, 36, request(68, FOCUS))  # struct v4l2_queryctrl
+        cid, kind, label, minimum, maximum, step, default, flags = struct.unpack_from('=II32siiiiI', query)
+        if cid != FOCUS or kind != 1 or flags & (0x1 | 0x4 | 0x10):
+            raise RuntimeError('Focus control is not an active, writable integer')
+        result['control'] = {'minimum': minimum, 'maximum': maximum, 'step': step,
+                             'name': label.rstrip(b'\0').decode(errors='replace'), 'flags': flags}
+        positions = focus_positions(minimum, maximum, step)
+        result['positions'] = positions
+        sensor, _, _, vfe, video = CFG['rear']
+        video = find(table, video)
+        fmt = ioctl(video, 4, request(208, 9))  # VIDEO_CAPTURE_MPLANE
+        width, height, fourcc = struct.unpack_from('=III', fmt, 8)
+        size, stride = struct.unpack_from('=II', fmt, 28)
+        if ((width, height, fourcc, fmt[188]) !=
+                (WIDTH, HEIGHT, int.from_bytes(b'NV12', 'little'), 1) or
+                stride < width or size != stride * height * 3 // 2):
+            raise RuntimeError('Rear CAMSS is not the configured single-plane NV12 stream')
+        result.update(width=width, height=height, stride=stride, frame_bytes=size, video_device=video)
+        folder = output / 'rear' / 'focus-sweep'
+        folder.mkdir()
+        def metadata():
+            return {'exposure_lines': ctrl(find(table, sensor), EXPOSURE),
+                    'analogue_gain': ctrl(find(table, sensor), AGAIN),
+                    'isp_digital_gain': ctrl(find(table, vfe), DGAIN)}
+        fixed = metadata()
+        result['fixed_controls'] = fixed
+        for position in positions:
+            sample = {'position': position, 'frames': []}
+            result['samples'].append(sample)
+            try:
+                sample['set_monotonic_ns'] = time.monotonic_ns()
+                sample['accepted'] = ctrl(lens, FOCUS, position)
+                sample['readback'] = ctrl(lens, FOCUS)
+                if sample['accepted'] != position or sample['readback'] != position:
+                    raise RuntimeError('Focus S_CTRL/G_CTRL differs from requested position')
+                time.sleep(FOCUS_SETTLE_SECONDS)
+                sample['controls_before'] = metadata()
+                # Each stream starts after settling: there are no buffers from a
+                # previous position. Skip the first four pipeline startup frames.
+                with (folder / f'{position}-v4l2-ctl.log').open('wb') as log:
+                    frames = subprocess.run(['v4l2-ctl', '-d', video, '--silent',
+                        '--stream-mmap=4', f'--stream-count={FOCUS_FRAMES + 4}',
+                        '--stream-to=-'], check=True, stdout=subprocess.PIPE, stderr=log, timeout=15).stdout
+                if len(frames) != size * (FOCUS_FRAMES + 4):
+                    raise RuntimeError(f'Unexpected capture length: {len(frames)}')
+                frames = frames[4*size:]
+                sample['readback_after'] = ctrl(lens, FOCUS)
+                sample['controls_after'] = metadata()
+                sample['capture_monotonic_ns'] = time.monotonic_ns()
+                for index in range(FOCUS_FRAMES):
+                    frame = frames[index*size:(index+1)*size]
+                    path = folder / f'{position}-{index}.nv12'
+                    path.write_bytes(frame)
+                    y = np.frombuffer(frame, dtype=np.uint8, count=stride*height).reshape(height, stride)[:, :width]
+                    sample['frames'].append({'path': str(path), 'sha256': sha(path),
+                        'sharpness': focus_sharpness(y), 'luma_mean': float(y.mean()),
+                        'luma_stddev': float(y.std())})
+                sample['sharpness'] = float(np.median([f['sharpness'] for f in sample['frames']]))
+                if sample['controls_before'] != fixed or sample['controls_after'] != fixed:
+                    raise RuntimeError('Exposure/gain changed during focus sweep')
+                if sample['readback_after'] != position:
+                    raise RuntimeError('Focus changed during capture')
+            except InterruptedError:
+                raise
+            except Exception as e:
+                sample['error'] = str(e)
+                raise
+        result.update(focus_verdict(result['samples']))
+    except InterruptedError:
+        raise
+    except Exception as e:
+        result.update(status='FAIL', reason=str(e))
+    finally:
+        if fd is not None:
+            os.close(fd)
+    return result
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--output', type=Path, required=True, help='New evidence directory (mode 0700)')
     p.add_argument('--expected-release', required=True)
+    p.add_argument('--focus-sweep', action='store_true',
+                   help='Rear only: five focus positions; keep a lit, textured scene and camera stationary')
     a = p.parse_args()
     os.umask(0o077)
     output = a.output.resolve()
@@ -289,6 +454,9 @@ def main():
               'scope': '30 NV12 frames per camera; not image quality, motion, AE/AF accuracy or application acceptance',
               'cameras': {n: {'status': 'FAIL', 'error': 'not reached'} for n in CFG},
               'cleanup': []}
+    if a.focus_sweep:
+        result['scope'] += '; rear focus sweep measures image change, not autofocus accuracy'
+        result['cameras']['rear']['focus_sweep'] = {'status': 'FAIL', 'reason': 'not reached'}
     daemon, state, media, loaded = None, None, None, False
     changed = False
     lock = None
@@ -375,6 +543,15 @@ def main():
                             # Save before restoration, including a failed STREAMON.
                             (output / (name + '-media-capture.txt')).write_text(
                                 command('media-ctl', '-d', media, '-p'))
+                    if a.focus_sweep:
+                        # The unmodified community daemon has autonomous AF. Stop
+                        # our daemon normally before taking control of the lens.
+                        stop(daemon)
+                        if result['cameras']['rear']['status'] == 'PASS':
+                            sweep = focus_sweep(output, table, state)
+                        else:
+                            sweep = {'status': 'FAIL', 'reason': 'Rear capture unavailable for focus sweep'}
+                        result['cameras']['rear']['focus_sweep'] = sweep
     except Exception as e:
         result['error'] = str(e)
     finally:
@@ -401,8 +578,10 @@ def main():
             result['modules_after'] = Path('/proc/modules').read_text()
         except Exception as e:
             result['dmesg_error'] = str(e)
+        if a.focus_sweep:
+            result['cameras']['rear'].setdefault('focus_sweep', {'status': 'FAIL', 'reason': 'not reached'})
         if not result.get('error') and all(c['status'] == 'PASS' for c in result['cameras'].values()) and all(c['status'] == 'PASS' for c in result['cleanup']):
-            result['status'] = 'PASS'
+            result['status'] = result['cameras']['rear']['focus_sweep']['status'] if a.focus_sweep else 'PASS'
         (output / 'result.json').write_text(json.dumps(result, indent=2)+'\n')
         (output / 'SHA256SUMS').write_text(''.join(sha(f)+'  '+str(f.relative_to(output))+'\n'
                                                  for f in sorted(output.rglob('*')) if f.is_file() and f.name != 'SHA256SUMS'))
