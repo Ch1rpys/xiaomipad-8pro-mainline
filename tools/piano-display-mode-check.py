@@ -400,7 +400,7 @@ class Pointer:
         # A persistent unprivileged connection is mandatory for RemoteDesktop.
         # The root-owned script/output may be below /root: send just this one
         # function to the child, without making private directories world-readable.
-        source = ('import ctypes, json, math, os, sys\n' + inspect.getsource(pointer_worker) +
+        source = ('import ctypes, json, math, os, sys\n' + f'RD = {RD!r}\n' + inspect.getsource(pointer_worker) +
                   '\ntry:\n    pointer_worker()\nexcept Exception as error:\n'
                   '    print(json.dumps({"ok": False, "error": str(error)}), flush=True)\n'
                   '    print(str(error), file=sys.stderr)\n    sys.exit(1)\n')
