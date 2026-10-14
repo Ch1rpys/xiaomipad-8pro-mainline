@@ -96,7 +96,7 @@ def main():
             'usr/share/doc/' + module_name + '/source.json': (source / 'source.json', 0o644),
         }),
     ]:
-        stage = out / name
+        stage = out / (name + '.stage')
         stage.mkdir()
         for target, (path, mode) in files.items():
             dest = stage / target
