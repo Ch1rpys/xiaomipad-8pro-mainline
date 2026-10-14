@@ -36,9 +36,23 @@ bidirectional pings before and after disconnect. `--reconnect-from host` selects
 the host as the initiator of the single reconnection (default: tablet). Both
 peers must already be bonded before this step; automatic fresh pairing after
 a failed setup must not be reported as successful reconnection.
+If Connect fails, the dependent pings report an unmet prerequisite and do not
+open replacement ACL links; `l2ping` can otherwise create a new, unauthenticated
+connection and produce a misleading PASS.
 `--reconnect-count 2` or `3` captures a bounded intermittent failure after one
 pairing. Every cycle is reported separately; the first failed cycle stops the
 sequence without retrying it. The default remains one cycle.
+
+For a captured reconnect investigation, `--link-diagnostics` reads each link's
+policy, supervision timeout, AFH map, RSSI, quality and actual role **after** the
+pings. `--reconnect-policy tablet-no-sniff`, `host-no-sniff` or
+`tablet-no-role-switch` changes only the named control while disconnected,
+then restores and verifies the original defaults. Sniff controls clear only
+SNIFF, preserving HOLD/RSWITCH. The role control clears RSWITCH and sets the
+tablet's standard CENTRAL link-mode bit: Linux derives Create Connection's
+Allow Role Switch from that mode, independently of the policy bit. Verify the
+actual role in btsnoop; connection initiator alone does not establish it.
+These are temporary diagnostic controls, not recommended device defaults.
 
 The sequence is power/discoverability, BR/EDR discovery, tablet-initiated
 NoInputNoOutput pairing, trust/connect, five l2ping packets in each direction,
@@ -70,7 +84,9 @@ stops playback/recording/OBEX, unregisters the test agents, restores adapter
 properties and the user OBEX unit, removes the temporary host rule, and restarts
 only the host's WirePlumber. Before/after receipts compare adapter settings and
 advertised UUIDs, existing bonds, audio defaults/profiles/volumes, service state,
-boot ID and the keyboard monitor PID/start time. A failed restoration remains
+boot ID, the keyboard monitor PID/start time, and the RAM safety timer's
+activity/start/deadline. An existing but inactive RAM safety timer refuses the
+test. Neither protected unit is stopped or restarted. A failed restoration remains
 FAIL; the tablet's temporary directory is retained for recovery and its path
 is recorded. No automatic reboot, controller reset or pairing retry is used.
 If the host's WirePlumber restart reapplies a different saved mixer volume,

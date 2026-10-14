@@ -174,6 +174,7 @@ def endpoint(args):
                 "boot_id": Path("/proc/sys/kernel/random/boot_id").read_text().strip(),
                 "kernel": os.uname().release,
                 "keyboard_monitor": run(["systemctl", "show", "piano-kbd-monitor.service", "-p", "ActiveState", "-p", "MainPID", "-p", "ActiveEnterTimestampMonotonic"], check=False)["stdout"],
+                "ram_safety_timer": run(["systemctl", "show", "piano-ram-safety-reboot3.timer", "-p", "LoadState", "-p", "ActiveState", "-p", "ActiveEnterTimestampMonotonic", "-p", "NextElapseUSecMonotonic"], check=False)["stdout"],
                 "versions": run(["dpkg-query", "-W", "bluez", "bluez-obexd", "pipewire", "wireplumber", "libspa-0.2-bluetooth"], check=False)}
 
     class Agent(dbus.service.Object):
@@ -296,6 +297,7 @@ def endpoint(args):
             "obex_service": all(before[k] == after[k] for k in ("obex_active", "obex_enabled")),
             "same_boot": before["boot_id"] == after["boot_id"],
             "keyboard_monitor": before["keyboard_monitor"] == after["keyboard_monitor"],
+            "ram_safety_timer": before["ram_safety_timer"] == after["ram_safety_timer"],
             "audio": before["audio"] == after["audio"],
             "temporary_processes": not state["children"] and state["obex"] is None,
             "temporary_rule_removed": state["wp_config"] is None or not state["wp_config"].exists(),
@@ -701,12 +703,16 @@ def main(args):
     (out / "inputs.json").write_text(json.dumps({"script_sha256": sha(frozen_script), "obex_requested": not (args.skip_obex or args.reconnect_only),
                                                 "reconnect_only": args.reconnect_only, "reconnect_from": args.reconnect_from,
                                                 "reconnect_count": args.reconnect_count,
+                                                "reconnect_policy": args.reconnect_policy,
+                                                "link_diagnostics": args.link_diagnostics,
                                                 "started_unix": time.time()}, indent=2))
     run(ssh + ["cat > " + shlex.quote(remote_script)], input=source)
     host_work = out / "host"
     host_work.mkdir()
     peers = {}
     results = {}
+    policy_restore = {}
+    mode_restore = {}
 
     def report(name, fn):
         started = time.time()
@@ -734,12 +740,67 @@ def main(args):
         value["pass"] = value["rc"] == 0 and bool(re.search(r"\b5 sent, 5 received, 0% loss\b", value["stdout"]))
         return value
 
+    def policy(side):
+        value = privileged(side, ["hciconfig", args.adapter, "lp"])
+        match = re.search(r"Link policy:\s*([^\n]*)", value["stdout"])
+        if value["rc"] or not match:
+            raise RuntimeError("cannot read default link policy")
+        return match[1].strip().split()
+
+    def change_policy():
+        if args.reconnect_policy == "default" or policy_restore:
+            return
+        side = "host" if args.reconnect_policy == "host-no-sniff" else "tablet"
+        original = policy(side)
+        remove = "RSWITCH" if args.reconnect_policy == "tablet-no-role-switch" else "SNIFF"
+        target = [v for v in original if v != remove]
+        if not target or target == original:
+            raise RuntimeError("requested policy bit absent or empty resulting policy")
+        policy_restore[side] = original
+        if remove == "RSWITCH":
+            # Linux Create_Connection Allow_Role_Switch is derived from link
+            # mode, not the default link-policy bit. Cover connection setup
+            # too; otherwise disabling RSWITCH alone does not test the role.
+            value = privileged(side, ["hciconfig", args.adapter, "lm"])
+            match = re.search(r"Link mode:\s*([^\n]*)", value["stdout"])
+            if value["rc"] or not match:
+                raise RuntimeError("cannot read default link mode")
+            mode_restore[side] = match[1].strip().split()
+            target_mode = sorted((set(mode_restore[side]) - {"PERIPHERAL"}) | {"CENTRAL"})
+            value = privileged(side, ["hciconfig", args.adapter, "lm", ",".join(target_mode).lower()])
+            mode_after = privileged(side, ["hciconfig", args.adapter, "lm"])
+            if value["rc"] or "CENTRAL" not in mode_after["stdout"]:
+                raise RuntimeError("cannot prohibit setup role switch")
+            (out / "mode-control.json").write_text(json.dumps({"side": side,
+                "before": mode_restore[side], "after": mode_after, "command": value}, indent=2))
+        result = privileged(side, ["hciconfig", args.adapter, "lp", ",".join(target).lower()])
+        after = policy(side)
+        (out / "policy-control.json").write_text(json.dumps({"side": side, "before": original,
+            "requested": target, "after": after, "command": result}, indent=2))
+        if result["rc"] or after != target:
+            raise RuntimeError("link policy readback mismatch")
+
+    def link_diagnostics(label):
+        # Read only, after measured pings so the observation cannot wake the
+        # controller before the connectivity measurement.
+        data = {}
+        for side in peers:
+            dest = address["host" if side == "tablet" else "tablet"]
+            data[side] = {op: privileged(side, ["hcitool", "-i", args.adapter, op, dest])
+                          for op in ("lp", "lst", "afh", "rssi", "lq")}
+            data[side]["connections"] = privileged(side, ["hcitool", "-i", args.adapter, "con"])
+        (out / (label + "-links.json")).write_text(json.dumps(data, indent=2))
+        return {"links": data, "pass": all(v["rc"] == 0 for d in data.values() for v in d.values())}
+
     try:
         peers["host"] = Peer([sys.executable, str(frozen_script), "--endpoint", "--adapter", args.adapter, "--work", str(host_work)], out / "host-endpoint.log")
         peers["tablet"] = Peer(ssh + [shlex.join(["/usr/bin/python3", remote_script, "--endpoint", "--adapter", args.adapter, "--work", remote_work + "/tablet"])], out / "tablet-endpoint.log")
         before = both("snapshot")
         (out / "before.json").write_text(json.dumps(before, indent=2))
         address = {side: data["adapter"]["Address"].upper() for side, data in before.items()}
+        timer = before["tablet"]["ram_safety_timer"]
+        if "LoadState=loaded" in timer and "ActiveState=active" not in timer:
+            raise RuntimeError("existing RAM safety timer is not active")
         for side, data in before.items():
             peer_path = "/org/bluez/" + args.adapter + "/dev_" + address["tablet" if side == "host" else "host"].replace(":", "_")
             if peer_path in data["devices"]:
@@ -754,6 +815,8 @@ def main(args):
         report("connect", lambda: peers["tablet"].call("connect"))
         report("l2ping_tablet_host", lambda: ping("tablet"))
         report("l2ping_host_tablet", lambda: ping("host"))
+        if args.link_diagnostics:
+            report("initial_link_diagnostics", lambda: link_diagnostics("initial"))
         for side in peers:
             def rssi(s=side):
                 dest = address["host" if s == "tablet" else "tablet"]
@@ -819,6 +882,7 @@ def main(args):
                 states = both("device")
                 return states if not any(d["Connected"] for d in states.values()) else None
             disconnected = wait_for(disconnected_state, 15)
+            change_policy()
             peers[args.reconnect_from].call("connect")
             after = both("device")
             return {"before": prior, "disconnected": disconnected, "after": after,
@@ -826,8 +890,18 @@ def main(args):
         for cycle in range(1, args.reconnect_count + 1):
             suffix = "" if cycle == 1 else "_" + str(cycle)
             control = report("reconnect_without_pair" + suffix, reconnect)
+            if control["status"] != "PASS":
+                # l2ping itself can create an unauthenticated replacement ACL.
+                # Never turn a failed profile reconnect into a false ping PASS.
+                def failed_prerequisite():
+                    raise RuntimeError("not measured: bonded profile reconnection failed")
+                report("reconnect_l2ping" + suffix, failed_prerequisite)
+                report("reconnect_l2ping_host_tablet" + suffix, failed_prerequisite)
+                break
             forward = report("reconnect_l2ping" + suffix, lambda: ping("tablet"))
             reverse = report("reconnect_l2ping_host_tablet" + suffix, lambda: ping("host"))
+            if args.link_diagnostics:
+                report("reconnect_link_diagnostics" + suffix, lambda: link_diagnostics("reconnect" + suffix))
             if any(r["status"] != "PASS" for r in (control, forward, reverse)):
                 break  # Preserve the first failure; never reconnect to hide it.
     finally:
@@ -837,6 +911,22 @@ def main(args):
                 value["pass"] = bool(value["checks"]) and all(value["checks"].values()) and not value["errors"]
                 return value
             report("restore_" + side, restore)
+        for side, original in policy_restore.items():
+            def restore_policy(s=side, old=original):
+                command = privileged(s, ["hciconfig", args.adapter, "lp", ",".join(old).lower()])
+                after = policy(s)
+                return {"command": command, "before": old, "after": after,
+                        "pass": command["rc"] == 0 and after == old}
+            report("restore_link_policy_" + side, restore_policy)
+        for side, original in mode_restore.items():
+            def restore_mode(s=side, old=original):
+                flags = [v for v in old if v != "PERIPHERAL"]
+                command = privileged(s, ["hciconfig", args.adapter, "lm", ",".join(flags).lower() or "none"])
+                after = privileged(s, ["hciconfig", args.adapter, "lm"])
+                match = re.search(r"Link mode:\s*([^\n]*)", after["stdout"])
+                return {"command": command, "after": after, "before": old,
+                        "pass": command["rc"] == 0 and bool(match) and match[1].strip().split() == old}
+            report("restore_link_mode_" + side, restore_mode)
         for peer in peers.values():
             peer.close()
         # Copy endpoint logs/data only to the caller's private output directory.
@@ -863,6 +953,8 @@ if __name__ == "__main__":
     parser.add_argument("--reconnect-only", action="store_true", help="pair/connect and test bidirectional pings before/after reconnect; omit OBEX/audio")
     parser.add_argument("--reconnect-from", choices=("tablet", "host"), default="tablet", help="peer initiating the single reconnection")
     parser.add_argument("--reconnect-count", type=int, choices=(1, 2, 3), default=1, help="bounded intermittent-failure capture; stop at the first failed cycle")
+    parser.add_argument("--reconnect-policy", choices=("default", "tablet-no-sniff", "tablet-no-role-switch", "host-no-sniff"), default="default", help="one-variable link control, applied while disconnected and restored at exit")
+    parser.add_argument("--link-diagnostics", action="store_true", help="read link policy, supervision timeout and AFH after measured pings")
     parser.add_argument("--endpoint", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--obex-endpoint", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--work", help=argparse.SUPPRESS)
