@@ -40,3 +40,10 @@ HF AXI 持有、双 INTF +72±2 帧/0.5 s、模块归属、失败单元/系统�
 另一组现有读数全 PASS，但实际 uptime 41.86 s，晚期窗口 UNAVAILABLE。
 完整 PASS 与切根 11 s 负例用明确标注的合成晚期读数覆盖，不改写真实夹具。
 测试：`python3 tools/tests/test-cold-boot-accept.py`。本工具当前只有主机测试，`run` 尚未真机执行。
+
+## 系统睡眠验收
+
+`tools/piano-suspend-check.py` 在平板上以 root 运行，默认做 3 轮 RTC 30 秒 s2idle，
+也可验证电源键、键盘或开盖的物理唤醒。逐轮保存实际睡眠时长、外设恢复、IRQ 与内核日志；
+测试期间临时解除 `/run` 睡眠禁令，结束后清理。用法、判据及上机边界见
+[系统睡眠验收](suspend-check.zh-CN.md)。当前仅离线检查通过。
