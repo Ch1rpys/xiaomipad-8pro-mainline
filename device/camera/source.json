@@ -8,11 +8,12 @@
       "25babfe3ff5d8ddee98b1e0ea88152d69a0c01b1",
       "197c907c4faacfb825450bbed27eb2890bc34caa"
     ],
-    "sha256": "edf5db1083f0df2fd7edaa2a0d6a65bbbd74a008e1dcd3d6fe560882284a0d31",
+    "sha256": "68ee8458cfda1e75c79969b0f49ecac543289d27cf8a70544320ad7360840c7f",
     "license": "MIT",
     "author": "bluseliu50",
     "modifications": [
-      "Use writable CCM payload for V4L2 S_EXT_CTRLS copy-back; retain the upstream matrix values."
+      "Use writable CCM payload for V4L2 S_EXT_CTRLS copy-back; retain the upstream matrix values.",
+      "Check rear flip controls and ACTIVE format readback; log sensor/PHY contract before STREAMON without retrying or changing upstream modes."
     ],
     "upstream_sha256": "c2ab6391fa41d21d1c3e4359dc0adf671261417dbda180724faf8b2758932d47"
   },
@@ -23,5 +24,13 @@
     "license": "GPL-2.0-or-later",
     "source_of_pin": "debian-piano a75f8c5 .github/workflows/build.yml"
   },
-  "firmware": "The imported CAMSS TFE pixel path and sensors make no request_firmware calls; no additional camera firmware payload."
+  "firmware": "The imported CAMSS TFE pixel path and sensors make no request_firmware calls; no additional camera firmware payload.",
+  "wireplumber": {
+    "url": "https://github.com/blu-sharky/debian-piano",
+    "commit": "fd6266d73f3442b23362260c3aa0c86782e0b52c",
+    "source_path": "rootfs/overlay/etc/wireplumber/wireplumber.conf.d/50-piano-camera.conf",
+    "license": "MIT",
+    "sha256": "b93c8a43546496d3e2af77c4e6ebe525cdf2c92daff05d73e879a701039eac09",
+    "modifications": []
+  }
 }

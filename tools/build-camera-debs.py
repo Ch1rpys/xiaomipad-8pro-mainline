@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Build the unmodified community camerad and a pinned, prebuilt loopback module.
+"""Build the pinned community camerad with its recorded local fixes and a pinned, prebuilt loopback module.
 
 No DKMS, package installation, service enablement or device access. The kernel
 OUT must already contain a completed matching build and Module.symvers.
@@ -50,7 +50,9 @@ def main():
     if release != build['kernel_release'] or sha(kout / '.config') != build['files']['.config']:
         raise ValueError('Kernel build receipt mismatch')
     if sha(source / 'piano-camerad.c') != lock['camerad']['sha256']:
-        raise ValueError('The imported camerad differs from its source lock')
+        raise ValueError('The camerad differs from its source lock')
+    if sha(source / '50-piano-camera.conf') != lock['wireplumber']['sha256']:
+        raise ValueError('WirePlumber policy differs from its community source lock')
     actual = subprocess.check_output(['git', '-C', str(a.loopback_source), 'rev-parse', 'HEAD'], text=True).strip()
     if actual != lock['loopback']['commit']:
         raise ValueError('Wrong v4l2loopback source revision')
@@ -79,12 +81,13 @@ def main():
     if vermagic.split()[0] != release:
         raise ValueError('Loopback vermagic does not match the kernel')
     packages = []
-    version = '0.1+20261014.2'
+    version = '0.1+20261014.3'
     module_name = 'piano-camera-loopback-' + release
     for name, depends, files in [
         ('piano-camerad', 'libc6 (>= 2.38), python3, python3-numpy, v4l-utils, procps, kmod, piano-camera-loopback', {
             'usr/lib/piano/piano-camerad': (out / 'piano-camerad', 0o755),
             'usr/sbin/piano-camera-test': (REPO / 'tools/piano-camera-test.py', 0o755),
+            'usr/share/wireplumber/wireplumber.conf.d/50-piano-camera.conf': (source / '50-piano-camera.conf', 0o644),
             'usr/lib/modprobe.d/piano-camera-loopback.conf': (source / 'v4l2loopback.conf', 0o644),
             'usr/share/doc/piano-camerad/copyright': (source / 'LICENSE', 0o644),
             'usr/share/doc/piano-camerad/source.json': (source / 'source.json', 0o644),

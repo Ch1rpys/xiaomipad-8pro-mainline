@@ -368,8 +368,14 @@ static int subdev_fmt(int fd, unsigned int pad, unsigned int w,
 	if (xioctl(fd, VIDIOC_SUBDEV_S_FMT, &f) < 0)
 		return -1;
 	*code = f.format.code;
-
-	return f.format.width == w && f.format.height == h ? 0 : -1;
+	/* Verify ACTIVE state, not just the S_FMT response. */
+	if (xioctl(fd, VIDIOC_SUBDEV_G_FMT, &f) < 0)
+		return -1;
+	if (f.format.width != w || f.format.height != h || f.format.code != *code) {
+		errno = EPIPE;
+		return -1;
+	}
+	return 0;
 }
 
 static int ctrl_set(int fd, uint32_t id, int val)
@@ -648,8 +654,13 @@ static int cam_start(struct cam *c)
 	}
 
 	/* the flips change the Bayer order the sensor reports */
-	ctrl_set(c->sensor_fd, V4L2_CID_HFLIP, cfg->hflip);
-	ctrl_set(c->sensor_fd, V4L2_CID_VFLIP, cfg->vflip);
+	/* OV32D40 has no flip controls; S5KJN1 needs VFLIP for BGGR. */
+	if (!strcmp(cfg->sensor, "s5kjn1") &&
+	    (ctrl_set(c->sensor_fd, V4L2_CID_HFLIP, cfg->hflip) < 0 ||
+	     ctrl_set(c->sensor_fd, V4L2_CID_VFLIP, cfg->vflip) < 0)) {
+		logmsg(c, "sensor flips: %s", strerror(errno));
+		goto out;
+	}
 
 	if (subdev_fmt(c->sensor_fd, 0, cfg->in_w, cfg->in_h, &code) < 0 ||
 	    subdev_fmt(phy_fd, 0, cfg->in_w, cfg->in_h, &code) < 0 ||
@@ -747,6 +758,29 @@ static int cam_start(struct cam *c)
 	}
 	ctrl_set(c->vfe_fd, V4L2_CID_SATURATION, saturation);
 	ctrl_set(c->vfe_fd, V4L2_CID_CONTRAST, contrast);
+
+	/* Retain evidence of the actual source/sink contract at STREAMON. */
+	{
+		struct v4l2_subdev_format source = {
+			.which = V4L2_SUBDEV_FORMAT_ACTIVE, .pad = 0,
+		};
+		struct v4l2_subdev_format sink = source;
+
+		if (xioctl(c->sensor_fd, VIDIOC_SUBDEV_G_FMT, &source) < 0 ||
+		    xioctl(phy_fd, VIDIOC_SUBDEV_G_FMT, &sink) < 0) {
+			logmsg(c, "link format readback: %s", strerror(errno));
+			goto out;
+		}
+		logmsg(c, "sensor %ux%u 0x%04x -> PHY %ux%u 0x%04x",
+		       source.format.width, source.format.height, source.format.code,
+		       sink.format.width, sink.format.height, sink.format.code);
+		if (source.format.width != cfg->in_w || source.format.height != cfg->in_h ||
+		    source.format.code != code || sink.format.width != source.format.width ||
+		    sink.format.height != source.format.height || sink.format.code != code) {
+			logmsg(c, "ACTIVE formats changed before STREAMON; check other CAMSS owners");
+			goto out;
+		}
+	}
 
 	if (xioctl(c->vid_fd, VIDIOC_STREAMON, &type) < 0) {
 		logmsg(c, "STREAMON: %s", strerror(errno));
