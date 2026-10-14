@@ -134,6 +134,12 @@
       "kernel_commit": "a5831ee94d2f0e202032240e57012f0aea3920ab",
       "config_sha256": "a597478fd88e8050e6116ecd2a9ede5b59728ad1ee37fcca45575cf7293cf86a",
       "upload": 1
+    },
+    {
+      "kernel_release": "7.2.10-piano23",
+      "kernel_commit": "b5d910839ecc0e9dee793dacb21ed75789b0da5e",
+      "config_sha256": "8ebb5b1e9a2aa192f4a15e3e0bf44bd772d94f002753239618b69ce12e9bec89",
+      "upload": 1
     }
   ]
 }

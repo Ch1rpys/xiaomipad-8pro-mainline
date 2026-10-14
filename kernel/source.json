@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "purpose": "Offline piano22 candidate: imported DPU shutdown order and SM8750 slave PHY state restore, with lid-open wakeup",
+  "purpose": "Offline piano23 candidate: piano22 display/camera/lid fixes plus GCv2/REGDMA night light with bounded teardown",
   "upstream_url": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git",
   "upstream_tag": "v7.2.10",
   "upstream_commit": "7b20d05fd38de8e0be168956f6fd241d750c7d69",
   "url": "https://github.com/yzddmr6/linux-sm8750-piano",
-  "commit": "a5831ee94d2f0e202032240e57012f0aea3920ab",
-  "branch": "codex/piano22-20261014",
+  "commit": "b5d910839ecc0e9dee793dacb21ed75789b0da5e",
+  "branch": "codex/piano23-20261014",
   "config": "arch/arm64/configs/piano-diagnostic.config",
   "release_config_fragments": [
     "arch/arm64/configs/piano-diagnostic.config",
@@ -15,5 +15,5 @@
     "arch/arm64/configs/piano-release.config"
   ],
   "note": "The kernel release fragments remain in the kernel source and are merged in order. tools/build-kernel.sh then applies kernel_release to CONFIG_LOCALVERSION for package ABI allocation without a kernel-only release commit; all other configuration remains unchanged. kernel/abi.json binds the final commit and .config.",
-  "kernel_release": "7.2.10-piano22"
+  "kernel_release": "7.2.10-piano23"
 }
