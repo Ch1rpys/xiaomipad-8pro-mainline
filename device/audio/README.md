@@ -101,9 +101,11 @@ The verb enables the `SECONDARY_TDM_RX_0 Audio Mixer MultiMedia1` and
 `MultiMedia3 Mixer VA_CODEC_DMA_TX_0` routes. The `Speaker` device (PCM 0,
 four channels) sets the four amplifier gains to 192 and exposes no hardware
 volume. The `Mic`
-device sets VA DEC0 <- DMIC0 and DEC1 <- DMIC2 (stock `va-mic-dmic`) at gain 100
-(+16 dB, the upstream VA DMIC default; stock's 84 = 0 dB is followed by DSP gain
-that this graph lacks). DEC mode stays at the driver default; stock
+device sets VA DEC0 <- DMIC0 and DEC1 <- DMIC2 (stock `va-mic-dmic`) at gain 124
+(+40 dB, the control maximum; stock's 84 = 0 dB is followed by DSP gain that this
+graph lacks, the upstream default of +16 dB left recordings about 24 dB too quiet,
+and Project SunUEFI chose +40 dB for the same microphones). DEC mode stays at the
+driver default; stock
 `ADC_LOW_PWR` belongs to voice activation. The mainline VA driver forces a
 150 Hz high-pass filter on every stream start.
 
