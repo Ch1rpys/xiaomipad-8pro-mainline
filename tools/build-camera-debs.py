@@ -58,7 +58,7 @@ def main():
         raise ValueError('v4l2loopback source must be clean')
     epoch = subprocess.check_output(['git', '-C', str(REPO), 'show', '-s', '--format=%ct', 'HEAD'], text=True).strip()
     os.environ['SOURCE_DATE_EPOCH'] = epoch
-    run(a.cross_compile + 'gcc', '-O2', '-Wall', '-Wextra', '-static',
+    run(a.cross_compile + 'gcc', '-O2', '-Wall', '-Wextra',
         '-ffile-prefix-map=' + str(REPO) + '=/piano',
         source / 'piano-camerad.c', '-lm', '-o', out / 'piano-camerad')
     archive = out / 'loopback-source.tar'
@@ -79,10 +79,10 @@ def main():
     if vermagic.split()[0] != release:
         raise ValueError('Loopback vermagic does not match the kernel')
     packages = []
-    version = '0.1+20261014.1'
+    version = '0.1+20261014.2'
     module_name = 'piano-camera-loopback-' + release
     for name, depends, files in [
-        ('piano-camerad', 'python3, python3-numpy, v4l-utils, procps, kmod, piano-camera-loopback', {
+        ('piano-camerad', 'libc6 (>= 2.38), python3, python3-numpy, v4l-utils, procps, kmod, piano-camera-loopback', {
             'usr/lib/piano/piano-camerad': (out / 'piano-camerad', 0o755),
             'usr/sbin/piano-camera-test': (REPO / 'tools/piano-camera-test.py', 0o755),
             'usr/lib/modprobe.d/piano-camera-loopback.conf': (source / 'v4l2loopback.conf', 0o644),
