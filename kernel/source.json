@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "purpose": "Offline first-frame candidate: Linux 7.2.10 with community piano CAMSS/TFE and both camera nodes enabled",
+  "purpose": "Offline piano20 camera candidate with the reviewed MCA and keyboard lifecycle fixes; unverified rear AF disabled",
   "upstream_url": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git",
   "upstream_tag": "v7.2.10",
   "upstream_commit": "7b20d05fd38de8e0be168956f6fd241d750c7d69",
   "url": "https://github.com/yzddmr6/linux-sm8750-piano",
-  "commit": "e4ea532b25866ed3baa36ad1f14c701065dd5d77",
+  "commit": "f37c00a37078bd0eda2fb164780b4cb5972daec3",
   "branch": "codex/camera-20261014",
   "config": "arch/arm64/configs/piano-diagnostic.config",
   "release_config_fragments": [
@@ -15,5 +15,5 @@
     "arch/arm64/configs/piano-release.config"
   ],
   "note": "The kernel release fragments remain in the kernel source and are merged in order. tools/build-kernel.sh then applies kernel_release to CONFIG_LOCALVERSION for package ABI allocation without a kernel-only release commit; all other configuration remains unchanged. kernel/abi.json binds the final commit and .config.",
-  "kernel_release": "7.2.10-piano19"
+  "kernel_release": "7.2.10-piano20"
 }
