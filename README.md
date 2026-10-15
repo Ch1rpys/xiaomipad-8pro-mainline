@@ -108,7 +108,7 @@ State of v0.3.1 on the test unit. ✅ works · 🟡 partial · ❌ unsupported �
 | Function | Hardware / implementation | Status | Notes |
 |---|---|---|---|
 | Wi-Fi | Qualcomm WCN7860 / ath12k | ✅ works | Stable 2.4 GHz and 5 GHz 80 MHz links |
-| Bluetooth | Qualcomm WCN7860 / `hci_qca` | 🟡 partial | Pairing, file transfer and audio work; advertised as a computer/tablet; occasional reconnection without working data |
+| Bluetooth | Qualcomm WCN7860 / `hci_qca` | 🟡 partial | Pairing, file transfer and audio work; occasional reconnection without working data |
 | USB device mode | USB 2.0 networking (NCM) | ✅ works | SSH over the USB cable in developer mode, off by default |
 | USB host / Type-C role switching | — | ❌ unsupported | No USB drives, mice or keyboards over USB-C |
 | USB-C external display | DisplayPort Alt Mode | ❌ unsupported | |
