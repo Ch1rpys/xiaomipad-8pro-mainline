@@ -1,6 +1,6 @@
 # Status
 
-Current release: **v0.3.2**. The support matrix is in the [README](../README.md#hardware-support)
+Current release: **v0.4.0**. The support matrix is in the [README](../README.md#hardware-support)
 and the [中文 README](../README.zh-CN.md#硬件支持). This page records what was verified, the
 remaining limitations and the upstreaming state.
 
@@ -75,18 +75,21 @@ The camera service starts automatically for apps. The optional NEON BGRx convers
 
 The upstream Turnip gen8 texture line-offset fix removes NV12 diagonal stripes with GTK's default Vulkan renderer. Synthetic NV12, Settings and other GTK Vulkan windows passed on the tablet, and the snap graphics provider was refreshed. The camera publishes NV12 by default again; `PIANO_CAMERA_OUTPUT=bgrx` in `/etc/piano/camera.conf` retains the optional NEON conversion. Lead measurements during a rear-camera preview were about 4 % of one core for camerad and 17 % for Snapshot with NV12, versus 19 % and 32 % with BGRx. Linux 7.2.10-piano25 and the other components are unchanged. Final assembled release images have not been tablet-booted.
 
+## v0.4.0 verification scope
+
+Linux 7.2.10-piano26 restarts touch asynchronously after panel enable and resume. On the tablet, the stream became ready in all 60 screen-off/on cycles, with no first-frame timeouts, SPI errors or display underruns. Mode changes across 60/120/90/144 Hz produced ten successful stream restarts, and two s2idle cycles restored the stream. Display startup measurements improved by about 0.3 seconds. Other components retain the v0.3.2 changes above.
+
 ## Known issues and remaining work
 
-- Touch can fail at 120/60 Hz; return to 144/90 Hz.
 - Bluetooth can reconnect without working data; AV1 decoding can lose its first frame.
 - Rear focus is fixed and color tuning remains limited.
 - In rare cases audio and the camera can stop working at the same time; a reboot recovers (seen once, under investigation).
-- Touch may need a second to recover after a rare touch-controller restart.
+- Restart the touch service to recover touch after an SPI error.
 - Stylus, USB host, USB-C external display and fingerprint are unsupported.
 - Keep the speaker gain cap: speaker protection is absent. Disk hibernation is disabled; the hardware clock remains unwritable.
 - Sensor calibration ships as a default seed; per-unit calibration must never be shared.
 
-See the [v0.3.2 release changes](../packaging/release/changes/v0.3.2.md) and [README support table](../README.md#hardware-support) for the user-facing scope.
+See the [v0.4.0 release changes](../packaging/release/changes/v0.4.0.md) and [README support table](../README.md#hardware-support) for the user-facing scope.
 
 ## Upstreaming
 

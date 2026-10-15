@@ -11,6 +11,10 @@ The release asset `piano-ubuntu-<version>-packages.zip` is the upgrade package: 
 directory holds every project package installed in that release's image. Always install the
 whole set together, never a single package.
 
+## Upgrading from v0.3.2 to v0.4.0
+
+Follow the same steps below using `piano-ubuntu-v0.4.0-packages.zip`. Install the entire package set together, including Linux 7.2.10-piano26 and its matching camera loopback package. Reboot to activate the touch fixes. Keep the previous kernel installed and retain its rollback boot set. No repartitioning or root-image flash is needed.
+
 ## Upgrading from v0.3.1 to v0.3.2
 
 Follow the same steps below using `piano-ubuntu-v0.3.2-packages.zip` and install the entire package set together. The kernel remains Linux 7.2.10-piano25. Reboot so the snap graphics provider is refreshed and applications pick up the new driver. No repartitioning or root-image flash is needed.
@@ -25,7 +29,7 @@ After reboot, the power-button action appears in Settings → Power. The default
 
 Install the complete v0.3.0 `packages.zip` together: kernel, device support and desktop, Mesa and snap graphics, `piano-camerad`, and `piano-camera-loopback-*` matching the new kernel, plus the included firmware, sensor and authentication packages. No root-image flash, repartitioning or new per-unit extraction is required.
 
-System suspend and GNOME's default idle policy are now enabled; disk hibernation remains disabled. Existing personal power settings are preserved and can be changed in Settings → Power. Reboot after installation to activate the new kernel, WirePlumber camera isolation and session color-profile unit. Rear focus is fixed. Prefer 144 or 90 Hz to avoid the touch failure after switching to 120/60 Hz. Keep the previous kernel and matching modules for rollback.
+System suspend and GNOME's default idle policy are now enabled; disk hibernation remains disabled. Existing personal power settings are preserved and can be changed in Settings → Power. Reboot after installation to activate the new kernel, WirePlumber camera isolation and session color-profile unit. Rear focus is fixed. Keep the previous kernel and matching modules for rollback.
 
 ## 1. Download and verify
 
