@@ -86,8 +86,9 @@ def main():
     packages = []
     module_name = 'piano-camera-loopback-' + release
     for name, depends, files in [
-        ('piano-camerad', 'libc6 (>= 2.38), python3, python3-numpy, v4l-utils, procps, kmod, piano-camera-loopback', {
+        ('piano-camerad', 'libc6 (>= 2.38), python3, python3-numpy, v4l-utils, procps, kmod, init-system-helpers, piano-camera-loopback', {
             'usr/lib/piano/piano-camerad': (out / 'piano-camerad', 0o755),
+            'usr/lib/systemd/system/piano-camerad.service': (REPO / 'packaging/piano-camerad/usr/lib/systemd/system/piano-camerad.service', 0o644),
             'usr/sbin/piano-camera-test': (REPO / 'tools/piano-camera-test.py', 0o755),
             'usr/share/wireplumber/wireplumber.conf.d/50-piano-camera.conf': (source / '50-piano-camera.conf', 0o644),
             'usr/lib/modprobe.d/piano-camera-loopback.conf': (source / 'v4l2loopback.conf', 0o644),
@@ -103,7 +104,7 @@ def main():
     ]:
         if a.loopback_only and name == 'piano-camerad':
             continue
-        version = '0.1+20261014.4' if name == 'piano-camerad' else '0.1+20261014.3'
+        version = '0.1+20261015.1' if name == 'piano-camerad' else '0.1+20261014.3'
         stage = out / (name + '.stage')
         stage.mkdir()
         for target, (path, mode) in files.items():
@@ -119,6 +120,28 @@ def main():
             f'Depends: {depends}\nSection: video\nPriority: optional\n'
             'Description: Piano camera offline candidate\n'
             ' Prebuilt camera components; hardware enablement and testing are manual.\n')
+        if name == 'piano-camerad':
+            scripts = {
+                'postinst': '#!/bin/sh\nset -e\nif [ "$1" = configure ]; then\n'
+                            ' deb-systemd-helper enable piano-camerad.service >/dev/null\n'
+                            ' if [ -d /run/systemd/system ]; then\n'
+                            '  systemctl --system daemon-reload\n'
+                            '  deb-systemd-invoke start piano-camerad.service >/dev/null || true\n'
+                            ' fi\nfi\n',
+                'prerm': '#!/bin/sh\nset -e\nif [ "$1" = remove ]; then\n'
+                         ' if [ -d /run/systemd/system ]; then\n'
+                         '  deb-systemd-invoke stop piano-camerad.service >/dev/null || true\n'
+                         ' fi\n'
+                         ' deb-systemd-helper disable piano-camerad.service >/dev/null\nfi\n',
+                'postrm': '#!/bin/sh\nset -e\nif [ "$1" = purge ]; then\n'
+                          ' deb-systemd-helper purge piano-camerad.service >/dev/null\nfi\n'
+                          'if [ -d /run/systemd/system ]; then\n'
+                          ' systemctl --system daemon-reload\nfi\n',
+            }
+            for script, contents in scripts.items():
+                dest = control / script
+                dest.write_text(contents)
+                dest.chmod(0o755)
         if name == module_name:
             with (control / 'control').open('a') as f:
                 f.write('Provides: piano-camera-loopback\n')
