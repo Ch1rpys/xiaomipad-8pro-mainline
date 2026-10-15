@@ -53,6 +53,9 @@ def main():
         raise ValueError('Kernel build receipt mismatch')
     if sha(source / 'piano-camerad.c') != lock['camerad']['sha256']:
         raise ValueError('The camerad differs from its source lock')
+    for name, digest in lock['camerad'].get('local_files', {}).items():
+        if sha(source / name) != digest:
+            raise ValueError('Local camerad source differs from its lock: ' + name)
     if sha(source / '50-piano-camera.conf') != lock['wireplumber']['sha256']:
         raise ValueError('WirePlumber policy differs from its community source lock')
     actual = subprocess.check_output(['git', '-C', str(a.loopback_source), 'rev-parse', 'HEAD'], text=True).strip()
@@ -63,7 +66,8 @@ def main():
     epoch = subprocess.check_output(['git', '-C', str(REPO), 'show', '-s', '--format=%ct', 'HEAD'], text=True).strip()
     os.environ['SOURCE_DATE_EPOCH'] = epoch
     if not a.loopback_only:
-        run(a.cross_compile + 'gcc', '-O2', '-Wall', '-Wextra',
+        # Permit vector-loop setup/tails for the two-pixel NV12 conversion.
+        run(a.cross_compile + 'gcc', '-O2', '-fvect-cost-model=cheap', '-Wall', '-Wextra',
             '-ffile-prefix-map=' + str(REPO) + '=/piano',
             source / 'piano-camerad.c', '-lm', '-o', out / 'piano-camerad')
     archive = out / 'loopback-source.tar'
@@ -104,7 +108,7 @@ def main():
     ]:
         if a.loopback_only and name == 'piano-camerad':
             continue
-        version = '0.1+20261015.1' if name == 'piano-camerad' else '0.1+20261014.3'
+        version = '0.1+20261015.2' if name == 'piano-camerad' else '0.1+20261014.3'
         stage = out / (name + '.stage')
         stage.mkdir()
         for target, (path, mode) in files.items():

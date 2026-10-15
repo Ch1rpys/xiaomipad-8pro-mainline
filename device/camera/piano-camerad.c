@@ -38,6 +38,8 @@
 #include <linux/v4l2-subdev.h>
 #include <linux/videodev2.h>
 
+#include "nv12-bgrx.h"
+
 /* v4l2loopback private event: capture side streaming started/stopped */
 #define V4L2_EVENT_PRI_CLIENT_USAGE (V4L2_EVENT_PRIVATE_START + 0x08E00000 + 1)
 struct v4l2_event_client_usage {
@@ -118,7 +120,7 @@ struct cam {
 	int vid_fd, sensor_fd, vfe_fd, vcm_fd;
 	struct buf bufs[NUM_BUFS];
 	unsigned int bpl;
-	uint8_t *stage;		/* repacked frame when bpl != width */
+	uint8_t *stage;		/* converted BGRx or repacked NV12 output */
 	unsigned long frames;
 	/* sensor control ranges */
 	int exp_min, exp_max, ag_min, ag_max;
@@ -144,6 +146,8 @@ static double srgb_lin[256];
 static int saturation = DEF_SATURATION * SAT_UNITY / 100;
 static int contrast = DEF_CONTRAST;
 static int af_settle_frames;
+/* Local publication workaround; ISP capture and control statistics stay NV12. */
+static bool output_bgrx = true;
 
 static void logmsg(const struct cam *c, const char *fmt, ...)
 {
@@ -453,7 +457,8 @@ static void loopback_uevent(int fd)
 
 static size_t frame_size(const struct cam_cfg *cfg)
 {
-	return (size_t)cfg->out_w * cfg->out_h * 3 / 2;
+	size_t pixels = (size_t)cfg->out_w * cfg->out_h;
+	return output_bgrx ? pixels * 4 : pixels * 3 / 2;
 }
 
 static int loopback_black(struct cam *c)
@@ -465,8 +470,9 @@ static int loopback_black(struct cam *c)
 
 	if (!black)
 		return -1;
-	memset(black, 0, luma);
-	memset(black + luma, 128, size - luma);
+	memset(black, 0, size);
+	if (!output_bgrx)
+		memset(black + luma, 128, size - luma);
 	ret = write(c->loop_fd, black, size) < 0 ? -1 : 0;
 	free(black);
 
@@ -491,12 +497,12 @@ static int loopback_init(struct cam *c)
 
 	f.fmt.pix.width = cfg->out_w;
 	f.fmt.pix.height = cfg->out_h;
-	f.fmt.pix.pixelformat = V4L2_PIX_FMT_NV12;
+	f.fmt.pix.pixelformat = output_bgrx ? V4L2_PIX_FMT_XBGR32 : V4L2_PIX_FMT_NV12;
 	f.fmt.pix.field = V4L2_FIELD_NONE;
-	f.fmt.pix.bytesperline = cfg->out_w;
+	f.fmt.pix.bytesperline = cfg->out_w * (output_bgrx ? 4 : 1);
 	f.fmt.pix.sizeimage = size;
 	/* full range BT.601 YCbCr, sRGB transfer */
-	f.fmt.pix.colorspace = V4L2_COLORSPACE_JPEG;
+	f.fmt.pix.colorspace = output_bgrx ? V4L2_COLORSPACE_SRGB : V4L2_COLORSPACE_JPEG;
 	if (xioctl(c->loop_fd, VIDIOC_S_FMT, &f) < 0) {
 		logmsg(c, "loopback S_FMT: %s", strerror(errno));
 		return -1;
@@ -691,7 +697,7 @@ static int cam_start(struct cam *c)
 		goto out;
 	}
 	c->bpl = f.fmt.pix_mp.plane_fmt[0].bytesperline;
-	if (c->bpl != cfg->out_w) {
+	if (output_bgrx || c->bpl != cfg->out_w) {
 		c->stage = malloc(frame_size(cfg));
 		if (!c->stage)
 			goto out;
@@ -1170,7 +1176,10 @@ static void cam_frame(struct cam *c)
 		af_update(c, y, c->bpl);
 
 		out = y;
-		if (c->stage) {
+		if (output_bgrx) {
+			nv12_to_bgrx(y, uv, c->bpl, c->stage, cfg->out_w, cfg->out_h);
+			out = c->stage;
+		} else if (c->stage) {
 			uint8_t *d = c->stage;
 
 			for (unsigned int r = 0; r < cfg->out_h * 3 / 2; r++)
@@ -1240,6 +1249,17 @@ int main(void)
 {
 	struct sigaction sa = { .sa_handler = on_signal };
 	unsigned int ncams = 0;
+	const char *output = getenv("PIANO_CAMERA_OUTPUT");
+
+	if (output) {
+		if (!strcmp(output, "nv12"))
+			output_bgrx = false;
+		else if (strcmp(output, "bgrx")) {
+			logmsg(NULL, "PIANO_CAMERA_OUTPUT must be nv12 or bgrx");
+			return EXIT_FAILURE;
+		}
+	}
+	logmsg(NULL, "loopback output: %s", output_bgrx ? "BGRx" : "NV12");
 
 	sigaction(SIGINT, &sa, NULL);
 	sigaction(SIGTERM, &sa, NULL);

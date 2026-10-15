@@ -531,7 +531,8 @@ def main():
                 notify.settimeout(10)
                 logpath = output / 'camerad.log'
                 with logpath.open('wb') as log:
-                    env = dict(os.environ, NOTIFY_SOCKET=tmp + '/notify')
+                    env = dict(os.environ, NOTIFY_SOCKET=tmp + '/notify',
+                               PIANO_CAMERA_OUTPUT='nv12')
                     daemon = subprocess.Popen(['/usr/lib/piano/piano-camerad'], env=env,
                                               stdout=log, stderr=log)
                     changed = True

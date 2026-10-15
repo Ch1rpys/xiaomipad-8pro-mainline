@@ -10,6 +10,35 @@ preserve attribution. The loopback module is compiled against the candidate's
 complete kernel OUT, not through DKMS. No camera firmware is required by this
 CAMSS/TFE/sensor path.
 
+Loopback publication defaults to `PIANO_CAMERA_OUTPUT=bgrx`; set
+`PIANO_CAMERA_OUTPUT=nv12` in `/etc/piano/camera.conf` to restore NV12 (the
+service reads this optional environment file). ISP capture stays full-range
+BT.601 NV12; a local integer conversion publishes sRGB BGRx, including black
+bootstrap frames. This bounds a workaround for the lead-verified 2026-10-15
+GTK 4.22 GL/Vulkan diagonal stripes on Mesa 26.2.0 / Adreno 830: raw NV12,
+GStreamer software paths and GTK cairo render correctly, as do RGB textures.
+Remove the conversion/default workaround once Mesa renders two-plane NV12
+textures correctly on A830, verified in GTK GL and Vulkan on this device.
+This offline change has not itself been tested on the tablet.
+
+The fourcc is `V4L2_PIX_FMT_XBGR32` (`XR24`), whose bytes are B,G,R,x.
+PipeWire 1.6.2 (`95da54a482b68475958bbc3fa572a9c20df0df74`)
+`spa/plugins/v4l2/v4l2-utils.c` maps it to `SPA_VIDEO_FORMAT_BGRx`;
+`src/gst/gstpipewireformat.c` maps that to GStreamer's BGRx (format index 8,
+also checked against the installed GStreamer 1.24.2 library).
+
+Host-only conversion test and 1920×1440 timing (no camera access):
+
+```sh
+gcc -O2 -fvect-cost-model=cheap -Wall -Wextra -Werror \
+  device/camera/test-nv12-bgrx.c -lm -o /tmp/test-nv12-bgrx
+/tmp/test-nv12-bgrx
+```
+
+The build uses `-fvect-cost-model=cheap` with `-O2` to allow GCC to vectorize
+the two-pixel loop with runtime alias checks and scalar tails. The first-frame
+diagnostic explicitly selects NV12 to retain its existing analysis format.
+
 Build with the project's cross compiler after `tools/build-kernel.sh` finishes:
 
 ```sh
@@ -20,8 +49,8 @@ python3 tools/build-camera-debs.py --kernel-out <kernel-out> \
 The output contains separate `piano-camerad` and
 `piano-camera-loopback-<kernel-release>` packages, the ARM64 daemon, the actual
 `.ko`, a source archive, payload hashes, and `SHA256SUMS`. Only the module package
-runs depmod during installation/removal. Neither package starts a camera or
-enables a service. Normal OF coldplug loads camera drivers from the kernel
+runs depmod during installation/removal. The camerad package enables and starts its notify service; the module package
+does not start a camera. Normal OF coldplug loads camera drivers from the kernel
 package. The kernel uses translated DMA by default; the community overlay's
 manual IOMMU-domain switch is therefore unnecessary. The unchanged community WirePlumber policy disables the libcamera monitor and
 hides raw CAMSS devices, leaving the loopbacks for applications. It is installed
