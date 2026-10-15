@@ -10,18 +10,16 @@ preserve attribution. The loopback module is compiled against the candidate's
 complete kernel OUT, not through DKMS. No camera firmware is required by this
 CAMSS/TFE/sensor path.
 
-Loopback publication defaults to `PIANO_CAMERA_OUTPUT=bgrx`; set
-`PIANO_CAMERA_OUTPUT=nv12` in `/etc/piano/camera.conf` to restore NV12 (the
-service reads this optional environment file). ISP capture stays full-range
-BT.601 NV12; a local integer conversion publishes sRGB BGRx, including black
-bootstrap frames. This bounds a workaround for the lead-verified 2026-10-15
-GTK 4.22 GL/Vulkan diagonal stripes on Mesa 26.2.0 / Adreno 830: raw NV12,
-GStreamer software paths and GTK cairo render correctly, as do RGB textures.
-Remove the conversion/default workaround once Mesa renders two-plane NV12
-textures correctly on A830, verified in GTK GL and Vulkan on this device.
-This offline change has not itself been tested on the tablet.
+Loopback publication defaults to NV12 again with the upstream Turnip gen8
+texture line-offset fix in the v0.3.2 Mesa packages. ISP capture remains
+full-range BT.601 NV12, and publishing it directly avoids the CPU cost of
+conversion. Set `PIANO_CAMERA_OUTPUT=bgrx` in `/etc/piano/camera.conf` if an
+application needs the BGRx compatibility path (the service reads this optional
+environment file). `PIANO_CAMERA_OUTPUT=nv12` explicitly selects the default.
+The optional NEON/scalar conversion to sRGB BGRx, including black bootstrap
+frames, remains available unchanged.
 
-The fourcc is `V4L2_PIX_FMT_XBGR32` (`XR24`), whose bytes are B,G,R,x.
+For the BGRx option, The fourcc is `V4L2_PIX_FMT_XBGR32` (`XR24`), whose bytes are B,G,R,x.
 PipeWire 1.6.2 (`95da54a482b68475958bbc3fa572a9c20df0df74`)
 `spa/plugins/v4l2/v4l2-utils.c` maps it to `SPA_VIDEO_FORMAT_BGRx`;
 `src/gst/gstpipewireformat.c` maps that to GStreamer's BGRx (format index 8,

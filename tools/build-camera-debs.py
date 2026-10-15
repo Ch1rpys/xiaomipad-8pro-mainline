@@ -108,7 +108,7 @@ def main():
     ]:
         if a.loopback_only and name == 'piano-camerad':
             continue
-        version = '0.1+20261015.3' if name == 'piano-camerad' else '0.1+20261014.3'
+        version = '0.1+20261015.4' if name == 'piano-camerad' else '0.1+20261014.3'
         stage = out / (name + '.stage')
         stage.mkdir()
         for target, (path, mode) in files.items():

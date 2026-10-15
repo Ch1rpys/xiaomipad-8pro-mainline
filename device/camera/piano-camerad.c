@@ -147,7 +147,7 @@ static int saturation = DEF_SATURATION * SAT_UNITY / 100;
 static int contrast = DEF_CONTRAST;
 static int af_settle_frames;
 /* Local publication workaround; ISP capture and control statistics stay NV12. */
-static bool output_bgrx = true;
+static bool output_bgrx = false;
 
 static void logmsg(const struct cam *c, const char *fmt, ...)
 {
@@ -1254,7 +1254,9 @@ int main(void)
 	if (output) {
 		if (!strcmp(output, "nv12"))
 			output_bgrx = false;
-		else if (strcmp(output, "bgrx")) {
+		else if (!strcmp(output, "bgrx"))
+			output_bgrx = true;
+		else {
 			logmsg(NULL, "PIANO_CAMERA_OUTPUT must be nv12 or bgrx");
 			return EXIT_FAILURE;
 		}
