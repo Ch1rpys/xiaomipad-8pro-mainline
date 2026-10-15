@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "purpose": "v0.3.1 release kernel",
+  "purpose": "THP asynchronous panel/resume start offline candidate",
   "upstream_url": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git",
   "upstream_tag": "v7.2.10",
   "upstream_commit": "7b20d05fd38de8e0be168956f6fd241d750c7d69",
   "url": "https://github.com/yzddmr6/linux-sm8750-piano",
-  "commit": "c55958fa09dd2e4c2ee3299547a196e674ae4ac2",
-  "branch": "release/v0.3.1",
+  "commit": "cb032046d8100705798ef88eb41589709de62acf",
+  "branch": "piano/thp-async-20261015",
   "config": "arch/arm64/configs/piano-diagnostic.config",
   "release_config_fragments": [
     "arch/arm64/configs/piano-diagnostic.config",
@@ -15,5 +15,5 @@
     "arch/arm64/configs/piano-release.config"
   ],
   "note": "The kernel release fragments remain in the kernel source and are merged in order. tools/build-kernel.sh then applies kernel_release to CONFIG_LOCALVERSION for package ABI allocation without a kernel-only release commit; all other configuration remains unchanged. kernel/abi.json binds the final commit and .config.",
-  "kernel_release": "7.2.10-piano25"
+  "kernel_release": "7.2.10-piano26"
 }
