@@ -1,6 +1,6 @@
 # Status
 
-Current release: **v0.3.0**. The support matrix is in the [README](../README.md#support-matrix)
+Current release: **v0.3.1**. The support matrix is in the [README](../README.md#support-matrix)
 and the [中文 README](../README.zh-CN.md#硬件支持). This page records what was verified, the
 remaining limitations and the upstreaming state.
 
@@ -22,9 +22,9 @@ unit address.
 An open touchscreen stream now survives the device suspend/resume stage.
 System suspend is now enabled after the charging, battery, keyboard and display
 resume fixes passed tablet acceptance. GNOME hides the rotation toggle while the keyboard is
-attached and hides the power-button selector for tablet chassis.
+attached. The power-button action is configurable in Settings → Power, with suspend as the default; existing personal choices are preserved.
 
-## Test configuration
+## Test unit and historical installation configuration
 
 All results belong to the one tested unit. They do not establish support for other units,
 variants or accessories.
@@ -65,16 +65,23 @@ The release incorporates tablet-tested dual-camera capture (fixed rear focus), H
 
 Bluetooth pairing, file transfer and audio are available, with an intermittent data failure after reconnecting. Camera autofocus is disabled after the actuator failed to open; neither control readback nor driver presence is treated as lens movement.
 
+## v0.3.1 verification scope
+
+Linux 7.2.10-piano25 fixes a shared display-control reset while the panel was still scanning: 42 screen-off cycles produced zero interface underruns, with CRC-verified pictures on both halves. RAM boot on the installed root passed all six display modes, 120/144 Hz DPMS CRC checks, two s2idle cycles, audio after resume and both camera streams. Imported community fixes cover audio readiness, freezable sensor waiters and DSI PHY interface-clock runtime PM.
+
+The camera service starts automatically for apps. BGRx output provides a workaround for GTK/NV12 preview stripes; conversion reference and sanitizer tests passed offline, but tablet preview and ARM64 runtime cost remain unverified. Bluetooth advertises the tablet computer class. The touch service restarts after a stream error; recovery by restarting was verified on the tablet. Tolerance of one recovered SPI read failure has compile and KUnit coverage only; that failure was not reproduced on hardware.
+
 ## Known issues and remaining work
 
 - Touch can fail at 120/60 Hz; return to 144/90 Hz.
 - Bluetooth can reconnect without working data; AV1 decoding can lose its first frame.
-- Rear focus is fixed; color tuning and application-level camera/video integration remain limited.
+- Rear focus is fixed and color tuning remains limited. GTK applications render hardware-decoded/NV12 video with stripes on this GPU; GNOME video players are affected; camera preview uses the BGRx workaround.
+- Touch may need a second to recover after a rare touch-controller restart.
 - Stylus, USB host, USB-C external display and fingerprint are unsupported.
 - Keep the speaker gain cap: speaker protection is absent. Disk hibernation is disabled; the hardware clock remains unwritable.
 - Sensor calibration ships as a default seed; per-unit calibration must never be shared.
 
-See the [v0.3.0 release changes](../packaging/release/changes/v0.3.0.md) and [README support table](../README.md#hardware-support) for the user-facing scope.
+See the [v0.3.1 release changes](../packaging/release/changes/v0.3.1.md) and [README support table](../README.md#hardware-support) for the user-facing scope.
 
 ## Upstreaming
 

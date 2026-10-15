@@ -2,7 +2,7 @@
 
 Native Ubuntu 26.04 LTS with the GNOME desktop on the Xiaomi Pad 8 Pro (codename `piano`, Snapdragon 8 Elite), dual-booting with Android, on a device-adapted kernel based on upstream Linux 7.2. Not a container, not a remote desktop. [中文](README.zh-CN.md)
 
-**Latest release: [v0.3.0](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.3.0).** What works is in [Hardware Support](#hardware-support); the technical approach and how it differs from related projects is in [docs/APPROACH.zh-CN.md](docs/APPROACH.zh-CN.md) (Chinese).
+**Latest release: [v0.3.1](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.3.1).** What works is in [Hardware Support](#hardware-support); the technical approach and how it differs from related projects is in [docs/APPROACH.zh-CN.md](docs/APPROACH.zh-CN.md) (Chinese).
 
 ## 📮 Follow & Discuss
 
@@ -46,10 +46,10 @@ The procedure is long and order-sensitive. The easiest way is to hand it to an A
 ```text
 I want to install Ubuntu on a Xiaomi Pad 8 Pro (codename piano), dual-booting with Android. Act as my operator and follow these rules.
 
-Project: https://github.com/yzddmr6/xiaomipad-8pro-mainline , release v0.3.0.
+Project: https://github.com/yzddmr6/xiaomipad-8pro-mainline , release v0.3.1.
 
-1. First git clone the repository and check out tag v0.3.0. Read README.md "Read Before Installing", docs/INSTALL.md, docs/FLASHING.md and the safety rules in section 1 of docs/AGENT-GUIDE.md before doing anything.
-2. Download every asset of GitHub release v0.3.0 into one empty directory, run sha256sum -c SHA256SUMS.assets first, then restore the release directory as the release notes describe and verify it again.
+1. First git clone the repository and check out tag v0.3.1. Read README.md "Read Before Installing", docs/INSTALL.md, docs/FLASHING.md and the safety rules in section 1 of docs/AGENT-GUIDE.md before doing anything.
+2. Download every asset of GitHub release v0.3.1 into one empty directory, run sha256sum -c SHA256SUMS.assets first, then restore the release directory as the release notes describe and verify it again.
 3. Check the host tools (adb, fastboot, python3, zstd, sgdisk, sfdisk, img2simg and the rest of the "Prerequisites" table in INSTALL) and the tablet (product piano, stock build OS3.0.303.0.WPYCNXM, current slot a, unlocked, rooted, battery at least 40 %). If anything does not match, stop and tell me; do not work around it.
 4. Follow docs/INSTALL.md strictly in order and pass my serial number to every device command. Before each step, tell me in a sentence or two what it does and where it writes. For every operation that writes to the tablet (partition table, erase, flash, slot A), list the exact commands and wait for me to reply "confirm" before running them.
 5. Never write vbmeta, dtbo, any _b partition, persist or any other calibration, modem or firmware partition; never run fastboot --set-active=b; never use calibration, addresses or images from another tablet.
@@ -61,12 +61,12 @@ Project: https://github.com/yzddmr6/xiaomipad-8pro-mainline , release v0.3.0.
 
 ### Manual installation
 
-1. Download every asset of the [v0.3.0 release](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.3.0) into one empty directory, verify it and restore the release directory:
+1. Download every asset of the [v0.3.1 release](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.3.1) into one empty directory, verify it and restore the release directory:
 
    ```bash
    sha256sum -c SHA256SUMS.assets
-   unzip piano-ubuntu-v0.3.0-boot.zip && unzip piano-ubuntu-v0.3.0-tools.zip && unzip piano-ubuntu-v0.3.0-packages.zip
-   mkdir -p rootfs && cat piano-ubuntu-v0.3.0-rootfs.img.zst.part* | zstd -d > rootfs/root.sparse.img
+   unzip piano-ubuntu-v0.3.1-boot.zip && unzip piano-ubuntu-v0.3.1-tools.zip && unzip piano-ubuntu-v0.3.1-packages.zip
+   mkdir -p rootfs && cat piano-ubuntu-v0.3.1-rootfs.img.zst.part* | zstd -d > rootfs/root.sparse.img
    sha256sum -c SHA256SUMS
    ```
 
@@ -84,7 +84,7 @@ The kernel, Mesa, the device packages, the root image and the signed boot set ar
 
 ## Hardware Support
 
-State of v0.3.0 on the test unit. ✅ works · 🟡 partial · ❌ unsupported · 🧪 untested.
+State of v0.3.1 on the test unit. ✅ works · 🟡 partial · ❌ unsupported · 🧪 untested.
 ✅ means the described function was verified on the tablet, not that every application and use case was tested. Scope, known issues and the roadmap are in [docs/STATUS.md](docs/STATUS.md).
 
 ### Platform, Display and Input
@@ -108,7 +108,7 @@ State of v0.3.0 on the test unit. ✅ works · 🟡 partial · ❌ unsupported �
 | Function | Hardware / implementation | Status | Notes |
 |---|---|---|---|
 | Wi-Fi | Qualcomm WCN7860 / ath12k | ✅ works | Stable 2.4 GHz and 5 GHz 80 MHz links |
-| Bluetooth | Qualcomm WCN7860 / `hci_qca` | 🟡 partial | Pairing, file transfer and audio work; occasional reconnection without working data |
+| Bluetooth | Qualcomm WCN7860 / `hci_qca` | 🟡 partial | Pairing, file transfer and audio work; advertised as a computer/tablet; occasional reconnection without working data |
 | USB device mode | USB 2.0 networking (NCM) | ✅ works | SSH over the USB cable in developer mode, off by default |
 | USB host / Type-C role switching | — | ❌ unsupported | No USB drives, mice or keyboards over USB-C |
 | USB-C external display | DisplayPort Alt Mode | ❌ unsupported | |
@@ -121,7 +121,7 @@ State of v0.3.0 on the test unit. ✅ works · 🟡 partial · ❌ unsupported �
 | Internal microphones | DMIC / ADSP / PipeWire | ✅ works | Recording verified |
 | Video decoding | Qualcomm Iris / V4L2 | 🟡 partial | H.264/H.265/VP9 slow-consumer tests pass 150/150 frames each; AV1 loses its first frame; player integration remains limited |
 | Video encoding | Qualcomm Iris / V4L2 | ✅ works | H.264/H.265 at 1080p and 4K verified |
-| Cameras | Rear S5KJN1SQ03, front OV32D40 | ✅ works | Both cameras capture; rear fixed focus, no autofocus, close subjects may blur; color tuning remains limited |
+| Cameras | Rear S5KJN1SQ03, front OV32D40 | ✅ works | Both cameras are available in camera apps through the camera service; rear fixed focus, no autofocus, close subjects may blur; color tuning remains limited |
 | Accelerometer, gyro, light, proximity | SSC / hexagonrpcd / libssc | ✅ works | SensorProxy reports orientation and ambient light |
 | Auto-rotation | SensorProxy / Mutter | ✅ works | Rotates with the keyboard detached; locked by GNOME's rule while the keyboard is attached |
 
@@ -129,7 +129,7 @@ State of v0.3.0 on the test unit. ✅ works · 🟡 partial · ❌ unsupported �
 
 | Function | Hardware / implementation | Status | Notes |
 |---|---|---|---|
-| Power / volume keys | Qualcomm PMIC | 🟡 partial | Power key and wake verified; volume keys unverified |
+| Power / volume keys | Qualcomm PMIC | 🟡 partial | Power key and wake verified; action configurable in Settings → Power (default: suspend); volume keys unverified |
 | Battery gauge / temperature | 2 × TI BQ27Z561 / thermal zones | ✅ works | Charge level, voltage, current and temperatures |
 | Charging | `xiaomi_mca` / SC8541 | 🟡 partial | Charging control integrated; suspend current limiting and restore verified; charger compatibility still needs testing |
 | Suspend | suspend-to-idle | ✅ works | RTC, keyboard, power-button and cover-open wake verified; cover closing does not wake; distribution idle policy enabled |
