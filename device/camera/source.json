@@ -14,11 +14,12 @@
     "modifications": [
       "Use writable CCM payload for V4L2 S_EXT_CTRLS copy-back; retain the upstream matrix values.",
       "Check rear flip controls and ACTIVE format readback; log sensor/PHY contract before STREAMON without retrying or changing upstream modes.",
-      "Default loopback output to software-converted BGRx for GTK/Mesa A830 NV12 texture corruption; PIANO_CAMERA_OUTPUT=nv12 restores NV12. Remove when Mesa renders two-plane NV12 correctly on A830."
+      "Default loopback output to software-converted BGRx for GTK/Mesa A830 NV12 texture corruption; PIANO_CAMERA_OUTPUT=nv12 restores NV12. Remove when Mesa renders two-plane NV12 correctly on A830.",
+      "Use an AArch64 NEON NV12-to-BGRx path with exact Q8 scalar equivalence, scalar tails and a non-AArch64 scalar fallback."
     ],
     "upstream_sha256": "c2ab6391fa41d21d1c3e4359dc0adf671261417dbda180724faf8b2758932d47",
     "local_files": {
-      "nv12-bgrx.h": "19f6d93ab46d4c559cd5b3c34d03ab8edc56670367ce7698e0498fae22bfd91b"
+      "nv12-bgrx.h": "54f95cb2dd5704bff292531a713d12ffb9f121e2802fc448f81582512d3238f4"
     }
   },
   "loopback": {

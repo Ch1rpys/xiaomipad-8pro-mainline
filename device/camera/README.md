@@ -33,11 +33,14 @@ Host-only conversion test and 1920×1440 timing (no camera access):
 gcc -O2 -fvect-cost-model=cheap -Wall -Wextra -Werror \
   device/camera/test-nv12-bgrx.c -lm -o /tmp/test-nv12-bgrx
 /tmp/test-nv12-bgrx
+/tmp/test-nv12-bgrx --timing
 ```
 
-The build uses `-fvect-cost-model=cheap` with `-O2` to allow GCC to vectorize
-the two-pixel loop with runtime alias checks and scalar tails. The first-frame
-diagnostic explicitly selects NV12 to retain its existing analysis format.
+AArch64 builds use 16-pixel NEON conversion with scalar tails and a non-AArch64
+scalar fallback; exhaustive byte-exact YUV, random padded-stride/tail and independent
+BT.601 checks passed on x86 and AArch64 QEMU (correctness only).
+On the tablet the NEON path converts a 1920x1440 frame in 1.9 ms (scalar: about 10.6 ms); with the rear camera at about 31 fps in Snapshot, camerad uses about 19 % of one core, compared with 37 % for the scalar BGRx path and 4 % when publishing NV12.
+The first-frame diagnostic explicitly selects NV12 to retain its existing analysis format.
 
 Build with the project's cross compiler after `tools/build-kernel.sh` finishes:
 
