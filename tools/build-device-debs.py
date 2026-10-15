@@ -315,11 +315,22 @@ def main():
             'Piano Ubuntu desktop defaults: graphics, clock without RTC, speaker up-mix and UCM, '
             'GNOME Shell 50 on-screen keyboard guard',
             '#!/bin/sh\nset -e\nif [ "$1" = configure ]; then\n'
+            ' if ! grep -q "^CHASSIS=" /etc/machine-info 2>/dev/null; then\n'
+            '  if [ ! -e /etc/machine-info ]; then\n'
+            '   install -m 0644 /dev/null /etc/machine-info\n'
+            '  fi\n'
+            '  sed -i -e \'$a\\\' /etc/machine-info\n'
+            '  printf "CHASSIS=convertible\\n" >> /etc/machine-info\n'
+            ' fi\n'
             ' deb-systemd-helper enable piano-firefox-snap-remove.service >/dev/null\n'
             ' deb-systemd-helper --user enable piano-panel-srgb.service >/dev/null\nfi\n',
             prerm='#!/bin/sh\nset -e\nif [ "$1" = remove ]; then\n'
                   ' deb-systemd-helper --user disable piano-panel-srgb.service >/dev/null\nfi\n',
             postrm='#!/bin/sh\nset -e\nif [ "$1" = purge ]; then\n'
+                   ' if [ -f /etc/machine-info ]; then\n'
+                   '  sed -i \'/^CHASSIS=convertible$/d\' /etc/machine-info\n'
+                   '  if [ ! -s /etc/machine-info ]; then rm -f /etc/machine-info; fi\n'
+                   ' fi\n'
                    ' deb-systemd-helper --user purge piano-panel-srgb.service >/dev/null\nfi\n',
             third_party=[(('usr/share/alsa/ucm2/*',),
                           '2026 bluseliu50 and piano mainline contributors; '

@@ -6,3 +6,6 @@
 # that guards maybeHandleEvent() is installed.
 [org.gnome.shell]
 enabled-extensions=['piano-osk-guard@io.github.piano']
+
+[org.gnome.settings-daemon.plugins.power]
+power-button-action='suspend'

@@ -10,4 +10,5 @@ Before=display-manager.service
 [Service]
 Type=simple
 ExecStart=/usr/libexec/piano/piano-thp-live /etc/piano/thp-calibration.json /dev/piano-touch
-Restart=no
+Restart=on-failure
+RestartSec=1
