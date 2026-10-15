@@ -11,6 +11,10 @@ The release asset `piano-ubuntu-<version>-packages.zip` is the upgrade package: 
 directory holds every project package installed in that release's image. Always install the
 whole set together, never a single package.
 
+## Upgrading from v0.3.1 to v0.3.2
+
+Follow the same steps below using `piano-ubuntu-v0.3.2-packages.zip` and install the entire package set together. The kernel remains Linux 7.2.10-piano25. Reboot so the snap graphics provider is refreshed and applications pick up the new driver. No repartitioning or root-image flash is needed.
+
 ## Upgrading from v0.3.0 to v0.3.1
 
 Follow the same steps below using `piano-ubuntu-v0.3.1-packages.zip`. Install the entire package set together, including Linux 7.2.10-piano25 and its matching camera loopback package; retain the previous kernel and rollback boot set. No repartitioning or root-image flash is needed.

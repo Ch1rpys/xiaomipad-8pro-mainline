@@ -1,6 +1,6 @@
 # Status
 
-Current release: **v0.3.1**. The support matrix is in the [README](../README.md#support-matrix)
+Current release: **v0.3.2**. The support matrix is in the [README](../README.md#hardware-support)
 and the [中文 README](../README.zh-CN.md#硬件支持). This page records what was verified, the
 remaining limitations and the upstreaming state.
 
@@ -69,19 +69,24 @@ Bluetooth pairing, file transfer and audio are available, with an intermittent d
 
 Linux 7.2.10-piano25 fixes a shared display-control reset while the panel was still scanning: 42 screen-off cycles produced zero interface underruns, with CRC-verified pictures on both halves. RAM boot on the installed root passed all six display modes, 120/144 Hz DPMS CRC checks, two s2idle cycles, audio after resume and both camera streams. Imported community fixes cover audio readiness, freezable sensor waiters and DSI PHY interface-clock runtime PM.
 
-The camera service starts automatically for apps. BGRx output provides a workaround for GTK/NV12 preview stripes; conversion reference and sanitizer tests passed offline, but tablet preview and ARM64 runtime cost remain unverified. Bluetooth advertises the tablet computer class. The touch service restarts after a stream error; recovery by restarting was verified on the tablet. Tolerance of one recovered SPI read failure has compile and KUnit coverage only; that failure was not reproduced on hardware.
+The camera service starts automatically for apps. The optional NEON BGRx conversion and Snapshot preview were verified on the tablet. The touch service restarts after a stream error; recovery by restarting was verified on the tablet. Tolerance of one recovered SPI read failure has compile and KUnit coverage only; that failure was not reproduced on hardware.
+
+## v0.3.2 verification scope
+
+The upstream Turnip gen8 texture line-offset fix removes NV12 diagonal stripes with GTK's default Vulkan renderer. Synthetic NV12, Settings and other GTK Vulkan windows passed on the tablet, and the snap graphics provider was refreshed. The camera publishes NV12 by default again; `PIANO_CAMERA_OUTPUT=bgrx` in `/etc/piano/camera.conf` retains the optional NEON conversion. Lead measurements during a rear-camera preview were about 4 % of one core for camerad and 17 % for Snapshot with NV12, versus 19 % and 32 % with BGRx. Linux 7.2.10-piano25 and the other components are unchanged. Final assembled release images have not been tablet-booted.
 
 ## Known issues and remaining work
 
 - Touch can fail at 120/60 Hz; return to 144/90 Hz.
 - Bluetooth can reconnect without working data; AV1 decoding can lose its first frame.
-- Rear focus is fixed and color tuning remains limited. GTK applications render hardware-decoded/NV12 video with stripes on this GPU; GNOME video players are affected; camera preview uses the BGRx workaround.
+- Rear focus is fixed and color tuning remains limited.
+- In rare cases audio and the camera can stop working at the same time; a reboot recovers (seen once, under investigation).
 - Touch may need a second to recover after a rare touch-controller restart.
 - Stylus, USB host, USB-C external display and fingerprint are unsupported.
 - Keep the speaker gain cap: speaker protection is absent. Disk hibernation is disabled; the hardware clock remains unwritable.
 - Sensor calibration ships as a default seed; per-unit calibration must never be shared.
 
-See the [v0.3.1 release changes](../packaging/release/changes/v0.3.1.md) and [README support table](../README.md#hardware-support) for the user-facing scope.
+See the [v0.3.2 release changes](../packaging/release/changes/v0.3.2.md) and [README support table](../README.md#hardware-support) for the user-facing scope.
 
 ## Upstreaming
 

@@ -1,6 +1,6 @@
 # Fresh Installation
 
-v0.3.1 uses the same installation procedure below.
+v0.3.2 uses the same installation procedure below.
 
 [中文](INSTALL.zh-CN.md) | [Project overview](../README.md) | [Fastboot, switching and recovery](FLASHING.md)
 

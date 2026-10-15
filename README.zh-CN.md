@@ -2,7 +2,7 @@
 
 在小米平板 8 Pro（代号 `piano`，骁龙 8 至尊版）上原生运行 Ubuntu 26.04 LTS GNOME 桌面，与 Android 双系统共存，内核基于上游 Linux 7.2 适配。不是容器，不是远程桌面。[English](README.md)
 
-**最新版本：[v0.3.1](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.3.1)。** 支持状态见[硬件支持](#硬件支持)，技术路线与同类项目的差异见 [docs/APPROACH.zh-CN.md](docs/APPROACH.zh-CN.md)。
+**最新版本：[v0.3.2](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.3.2)。** 支持状态见[硬件支持](#硬件支持)，技术路线与同类项目的差异见 [docs/APPROACH.zh-CN.md](docs/APPROACH.zh-CN.md)。
 
 ## 📮 关注与交流
 
@@ -46,10 +46,10 @@
 ```text
 我要在小米平板 8 Pro（代号 piano）上安装 Ubuntu，与 Android 双系统共存。请你作为操作助手，按下面的规则帮我完成。
 
-项目：https://github.com/yzddmr6/xiaomipad-8pro-mainline ，版本 v0.3.1。
+项目：https://github.com/yzddmr6/xiaomipad-8pro-mainline ，版本 v0.3.2。
 
-1. 先 git clone 该仓库并检出标签 v0.3.1，通读 README.zh-CN.md 的「安装前请阅读」、docs/INSTALL.zh-CN.md、docs/FLASHING.zh-CN.md，以及 docs/AGENT-GUIDE.zh-CN.md 第 1 节的安全规则，然后再开始。
-2. 从 GitHub Release v0.3.1 把全部附件下载到一个空目录，先执行 sha256sum -c SHA256SUMS.assets，再按 Release 说明还原发布目录并再次校验。
+1. 先 git clone 该仓库并检出标签 v0.3.2，通读 README.zh-CN.md 的「安装前请阅读」、docs/INSTALL.zh-CN.md、docs/FLASHING.zh-CN.md，以及 docs/AGENT-GUIDE.zh-CN.md 第 1 节的安全规则，然后再开始。
+2. 从 GitHub Release v0.3.2 把全部附件下载到一个空目录，先执行 sha256sum -c SHA256SUMS.assets，再按 Release 说明还原发布目录并再次校验。
 3. 检查主机工具（adb、fastboot、python3、zstd、sgdisk、sfdisk、img2simg 等，以 INSTALL 的「准备」表为准）和平板状态（型号 piano、原厂版本 OS3.0.303.0.WPYCNXM、当前 A 槽、已解锁、已 root、电量不低于 40%）。任何一项不符就停下来告诉我，不要绕过。
 4. 严格按 docs/INSTALL.zh-CN.md 的步骤顺序执行，每条设备命令都带上我的序列号。每一步开始前用一两句话告诉我这步做什么、会写哪里；凡是写入平板的操作（分区表、擦除、flash、写 A 槽），先列出将要执行的命令，等我回复「确认」再执行。
 5. 绝不写入 vbmeta、dtbo、任何 _b 分区、persist 或其他校准、基带、固件分区；绝不执行 fastboot --set-active=b；绝不使用别的平板的标定、地址或镜像。
@@ -61,12 +61,12 @@
 
 ### 手动安装
 
-1. 从 [v0.3.1 发布页](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.3.1)把全部附件下载到一个空目录，校验并还原发布目录：
+1. 从 [v0.3.2 发布页](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.3.2)把全部附件下载到一个空目录，校验并还原发布目录：
 
    ```bash
    sha256sum -c SHA256SUMS.assets
-   unzip piano-ubuntu-v0.3.1-boot.zip && unzip piano-ubuntu-v0.3.1-tools.zip && unzip piano-ubuntu-v0.3.1-packages.zip
-   mkdir -p rootfs && cat piano-ubuntu-v0.3.1-rootfs.img.zst.part* | zstd -d > rootfs/root.sparse.img
+   unzip piano-ubuntu-v0.3.2-boot.zip && unzip piano-ubuntu-v0.3.2-tools.zip && unzip piano-ubuntu-v0.3.2-packages.zip
+   mkdir -p rootfs && cat piano-ubuntu-v0.3.2-rootfs.img.zst.part* | zstd -d > rootfs/root.sparse.img
    sha256sum -c SHA256SUMS
    ```
 
@@ -82,7 +82,7 @@
 
 ## 硬件支持
 
-以下为 v0.3.1 在测试机上的状态。✅ 可用 · 🟡 部分支持 · ❌ 不支持 · 🧪 未验证。
+以下为 v0.3.2 在测试机上的状态。✅ 可用 · 🟡 部分支持 · ❌ 不支持 · 🧪 未验证。
 ✅ 表示已在真机验证所述功能，不代表所有应用和使用场景都测过。详细范围、已知问题与路线图见 [docs/STATUS.md](docs/STATUS.md)（英文）。
 
 ### 平台、显示与输入
