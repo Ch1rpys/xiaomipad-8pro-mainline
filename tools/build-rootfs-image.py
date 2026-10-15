@@ -283,7 +283,7 @@ def verify(fs, scratch, expected_packages, release, caps, set_hashes, boot_hashe
     checks['layout_by_partlabel'] = json.loads(fs.cat('/etc/piano/layout.json')) == LAYOUT
     checks['fstab_by_partlabel'] = fs.cat('/etc/fstab') == FSTAB.encode()
     checks['device_hostnames'] = (fs.cat('/etc/hostname') == HOSTNAME.encode()
-                                  and fs.cat('/etc/machine-info') == MACHINE_INFO.encode())
+                                  and fs.cat('/etc/machine-info') == (MACHINE_INFO + 'CHASSIS=convertible\n').encode())
     checks['fake_hwclock_data'] = fs.size('/etc/fake-hwclock.data') not in (None, 0)
     checks['no_install_leftovers'] = not any(fs.exists(p) for p in (
         '/var/cache/piano-install', '/usr/sbin/policy-rc.d', '/etc/initramfs-tools/update-initramfs.conf',
