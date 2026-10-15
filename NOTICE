@@ -569,3 +569,8 @@ shipped with the matching-kernel module package. No camera firmware is added.
 
 Camera local changes are listed in device/camera/source.json, separately from
 the retained upstream source hash and author history.
+
+Mesa Turnip gen8 TEX_LINE_OFFSET backport: Rob Clark, 2026-08-31, MIT.
+Unmodified upstream commit 7ea5e51c8a301a15202e28fef114e4c4055bc329;
+https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/44151
+See mesa/turnip-gen8-tex-line-offset.patch for original attribution.

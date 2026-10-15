@@ -52,8 +52,11 @@ def main():
     archive = args.source_archive.resolve()
     if sha(archive) != lock['archive_sha256']:
         parser.error('source archive does not match the pinned SHA-256')
-    if sha(REPO / lock['patch']) != lock['patch_sha256']:
-        parser.error('patch does not match the pinned SHA-256')
+    patches = [{'path': lock['patch'], 'sha256': lock['patch_sha256']},
+               *lock.get('additional_patches', [])]
+    for patch in patches:
+        if sha(REPO / patch['path']) != patch['sha256']:
+            parser.error('patch does not match the pinned SHA-256: ' + patch['path'])
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=True)
     with (out / '.lock').open('w') as handle:
@@ -104,7 +107,8 @@ def main():
             with tarfile.open(archive) as tar:
                 epoch = int(tar.getmember('mesa-' + lock['version'] + '/VERSION').mtime)
                 tar.extractall(out, filter='data')
-            run(['patch', '-p1', '--batch', '--fuzz=0', '-i', REPO / lock['patch']], cwd=src)
+            for patch in patches:
+                run(['patch', '-p1', '--batch', '--fuzz=0', '-i', REPO / patch['path']], cwd=src)
             identity_file.write_text(json.dumps(identity, indent=2) + '\n')
             (out / 'source-date-epoch').write_text(str(epoch))
         # Mesa's isaspec generator orders instruction fields by iterating a

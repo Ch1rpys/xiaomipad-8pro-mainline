@@ -9,5 +9,15 @@
   "archive": "mesa-26.2.0.tar",
   "archive_sha256": "944a85a89e5b05566cf4b2eb56d9917148a25d51261f75b5edaaed8d5fea738e",
   "patch_sha256": "98c0e3ada8fb8fbc4dff21e858b31ae273ffeb07884db726b7d893744573d591",
-  "archive_note": "git archive --format=tar --prefix=mesa-26.2.0/ of the pinned commit; gpu-2404 uses the same source and patch as the desktop deb."
+  "archive_note": "git archive --format=tar --prefix=mesa-26.2.0/ of the pinned commit; gpu-2404 uses the same source and patch as the desktop deb.",
+  "additional_patches": [
+    {
+      "path": "mesa/turnip-gen8-tex-line-offset.patch",
+      "sha256": "0ed6ad87059cea48ff4b1390ac82561aa799e5ef62261ba6aa080c12967fdd8d",
+      "upstream_commit": "7ea5e51c8a301a15202e28fef114e4c4055bc329",
+      "stable_commit": "f9a4bfdadbc9f2959b9b7a82c519c7f5a69db6c5",
+      "merge_request": "https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/44151",
+      "license": "MIT"
+    }
+  ]
 }

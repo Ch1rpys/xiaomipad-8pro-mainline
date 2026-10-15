@@ -1,7 +1,7 @@
 # Piano Mesa inputs
 
-`source.json` pins upstream Mesa and the single `piano-fixes.patch` used by
-both the desktop deb and the gpu-2404 builder. The patch contains the A830
+`source.json` pins upstream Mesa and the ordered patches used by
+both the desktop deb and the gpu-2404 builder. `piano-fixes.patch` contains the A830
 revision-1 speedbin match and a shared-context publication fix. Contexts must
 not enter the shared resource list until their state tracker is initialized;
 failed creation leaves an empty list link for normal cleanup.
@@ -30,3 +30,12 @@ separately; changing the desktop deb does not update an installed snap.
 
 Remove the local shared-context change when the pinned upstream contains an
 equivalent fix and the regression passes. No upstream submission is implied.
+
+The additional `turnip-gen8-tex-line-offset.patch` is the unmodified upstream
+commit 7ea5e51c8a301a15202e28fef114e4c4055bc329 by Rob Clark (2026-08-31,
+MIT), [MR !44151](https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/44151),
+also backported as f9a4bfdadbc9f2959b9b7a82c519c7f5a69db6c5. It encodes
+gen8 TEX_LINE_OFFSET in bits in the common descriptor helper, including
+Turnip's NV12 buffer-to-image upload. Both builders apply it after
+`piano-fixes.patch` and validate both hashes. Remove this backport when the
+pinned upstream includes it; package builds alone do not prove GPU rendering.

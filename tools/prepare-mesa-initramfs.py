@@ -28,6 +28,11 @@ def main():
             raise ValueError(f'Mesa build does not match source lock: {key}')
     if receipt['patch_sha256'] != sha(repo / lock['patch']):
         raise ValueError('Mesa patch differs from the recorded build')
+    if receipt.get('additional_patches', []) != lock.get('additional_patches', []):
+        raise ValueError('Mesa additional patches differ from the source lock')
+    for patch in lock.get('additional_patches', []):
+        if sha(repo / patch['path']) != patch['sha256']:
+            raise ValueError('Mesa additional patch differs from the recorded build')
     prefix = lock['prefix'].lstrip('/')
     if not prefix.startswith('opt/piano/') or '..' in Path(prefix).parts:
         raise ValueError('Mesa must remain in its isolated /opt/piano prefix')
