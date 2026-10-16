@@ -24,16 +24,15 @@ Long-form technical articles, write-ups and progress updates are published on th
 - **This is an experimental project, not a daily driver.** Installing unlocks, repartitions and erases the tablet; a mistake can brick it, and recovery requires `adb`, `fastboot` and partition backups. Make sure you have the skills, decide deliberately, and accept the risk.
 - **All Android data on the tablet is erased.** Installation re-creates `userdata` and clears `metadata`.
 - **The bootloader must be unlocked** through Xiaomi's official process, and Android must be rooted (to read partitions for the backup).
-- **Only stock build OS3.0.303.0.WPYCNXM on slot A is supported.** The boot images copy its header fields, rollback indices and AVB properties; other builds are unsupported.
+- **Only stock build OS3.0.303.0.WPYCNXM on slot A is supported.**
 - **Back up first.** Before any write, back up every partition except `userdata` and the partition table of every UFS LUN. Slot A's stock `boot`, `init_boot` and `vendor_boot` are your way back to Android.
-- **Keep at least 40 % before switching systems.** Charging control and suspend current-limit restore are verified; charger compatibility remains limited.
+- **Keep at least 40 % before switching systems.**
 - **No speaker protection.** The speakers play, but with a capped volume; do not raise the gain yourself.
-- **Suspend is supported; disk hibernation is not.** Power, keyboard and cover opening can wake the tablet. The hardware clock cannot be written; time is set from the network after boot.
 - **Verified on one unit only:** model 25091RP04C (China), 16 GB RAM, 512 GB storage. Other models and capacities are unverified.
 - **Recovery:** with no picture or no response, hold Power + Volume Down for Fastboot and write Android back with `tools/piano-switch.py`, see [Usage and Maintenance](#usage-and-maintenance).
 
 Partition layout: on the 512 GB model the original `userdata` range becomes `userdata` (200 GiB, Android), `linux_rootfs` (60 GiB, Ubuntu `/`) and `linux_data` (about 201 GiB, `/home`); nothing else changes.
-**Never flash `vbmeta`, never write or activate slot B.** Touch calibration and the Bluetooth and Wi-Fi addresses must come from your own tablet.
+**Never flash `vbmeta`, never write or activate slot B.** Calibration and per-unit configuration must come from your own tablet.
 
 ## 🚀 Installation
 
@@ -51,8 +50,8 @@ Project: https://github.com/yzddmr6/xiaomipad-8pro-mainline , release v0.4.0.
 1. First git clone the repository and check out tag v0.4.0. Read README.md "Read Before Installing", docs/INSTALL.md, docs/FLASHING.md and the safety rules in section 1 of docs/AGENT-GUIDE.md before doing anything.
 2. Download every asset of GitHub release v0.4.0 into one empty directory, run sha256sum -c SHA256SUMS.assets first, then restore the release directory as the release notes describe and verify it again.
 3. Check the host tools (adb, fastboot, python3, zstd, sgdisk, sfdisk, img2simg and the rest of the "Prerequisites" table in INSTALL) and the tablet (product piano, stock build OS3.0.303.0.WPYCNXM, current slot a, unlocked, rooted, battery at least 40 %). If anything does not match, stop and tell me; do not work around it.
-4. Follow docs/INSTALL.md strictly in order and pass my serial number to every device command. Before each step, tell me in a sentence or two what it does and where it writes. For every operation that writes to the tablet (partition table, erase, flash, slot A), list the exact commands and wait for me to reply "confirm" before running them.
-5. Never write vbmeta, dtbo, any _b partition, persist or any other calibration, modem or firmware partition; never run fastboot --set-active=b; never use calibration, addresses or images from another tablet.
+4. Follow docs/INSTALL.md strictly in order and explicitly select my tablet with -s or --serial in every device command. Before each step, tell me in a sentence or two what it does and where it writes. For every operation that writes to the tablet (partition table, erase, flash, slot A), list the exact commands and wait for me to reply "confirm" before running them.
+5. Never write vbmeta, dtbo, any _b partition, persist or any other calibration, modem or firmware partition; never run fastboot --set-active=b; never use calibration, per-unit configuration or images from another tablet.
 6. No write step before the backup is complete and its hashes verified. Keep the backup and my per-unit files outside the repository; never commit or upload them anywhere.
 7. Stop on any error: if a command fails or its output differs from the documented "expect" line, stop and show me the full output. Do not retry write commands on your own and do not interrupt a write in progress.
 8. I will stay next to the tablet. When I need to act on it (key combination for Fastboot, creating the account in Initial Setup, typing a password), tell me exactly what to do and what to wait for.
@@ -85,7 +84,7 @@ The kernel, Mesa, the device packages, the root image and the signed boot set ar
 ## Hardware Support
 
 State of v0.4.0 on the test unit. ✅ works · 🟡 partial · ❌ unsupported · 🧪 untested.
-✅ means the described function was verified on the tablet, not that every application and use case was tested. Scope, known issues and the roadmap are in [docs/STATUS.md](docs/STATUS.md).
+✅ means the described function was verified on the tablet, not that every application and use case was tested. Current support and improvements by release are in [docs/STATUS.md](docs/STATUS.md).
 
 ### Platform, Display and Input
 
@@ -95,23 +94,23 @@ State of v0.4.0 on the test unit. ✅ works · 🟡 partial · ❌ unsupported �
 | Android / Linux dual boot | Slot-A image-set rotation | ✅ works | Switching from Ubuntu (one command), from Android (KernelSU module) and from the host (Fastboot) all verified |
 | Internal storage | KIOXIA UFS / ext4 | ✅ works | 60 GiB root, about 201 GiB `/home` |
 | Internal display | Native DSI KMS (`msm_dpu`) | ✅ works | 3200×2136; 60/90/120/144 Hz changes and screen off/on verified |
-| Night Light | GNOME / DPU color temperature | ✅ works | 50 on/off cycles, screen off/on and suspend restoration verified |
+| Night Light | GNOME / DPU color temperature | ✅ works | Color temperature adjustment with settings preserved across screen off/on and suspend |
 | GNOME desktop | Ubuntu 26.04 GNOME / Wayland / GDM | ✅ works | Cold boot to the login screen in about 13 s |
 | GPU | Adreno 830 / Mesa 26.2 | ✅ works | GPU rendering for the desktop and for snap applications including Firefox |
-| Touchscreen | Novatek NT36532E (THP over SPI) | 🟡 partial | Touch restarts in the background after mode changes and screen on; 120/60 Hz failures fixed; multi-finger gestures not systematically tested |
-| Stylus | — | ❌ unsupported | Pen scanning is disabled |
-| Magnetic keyboard | Nanosic WN8030 | ✅ works | Typing, key wake with the screen off and wake from suspend verified; no touchpad or backlight |
-| Fingerprint | — | ❌ unsupported | No driver |
+| Touchscreen | Novatek NT36532E (THP over SPI) | 🟡 partial | Touch input at 60/90/120/144 Hz and after screen off/on and suspend; multi-finger gestures untested |
+| Magnetic keyboard | Nanosic WN8030 | ✅ works | Typing, key wake with the screen off and wake from suspend |
+
+Not yet supported: stylus, fingerprint.
 
 ### Wireless and USB
 
 | Function | Hardware / implementation | Status | Notes |
 |---|---|---|---|
 | Wi-Fi | Qualcomm WCN7860 / ath12k | ✅ works | Stable 2.4 GHz and 5 GHz 80 MHz links |
-| Bluetooth | Qualcomm WCN7860 / `hci_qca` | 🟡 partial | Pairing, file transfer and audio work; occasional reconnection without working data |
+| Bluetooth | Qualcomm WCN7860 / `hci_qca` | 🟡 partial | Pairing, file transfer and audio work; occasionally needs reconnecting |
 | USB device mode | USB 2.0 networking (NCM) | ✅ works | SSH over the USB cable in developer mode, off by default |
-| USB host / Type-C role switching | — | ❌ unsupported | No USB drives, mice or keyboards over USB-C |
-| USB-C external display | DisplayPort Alt Mode | ❌ unsupported | |
+
+Not yet supported: USB host / Type-C role switching, USB-C external display.
 
 ### Audio, Video and Sensors
 
@@ -119,9 +118,9 @@ State of v0.4.0 on the test unit. ✅ works · 🟡 partial · ❌ unsupported �
 |---|---|---|---|
 | Speakers | FS19xx quad amplifiers | 🟡 partial | Playback works; no speaker protection, capped volume |
 | Internal microphones | DMIC / ADSP / PipeWire | ✅ works | Recording verified |
-| Video decoding | Qualcomm Iris / V4L2 | 🟡 partial | H.264/H.265/VP9 slow-consumer tests pass 150/150 frames each; AV1 loses its first frame; player integration remains limited |
+| Video decoding | Qualcomm Iris / V4L2 | 🟡 partial | H.264/H.265/VP9 hardware decoding; automatic use depends on the player |
 | Video encoding | Qualcomm Iris / V4L2 | ✅ works | H.264/H.265 at 1080p and 4K verified |
-| Cameras | Rear S5KJN1SQ03, front OV32D40 | ✅ works | Both cameras are available in camera apps through the camera service; rear fixed focus, no autofocus, close subjects may blur; color tuning remains limited |
+| Cameras | Rear S5KJN1SQ03, front OV32D40 | ✅ works | Front and rear cameras available in camera apps; fixed rear focus, suited to subjects beyond close range |
 | Accelerometer, gyro, light, proximity | SSC / hexagonrpcd / libssc | ✅ works | SensorProxy reports orientation and ambient light |
 | Auto-rotation | SensorProxy / Mutter | ✅ works | Rotates with the keyboard detached; locked by GNOME's rule while the keyboard is attached |
 
@@ -131,10 +130,10 @@ State of v0.4.0 on the test unit. ✅ works · 🟡 partial · ❌ unsupported �
 |---|---|---|---|
 | Power / volume keys | Qualcomm PMIC | 🟡 partial | Power key and wake verified; action configurable in Settings → Power (default: suspend); volume keys unverified |
 | Battery gauge / temperature | 2 × TI BQ27Z561 / thermal zones | ✅ works | Charge level, voltage, current and temperatures |
-| Charging | `xiaomi_mca` / SC8541 | 🟡 partial | Charging control integrated; suspend current limiting and restore verified; charger compatibility still needs testing |
-| Suspend | suspend-to-idle | ✅ works | RTC, keyboard, power-button and cover-open wake verified; cover closing does not wake; distribution idle policy enabled |
-| Hibernation | — | ❌ unsupported | No swap partition |
-| Real-time clock | PMK8550 RTC | ❌ unsupported | Not writable; time is set from the network after boot |
+| Charging | `xiaomi_mca` / SC8541 | 🟡 partial | Charging and charging restoration after suspend; limited charger compatibility |
+| Suspend | suspend-to-idle | ✅ works | Timer, keyboard, power-button and cover-open wake; default system idle policy |
+
+Not yet supported: disk hibernation, hardware clock writes (time is set from the network after boot).
 
 ## Usage and Maintenance
 
@@ -161,23 +160,25 @@ A host write resets slot A's retry counter; the next Ubuntu boot marks the slot 
 
 **After Initial Setup.** Initial Setup sets the hostname from its *Computer* field; change it later with `sudo hostnamectl hostname --static <name>`. Run `sudo apt update` before the first `apt install`: the image ships without package indexes.
 
+**App Center.** Once online, run `sudo snap refresh snap-store gnome-46-2404` to update App Center.
+
 ## Development and Contributions
 
 | Repository | Content |
 |---|---|
 | xiaomipad-8pro-mainline | Device userspace, Ubuntu integration, build/packaging/switching tools, firmware, documentation |
-| [linux-sm8750-piano](https://github.com/yzddmr6/linux-sm8750-piano) | Linux kernel: drivers, devicetree and configuration maintained on top of upstream Linux 7.2 stable, branch `piano/dev` |
+| [linux-sm8750-piano](https://github.com/yzddmr6/linux-sm8750-piano) | Linux kernel: drivers, devicetree and configuration maintained on top of upstream Linux 7.2 stable, release commit pinned in the input lock |
 
-[kernel/source.json](kernel/source.json) pins the kernel commit and configuration fragments. Per-unit inputs (calibration, Bluetooth and Wi-Fi addresses, boot profile, signing key, backups) belong to each device owner and are never committed.
+See [docs/BUILD.md](docs/BUILD.md) to build the kernel, Mesa, device packages and images; [kernel/source.json](kernel/source.json) pins the kernel commit and configuration fragments.
 
-Read [docs/AGENT-GUIDE.md](docs/AGENT-GUIDE.md) before operating on a device; it is written for human operators and AI assistants alike. Contribution rules are in [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). No patch has been submitted upstream yet; the candidates are listed in [docs/STATUS.md](docs/STATUS.md#upstreaming).
+Before operating on a device, read [docs/AGENT-GUIDE.md](docs/AGENT-GUIDE.md), written for human operators and AI assistants; contribution rules are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Report problems through [GitHub Issues](https://github.com/yzddmr6/xiaomipad-8pro-mainline/issues) with the device model, stock build and project release; strip serial numbers, Bluetooth addresses, calibration data and personal information first.
 
 ## Acknowledgments and Licensing
 
 This project reuses and adapts the following work:
-- the OnePlus Pad 2 Pro (`erhai`) mainline integration project (GPL-2.0-only; no public address);
+- the OnePlus Pad 2 Pro (`erhai`) mainline integration project (GPL-2.0-only);
 - the Xiaomi Pad 6 Pro (`liuqin`) mainline project: [integration](https://github.com/yzddmr6/xiaomipad-6pro-mainline) (MIT) and [kernel](https://github.com/yzddmr6/linux-sm8450-liuqin) (GPL-2.0);
 - [BigfootACA/linux](https://github.com/BigfootACA/linux/tree/full-v7.1.3) (GPL-2.0);
 - [ROCKNIX](https://github.com/ROCKNIX/distribution/tree/92a6fca6afda5ab7e1874af8985095beee19b6a8) and Teguh Sobirin's [SM8750 kernel patches](https://github.com/ROCKNIX/distribution/tree/92a6fca6afda5ab7e1874af8985095beee19b6a8/projects/ROCKNIX/devices/SM8750/patches/linux) (GPL-2.0; DTS BSD-3-Clause);

@@ -140,6 +140,8 @@ Before publishing, install the release from scratch on a tablet following INSTAL
 
 ## Publishing
 
+Release notes describe completed work, supported features and usage: retain safety guidance, summarize unsupported hardware briefly, limit known issues to at most three user-visible notes, and omit internal plans, debugging narratives, debt identifiers and internal paths.
+
 GitHub limits a release asset to 2 GiB, so the release directory is repackaged into a fixed set of
 assets by `tools/package-release-assets.py`:
 
