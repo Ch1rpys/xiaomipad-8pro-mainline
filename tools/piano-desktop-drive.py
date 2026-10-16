@@ -53,6 +53,8 @@ def finite(value):
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('--allow-locked', action='store_true',
+                        help='allow key/tap input while locked; does not unlock the session')
     sub = parser.add_subparsers(dest='command', required=True)
     sub.add_parser('shot', help='portal screenshot, no interactive chooser').add_argument('out', type=Path)
     sub.add_parser('windows', help='window id -> properties, JSON')
@@ -70,6 +72,8 @@ def parse_args(argv=None):
     p.add_argument('title_regex')
     p.add_argument('timeout', type=finite, nargs='?', default=15.0)
     args = parser.parse_args(argv)
+    if args.allow_locked and args.command not in ('key', 'tap'):
+        parser.error('--allow-locked is only supported for key/tap')
     if args.command == 'swipe' and not 1 <= args.ms <= 60000:
         parser.error('swipe duration must be 1..60000 ms')
     if args.command == 'wait-window':
@@ -131,7 +135,7 @@ def session_environment():
 
 
 class Desktop:
-    def __init__(self):
+    def __init__(self, allow_locked=False):
         self.runtime = session_environment()
         import gi
         gi.require_version('Gio', '2.0')
@@ -142,7 +146,7 @@ class Desktop:
                           'NameHasOwner', ('(s)', ('org.gnome.Shell',)), '(b)')[0]
         if not owned:
             raise RuntimeError('GNOME Shell is not running on this user bus')
-        if self.call('org.gnome.ScreenSaver', '/org/gnome/ScreenSaver',
+        if not allow_locked and self.call('org.gnome.ScreenSaver', '/org/gnome/ScreenSaver',
                      'org.gnome.ScreenSaver', 'GetActive', reply='(b)')[0]:
             raise RuntimeError('session is locked; desktop-drive does not unlock it')
 
@@ -343,7 +347,7 @@ def main(argv=None):
     # Validate the whole keyboard payload before sending the first event.
     events = ([key_event(args.key)] if args.command == 'key' else
               [('NotifyKeyboardKeysym', text_keysym(c)) for c in args.text] if args.command == 'type' else None)
-    desktop = Desktop()
+    desktop = Desktop(allow_locked=args.allow_locked)
     result = {'command': args.command}
     if args.command == 'shot':
         result = desktop.shot(args.out)
