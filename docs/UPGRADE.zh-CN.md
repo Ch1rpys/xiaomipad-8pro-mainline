@@ -21,6 +21,8 @@ sudo apt-mark unhold gnome-settings-daemon gnome-settings-daemon-common gnome-co
 
 重启后，在“设置 → 电源”选择锁定屏幕及三档性能模式。个人电源键选择不会被覆盖。命令行使用 `tuned-adm`；若曾手工复制 `/usr/local/bin/powerprofilesctl`，迁移时删除这份已知手工副本。配置归属与命令见 [电源配置](../device/power/tuned/README.md)。
 
+若曾手工测试 Piano 的 TuneD 配置，先备份这些测试文件。安装后移除测试用的 `/etc/tuned/profiles/piano-*`，避免它们遮蔽包内 `/usr/lib/tuned/profiles/piano-*`；保留有意维护的其他管理员配置。若测试改过 `/etc/tuned/ppd.conf`，从与已安装版本相同的 `tuned-ppd` deb 提取原文件并恢复，核对 `dpkg --verify tuned-ppd` 的结果。项目配置由 `/etc/tuned/piano-ppd.conf` 提供，重启后服务通过 `BindReadOnlyPaths` 读取它。
+
 ## 从 v0.3.2 升级到 v0.4.0
 
 按下方相同步骤使用 `piano-ubuntu-v0.4.0-packages.zip`，一起安装全部软件包，包括 Linux 7.2.10-piano26 及匹配的相机 loopback 包。安装后重启，使触控修复生效。保留已安装的旧内核及其回退启动镜像组。无需重分区或重刷根镜像。

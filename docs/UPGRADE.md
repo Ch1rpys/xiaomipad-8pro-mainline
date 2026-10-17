@@ -25,6 +25,8 @@ The new desktop package supplies an APT pin and matched version dependencies to 
 
 Reboot, then select Lock Screen and a power mode in Settings → Power. Existing personal power-button choices are preserved. Use `tuned-adm` on the command line; if you previously copied `/usr/local/bin/powerprofilesctl` manually, remove that known manual copy during migration. See [power configuration](../device/power/tuned/README.md) for configuration ownership and commands.
 
+If you manually tested Piano TuneD configuration, back up those test files first. After installation, remove the test overrides under `/etc/tuned/profiles/piano-*` so they no longer mask the packaged `/usr/lib/tuned/profiles/piano-*`; retain other intentional administrator configuration. If testing changed `/etc/tuned/ppd.conf`, restore the original file extracted from a `tuned-ppd` deb matching the installed version and inspect `dpkg --verify tuned-ppd`. The project configuration is `/etc/tuned/piano-ppd.conf`; after reboot, the service reads it through `BindReadOnlyPaths`.
+
 ## Upgrading from v0.3.2 to v0.4.0
 
 Follow the same steps below using `piano-ubuntu-v0.4.0-packages.zip`. Install the entire package set together, including Linux 7.2.10-piano26 and its matching camera loopback package. Reboot to activate the touch fixes. Keep the previous kernel installed and retain its rollback boot set. No repartitioning or root-image flash is needed.
