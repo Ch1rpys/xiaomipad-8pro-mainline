@@ -16,7 +16,7 @@ a repackaging of exactly these files (see [Publishing](#publishing)).
 | `boot/manifest.json`, `boot/boot-profile.json`, `boot/piano-boot.dtb`, `boot/maintenance-manifest.json` | inputs and outputs of the set; the boot profile holds only stock-build fields; the DTB the set carries |
 | `rootfs/root.sparse.img` | the 60 GiB `linux_rootfs` ext4 as an Android sparse image, for `fastboot flash linux_rootfs` |
 | `rootfs/manifest.json`, `rootfs/verification.json` | every input hash and package version; the offline checks |
-| `debs/` | the project packages installed in the image: kernel, device support, firmware, Mesa, desktop defaults, snap graphics provider, MiPPS authentication, sensors |
+| `debs/` | release-supplied packages (including rebuilt Ubuntu power-button packages; [inputs and update policy](../ubuntu/README.md)): project packages installed in the image: kernel, device support, firmware, Mesa, desktop defaults, snap graphics provider, MiPPS authentication, sensors |
 | `tools/piano-switch.py`, `tools/piano-switch-ksu-<version>.zip` | host Fastboot switching and recovery; the Android KernelSU switch module |
 | `RELEASE-NOTES.md`, `release-manifest.json`, `SHA256SUMS` | the release notes (also the GitHub release body); identity and checks of every input; every file's hash |
 
@@ -89,6 +89,8 @@ python3 tools/prepare-ubuntu-apt.py --rootfs out/ubuntu-desktop-pristine/ubuntu-
   --snapshot <YYYYMMDDT000000Z> --output out/apt-release --mozilla-firefox \
   --download dracut device-tree-compiler openssh-server fake-hwclock systemd-zram-generator
 # 2. The project packages (AGENT-GUIDE.md §3.4, §3.5)
+#    Verify the four patched Ubuntu debs with ubuntu/power-button-lock.SHA256SUMS
+#    (ubuntu/README.md); include all four below as explicit --deb inputs.
 # 3. The root image and the boot set
 python3 tools/build-rootfs-image.py \
   --squashfs out/ubuntu-desktop-pristine/ubuntu-desktop.squashfs --squashfs-sha256 <sha256> \

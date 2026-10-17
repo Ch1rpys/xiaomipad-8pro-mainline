@@ -1,0 +1,10 @@
+# Keep the patched runtime and schema/data packages together.
+# Ubuntu security updates to these four packages require a patched rebuild.
+# See ubuntu/README.md in the integration sources.
+Package: gnome-settings-daemon gnome-settings-daemon-common gnome-control-center gnome-control-center-data
+Pin: version *+piano*
+Pin-Priority: 1001
+
+Package: gnome-settings-daemon gnome-settings-daemon-common gnome-control-center gnome-control-center-data
+Pin: version *
+Pin-Priority: -1

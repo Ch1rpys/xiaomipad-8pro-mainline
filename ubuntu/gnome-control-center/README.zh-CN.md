@@ -1,7 +1,7 @@
 # gnome-control-center：电源键锁屏动作源包补丁
 
 固定 Ubuntu 26.04 源包 `1:50.0-0ubuntu6`，本地版本 `1:50.0-0ubuntu6+piano1`。
-已完成归档认证、dpkg-source 构建/重新解包与内容比对；尚未完成二进制构建或真机验收。
+已完成源包认证与 ARM64 原生构建；配套运行时包的固定摘要与发布接入见 [Ubuntu 集成](../README.md)。
 补丁按原文件 GPL-2.0-or-later 分发，许可见 [COPYING](COPYING)，不适用集成仓的 MIT 许可。
 
 ## 行为与来源
@@ -74,8 +74,7 @@ mv source/debian/changelog.new source/debian/changelog
 随后在独立 Ubuntu 26.04 ARM64 构建环境安装源包声明的 Build-Depends，运行
 `dpkg-buildpackage -b -us -uc`，保留 buildinfo/changes、工具版本和所有 deb 的 SHA256。
 先构建并安装 GSD 的 dev/common 包到构建环境，再构建控制中心。不要用 `-d` 绕过依赖检查。
-当前主机标准 ARM64 构建在 Build-Depends 阶段停止；项目的 Mesa 交叉构建和设备包打包器
-不提供本源包完整的 GNOME 50 构建环境，因此此目录只交付补丁源包输入，不提供 deb。
+设备包打包器不编译 GNOME 源包；使用上述发行版构建流程，发布时显式传入配套运行时 deb。
 
 安装后以登录用户设置 `gsettings set org.gnome.settings-daemon.plugins.power power-button-action lock`，
 或在电源面板选择“锁定屏幕”。须安装配套 GSD common/schema 与控制中心 data 包并重新登录。

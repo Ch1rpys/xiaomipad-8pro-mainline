@@ -1,0 +1,54 @@
+# Ubuntu integration inputs
+
+## Power-button lock packages
+
+The lock action uses the two Ubuntu source packages documented in
+[gnome-settings-daemon](gnome-settings-daemon/README.zh-CN.md) and
+[gnome-control-center](gnome-control-center/README.zh-CN.md). Build them with
+Ubuntu's `dpkg-buildpackage`, GSD first, preserving the source locks, patch
+licences and corresponding source for binary redistribution. The four runtime
+binaries are pinned by [power-button-lock.SHA256SUMS](power-button-lock.SHA256SUMS):
+GSD/common `50.0-1ubuntu1+piano1`, control-center/data `1:50.0-0ubuntu6+piano1`.
+Development, debug and build-environment files are not release payloads.
+
+Before constructing an image, verify the supplied binaries, with `REPO` pointing
+to this checkout and `PATCH_DEBS` to their explicitly supplied directory:
+
+```sh
+(cd "$PATCH_DEBS" && sha256sum -c "$REPO/ubuntu/power-button-lock.SHA256SUMS")
+```
+
+Pass these four files to `tools/build-rootfs-image.py` as separate `--deb`
+arguments, together with the device packages. The existing explicit-deb path
+records each package name/version/architecture/hash as `source: piano` (meaning
+release-supplied, including rebuilt Ubuntu packages). `tools/build-release.py`
+copies every such input into `debs/` only after comparing its hash with the
+root-image manifest; `packages.zip` therefore includes the same four binaries.
+Do not add them only to an already built release: the root image must contain
+the same versions. No implicit lookup of earlier build output is performed.
+
+`piano-ubuntu-desktop` depends on the exact four versions and installs
+`/etc/apt/preferences.d/piano-power-button-lock` as a conffile. The standard
+[APT preferences](https://manpages.ubuntu.com/manpages/resolute/man5/apt_preferences.5.html)
+policy prefers `+piano` versions and rejects other versions of these four packages.
+It protects both new images and upgrades without a maintainer script changing
+APT's hold selections. Existing explicit holds must be removed when installing
+a newer matched release set; `apt-mark showhold` lists them. This pin does not
+block updates to other Ubuntu packages.
+
+**Security updates to these four packages are also blocked.** On each Ubuntu
+update, authenticate the new sources and update both source locks under
+`ubuntu/gnome-settings-daemon` and `ubuntu/gnome-control-center`; rebase the
+minimal patches and changelog, build GSD then control-center in Ubuntu ARM64,
+run their tests, update the binary hashes and desktop version dependencies, and
+ship the complete matched set after device regression. Do not silently unpin
+an official update whose schema lacks `lock`.
+
+After upstream merges the functionality or Ubuntu ships an equivalent version,
+verify enum/schema and control-center compatibility and device short/long press,
+locked-screen wake, suspend/resume and lock-failure behavior. Then remove the
+patches, pins and local version dependencies together. For an earlier official
+rollback, first select `suspend` for each user, replace the vendor `lock` default
+with `suspend`, remove this pin and any explicit holds, and install the matched
+official runtime/schema/data packages; log out and back in. The desktop package's
+exact dependencies must also be removed or replaced for that rollback.

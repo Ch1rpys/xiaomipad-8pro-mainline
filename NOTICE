@@ -574,3 +574,18 @@ Mesa Turnip gen8 TEX_LINE_OFFSET backport: Rob Clark, 2026-08-31, MIT.
 Unmodified upstream commit 7ea5e51c8a301a15202e28fef114e4c4055bc329;
 https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/44151
 See mesa/turnip-gen8-tex-line-offset.patch for original attribution.
+
+Ubuntu power-button lock patches (2026-10-16)
+-------------------------------------------
+- ubuntu/gnome-settings-daemon and ubuntu/gnome-control-center: patches to the
+  pinned Ubuntu GNOME 50 sources, GPL-2.0-or-later; COPYING in each directory.
+  Source versions, authenticated archive hashes and patch hashes are in their
+  source.json files. The original upstream files retain their own copyrights.
+- GSD enum adaptation credits Phoebe Harris, merge request !448, commit
+  b80693acdce2931550081b8d27550e19c9eed36d; blank-action design reference:
+  Cédric Bellegarde, merge request !320, commit
+  89f1042d9068ba5ea2f51fa846fcac148a490479. Patch headers retain attribution.
+  https://gitlab.gnome.org/GNOME/gnome-settings-daemon/-/merge_requests/448
+  https://gitlab.gnome.org/GNOME/gnome-settings-daemon/-/merge_requests/320
+- Rebuilt distribution binaries retain Ubuntu packaging and copyright files;
+  no binary, debug package or build-environment record is imported here.

@@ -134,13 +134,17 @@ class Release(unittest.TestCase):
             package.write_bytes(b'synthetic package')
             packages = [{'package': 'linux-image-7.2.6-piano9', 'version': '7.2.6-9.1',
                          'source': 'piano', 'file': package.name, 'sha256': self.tool.sha(package)}]
+            patched = d / 'gnome-settings-daemon.deb'
+            patched.write_bytes(b'synthetic rebuilt distribution package')
+            packages.append({'package': 'gnome-settings-daemon', 'version': '50.0-1ubuntu1+piano1',
+                             'source': 'piano', 'file': patched.name, 'sha256': self.tool.sha(patched)})
             rootfs = {'state': 'ROOT_IMAGE_BUILT_OFFLINE_CHECKS_PASS_NOT_BOOTED',
                       'release_name': 'v1.2.3', 'kernel_release': '7.2.6-piano9',
                       'apt_snapshot': '20261001T000000Z', 'packages': packages,
                       'outputs': {'root.sparse.img': {'sha256': self.tool.sha(build / 'root.sparse.img')}}}
             (build / 'manifest.json').write_text(json.dumps(rootfs))
             (build / 'verification.json').write_text('{"passed": true}')
-            (build / 'inputs-local.json').write_text(json.dumps({package.name: str(package)}))
+            (build / 'inputs-local.json').write_text(json.dumps({package.name: str(package), patched.name: str(patched)}))
             (maintenance / 'maintenance.img').write_bytes(b'synthetic maintenance')
             maint = {'kind': 'piano-maintenance-ram', 'kernel_release': rootfs['kernel_release'],
                      'inputs': {'kernel': 'synthetic', 'dtb': manifest['effective_dtb_sha256']},
@@ -155,6 +159,13 @@ class Release(unittest.TestCase):
             self.assertEqual((output / 'RELEASE-NOTES.md').read_text().count(changes), 2)
             self.assertEqual(json.loads((output / 'release-manifest.json').read_text())['packages'], packages)
             subprocess.run(['sha256sum', '-c', 'SHA256SUMS'], cwd=output, check=True, capture_output=True)
+            self.assertEqual((output / 'debs' / patched.name).read_bytes(), patched.read_bytes())
+            patched.write_bytes(b'changed after image construction')
+            failed = subprocess.run([sys.executable, str(TOOL), '--rootfs-build', str(build),
+                                     '--maintenance', str(maintenance), '--output', str(d / 'tampered')],
+                                    capture_output=True, text=True)
+            self.assertNotEqual(failed.returncode, 0)
+            self.assertIn('changed after the image build', failed.stderr)
 
 
 if __name__ == '__main__':
