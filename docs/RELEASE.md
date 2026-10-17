@@ -147,11 +147,10 @@ Before publishing, install the release from scratch on a tablet following INSTAL
 `tools/piano-cold-boot-accept.py` against the installed system; the result is recorded in
 [STATUS.md](STATUS.md).
 
-The v0.5.0 change-list draft is [changes/v0.5.0.md](../packaging/release/changes/v0.5.0.md).
-The next ABI is `piano27` (the current allocation ends at `piano26`). Replace
-`<v0.5.0 kernel commit>` only after the release kernel is built, then update
-`kernel/source.json` and append its exact build identity to `kernel/abi.json`.
-The draft does not allocate an ABI or certify a new image. Before publishing,
+The v0.5.0 change list is [changes/v0.5.0.md](../packaging/release/changes/v0.5.0.md).
+The kernel is allocated as `7.2.10-piano27`; `kernel/source.json` pins the source
+and `kernel/abi.json` records the exact commit and build configuration.
+Before publishing,
 verify the power-button physical press/wake and settings UI, cold-boot profile
 retention with the packaged configuration, USB host/charging, and Showtime
 playback from a fresh user session. The optional mpv fragment remains excluded
