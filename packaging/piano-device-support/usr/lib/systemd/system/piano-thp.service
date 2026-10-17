@@ -12,3 +12,9 @@ Type=simple
 ExecStart=/usr/libexec/piano/piano-thp-live /etc/piano/thp-calibration.json /dev/piano-touch
 Restart=on-failure
 RestartSec=1
+# The touch stream can stay unavailable for several seconds after a display
+# or session transition, then start normally without a panel power cycle.
+# Grow the delay instead of letting the default start limit (5 starts in
+# 10 s) give up inside that window: about 1, 2, 4, 8, 15, then every 30 s.
+RestartSteps=5
+RestartMaxDelaySec=30
