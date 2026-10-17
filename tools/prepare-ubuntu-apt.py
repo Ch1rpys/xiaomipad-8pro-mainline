@@ -25,6 +25,14 @@ def sha(path):
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
+def check_removals(plan, replace_ppd=False):
+    removed = set(re.findall(r'^Remv ([^ :]+)(?::\S+)?(?: |$)', plan, re.M))
+    allowed = {'power-profiles-daemon'} if replace_ppd else set()
+    if removed - allowed:
+        raise ValueError('Unexpected APT removals: ' + ', '.join(sorted(removed - allowed)))
+    return sorted(removed)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--rootfs', required=True, type=Path, help='Pristine Desktop SquashFS')
@@ -35,6 +43,7 @@ def main():
                         help='Include the locked Mozilla Firefox deb and its signed repository policy')
     parser.add_argument('packages', nargs='+', help='Package names or name=version selections')
     args = parser.parse_args()
+    replace_ppd = any(p.split('=')[0] == 'tuned-ppd' for p in args.packages)
     try:
         datetime.datetime.strptime(args.snapshot, '%Y%m%dT%H%M%SZ')
     except ValueError:
@@ -125,7 +134,7 @@ def main():
         config.set(name, value)
     conf = out / 'apt.conf'
     conf.write_text(config.dump())
-    env = dict(os.environ, APT_CONFIG=str(conf))
+    env = dict(os.environ, APT_CONFIG=str(conf), LC_ALL='C')
     result = {'state': 'PREPARING', 'scope': 'APT resolution/download only, not package installation or boot',
               'snapshot': args.snapshot, 'rootfs_sha256': sha(rootfs), 'rootfs_bytes': rootfs.stat().st_size,
               'dpkg_status_sha256': hashlib.sha256(status).hexdigest(), 'keyring_sha256': sha(key),
@@ -157,13 +166,16 @@ def main():
             prefix = out / 'state/lists/packages.mozilla.org_apt_dists_mozilla_'
             for name, suffix in [('InRelease', 'InRelease'), ('Packages', 'main_binary-arm64_Packages')]:
                 shutil.copyfile(firefox_dir / name, str(prefix) + suffix)
-        apt('plan', ['--simulate', '--no-remove', 'install', *args.packages])
+        # Only the standard PPD provider replacement may remove a base package.
+        removal_guard = [] if replace_ppd else ['--no-remove']
+        apt('plan', ['--simulate', *removal_guard, 'install', *args.packages])
+        result['removed_packages'] = check_removals((out / 'plan.log').read_text(), replace_ppd)
         downgrade = ['--allow-downgrades'] if firefox else []
-        apt('uris', ['--print-uris', '--download-only', *downgrade, '--assume-yes', '--no-remove', 'install', *args.packages])
+        apt('uris', ['--print-uris', '--download-only', *downgrade, '--assume-yes', *removal_guard, 'install', *args.packages])
         result['index_sha256'] = {p.name: sha(p) for p in sorted((out / 'state/lists').iterdir())
                                   if p.is_file() and p.name != 'lock'}
         if args.download:
-            apt('download', ['--download-only', *downgrade, '--assume-yes', '--no-remove', 'install', *args.packages])
+            apt('download', ['--download-only', *downgrade, '--assume-yes', *removal_guard, 'install', *args.packages])
             for path in sorted((out / 'cache/archives').glob('*.deb')):
                 fields = Deb822(subprocess.check_output(['dpkg-deb', '--field', str(path)], text=True))
                 if fields['Architecture'] not in ('all', 'arm64'):

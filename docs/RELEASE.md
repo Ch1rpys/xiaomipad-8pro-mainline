@@ -87,7 +87,8 @@ manifests). A full root image build takes about 45 minutes on an eight-core host
 # 1. Ubuntu packages added to the base, from a signed snapshot
 python3 tools/prepare-ubuntu-apt.py --rootfs out/ubuntu-desktop-pristine/ubuntu-desktop.squashfs \
   --snapshot <YYYYMMDDT000000Z> --output out/apt-release --mozilla-firefox \
-  --download dracut device-tree-compiler openssh-server fake-hwclock systemd-zram-generator
+  --download dracut device-tree-compiler openssh-server fake-hwclock systemd-zram-generator \
+  tuned-ppd
 # 2. The project packages (AGENT-GUIDE.md §3.4, §3.5)
 #    Verify the four patched Ubuntu debs with ubuntu/power-button-lock.SHA256SUMS
 #    (ubuntu/README.md); include all four below as explicit --deb inputs.
@@ -118,6 +119,11 @@ python3 tools/build-release.py --rootfs-build out/rootfs-<version> \
 (cd out/release-<version> && sha256sum -c SHA256SUMS)
 ```
 
+- Request `tuned-ppd` from the signed snapshot for v0.5.0. The resolver permits
+  removal only of `power-profiles-daemon` when replacing that provider. Image
+  construction applies the supplied debs in one offline APT transaction, checks
+  the same removal boundary and forbids downloads. Profiles and configuration
+  ownership are described in [device/power/tuned](../device/power/tuned/README.md).
 - `build-rootfs-image.py` streams the SquashFS into `mke2fs -d -` at the full partition size,
   then boots a QEMU ARM64 guest that installs the packages into the target disk
   ([tools/rootfs-image-guest.sh](../tools/rootfs-image-guest.sh)). The release key reaches the

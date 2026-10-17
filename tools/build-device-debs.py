@@ -300,6 +300,13 @@ def main():
     tree(repo / 'packaging/piano-ubuntu-desktop', desktop, '.')
     copy(repo / 'device/keyboard/README.md', desktop,
          'usr/share/doc/piano-ubuntu-desktop/keyboard.md')
+    # Distribution-specific configuration consumes the board profiles once.
+    tuned = repo / 'device/power/tuned'
+    for profile in sorted((tuned / 'profiles').glob('piano-*/tuned.conf')):
+        copy(profile, desktop, 'usr/lib/tuned/profiles/' + str(profile.relative_to(tuned / 'profiles')))
+    # Ubuntu tuned-ppd owns ppd.conf; a service mount supplies our separate conffile.
+    copy(tuned / 'ppd.conf', desktop, 'etc/tuned/piano-ppd.conf')
+    copy(tuned / 'README.md', desktop, 'usr/share/doc/piano-ubuntu-desktop/power-profiles.md')
     # ALSA UCM for the internal-microphone card (device/audio/ucm2, MIT/BSD-3-Clause, see NOTICE);
     # its conf.d entry is a relative symlink, kept as one.
     shutil.copytree(repo / 'device/audio/ucm2', desktop / 'usr/share/alsa/ucm2', symlinks=True)
@@ -316,7 +323,7 @@ def main():
     copy(repo / 'packaging/piano-ubuntu-desktop' / upmix, desktop,
          'usr/share/pipewire/client.conf.d/50-piano-speaker-upmix.conf')
     # fake-hwclock: the RTC cannot be set (TD-022); it restores the time saved at shutdown or hourly.
-    package('piano-ubuntu-desktop', desktop, 'gnome-settings-daemon (= 50.0-1ubuntu1+piano1), gnome-settings-daemon-common (= 50.0-1ubuntu1+piano1), gnome-control-center (= 1:50.0-0ubuntu6+piano1), gnome-control-center-data (= 1:50.0-0ubuntu6+piano1), piano-mesa, gdm3, gnome-shell (>= 50), colord, colord-data, python3-gi, fake-hwclock, python3, console-setup, snapd, init-system-helpers, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad',
+    package('piano-ubuntu-desktop', desktop, 'gnome-settings-daemon (= 50.0-1ubuntu1+piano1), gnome-settings-daemon-common (= 50.0-1ubuntu1+piano1), gnome-control-center (= 1:50.0-0ubuntu6+piano1), gnome-control-center-data (= 1:50.0-0ubuntu6+piano1), piano-mesa, gdm3, gnome-shell (>= 50), colord, colord-data, python3-gi, fake-hwclock, python3, console-setup, snapd, init-system-helpers, tuned-ppd (>= 2.25.1), gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad',
             'Piano Ubuntu desktop defaults: graphics, clock without RTC, speaker up-mix and UCM, '
             'GNOME Shell 50 on-screen keyboard guard',
             '#!/bin/sh\nset -e\nif [ "$1" = configure ]; then\n'
@@ -337,7 +344,7 @@ def main():
                    '  if [ ! -s /etc/machine-info ]; then rm -f /etc/machine-info; fi\n'
                    ' fi\n'
                    ' deb-systemd-helper --user purge piano-panel-srgb.service >/dev/null\nfi\n',
-            conffiles=['/etc/apt/preferences.d/piano-power-button-lock'],
+            conffiles=['/etc/apt/preferences.d/piano-power-button-lock', '/etc/tuned/piano-ppd.conf'],
             third_party=[(('usr/share/alsa/ucm2/*',),
                           '2026 bluseliu50 and piano mainline contributors; '
                           '2019 Advanced Linux Sound Architecture (ALSA) project', 'MIT AND BSD-3-Clause',

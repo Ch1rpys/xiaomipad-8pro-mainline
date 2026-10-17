@@ -60,8 +60,20 @@ printf 'update_initramfs=no\n' >"$T/etc/initramfs-tools/update-initramfs.conf"
 step install userspace packages
 install -d "$T/var/cache/piano-install"
 cp "$IN"/debs/*.deb "$T/var/cache/piano-install/"
+# APT handles the tuned-ppd Conflicts/Provides transition in one transaction.
+# The plan may remove only the old provider; no package downloads are allowed.
+if ls "$T"/var/cache/piano-install/tuned-ppd_*.deb >/dev/null 2>&1; then
+	in_target /usr/bin/env LC_ALL=C /bin/sh -c \
+		'apt-get --simulate --no-download --no-install-recommends install /var/cache/piano-install/*.deb' \
+		>"$OUT/userspace-plan.txt"
+	awk '$1 == "Remv" && $2 != "power-profiles-daemon" && $2 != "power-profiles-daemon:arm64" { bad=1 } END { exit bad }' \
+		"$OUT/userspace-plan.txt" || fail 'unexpected package removal during PPD replacement'
+	in_target /usr/bin/env SYSTEMD_OFFLINE=1 DEBIAN_FRONTEND=noninteractive \
+		/bin/sh -c 'apt-get --yes --no-download --no-install-recommends install /var/cache/piano-install/*.deb' </dev/null
+else
 in_target /usr/bin/env SYSTEMD_OFFLINE=1 DEBIAN_FRONTEND=noninteractive \
 	/bin/sh -c 'dpkg --install /var/cache/piano-install/*.deb' </dev/null
+fi
 audit=$(in_target dpkg --audit)
 [ -z "$audit" ] || fail "dpkg --audit: $audit"
 rm "$T"/var/cache/piano-install/*.deb
