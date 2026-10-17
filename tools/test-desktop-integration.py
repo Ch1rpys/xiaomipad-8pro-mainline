@@ -3,6 +3,7 @@
 """Offline package contracts and APT's real PPD provider replacement."""
 import importlib.util
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import tempfile
@@ -47,6 +48,37 @@ class DesktopIntegration(unittest.TestCase):
                          '50_piano-ubuntu-desktop.gschema.override').read_text())
             for script in ('postinst', 'prerm', 'postrm'):
                 subprocess.run(['sh', '-n', str(root / 'DEBIAN' / script)], check=True)
+
+    def test_pins_keep_local_versions_against_future_ubuntu_updates(self):
+        # No apt update or network: synthetic index plus the real shipped preferences.
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            for name in ('lists/partial', 'empty', 'cache', 'prefs'):
+                (d / name).mkdir(parents=True)
+            (d / 'sources.list').write_text('deb [trusted=yes] https://example.invalid/ubuntu resolute main\n')
+            versions = {'gnome-settings-daemon': '50.0-1ubuntu1+piano1',
+                        'gnome-settings-daemon-common': '50.0-1ubuntu1+piano1',
+                        'gnome-control-center': '1:50.0-0ubuntu6+piano1',
+                        'gnome-control-center-data': '1:50.0-0ubuntu6+piano1'}
+            (d / 'status').write_text('\n'.join(
+                f'Package: {name}\nStatus: install ok installed\nArchitecture: arm64\n'
+                f'Version: {version}\nDescription: synthetic installed package\n'
+                for name, version in versions.items()))
+            (d / 'lists/example.invalid_ubuntu_dists_resolute_main_binary-arm64_Packages').write_text(
+                '\n'.join(f'Package: {name}\nArchitecture: arm64\nVersion: 9:99.0-1ubuntu1\n'
+                          f'Description: synthetic security update\nFilename: pool/{name}.deb\n'
+                          'Size: 1\nSHA256: ' + '0' * 64 + '\n' for name in versions))
+            shutil.copyfile(REPO / 'packaging/piano-ubuntu-desktop/etc/apt/preferences.d/'
+                            'piano-power-button-lock', d / 'prefs/piano')
+            options = ['-o', 'APT::Architecture=arm64', '-o', f'Dir::State={d}', '-o',
+                       f'Dir::State::status={d}/status', '-o', f'Dir::Cache={d}/cache', '-o',
+                       f'Dir::Etc::sourcelist={d}/sources.list', '-o', f'Dir::Etc::sourceparts={d}/empty',
+                       '-o', 'Dir::Etc::preferences=/dev/null', '-o', f'Dir::Etc::preferencesparts={d}/prefs']
+            for name, version in versions.items():
+                policy = subprocess.check_output(['apt-cache', *options, 'policy', name], text=True,
+                                                 env=dict(os.environ, LC_ALL='C'))
+                self.assertIn(f'Candidate: {version}', policy)
+                self.assertIn('9:99.0-1ubuntu1 -1', policy)
 
     def test_real_apt_replacement_plan_and_removal_boundary(self):
         with tempfile.TemporaryDirectory() as tmp:

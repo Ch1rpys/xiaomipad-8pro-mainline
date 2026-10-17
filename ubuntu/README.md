@@ -30,7 +30,9 @@ the same versions. No implicit lookup of earlier build output is performed.
 `piano-ubuntu-desktop` depends on the exact four versions and installs
 `/etc/apt/preferences.d/piano-power-button-lock` as a conffile. The standard
 [APT preferences](https://manpages.ubuntu.com/manpages/resolute/man5/apt_preferences.5.html)
-policy prefers `+piano` versions and rejects other versions of these four packages.
+policy prefers the exact patched versions and rejects other versions of these
+four packages. Exact pins also cover installed local debs absent from an APT
+repository; wildcard version pins do not reliably cover that case.
 It protects both new images and upgrades without a maintainer script changing
 APT's hold selections. Existing explicit holds must be removed when installing
 a newer matched release set; `apt-mark showhold` lists them. This pin does not
@@ -40,7 +42,7 @@ block updates to other Ubuntu packages.
 update, authenticate the new sources and update both source locks under
 `ubuntu/gnome-settings-daemon` and `ubuntu/gnome-control-center`; rebase the
 minimal patches and changelog, build GSD then control-center in Ubuntu ARM64,
-run their tests, update the binary hashes and desktop version dependencies, and
+run their tests, update the binary hashes, exact APT pins and desktop version dependencies, and
 ship the complete matched set after device regression. Do not silently unpin
 an official update whose schema lacks `lock`.
 
