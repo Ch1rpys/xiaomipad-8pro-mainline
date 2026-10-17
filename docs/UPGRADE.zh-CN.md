@@ -7,6 +7,20 @@
 
 发布附件里的 `piano-ubuntu-<版本>-packages.zip` 就是升级包：解压后 `debs/` 下是该版本安装在镜像里的全部项目软件包。总是整组一起安装，不要只装其中一个。
 
+## v0.5.0 升级准备
+
+收到 v0.5.0 完整发布包后，按下方步骤整组安装，包含电源键的 GSD/common 和控制中心/data 四个 Ubuntu 补丁包。新桌面包依赖 `tuned-ppd`，APT 会替换旧 `power-profiles-daemon`；软件包名称的变化是正常的。
+
+若以前手工 hold 了上述四包，安装整组新包前先解除旧 hold：
+
+```sh
+sudo apt-mark unhold gnome-settings-daemon gnome-settings-daemon-common gnome-control-center gnome-control-center-data
+```
+
+新包的 APT pin 和配套版本依赖会防止 Ubuntu 更新覆盖锁屏支持；这也阻止这四包直接接收 Ubuntu 安全更新，必须及时安装项目重建的配套包，详见 [维护流程](../ubuntu/README.md)。其他 Ubuntu 软件包照常更新。
+
+重启后，在“设置 → 电源”选择锁定屏幕及三档性能模式。个人电源键选择不会被覆盖。命令行使用 `tuned-adm`；若曾手工复制 `/usr/local/bin/powerprofilesctl`，迁移时删除这份已知手工副本。配置归属与命令见 [电源配置](../device/power/tuned/README.md)。
+
 ## 从 v0.3.2 升级到 v0.4.0
 
 按下方相同步骤使用 `piano-ubuntu-v0.4.0-packages.zip`，一起安装全部软件包，包括 Linux 7.2.10-piano26 及匹配的相机 loopback 包。安装后重启，使触控修复生效。保留已安装的旧内核及其回退启动镜像组。无需重分区或重刷根镜像。

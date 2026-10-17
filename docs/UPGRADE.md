@@ -11,6 +11,20 @@ The release asset `piano-ubuntu-<version>-packages.zip` is the upgrade package: 
 directory holds every project package installed in that release's image. Always install the
 whole set together, never a single package.
 
+## Preparing to upgrade to v0.5.0
+
+Once the complete v0.5.0 release set is available, install it together as below, including all four Ubuntu power-button packages: GSD/common and control-center/data. The desktop package depends on `tuned-ppd`; APT replaces `power-profiles-daemon` with this provider.
+
+If these four packages were manually held, clear the old holds before installing the matched release set:
+
+```sh
+sudo apt-mark unhold gnome-settings-daemon gnome-settings-daemon-common gnome-control-center gnome-control-center-data
+```
+
+The new desktop package supplies an APT pin and matched version dependencies to retain lock support. This also blocks direct Ubuntu security updates to these four packages: install the project's matched rebuilds promptly; see the [maintenance procedure](../ubuntu/README.md). Other Ubuntu packages update normally.
+
+Reboot, then select Lock Screen and a power mode in Settings → Power. Existing personal power-button choices are preserved. Use `tuned-adm` on the command line; if you previously copied `/usr/local/bin/powerprofilesctl` manually, remove that known manual copy during migration. See [power configuration](../device/power/tuned/README.md) for configuration ownership and commands.
+
 ## Upgrading from v0.3.2 to v0.4.0
 
 Follow the same steps below using `piano-ubuntu-v0.4.0-packages.zip`. Install the entire package set together, including Linux 7.2.10-piano26 and its matching camera loopback package. Reboot to activate the touch fixes. Keep the previous kernel installed and retain its rollback boot set. No repartitioning or root-image flash is needed.
