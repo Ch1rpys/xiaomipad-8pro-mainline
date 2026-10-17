@@ -122,8 +122,9 @@ python3 tools/build-release.py --rootfs-build out/rootfs-<version> \
 
 - Request `tuned-ppd` from the signed snapshot for v0.5.0. The resolver permits
   removal only of `power-profiles-daemon` when replacing that provider. Image
-  construction applies the supplied debs in one offline APT transaction, checks
-  the same removal boundary and forbids downloads. Profiles and configuration
+  construction applies the supplied debs in one offline APT transaction and
+  also permits replacing `iio-sensor-proxy` when the release supplies
+  `piano-iio-sensor-proxy`. All other removals and downloads are forbidden. Profiles and configuration
   ownership are described in [device/power/tuned](../device/power/tuned/README.md).
 - `build-rootfs-image.py` streams the SquashFS into `mke2fs -d -` at the full partition size,
   then boots a QEMU ARM64 guest that installs the packages into the target disk

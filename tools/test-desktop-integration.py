@@ -80,6 +80,21 @@ class DesktopIntegration(unittest.TestCase):
                 self.assertIn(f'Candidate: {version}', policy)
                 self.assertIn('9:99.0-1ubuntu1 -1', policy)
 
+    def test_image_provider_removal_boundary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plan = Path(tmp) / 'plan'
+            script = REPO / 'tools/rootfs-image-steps.sh'
+            def check(text, sensor_supplied):
+                plan.write_text(text)
+                return subprocess.run(['/bin/sh', '-c',
+                    '. "$1"; check_userspace_removals "$2" "$3"',
+                    'check', str(script), str(plan), str(int(sensor_supplied))]).returncode
+            providers = 'Remv power-profiles-daemon [0.30-2]\nRemv iio-sensor-proxy [3.9]\n'
+            self.assertEqual(check(providers, True), 0)
+            self.assertNotEqual(check(providers, False), 0)
+            self.assertEqual(check(providers.replace('iio-sensor-proxy ', 'iio-sensor-proxy:arm64 '), True), 0)
+            self.assertNotEqual(check(providers + 'Remv gnome-shell [50]\n', True), 0)
+
     def test_real_apt_replacement_plan_and_removal_boundary(self):
         with tempfile.TemporaryDirectory() as tmp:
             d = Path(tmp)
