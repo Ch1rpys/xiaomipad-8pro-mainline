@@ -84,8 +84,10 @@ if ls "$T"/var/cache/piano-install/tuned-ppd_*.deb >/dev/null 2>&1; then
 	fi
 	check_userspace_removals "$OUT/userspace-plan.txt" "$replace_iio" || \
 		fail 'unexpected package removal during provider replacement'
+	# The pinned Mozilla deb replaces Ubuntu's epoch-versioned Snap transition
+	# package. APT calls that a downgrade, as in the download-only resolver.
 	in_target /usr/bin/env SYSTEMD_OFFLINE=1 DEBIAN_FRONTEND=noninteractive \
-		/bin/sh -c 'apt-get --yes --no-download --no-install-recommends install /var/cache/piano-install/*.deb' </dev/null
+		/bin/sh -c 'apt-get --yes --allow-downgrades --no-download --no-install-recommends install /var/cache/piano-install/*.deb' </dev/null
 else
 in_target /usr/bin/env SYSTEMD_OFFLINE=1 DEBIAN_FRONTEND=noninteractive \
 	/bin/sh -c 'dpkg --install /var/cache/piano-install/*.deb' </dev/null
