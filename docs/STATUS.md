@@ -76,6 +76,7 @@ results do not establish support for other models, capacities or accessories.
 
 ## Usage notes
 
+- Browser video currently uses software decoding.
 - Bluetooth occasionally needs reconnecting before data or audio works again.
 - The rear camera has fixed focus; nearby subjects may be blurry and color tuning is limited.
 

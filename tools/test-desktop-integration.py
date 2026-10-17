@@ -36,6 +36,10 @@ class DesktopIntegration(unittest.TestCase):
                 self.assertEqual(p.read_bytes(), (REPO / 'device/power/tuned/profiles' /
                                                  p.parent.name / 'tuned.conf').read_bytes())
             self.assertIn('tuned-ppd (>= 2.25.1)', control)
+            dependencies = next(line for line in control.splitlines() if line.startswith('Depends: '))
+            for package in ('showtime', 'gstreamer1.0-plugins-base', 'gstreamer1.0-plugins-good',
+                            'gstreamer1.0-plugins-bad', 'gstreamer1.0-libav'):
+                self.assertEqual(dependencies.split(', ').count(package), 1)
             self.assertFalse((root / 'usr/local').exists())
             self.assertFalse((root / 'etc/mpv').exists())
             self.assertFalse(list(root.rglob('powerprofilesctl')))

@@ -122,6 +122,8 @@
 | 加速度、陀螺、光感、距离 | SSC / hexagonrpcd / libssc | ✅ 可用 | SensorProxy 可报告方向和环境光 |
 | 自动旋转 | SensorProxy / Mutter | ✅ 可用 | 拆下键盘后自动旋转；装着键盘时按 GNOME 规则锁定 |
 
+浏览器视频目前为软件解码。
+
 ### 电源与时间
 
 | 功能 | 器件 / 实现 | 状态 | 说明 |

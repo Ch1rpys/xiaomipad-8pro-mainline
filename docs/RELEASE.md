@@ -88,7 +88,8 @@ manifests). A full root image build takes about 45 minutes on an eight-core host
 python3 tools/prepare-ubuntu-apt.py --rootfs out/ubuntu-desktop-pristine/ubuntu-desktop.squashfs \
   --snapshot <YYYYMMDDT000000Z> --output out/apt-release --mozilla-firefox \
   --download dracut device-tree-compiler openssh-server fake-hwclock systemd-zram-generator \
-  tuned-ppd
+  tuned-ppd showtime gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+  gstreamer1.0-plugins-bad gstreamer1.0-libav
 # 2. The project packages (AGENT-GUIDE.md §3.4, §3.5)
 #    Verify the four patched Ubuntu debs with ubuntu/power-button-lock.SHA256SUMS
 #    (ubuntu/README.md); include all four below as explicit --deb inputs.

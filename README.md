@@ -124,6 +124,8 @@ Not yet supported: USB host / Type-C role switching, USB-C external display.
 | Accelerometer, gyro, light, proximity | SSC / hexagonrpcd / libssc | ✅ works | SensorProxy reports orientation and ambient light |
 | Auto-rotation | SensorProxy / Mutter | ✅ works | Rotates with the keyboard detached; locked by GNOME's rule while the keyboard is attached |
 
+Browser video currently uses software decoding.
+
 ### Power and Time
 
 | Function | Hardware / implementation | Status | Notes |
