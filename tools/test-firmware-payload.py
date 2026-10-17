@@ -143,7 +143,17 @@ class RepositoryTree(unittest.TestCase):
         rows = firmware_payload.load_tree()
         root = firmware_payload.REPO_FIRMWARE
         tree = {str(p.relative_to(root)) for p in root.glob('*/**/*') if p.is_file() or p.is_symlink()}
-        self.assertEqual(tree, {r['path'] for r in rows})
+        sensors = json.loads((root / 'sensors/source.json').read_text())['files']
+        sensor_paths = {'sensors/' + r['path'] for r in sensors}
+        self.assertEqual(len(sensor_paths), len(sensors))
+        self.assertEqual(tree, {r['path'] for r in rows} | sensor_paths |
+                         {'sensors/source.json', 'sensors/README.md'})
+        for row in sensors:
+            path = root / 'sensors' / row['path']
+            with self.subTest(sensor=row['path']):
+                self.assertTrue(path.resolve().is_relative_to((root / 'sensors').resolve()))
+                self.assertFalse(path.is_symlink())
+                self.assertEqual(firmware_payload.sha(path), row['sha256'])
         for row in rows:
             path = root / row['path']
             with self.subTest(path=row['path']):
