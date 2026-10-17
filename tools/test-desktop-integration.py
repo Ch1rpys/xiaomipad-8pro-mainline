@@ -80,6 +80,49 @@ class DesktopIntegration(unittest.TestCase):
                 self.assertIn(f'Candidate: {version}', policy)
                 self.assertIn('9:99.0-1ubuntu1 -1', policy)
 
+    def test_no_download_uses_canonical_local_archive_names(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            for name in ('state/lists/partial', 'empty', 'var/cache/piano-install',
+                         'var/cache/apt/archives/partial', 'stage/DEBIAN'):
+                (d / name).mkdir(parents=True)
+            (d / 'state/status').write_text('')
+            (d / 'stage/DEBIAN/control').write_text(
+                'Package: piano-apt-probe\nVersion: 1:1.0\nArchitecture: all\n'
+                'Maintainer: Test <test@example.invalid>\nDescription: local archive probe\n')
+            # Release filenames need not include the version epoch.
+            deb = d / 'var/cache/piano-install/piano-apt-probe_1.0_all.deb'
+            subprocess.run(['dpkg-deb', '--build', str(d / 'stage'), str(deb)],
+                           check=True, stdout=subprocess.DEVNULL)
+            fake = d / 'fake-dpkg'
+            fake.write_text('#!/bin/sh\nprintf "%s\n" "$*" >>"' + str(d / 'calls') +
+                            '"\nexit 0\n')
+            fake.chmod(0o755)
+            config = d / 'apt.conf'
+            config.write_text('Dir::Etc::main "/dev/null";\nDir::Etc::parts "' +
+                              str(d / 'empty') + '";\n')
+            env = dict(os.environ, LC_ALL='C', APT_CONFIG=str(config),
+                       DEBIAN_FRONTEND='noninteractive')
+            command = ['apt-get', '-o', 'APT::Architecture=arm64',
+                       '-o', 'Dir::Etc::sourcelist=/dev/null',
+                       '-o', f'Dir::Etc::sourceparts={d}/empty',
+                       '-o', f'Dir::State={d}/state',
+                       '-o', f'Dir::State::status={d}/state/status',
+                       '-o', f'Dir::Cache={d}/var/cache/apt',
+                       '-o', f'Dir::Log={d}', '-o', f'Dir::Bin::dpkg={fake}',
+                       '-o', 'Debug::NoLocking=1', '--yes', '--allow-downgrades',
+                       '--no-download', '--no-install-recommends', 'install', str(deb)]
+            negative = subprocess.run(command, env=env, capture_output=True, text=True)
+            self.assertNotEqual(negative.returncode, 0)
+            self.assertIn('Pathname to install is not absolute', negative.stderr)
+            subprocess.run(['/bin/sh', '-ec', '. "$1"; cache_local_debs "$2"',
+                            'cache', str(REPO / 'tools/rootfs-image-steps.sh'), str(d)], check=True)
+            canonical = d / 'var/cache/apt/archives/piano-apt-probe_1%3a1.0_all.deb'
+            self.assertEqual(canonical.read_bytes(), deb.read_bytes())
+            positive = subprocess.run(command, env=env, capture_output=True, text=True)
+            self.assertEqual(positive.returncode, 0, positive.stdout + positive.stderr)
+            self.assertIn(str(canonical), (d / 'calls').read_text())
+
     def test_image_provider_removal_boundary(self):
         with tempfile.TemporaryDirectory() as tmp:
             plan = Path(tmp) / 'plan'

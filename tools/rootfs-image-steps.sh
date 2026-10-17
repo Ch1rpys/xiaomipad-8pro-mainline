@@ -17,6 +17,16 @@ check_userspace_removals() {
 		END { exit bad }' "$1"
 }
 
+cache_local_debs() {
+	# --no-download also skips file: acquisition. Supply APT's canonical cache
+	# names first, including escaped epochs, so dpkg receives absolute paths.
+	install -d "$1/var/cache/apt/archives"
+	for deb in "$1"/var/cache/piano-install/*.deb; do
+		name=$(dpkg-deb --show --showformat='${Package}_${Version}_${Architecture}.deb' "$deb" | sed 's/:/%3a/g')
+		ln -f "$deb" "$1/var/cache/apt/archives/$name"
+	done
+}
+
 in_target() {
 	if [ "$T" = / ]; then "$@"; else chroot "$T" "$@"; fi
 }
@@ -75,6 +85,7 @@ cp "$IN"/debs/*.deb "$T/var/cache/piano-install/"
 # APT handles the tuned-ppd Conflicts/Provides transition in one transaction.
 # The plan may remove only replaced providers; no package downloads are allowed.
 if ls "$T"/var/cache/piano-install/tuned-ppd_*.deb >/dev/null 2>&1; then
+	cache_local_debs "$T"
 	in_target /usr/bin/env LC_ALL=C /bin/sh -c \
 		'apt-get --simulate --no-download --no-install-recommends install /var/cache/piano-install/*.deb' \
 		>"$OUT/userspace-plan.txt"
