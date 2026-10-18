@@ -11,9 +11,9 @@ The release asset `piano-ubuntu-<version>-packages.zip` is the upgrade package: 
 directory holds every project package installed in that release's image. Always install the
 whole set together, never a single package.
 
-## Preparing to upgrade to v0.5.0
+## Upgrading from v0.4.0 to v0.5.0
 
-Once the complete v0.5.0 release set is available, install it together as below, including all four Ubuntu power-button packages: GSD/common and control-center/data. The desktop package depends on `tuned-ppd`; APT replaces `power-profiles-daemon` with this provider.
+Follow the same steps below using `piano-ubuntu-v0.5.0-packages.zip`. Install the entire package set together, including Linux 7.2.10-piano27, its matching camera loopback package and all four Ubuntu power-button packages (GSD/common and control-center/data). Keep the previous kernel installed and retain its rollback boot set. No repartitioning or root-image flash is needed. The desktop package depends on `tuned-ppd`; APT replaces `power-profiles-daemon` with this provider.
 
 If these four packages were manually held, clear the old holds before installing the matched release set:
 

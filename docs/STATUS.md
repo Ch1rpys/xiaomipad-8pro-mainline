@@ -1,6 +1,6 @@
 # Release history and current support
 
-Current release: **v0.4.0**. See the [README](../README.md#hardware-support) or
+Current release: **v0.5.0**. See the [README](../README.md#hardware-support) or
 [中文 README](../README.zh-CN.md#硬件支持) for the hardware support tables and usage instructions.
 
 ## Current support
@@ -9,7 +9,9 @@ Ubuntu 26.04 GNOME runs natively with Android dual boot. Supported features incl
 GPU-accelerated desktop and snap applications, 3200×2136 display with 60/90/120/144 Hz
 selection, Night Light, touch input, magnetic keyboard, Wi-Fi, Bluetooth pairing and
 audio, speaker playback, microphone recording, front and rear cameras, sensors,
-auto-rotation, charging and system suspend.
+auto-rotation, USB host / OTG with docks, USB storage, keyboards and mice, charging and
+system suspend. The power button locks the screen by default and GNOME offers Power Saver,
+Balanced and Performance modes.
 
 H.264/H.265/VP9 hardware decoding is available; automatic use depends on the player.
 H.264/H.265 hardware encoding is verified at 1080p and 4K. Multi-finger gestures and
@@ -18,8 +20,8 @@ speaker volume cap because speaker protection is absent. System time is set
 from the network after boot. Sensor calibration defaults are included; see the
 [calibration instructions](../device/sensors/README.zh-CN.md) to use your own tablet's calibration.
 
-Not yet supported: stylus, fingerprint, USB host / Type-C role switching, USB-C
-external display, disk hibernation and hardware clock writes.
+Not yet supported: stylus, fingerprint, USB-C external display, disk hibernation and
+hardware clock writes.
 
 ## Test configuration
 
@@ -33,6 +35,14 @@ verified on this unit; later versions were tested on the installed system. These
 results do not establish support for other models, capacities or accessories.
 
 ## Completed work by release
+
+### v0.5.0
+
+- USB host / OTG for docks, USB storage, keyboards and mice, including charging while using a powered dock.
+- The power button locks the screen by default and wakes the lock screen when pressed again.
+- Power Saver, Balanced and Performance modes in GNOME, with Balanced as the default.
+- Showtime and GStreamer playback dependencies installed by default, with software decoding fallback.
+- The touch service retries with increasing delays instead of giving up when its stream cannot start.
 
 ### v0.4.0
 

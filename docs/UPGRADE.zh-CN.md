@@ -7,9 +7,9 @@
 
 发布附件里的 `piano-ubuntu-<版本>-packages.zip` 就是升级包：解压后 `debs/` 下是该版本安装在镜像里的全部项目软件包。总是整组一起安装，不要只装其中一个。
 
-## v0.5.0 升级准备
+## 从 v0.4.0 升级到 v0.5.0
 
-收到 v0.5.0 完整发布包后，按下方步骤整组安装，包含电源键的 GSD/common 和控制中心/data 四个 Ubuntu 补丁包。新桌面包依赖 `tuned-ppd`，APT 会替换旧 `power-profiles-daemon`；软件包名称的变化是正常的。
+按下方相同步骤使用 `piano-ubuntu-v0.5.0-packages.zip`，一起安装全部软件包，包括 Linux 7.2.10-piano27、匹配的相机 loopback 包，以及电源键的 GSD/common 和控制中心/data 四个 Ubuntu 补丁包。保留已安装的旧内核及其回退启动镜像组。无需重分区或重刷根镜像。新桌面包依赖 `tuned-ppd`，APT 会替换旧 `power-profiles-daemon`；软件包名称的变化是正常的。
 
 若以前手工 hold 了上述四包，安装整组新包前先解除旧 hold：
 

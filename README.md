@@ -2,7 +2,7 @@
 
 Native Ubuntu 26.04 LTS with the GNOME desktop on the Xiaomi Pad 8 Pro (codename `piano`, Snapdragon 8 Elite), dual-booting with Android, on a device-adapted kernel based on upstream Linux 7.2. Not a container, not a remote desktop. [中文](README.zh-CN.md)
 
-**Latest release: [v0.4.0](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.4.0).** What works is in [Hardware Support](#hardware-support); the technical approach and how it differs from related projects is in [docs/APPROACH.zh-CN.md](docs/APPROACH.zh-CN.md) (Chinese).
+**Latest release: [v0.5.0](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.5.0).** What works is in [Hardware Support](#hardware-support); the technical approach and how it differs from related projects is in [docs/APPROACH.zh-CN.md](docs/APPROACH.zh-CN.md) (Chinese).
 
 ## 📮 Follow & Discuss
 
@@ -45,10 +45,10 @@ The procedure is long and order-sensitive. The easiest way is to hand it to an A
 ```text
 I want to install Ubuntu on a Xiaomi Pad 8 Pro (codename piano), dual-booting with Android. Act as my operator and follow these rules.
 
-Project: https://github.com/yzddmr6/xiaomipad-8pro-mainline , release v0.4.0.
+Project: https://github.com/yzddmr6/xiaomipad-8pro-mainline , release v0.5.0.
 
-1. First git clone the repository and check out tag v0.4.0. Read README.md "Read Before Installing", docs/INSTALL.md, docs/FLASHING.md and the safety rules in section 1 of docs/AGENT-GUIDE.md before doing anything.
-2. Download every asset of GitHub release v0.4.0 into one empty directory, run sha256sum -c SHA256SUMS.assets first, then restore the release directory as the release notes describe and verify it again.
+1. First git clone the repository and check out tag v0.5.0. Read README.md "Read Before Installing", docs/INSTALL.md, docs/FLASHING.md and the safety rules in section 1 of docs/AGENT-GUIDE.md before doing anything.
+2. Download every asset of GitHub release v0.5.0 into one empty directory, run sha256sum -c SHA256SUMS.assets first, then restore the release directory as the release notes describe and verify it again.
 3. Check the host tools (adb, fastboot, python3, zstd, sgdisk, sfdisk, img2simg and the rest of the "Prerequisites" table in INSTALL) and the tablet (product piano, stock build OS3.0.303.0.WPYCNXM, current slot a, unlocked, rooted, battery at least 40 %). If anything does not match, stop and tell me; do not work around it.
 4. Follow docs/INSTALL.md strictly in order and explicitly select my tablet with -s or --serial in every device command. Before each step, tell me in a sentence or two what it does and where it writes. For every operation that writes to the tablet (partition table, erase, flash, slot A), list the exact commands and wait for me to reply "confirm" before running them.
 5. Never write vbmeta, dtbo, any _b partition, persist or any other calibration, modem or firmware partition; never run fastboot --set-active=b; never use calibration, per-unit configuration or images from another tablet.
@@ -60,12 +60,12 @@ Project: https://github.com/yzddmr6/xiaomipad-8pro-mainline , release v0.4.0.
 
 ### Manual installation
 
-1. Download every asset of the [v0.4.0 release](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.4.0) into one empty directory, verify it and restore the release directory:
+1. Download every asset of the [v0.5.0 release](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.5.0) into one empty directory, verify it and restore the release directory:
 
    ```bash
    sha256sum -c SHA256SUMS.assets
-   unzip piano-ubuntu-v0.4.0-boot.zip && unzip piano-ubuntu-v0.4.0-tools.zip && unzip piano-ubuntu-v0.4.0-packages.zip
-   mkdir -p rootfs && cat piano-ubuntu-v0.4.0-rootfs.img.zst.part* | zstd -d > rootfs/root.sparse.img
+   unzip piano-ubuntu-v0.5.0-boot.zip && unzip piano-ubuntu-v0.5.0-tools.zip && unzip piano-ubuntu-v0.5.0-packages.zip
+   mkdir -p rootfs && cat piano-ubuntu-v0.5.0-rootfs.img.zst.part* | zstd -d > rootfs/root.sparse.img
    sha256sum -c SHA256SUMS
    ```
 
@@ -83,7 +83,7 @@ The kernel, Mesa, the device packages, the root image and the signed boot set ar
 
 ## Hardware Support
 
-State of v0.4.0 on the test unit. ✅ works · 🟡 partial · ❌ unsupported · 🧪 untested.
+State of v0.5.0 on the test unit. ✅ works · 🟡 partial · ❌ unsupported · 🧪 untested.
 ✅ means the described function was verified on the tablet, not that every application and use case was tested. Current support and improvements by release are in [docs/STATUS.md](docs/STATUS.md).
 
 ### Platform, Display and Input
@@ -109,8 +109,9 @@ Not yet supported: stylus, fingerprint.
 | Wi-Fi | Qualcomm WCN7860 / ath12k | ✅ works | Stable 2.4 GHz and 5 GHz 80 MHz links |
 | Bluetooth | Qualcomm WCN7860 / `hci_qca` | 🟡 partial | Pairing, file transfer and audio work; occasionally needs reconnecting |
 | USB device mode | USB 2.0 networking (NCM) | ✅ works | SSH over the USB cable in developer mode, off by default |
+| USB host / OTG | Type-C role switching / USB 2.0 host | ✅ works | Docks, USB storage, keyboards and mice; charging while using a powered dock |
 
-Not yet supported: USB host / Type-C role switching, USB-C external display.
+Not yet supported: USB-C external display.
 
 ### Audio, Video and Sensors
 
@@ -130,7 +131,8 @@ Browser video currently uses software decoding.
 
 | Function | Hardware / implementation | Status | Notes |
 |---|---|---|---|
-| Power / volume keys | Qualcomm PMIC | 🟡 partial | Power key and wake verified; action configurable in Settings → Power (default: suspend); volume keys unverified |
+| Power / volume keys | Qualcomm PMIC | 🟡 partial | Power key locks the screen by default and wakes the lock screen; action configurable in Settings → Power; volume keys unverified |
+| Power modes | GNOME / TuneD | ✅ works | Power Saver, Balanced and Performance in quick settings or Settings → Power; Balanced by default |
 | Battery gauge / temperature | 2 × TI BQ27Z561 / thermal zones | ✅ works | Charge level, voltage, current and temperatures |
 | Charging | `xiaomi_mca` / SC8541 | 🟡 partial | Charging and charging restoration after suspend; limited charger compatibility |
 | Suspend | suspend-to-idle | ✅ works | Timer, keyboard, power-button and cover-open wake; default system idle policy |
