@@ -1,6 +1,6 @@
 # Release history and current support
 
-Current release: **v0.5.0**. See the [README](../README.md#hardware-support) or
+Current release: **v0.5.1**. See the [README](../README.md#hardware-support) or
 [中文 README](../README.zh-CN.md#硬件支持) for the hardware support tables and usage instructions.
 
 ## Current support
@@ -35,6 +35,11 @@ verified on this unit; later versions were tested on the installed system. These
 results do not establish support for other models, capacities or accessories.
 
 ## Completed work by release
+
+### v0.5.1
+
+- Touch recovers reliably after the touch service restarts.
+- Repeated quick logout and login cycles no longer stall the system.
 
 ### v0.5.0
 
