@@ -273,7 +273,11 @@ def main():
                 # and deb-systemd-helper state left by versions that enabled it.
                 ' deb-systemd-helper purge piano-thp.service >/dev/null\n'
                 ' deb-systemd-helper enable piano-slot-success.service piano-debug.service '
-                'piano-debug-timeout.service >/dev/null\nfi\n',
+                'piano-debug-timeout.service >/dev/null\n'
+                # Shipped unit files change between versions (restart policy, dependencies);
+                # the running manager must read them before the next activation.
+                ' if [ -d /run/systemd/system ]; then systemctl --system daemon-reload >/dev/null || true; fi\n'
+                'fi\n',
                 recommends='openssh-server',  # developer mode only; piano-devmode refuses without sshd
                 third_party=support_third_party)
         if a.support_only:
