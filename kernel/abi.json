@@ -170,6 +170,12 @@
       "kernel_commit": "5ed69822d95a564e9743c27c446107363ec6abd1",
       "config_sha256": "21d14315346610d1c3b42474fcb3fc36af2c28462043818243a4d40570829b9f",
       "upload": 1
+    },
+    {
+      "kernel_release": "7.2.10-piano29",
+      "kernel_commit": "0ba4d25b6ba4f382a556b851141934d737206a19",
+      "config_sha256": "b0b77ef8f635dd76fde7bd2e5a23381edc8ca3eb47bf76408a6e319f8532807d",
+      "upload": 1
     }
   ]
 }
