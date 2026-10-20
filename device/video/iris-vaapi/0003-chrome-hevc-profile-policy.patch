@@ -1,0 +1,144 @@
+From: yzddmr6 <46088090+yzddmr6@users.noreply.github.com>
+Subject: [PATCH] va: withhold HEVC profiles from the Chrome executable
+
+Keep Chrome's validation and sandbox defaults unchanged. Restrict only the
+published profile set; the existing createConfig guard rejects hidden profiles.
+Use Linux AT_EXECFN, not the mutable task title or argv[0]. Other executables,
+including Firefox RDD children, keep the probed HEVC Main/Main10 profiles.
+
+Upstream issue: https://issues.chromium.org/issues/563075803
+Remove when an accepted Chrome version and Iris path pass HEVC seek/DRC.
+License: MIT
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+
+--- /dev/null
++++ b/src/va/client_policy.h
+@@ -0,0 +1,30 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++
++#include <set>
++#include <string_view>
++#include <sys/auxv.h>
++#include <va/va.h>
++
++namespace va {
++
++// Official Linux Chrome executes a binary named "chrome", including its
++// GPU/zygote children. AT_EXECFN survives argv/process-title changes and needs
++// no /proc access or new sandbox permission. This is a compatibility rule,
++// not an executable authentication or security boundary.
++inline void apply_client_profile_policy(std::set<VAProfile>& profiles)
++{
++    const auto* executable = reinterpret_cast<const char*>(getauxval(AT_EXECFN));
++    std::string_view name = executable ? executable : "";
++    const auto slash = name.find_last_of('/');
++    if (slash != std::string_view::npos)
++        name.remove_prefix(slash + 1);
++    if (name == "chrome") {
++        // Chromium 563075803: keep bitstream validation and browser defaults
++        // intact. Firefox and other clients retain HEVC capability.
++        profiles.erase(VAProfileHEVCMain);
++        profiles.erase(VAProfileHEVCMain10);
++    }
++}
++
++} // namespace va
+--- a/src/va/driver.cc
++++ b/src/va/driver.cc
+@@ -4,6 +4,7 @@
+ // src/va file shares.
+ 
+ #include "driver.h"
++#include "client_policy.h"
+ 
+ #include "../util/error.h"
+ 
+@@ -128,6 +129,7 @@
+     }
+     if (options.experimental_profiles && caps.output_formats.count(V4L2_PIX_FMT_AV1) && caps.nv12)
+         caps.profiles.insert(VAProfileAV1Profile0);
++    apply_client_profile_policy(caps.profiles);
+     return caps;
+ }
+ 
+--- /dev/null
++++ b/test/client-profile-policy.cc
+@@ -0,0 +1,59 @@
++// SPDX-License-Identifier: MIT
++#include "../src/va/driver.h"
++#include "../src/va/client_policy.h"
++#include "../src/util/error.h"
++#include <algorithm>
++#include <cstdio>
++#include <cstring>
++#include <sys/prctl.h>
++
++// config.cc's error translation, without linking a hardware capability probe.
++namespace va {
++VAStatus report(VADriverContextP, const char*, const std::exception& error)
++{
++    const auto* e = dynamic_cast<const iris::Error*>(&error);
++    return e ? e->status : VA_STATUS_ERROR_OPERATION_FAILED;
++}
++}
++
++int main(int argc, char** argv)
++{
++    if (argc < 2) return 2;
++    const bool blocked = std::strcmp(argv[1], "blocked") == 0;
++    // A child can change its visible title/argv[0]; the executable still wins.
++    if (argc > 2) {
++        const char* title = blocked ? "firefox" : "chrome";
++        if (std::strlen(argv[0]) < std::strlen(title)) return 3;
++        std::strcpy(argv[0], title);
++        if (prctl(PR_SET_NAME, title, 0, 0, 0) != 0) return 4;
++    }
++    va::DriverData d;
++    d.capabilities.nv12 = d.capabilities.p010 = true;
++    d.capabilities.profiles = {VAProfileH264High, VAProfileHEVCMain,
++                              VAProfileHEVCMain10, VAProfileVP9Profile0};
++    va::apply_client_profile_policy(d.capabilities.profiles);
++    VADriverContext ctx{};
++    ctx.pDriverData = &d;
++    VAProfile profiles[va::kMaxProfiles];
++    int count = 0;
++    if (va::queryConfigProfiles(&ctx, profiles, &count) != VA_STATUS_SUCCESS) return 5;
++    for (const auto profile : {VAProfileH264High, VAProfileVP9Profile0,
++                               VAProfileHEVCMain, VAProfileHEVCMain10}) {
++        const bool hevc = profile == VAProfileHEVCMain || profile == VAProfileHEVCMain10;
++        const bool allowed = !(blocked && hevc);
++        const bool advertised = std::find(profiles, profiles + count, profile) != profiles + count;
++        VAConfigID id = VA_INVALID_ID;
++        const auto status = va::createConfig(&ctx, profile, VAEntrypointVLD, nullptr, 0, &id);
++        VAEntrypoint entry{};
++        int entries = -1;
++        va::queryConfigEntrypoints(&ctx, profile, &entry, &entries);
++        VAConfigAttrib attribute{VAConfigAttribRTFormat, 0};
++        va::getConfigAttributes(&ctx, profile, VAEntrypointVLD, &attribute, 1);
++        if (advertised != allowed || entries != int(allowed) ||
++            status != (allowed ? VA_STATUS_SUCCESS : VA_STATUS_ERROR_UNSUPPORTED_PROFILE) ||
++            (attribute.value != VA_ATTRIB_NOT_SUPPORTED) != allowed) return 6;
++        if (allowed && va::destroyConfig(&ctx, id) != VA_STATUS_SUCCESS) return 7;
++    }
++    std::printf("HEVC=%s H264=yes VP9=yes executable-policy OK\n", blocked ? "no" : "yes");
++    return 0;
++}
+--- a/test/meson.build
++++ b/test/meson.build
+@@ -55,3 +55,15 @@
+      args: [meson.project_source_root()])
+ test('iris-browser-launcher-check', find_program('iris-browser-launcher-check.sh'),
+      args: [meson.project_source_root()])
++
++# Real executable-name controls exercise the VA query and create-config API.
++foreach client : ['chrome', 'firefox']
++  profile_test = executable(client,
++    ['client-profile-policy.cc', '../src/va/config.cc'],
++    dependencies: [iris_core_dep],
++    cpp_args: ['-Wall', '-Wextra', '-std=c++20'])
++  expected = client == 'chrome' ? 'blocked' : 'allowed'
++  test('profile-policy-' + client, profile_test, args: [expected])
++  test('profile-policy-' + client + '-renamed-title', profile_test,
++       args: [expected, 'rename-title'])
++endforeach

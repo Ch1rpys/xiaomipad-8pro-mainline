@@ -597,3 +597,8 @@ device/video/iris-vaapi (fetched source and license files):
   Descended from mxsrc/libva-v4l2 and Bootlin libva-v4l2-request.
   Kernel patches are not packaged here; they are maintained in the kernel
   repository with Xilin Wu / Radxa attribution and GPL-2.0-only licensing.
+
+Iris VA-API local client policy (MIT):
+  Withhold HEVC Main/Main10 from the official Chrome executable while retaining
+  Firefox HEVC, using AT_EXECFN without browser flags or sandbox changes.
+  Complete corresponding source is included inside piano-iris-vaapi debs.

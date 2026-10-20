@@ -21,7 +21,8 @@ python3 tools/build-iris-vaapi-deb.py \
 ```
 
 The output contains an ARM64 deb, the complete corresponding source archive,
-test logs and a manifest. Unchanged inputs reuse the Meson output. Changed
+test logs and a manifest. The deb also carries the complete source in
+`/usr/share/doc/piano-iris-vaapi/source.tar.xz`. Unchanged inputs reuse the Meson output. Changed
 inputs require a new output directory.
 
 The driver package owns only its libva plugin, the MSM discovery symlink and
@@ -36,3 +37,19 @@ decoding, resolution switching or presentation support on a device.
 
 Chromium snap is outside this integration: its confinement and bundled
 libraries require separate package integration.
+
+For v0.6.0, the capability probe withholds HEVC Main/Main10 only from the
+executable basename `chrome` (the official Linux Chrome binary and its GPU
+children). Linux `AT_EXECFN` supplies the executable path without opening
+`/proc` or changing sandbox permissions. Mutable task names and argv[0] do
+not affect the rule. Firefox keeps both HEVC profiles. The existing VA
+create-config check also rejects a hidden profile; H.264 and VP9 remain
+available. This is a client compatibility rule, not executable authentication.
+
+No browser flag, environment override or bitstream-validation setting is
+changed. Remove the compatibility patch after an accepted Chrome release
+passes HEVC seek and resolution changes with the normal validation enabled.
+The four ARM64 offline policy tests use real `chrome`/`firefox` executable
+names and exercise VA profile enumeration, entrypoints, attributes and
+config creation, including renamed process titles. They do not establish
+hardware playback results.

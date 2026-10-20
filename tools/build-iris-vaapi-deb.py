@@ -86,6 +86,14 @@ def main():
                  "source.json", "build-deps.json", "README.md"):
         shutil.copy2(INPUT / name, doc / name)
     shutil.copy2(INPUT / "COPYING", doc / "copyright")
+    # Ship corresponding source inside the deb as well as beside it: normal
+    # release packaging then carries the LGPL source without a separate step.
+    source_archive = out / f"{package}_{lock['version']}.tar.xz"
+    with tarfile.open(source_archive, "w:xz") as archive:
+        archive.add(source, arcname=source.name)
+        archive.add(INPUT, arcname="piano-integration")
+        archive.add(Path(__file__).resolve(), arcname="piano-integration/build-iris-vaapi-deb.py")
+    shutil.copy2(source_archive, doc / "source.tar.xz")
     control = stage / "DEBIAN"
     control.mkdir()
     (control / "control").write_text(
@@ -99,12 +107,6 @@ def main():
         " Stateful V4L2 H.264, HEVC and VP9 decoder backend. AV1 is not enabled.\n")
     deb = out / f"{package}_{lock['version']}_arm64.deb"
     run("dpkg-deb", "--root-owner-group", "-Zxz", "--build", stage, deb)
-    # Complete corresponding source accompanies the binary for license compliance.
-    source_archive = out / f"{package}_{lock['version']}.tar.xz"
-    with tarfile.open(source_archive, "w:xz") as archive:
-        archive.add(source, arcname=source.name)
-        archive.add(INPUT, arcname="piano-integration")
-        archive.add(Path(__file__).resolve(), arcname="piano-integration/build-iris-vaapi-deb.py")
     manifest = {
         "status": "OFFLINE_ONLY",
         "source_commit": lock["commit"],

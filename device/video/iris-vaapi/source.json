@@ -4,11 +4,12 @@
   "commit": "f587b14e6b22955c7250a45ff5f43588bbce2114",
   "archive_url": "https://codeload.github.com/phxinyang/qualcomm-iris-vaapi/tar.gz/f587b14e6b22955c7250a45ff5f43588bbce2114",
   "archive_sha256": "7b4c073b575f4ba6692d03f15990807c1dd8b4775474b74d4558ca7877e184fc",
-  "version": "0.1.0+git.f587b14-0piano3",
+  "version": "0.1.0+git.f587b14-0piano4",
   "license": "MIT and LGPL-2.1; bundled kernel patches are GPL-2.0-only",
   "patches": [
     "0001-pin-archive-build-version.patch",
-    "0002-defer-copy-engine.patch"
+    "0002-defer-copy-engine.patch",
+    "0003-chrome-hevc-profile-policy.patch"
   ],
-  "status": "Offline candidate; browser sandbox and piano hardware acceptance pending"
+  "status": "v0.6.0 scope: Firefox H264/HEVC/VP9, Chrome H264/VP9; Chrome HEVC profile restriction verified offline"
 }
