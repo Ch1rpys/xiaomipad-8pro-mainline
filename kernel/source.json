@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "purpose": "v0.5.1: touch recovery after service restart; audio stall after quick session switches",
+  "purpose": "v0.6.0 candidate: USB 3 SuperSpeed, USB-C DisplayPort Alt Mode and UTF-8 filesystem names",
   "upstream_url": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git",
   "upstream_tag": "v7.2.10",
   "upstream_commit": "7b20d05fd38de8e0be168956f6fd241d750c7d69",
   "url": "https://github.com/yzddmr6/linux-sm8750-piano",
-  "commit": "5ed69822d95a564e9743c27c446107363ec6abd1",
-  "branch": "piano/v0.5.1",
+  "commit": "0ba4d25b6ba4f382a556b851141934d737206a19",
+  "branch": "piano/v0.6.0",
   "config": "arch/arm64/configs/piano-diagnostic.config",
   "release_config_fragments": [
     "arch/arm64/configs/piano-diagnostic.config",
@@ -15,5 +15,5 @@
     "arch/arm64/configs/piano-release.config"
   ],
   "note": "The kernel release fragments remain in the kernel source and are merged in order. tools/build-kernel.sh then applies kernel_release to CONFIG_LOCALVERSION for package ABI allocation without a kernel-only release commit; all other configuration remains unchanged. kernel/abi.json binds the final commit and .config.",
-  "kernel_release": "7.2.10-piano28"
+  "kernel_release": "7.2.10-piano29"
 }
