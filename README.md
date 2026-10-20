@@ -83,7 +83,7 @@ The kernel, Mesa, the device packages, the root image and the signed boot set ar
 
 ## Hardware Support
 
-State of v0.5.1 on the test unit. ✅ works · 🟡 partial · ❌ unsupported · 🧪 untested.
+State of v0.5.1 on the test unit; USB entries also cover the v0.6.0 candidate. ✅ works · 🟡 partial · ❌ unsupported · 🧪 untested.
 ✅ means the described function was verified on the tablet, not that every application and use case was tested. Current support and improvements by release are in [docs/STATUS.md](docs/STATUS.md).
 
 ### Platform, Display and Input
@@ -108,10 +108,9 @@ Not yet supported: stylus, fingerprint.
 |---|---|---|---|
 | Wi-Fi | Qualcomm WCN7860 / ath12k | ✅ works | Stable 2.4 GHz and 5 GHz 80 MHz links |
 | Bluetooth | Qualcomm WCN7860 / `hci_qca` | 🟡 partial | Pairing, file transfer and audio work; occasionally needs reconnecting |
-| USB device mode | USB 2.0 networking (NCM) | ✅ works | SSH over the USB cable in developer mode, off by default |
-| USB host / OTG | Type-C role switching / USB 2.0 host | ✅ works | Docks, USB storage, keyboards and mice; charging while using a powered dock |
-
-Not yet supported: USB-C external display.
+| USB device mode | USB 3 / 5 Gbit/s networking (NCM) | ✅ works | v0.6.0 candidate; SSH over the USB cable in developer mode, off by default |
+| USB host / OTG | Type-C role switching / USB 3 / 5 Gbit/s | 🧪 pending full validation | `<<USB3 orientations: pending owner-attended testing>>` |
+| USB-C external display | DisplayPort Alt Mode | 🧪 untested | `<<External display: pending owner-attended testing>>` |
 
 ### Audio, Video and Sensors
 
