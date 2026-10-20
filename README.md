@@ -124,7 +124,7 @@ Not yet supported: stylus, fingerprint.
 | Accelerometer, gyro, light, proximity | SSC / hexagonrpcd / libssc | ✅ works | SensorProxy reports orientation and ambient light |
 | Auto-rotation | SensorProxy / Mutter | ✅ works | Rotates with the keyboard detached; locked by GNOME's rule while the keyboard is attached |
 
-Browser video currently uses software decoding.
+Firefox supports H.264/VP9/HEVC hardware decoding; Chrome supports H.264/VP9. AV1 uses software decoding; Chromium snap is not covered by this acceleration integration.
 
 ### Power and Time
 

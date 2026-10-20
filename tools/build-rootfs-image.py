@@ -59,7 +59,7 @@ PROFILE_FIELDS = {
     'vendor_boot': ('header_version', 'capacity', 'rollback_index', 'avb_properties',
                     'page_size', 'kernel_addr', 'ramdisk_addr', 'tags_addr', 'dtb_addr'),
 }
-PIANO_PACKAGES = ('piano-device-support', 'piano-local-firmware', 'piano-mesa', 'piano-ubuntu-desktop')
+PIANO_PACKAGES = ('piano-device-support', 'piano-local-firmware', 'piano-mesa', 'piano-ubuntu-desktop', 'piano-iris-vaapi')
 UNITS_ENABLED = {'piano-slot-success.service': 'enabled', 'piano-devmode.service': 'disabled',
                  'piano-firefox-snap-remove.service': 'enabled',
                  'ssh.socket': 'disabled', 'ssh.service': 'disabled',
@@ -342,7 +342,7 @@ def main():
     ap.add_argument('--qemu', type=Path, help='qemu-system-aarch64 (guest backend only)')
     ap.add_argument('--kernel-deb', type=Path, required=True)
     ap.add_argument('--deb', type=Path, action='append', required=True,
-                    help='piano-device-support, piano-local-firmware, piano-mesa, piano-ubuntu-desktop')
+                    help='piano-device-support, piano-local-firmware, piano-mesa, piano-ubuntu-desktop, piano-iris-vaapi')
     ap.add_argument('--apt-manifest', type=Path, required=True,
                     help='prepare-ubuntu-apt.py --download manifest of the Ubuntu packages to add')
     ap.add_argument('--boot-profile', type=Path, required=True, help='Boot profile read from a stock unit')

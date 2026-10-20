@@ -91,7 +91,7 @@ results do not establish support for other models, capacities or accessories.
 
 ## Usage notes
 
-- Browser video currently uses software decoding.
+- Firefox supports H.264/VP9/HEVC hardware decoding; Chrome supports H.264/VP9. Some HEVC videos may drop a small number of frames in Firefox.
 - Bluetooth occasionally needs reconnecting before data or audio works again.
 - The rear camera has fixed focus; nearby subjects may be blurry and color tuning is limited.
 
