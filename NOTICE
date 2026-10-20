@@ -589,3 +589,11 @@ Ubuntu power-button lock patches (2026-10-16)
   https://gitlab.gnome.org/GNOME/gnome-settings-daemon/-/merge_requests/320
 - Rebuilt distribution binaries retain Ubuntu packaging and copyright files;
   no binary, debug package or build-environment record is imported here.
+
+device/video/iris-vaapi (fetched source and license files):
+  https://github.com/phxinyang/qualcomm-iris-vaapi
+  Commit: f587b14e6b22955c7250a45ff5f43588bbce2114
+  Licenses: MIT and LGPL-2.1; see COPYING* in that directory.
+  Descended from mxsrc/libva-v4l2 and Bootlin libva-v4l2-request.
+  Kernel patches are not packaged here; they are maintained in the kernel
+  repository with Xilin Wu / Radxa attribution and GPL-2.0-only licensing.
