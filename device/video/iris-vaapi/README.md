@@ -8,7 +8,10 @@ FFmpeg or Mesa.
 Build with Python 3.12+, Meson, Ninja, an ARM64 C/C++20 toolchain and an
 explicit Meson cross file. The target sysroot needs libva ≥ 2.23, libdrm,
 EGL, GLES and GBM development files. Its executable wrapper must run ARM64
-unit tests (QEMU user mode is sufficient).
+unit tests (QEMU user mode is sufficient). `build-deps.json` records the
+reference build's dependency URLs, versions and hashes; extract development
+packages into a host sysroot. Use compiler `-ffile-prefix-map` flags to remove
+host paths, including paths embedded by C++ standard-library assertions.
 
 ```sh
 python3 tools/build-iris-vaapi-deb.py \

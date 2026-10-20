@@ -348,7 +348,8 @@ def main():
                    '  if [ ! -s /etc/machine-info ]; then rm -f /etc/machine-info; fi\n'
                    ' fi\n'
                    ' deb-systemd-helper --user purge piano-panel-srgb.service >/dev/null\nfi\n',
-            conffiles=['/etc/apt/preferences.d/piano-power-button-lock', '/etc/tuned/piano-ppd.conf'],
+            conffiles=['/etc/apt/preferences.d/piano-power-button-lock', '/etc/tuned/piano-ppd.conf',
+                       '/etc/xdg/mimeapps.list'],
             third_party=[(('usr/share/alsa/ucm2/*',),
                           '2026 bluseliu50 and piano mainline contributors; '
                           '2019 Advanced Linux Sound Architecture (ALSA) project', 'MIT AND BSD-3-Clause',

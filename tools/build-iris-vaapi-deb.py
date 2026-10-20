@@ -82,7 +82,8 @@ def main():
     (libdir / "msm_drv_video.so").symlink_to(driver.name)
     doc = stage / "usr/share/doc" / package
     doc.mkdir(parents=True)
-    for name in ("COPYING", "COPYING.MIT", "COPYING.LGPL", "AUTHORS", "CREDITS", "source.json"):
+    for name in ("COPYING", "COPYING.MIT", "COPYING.LGPL", "AUTHORS", "CREDITS",
+                 "source.json", "build-deps.json", "README.md"):
         shutil.copy2(INPUT / name, doc / name)
     shutil.copy2(INPUT / "COPYING", doc / "copyright")
     control = stage / "DEBIAN"
@@ -111,6 +112,11 @@ def main():
         "driver_sha256": sha(driver),
         "artifacts": {p.name: sha(p) for p in (deb, source_archive)},
         "hardware_acceptance": "pending",
+    }
+    compilers = json.loads((build / "meson-info/intro-compilers.json").read_text())
+    manifest["compilers"] = {
+        language: {key: compiler[key] for key in ("id", "version")}
+        for language, compiler in compilers["host"].items()
     }
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     print(deb)
