@@ -11,6 +11,10 @@ The release asset `piano-ubuntu-<version>-packages.zip` is the upgrade package: 
 directory holds every project package installed in that release's image. Always install the
 whole set together, never a single package.
 
+## Upgrading from v0.5.1 to v0.6.0
+
+Use `piano-ubuntu-v0.6.0-packages.zip` with the same steps below and install the complete package set, including Linux 7.2.10-piano29 and its matching camera loopback package. Reboot to use the new kernel and UTF-8 filename defaults. Keep the installed previous kernel and its rollback boot set. No repartitioning or root image reflash is needed.
+
 ## Upgrading from v0.5.0 to v0.5.1
 
 Follow the same steps below using `piano-ubuntu-v0.5.1-packages.zip`. Install the entire package set together, including Linux 7.2.10-piano28 and its matching camera loopback package. Reboot to activate the touch recovery and audio session-switch fixes. Keep the previous kernel installed and retain its rollback boot set. No repartitioning or root-image flash is needed.
