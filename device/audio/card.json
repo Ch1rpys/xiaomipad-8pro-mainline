@@ -28,7 +28,7 @@
   },
   "unattended_limits": {
     "amp_volume_max": 160,
-    "kernel_amp_volume_cap": 215,
+    "kernel_amp_volume_cap": 231,
     "tone_max_dbfs": -20,
     "tone_max_seconds": 3,
     "watchdog_seconds": 5,
