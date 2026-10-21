@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "purpose": "v0.6.0 browser hardware decode candidate: Iris decode-order output and larger CAPTURE pool",
+  "purpose": "v0.6.0: QMP committed-mode cache fix and owner-selected -9 dB speaker gain",
   "upstream_url": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git",
   "upstream_tag": "v7.2.10",
   "upstream_commit": "7b20d05fd38de8e0be168956f6fd241d750c7d69",
   "url": "https://github.com/yzddmr6/linux-sm8750-piano",
-  "commit": "e6537c292a51bd4e8b9c6a0d4823664f3ba4f995",
-  "branch": "piano/v0.6.0-iris-vaapi",
+  "commit": "55b55246a1da291a2509330c234b63dd26d9ec4d",
+  "branch": "piano/v0.6.0-qmp-fix",
   "config": "arch/arm64/configs/piano-diagnostic.config",
   "release_config_fragments": [
     "arch/arm64/configs/piano-diagnostic.config",
@@ -15,5 +15,5 @@
     "arch/arm64/configs/piano-release.config"
   ],
   "note": "The kernel release fragments remain in the kernel source and are merged in order. tools/build-kernel.sh then applies kernel_release to CONFIG_LOCALVERSION for package ABI allocation without a kernel-only release commit; all other configuration remains unchanged. kernel/abi.json binds the final commit and .config.",
-  "kernel_release": "7.2.10-piano30"
+  "kernel_release": "7.2.10-piano31"
 }
