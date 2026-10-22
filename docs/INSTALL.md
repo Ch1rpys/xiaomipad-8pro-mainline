@@ -574,8 +574,9 @@ the host ([FLASHING.md](FLASHING.md#from-the-host-piano-switchpy)).
 
 - **No sound.** Check the kernel log first:
   `sudo journalctl -k -b | grep -E 'crash detected in adsp|sns_watchdog'`. Repeated lines mean the
-  sensor service keeps restarting the audio DSP. After the third such crash in a boot the sensor
-  service moves its registry to `/var/lib/piano/sensors/registry.quarantine-<time>` and starts over
+  sensor service keeps restarting the audio DSP. Once the DSP has crashed three times in a boot, at
+  least once from `sns_watchdog`, the sensor service moves its registry to
+  `/var/lib/piano/sensors/registry.quarantine-<time>` and starts over
   (`journalctl -b -u piano-hexagonrpcd-sns` names it). If the lines continue, install your own
   sensor registry ([step 3](#recommended-prepare-your-sensor-registry)) as described in the
   [sensor instructions](../device/sensors/README.zh-CN.md) (Chinese).

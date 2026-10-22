@@ -15,15 +15,17 @@ from qrtr import lookup
 # ADSP fatal error raised by the sensor service watchdog, for example
 # "qcom_q6v5_pas 6800000.remoteproc: fatal error received: err_qdi.c:1215:EF:qsh_process:0x4:
 # UTIMER_CLIENT_4:0x1000002f:sns_watchdog.c:84:thread idx 1 exceeded processing time-limit".
+# After the first one the ADSP can keep failing with watchdog bites ("SFR Init") instead.
 SENSOR_WATCHDOG = re.compile(rb'fatal error received: .*(?:qsh_process|sns_watchdog)')
+ADSP_CRASH = re.compile(rb'crash detected in adsp:')
 QUARANTINE_AFTER = 3
 QUARANTINE_KEEP = 3
 QUARANTINE_BOOT = 'quarantine.boot_id'
 
 
-def sensor_watchdog_crashes(kmsg):
-    """Count this boot's sensor watchdog fatal errors in the kernel log (/dev/kmsg)."""
-    count = 0
+def adsp_crashes(kmsg):
+    """Count this boot's ADSP crashes and sensor watchdog fatal errors in /dev/kmsg."""
+    crashes = sensor = 0
     fd = os.open(kmsg, os.O_RDONLY | os.O_NONBLOCK | os.O_CLOEXEC)
     try:
         while True:
@@ -35,14 +37,18 @@ def sensor_watchdog_crashes(kmsg):
                 continue  # older records were overwritten; reading resumes at the oldest kept one
             if not record:
                 break
-            count += sum(1 for line in record.splitlines() if SENSOR_WATCHDOG.search(line))
+            for line in record.splitlines():
+                crashes += bool(ADSP_CRASH.search(line))
+                sensor += bool(SENSOR_WATCHDOG.search(line))
     finally:
         os.close(fd)
-    return count
+    return crashes, sensor
 
 
-def quarantine_registry(state, crashes, boot_id, now):
-    """Move the registry state aside after repeated sensor watchdog crashes, once per boot.
+def quarantine_registry(state, crashes, sensor, boot_id, now):
+    """Move the registry state aside after repeated ADSP crashes started by the sensor
+    watchdog: at least QUARANTINE_AFTER crashes, at least one with its fatal error.
+    At most once per boot.
 
     The ADSP restarts after each crash and this service runs again, so the current boot's
     kernel log is enough. The moved state is kept for diagnosis; only the oldest of more
@@ -50,7 +56,7 @@ def quarantine_registry(state, crashes, boot_id, now):
     """
     live = state / 'registry'
     marker = state / QUARANTINE_BOOT
-    if crashes < QUARANTINE_AFTER or live.is_symlink() or not live.is_dir():
+    if crashes < QUARANTINE_AFTER or not sensor or live.is_symlink() or not live.is_dir():
         return None
     boot = boot_id.read_text().strip()
     if marker.is_file() and marker.read_text().strip() == boot:
@@ -136,15 +142,16 @@ def main():
     share = Path('/usr/share/piano/sensors')
     state = Path(os.environ['STATE_DIRECTORY'])
     try:
-        crashes = sensor_watchdog_crashes('/dev/kmsg')
+        crashes, sensor = adsp_crashes('/dev/kmsg')
     except OSError as error:
         print(f'piano-sensors: kernel log unreadable, registry check skipped: {error}', file=sys.stderr, flush=True)
-        crashes = 0
-    moved = quarantine_registry(state, crashes, Path('/proc/sys/kernel/random/boot_id'),
+        crashes = sensor = 0
+    moved = quarantine_registry(state, crashes, sensor, Path('/proc/sys/kernel/random/boot_id'),
                                 datetime.now(timezone.utc))
     if moved:
-        print(f'piano-sensors: {crashes} ADSP fatal errors from the sensor watchdog (qsh_process/sns_watchdog) '
-              f'in this boot; moved the sensor registry to {moved} and seeding it again', flush=True)
+        print(f'piano-sensors: {crashes} ADSP crashes in this boot, {sensor} of them fatal errors from the sensor '
+              f'watchdog (qsh_process/sns_watchdog); moved the sensor registry to {moved} and seeding it again',
+              flush=True)
     calibration = seed_registry(share, state)
     print('SSC_REGISTRY=' + calibration, flush=True)
     if calibration == 'stock-default-calibration':

@@ -520,7 +520,8 @@ piano-devmode status       # 预期 "developer mode: disabled, inactive"
 ## 排障
 
 - **没有声音。** 先查内核日志：`sudo journalctl -k -b | grep -E 'crash detected in adsp|sns_watchdog'`。
-  反复出现说明传感器服务在让音频 DSP 不断重启。同一次启动中出现第三次时，传感器服务会把 registry 移到
+  反复出现说明传感器服务在让音频 DSP 不断重启。同一次启动中 DSP 崩溃满三次、且至少一次来自 `sns_watchdog` 时，
+  传感器服务会把 registry 移到
   `/var/lib/piano/sensors/registry.quarantine-<时间>` 并重新开始（`journalctl -b -u piano-hexagonrpcd-sns`
   会写出该目录）。如果仍持续出现，按[传感器说明](../device/sensors/README.zh-CN.md)安装本机传感器 registry
   （[第 3 步](#推荐准备本机传感器-registry)）。
