@@ -232,8 +232,8 @@ def main():
                     p.error(f'Native display node is not enabled: {node}')
             compatible = subprocess.check_output(['fdtget', '-t', 's', str(a.dtb),
                                                   mdss + '/dsi@ae94000/panel@0', 'compatible'], text=True).strip()
-            if compatible != 'xiaomi,piano-boe-nt36532 novatek,nt36532':
-                p.error('Native display candidate must use the selected P81 42-02-0a profile')
+            if compatible != 'xiaomi,piano-nt36532 novatek,nt36532':
+                p.error('Native display candidate must use the piano NT36532 panel node')
     a.output.mkdir(parents=True, exist_ok=False)
     out = a.output.resolve()
     shutil.copyfile(a.profile, out / 'profile.json')
