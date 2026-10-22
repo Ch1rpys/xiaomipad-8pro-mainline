@@ -1,6 +1,6 @@
 # Release history and current support
 
-Current release: **v0.5.1**. See the [README](../README.md#hardware-support) or
+Current release: **v0.6.0**. See the [README](../README.md#hardware-support) or
 [中文 README](../README.zh-CN.md#硬件支持) for the hardware support tables and usage instructions.
 
 ## Current support
@@ -9,19 +9,20 @@ Ubuntu 26.04 GNOME runs natively with Android dual boot. Supported features incl
 GPU-accelerated desktop and snap applications, 3200×2136 display with 60/90/120/144 Hz
 selection, Night Light, touch input, magnetic keyboard, Wi-Fi, Bluetooth pairing and
 audio, speaker playback, microphone recording, front and rear cameras, sensors,
-auto-rotation, USB host / OTG with docks, USB storage, keyboards and mice, charging and
-system suspend. The power button locks the screen by default and GNOME offers Power Saver,
-Balanced and Performance modes.
+auto-rotation, 5 Gbit/s USB host / OTG with docks, USB storage, keyboards and mice,
+USB-C external displays (DisplayPort Alt Mode, tested at 4K 60 Hz as an extended
+desktop), charging and system suspend. The power button locks the screen by default and
+GNOME offers Power Saver, Balanced and Performance modes.
 
-H.264/H.265/VP9 hardware decoding is available; automatic use depends on the player.
-H.264/H.265 hardware encoding is verified at 1080p and 4K. Multi-finger gestures and
-volume keys are untested, and charger compatibility is limited. Keep the default
-speaker volume cap because speaker protection is absent. System time is set
-from the network after boot. Sensor calibration defaults are included; see the
+The system player (GStreamer), Firefox (H.264/HEVC/VP9) and Chrome (H.264/VP9) use
+hardware decoding automatically; AV1 uses software decoding. H.264/H.265 hardware
+encoding is verified at 1080p and 4K. Multi-finger gestures and volume keys are
+untested, and charger compatibility is limited. Keep the default speaker volume cap
+because speaker protection is absent. System time is set from the network after boot.
+Sensor calibration defaults are included; see the
 [calibration instructions](../device/sensors/README.zh-CN.md) to use your own tablet's calibration.
 
-Not yet supported: stylus, fingerprint, USB-C external display, disk hibernation and
-hardware clock writes.
+Not yet supported: stylus, fingerprint, disk hibernation and hardware clock writes.
 
 ## Test configuration
 
@@ -35,6 +36,14 @@ verified on this unit; later versions were tested on the installed system. These
 results do not establish support for other models, capacities or accessories.
 
 ## Completed work by release
+
+### v0.6.0
+
+- USB host and device modes run at 5 Gbit/s SuperSpeed in both Type-C orientations.
+- USB-C external displays (DisplayPort Alt Mode) work in both orientations and with hot-plug; tested at 4K 60 Hz as an extended desktop.
+- The system player (GStreamer), Firefox (H.264/HEVC/VP9) and Chrome (H.264/VP9) use hardware video decoding automatically.
+- The maximum speaker volume has been increased.
+- The default filesystem character set is UTF-8, including Chinese filenames on USB storage.
 
 ### v0.5.1
 
@@ -91,7 +100,8 @@ results do not establish support for other models, capacities or accessories.
 
 ## Usage notes
 
-- Firefox supports H.264/VP9/HEVC hardware decoding; Chrome supports H.264/VP9. Some HEVC videos may drop a small number of frames in Firefox.
+- Some HEVC videos may drop a small number of frames in Firefox.
+- After an OTG device is unplugged, a plain OTG adapter plugged in next may not be detected; plug a charger or computer cable in and out once, or use a dock.
 - Bluetooth occasionally needs reconnecting before data or audio works again.
 - The rear camera has fixed focus; nearby subjects may be blurry and color tuning is limited.
 

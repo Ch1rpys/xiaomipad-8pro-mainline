@@ -2,7 +2,7 @@
 
 在小米平板 8 Pro（代号 `piano`，骁龙 8 至尊版）上原生运行 Ubuntu 26.04 LTS GNOME 桌面，与 Android 双系统共存，内核基于上游 Linux 7.2 适配。不是容器，不是远程桌面。[English](README.md)
 
-**最新版本：[v0.5.1](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.5.1)。** 支持状态见[硬件支持](#硬件支持)，技术路线与同类项目的差异见 [docs/APPROACH.zh-CN.md](docs/APPROACH.zh-CN.md)。
+**最新版本：[v0.6.0](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.6.0)。** 支持状态见[硬件支持](#硬件支持)，技术路线与同类项目的差异见 [docs/APPROACH.zh-CN.md](docs/APPROACH.zh-CN.md)。
 
 ## 📮 关注与交流
 
@@ -45,10 +45,10 @@
 ```text
 我要在小米平板 8 Pro（代号 piano）上安装 Ubuntu，与 Android 双系统共存。请你作为操作助手，按下面的规则帮我完成。
 
-项目：https://github.com/yzddmr6/xiaomipad-8pro-mainline ，版本 v0.5.1。
+项目：https://github.com/yzddmr6/xiaomipad-8pro-mainline ，版本 v0.6.0。
 
-1. 先 git clone 该仓库并检出标签 v0.5.1，通读 README.zh-CN.md 的「安装前请阅读」、docs/INSTALL.zh-CN.md、docs/FLASHING.zh-CN.md，以及 docs/AGENT-GUIDE.zh-CN.md 第 1 节的安全规则，然后再开始。
-2. 从 GitHub Release v0.5.1 把全部附件下载到一个空目录，先执行 sha256sum -c SHA256SUMS.assets，再按 Release 说明还原发布目录并再次校验。
+1. 先 git clone 该仓库并检出标签 v0.6.0，通读 README.zh-CN.md 的「安装前请阅读」、docs/INSTALL.zh-CN.md、docs/FLASHING.zh-CN.md，以及 docs/AGENT-GUIDE.zh-CN.md 第 1 节的安全规则，然后再开始。
+2. 从 GitHub Release v0.6.0 把全部附件下载到一个空目录，先执行 sha256sum -c SHA256SUMS.assets，再按 Release 说明还原发布目录并再次校验。
 3. 检查主机工具（adb、fastboot、python3、zstd、sgdisk、sfdisk、img2simg 等，以 INSTALL 的「准备」表为准）和平板状态（型号 piano、原厂版本 OS3.0.303.0.WPYCNXM、当前 A 槽、已解锁、已 root、电量不低于 40%）。任何一项不符就停下来告诉我，不要绕过。
 4. 严格按 docs/INSTALL.zh-CN.md 的步骤顺序执行，每条设备命令都用 -s 或 --serial 明确指定我的平板。每一步开始前用一两句话告诉我这步做什么、会写哪里；凡是写入平板的操作（分区表、擦除、flash、写 A 槽），先列出将要执行的命令，等我回复「确认」再执行。
 5. 绝不写入 vbmeta、dtbo、任何 _b 分区、persist 或其他校准、基带、固件分区；绝不执行 fastboot --set-active=b；绝不使用别的平板的标定、设备专属配置或镜像。
@@ -60,12 +60,12 @@
 
 ### 手动安装
 
-1. 从 [v0.5.1 发布页](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.5.1)把全部附件下载到一个空目录，校验并还原发布目录：
+1. 从 [v0.6.0 发布页](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.6.0)把全部附件下载到一个空目录，校验并还原发布目录：
 
    ```bash
    sha256sum -c SHA256SUMS.assets
-   unzip piano-ubuntu-v0.5.1-boot.zip && unzip piano-ubuntu-v0.5.1-tools.zip && unzip piano-ubuntu-v0.5.1-packages.zip
-   mkdir -p rootfs && cat piano-ubuntu-v0.5.1-rootfs.img.zst.part* | zstd -d > rootfs/root.sparse.img
+   unzip piano-ubuntu-v0.6.0-boot.zip && unzip piano-ubuntu-v0.6.0-tools.zip && unzip piano-ubuntu-v0.6.0-packages.zip
+   mkdir -p rootfs && cat piano-ubuntu-v0.6.0-rootfs.img.zst.part* | zstd -d > rootfs/root.sparse.img
    sha256sum -c SHA256SUMS
    ```
 
@@ -81,7 +81,7 @@
 
 ## 硬件支持
 
-以下为 v0.5.1 在测试机上的状态；USB 条目另列 v0.6.0 候选结果。✅ 可用 · 🟡 部分支持 · ❌ 不支持 · 🧪 未验证。
+以下为 v0.6.0 在测试机上的状态。✅ 可用 · 🟡 部分支持 · ❌ 不支持 · 🧪 未验证。
 ✅ 表示已在真机验证所述功能，不代表所有应用和使用场景都测过。当前支持范围与各版本改进见 [docs/STATUS.md](docs/STATUS.md)（英文）。
 
 ### 平台、显示与输入
@@ -106,7 +106,7 @@
 |---|---|---|---|
 | Wi-Fi | 高通 WCN7860 / ath12k | ✅ 可用 | 2.4 GHz 与 5 GHz 80 MHz 连接稳定 |
 | 蓝牙 | 高通 WCN7860 / `hci_qca` | 🟡 部分支持 | 配对、文件传输和蓝牙音频可用；偶发需要重新连接 |
-| USB 设备模式 | USB 3 / 5 Gbit/s 网络（NCM） | ✅ 可用 | v0.6.0 候选；开发者模式下经 USB 线 SSH 登录，默认关闭 |
+| USB 设备模式 | USB 3 / 5 Gbit/s 网络（NCM） | ✅ 可用 | 开发者模式下经 USB 线 SSH 登录，默认关闭 |
 | USB 主机 / OTG | Type-C 角色切换 / USB 3 / 5 Gbit/s | 🟡 部分支持 | U 盘、键鼠、扩展坞可用，正反插 5 Gbit/s；拔出 OTG 设备后直接重插转接头可能不被识别 |
 | USB-C 外接显示 | DisplayPort Alt Mode | ✅ 可用 | 正反插、热插拔，实测 4K 60 Hz，扩展桌面 |
 
@@ -114,15 +114,15 @@
 
 | 功能 | 器件 / 实现 | 状态 | 说明 |
 |---|---|---|---|
-| 扬声器 | FS19xx 四路功放 | 🟡 部分支持 | 可播放；没有扬声器保护，音量上限受限 |
+| 扬声器 | FS19xx 四路功放 | 🟡 部分支持 | 可播放，最大音量已提高；没有扬声器保护 |
 | 内置麦克风 | DMIC / ADSP / PipeWire | ✅ 可用 | 录音已验证 |
-| 视频硬解 | 高通 Iris / V4L2 | 🟡 部分支持 | Firefox：H.264/VP9/HEVC；Chrome：H.264/VP9 |
+| 视频硬解 | 高通 Iris / V4L2 | ✅ 可用 | 系统播放器（GStreamer）、Firefox（H.264/HEVC/VP9）、Chrome（H.264/VP9）自动硬件解码；AV1 为软件解码 |
 | 视频硬编 | 高通 Iris / V4L2 | ✅ 可用 | H.264/H.265 1080p、4K 编码已验证 |
 | 摄像头 | 后摄 S5KJN1SQ03、前摄 OV32D40 | ✅ 可用 | 前后摄像头可在相机应用中使用；后摄固定焦距，适合非近距离拍摄 |
 | 加速度、陀螺、光感、距离 | SSC / hexagonrpcd / libssc | ✅ 可用 | SensorProxy 可报告方向和环境光 |
 | 自动旋转 | SensorProxy / Mutter | ✅ 可用 | 拆下键盘后自动旋转；装着键盘时按 GNOME 规则锁定 |
 
-Firefox 支持 H.264/VP9/HEVC 硬件解码，Chrome 支持 H.264/VP9。AV1 使用软件解码；Chromium snap 不支持此硬解集成。
+Firefox 播放部分 HEVC 视频可能有轻微丢帧。Chromium snap 不支持此硬解集成。
 
 ### 电源与时间
 

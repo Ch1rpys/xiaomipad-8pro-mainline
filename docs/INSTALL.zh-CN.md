@@ -1,6 +1,6 @@
 # 全新安装
 
-v0.5.1 使用下方相同的安装流程。
+v0.6.0 使用下方相同的安装流程。
 
 [English](INSTALL.md) ｜ [项目首页](../README.zh-CN.md) ｜ [Fastboot、切换与恢复](FLASHING.zh-CN.md)
 
