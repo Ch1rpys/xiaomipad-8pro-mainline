@@ -69,3 +69,15 @@ file-write regressions. 4 KiB/64 KiB are read back from real scratch files;
 24 ARM64 tests pass. No custom ION path is introduced: fd=-1 invoke arguments
 use the inspected kernel's copied DMA-backed payload path, as the existing
 marshaller does for input/output buffers. Real DSP/DMA acceptance remains untested.
+
+Registry writes are atomic on the DSP side, so the host write path stays a plain
+write without a temporary file. The sensor PD writes each registry group to
+`registry/fstempfile` and then calls apps_std method 33 (`frename(old, new)`,
+scalars `0x1f030000`: three input buffers) to move it into `registry/registry/`;
+the group files themselves are never opened for truncation. Only the 3-byte inner
+`DIR` marker and the 9-byte `sns_reg_version` are written in place, each with a
+single write. An interrupted DSP can therefore leave a partial `fstempfile`, not a
+partial registry group. `frename` is not among the implemented methods: those calls
+are answered with `AEE_EUNSUPPORTED` (`Unsupported method: 33` in the daemon log,
+about 110 per attach on piano), so group updates made by the DSP are not kept and
+the registry state stays as seeded.
