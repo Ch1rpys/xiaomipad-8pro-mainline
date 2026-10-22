@@ -113,8 +113,8 @@ device reports `ABS_MT_POSITION_Y = Y` instead, without the reversal, following
 the BOE unit test of liisoya/xiaomipad-8pro-mainline `8bbc68239c17` (see NOTICE).
 The panel comes only from the kernel: the program reads
 `/sys/class/misc/nvt-thp-SPI_DEVICE/device/panel_vendor` (`csot` or `boe`) for the
-node it opens, and uses CSOT when a kernel does not export the attribute. Other
-values stop the program. If a later test contradicts this, `panelContact()` is the
+node it opens, and uses CSOT when a kernel does not export the attribute. Any
+other value is logged as an error and also uses CSOT, so touch keeps working. If a later test contradicts this, `panelContact()` is the
 single place to change. Tracking IDs are allocated within 0..65535 without colliding with held contacts. Twelve
 algorithm slots are supported in software; this is not a physical finger-count
 claim. Pressure is only a binary contact indicator, not measured force.

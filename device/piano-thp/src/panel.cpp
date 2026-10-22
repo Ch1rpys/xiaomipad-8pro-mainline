@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include "panel.hpp"
 #include <fstream>
-#include <stdexcept>
 #include <system_error>
 
 namespace nvt {
@@ -24,14 +23,22 @@ PanelIdentity readPanelVendor(const std::filesystem::path &node, const std::file
     std::string value;
     std::getline(stream, value);
     if (value == "csot")
-        return {PanelVendor::Csot, true};
+        return {PanelVendor::Csot, true, {}};
     if (value == "boe")
-        return {PanelVendor::Boe, true};
-    throw std::runtime_error("unsupported kernel panel_vendor '" + value + "'");
+        return {PanelVendor::Boe, true, {}};
+    return {PanelVendor::Csot, true, value.empty() ? std::string("(empty)") : value};
 }
 
 const char *panelVendorName(PanelVendor vendor) {
     return vendor == PanelVendor::Boe ? "boe" : "csot";
+}
+
+std::string describePanel(const PanelIdentity &identity) {
+    if (!identity.unknown.empty())
+        return "THP panel error: kernel panel_vendor '" + identity.unknown +
+               "' is neither csot nor boe; using the csot mapping";
+    return std::string("THP panel: ") + panelVendorName(identity.vendor) +
+           (identity.reported ? " (kernel panel_vendor)" : " (kernel has no panel_vendor; assuming csot)");
 }
 
 std::optional<std::string> calibrationMismatch(PanelVendor vendor, std::optional<int> project_vendor_id) {

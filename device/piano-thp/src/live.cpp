@@ -51,9 +51,7 @@ int main(int argc, char **argv) {
         const auto &calibration = file.calibration;
         const auto panel_identity = nvt::readPanelVendor(argv[2]);
         const auto vendor = panel_identity.vendor;
-        std::cerr << "THP panel: " << nvt::panelVendorName(vendor)
-                  << (panel_identity.reported ? " (kernel panel_vendor)\n"
-                                              : " (kernel has no panel_vendor; assuming csot)\n");
+        std::cerr << nvt::describePanel(panel_identity) << '\n';
         if (const auto mismatch = nvt::calibrationMismatch(vendor, file.project_vendor_id))
             std::cerr << "THP calibration error: " << *mismatch << '\n';
         if (argc == 5) {

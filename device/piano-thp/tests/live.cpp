@@ -362,6 +362,8 @@ void panel() {
     auto identity = nvt::readPanelVendor(node, sysfs);
     check(identity.vendor == nvt::PanelVendor::Csot && !identity.reported,
           "a kernel without panel_vendor must mean CSOT");
+    check(nvt::describePanel(identity) == "THP panel: csot (kernel has no panel_vendor; assuming csot)",
+          "missing panel_vendor log line");
     tree.write(attribute, "csot\n");
     identity = nvt::readPanelVendor(node, sysfs);
     check(identity.vendor == nvt::PanelVendor::Csot && identity.reported, "kernel CSOT not read");
@@ -370,8 +372,15 @@ void panel() {
     check(identity.vendor == nvt::PanelVendor::Boe && identity.reported, "kernel BOE not read");
     check(nvt::readPanelVendor(tree.root / "dev/nvt-thp-spi0.0", sysfs).vendor == nvt::PanelVendor::Boe,
           "direct misc node not resolved");
+    check(nvt::describePanel(identity) == "THP panel: boe (kernel panel_vendor)", "BOE log line");
     tree.write(attribute, "auo\n");
-    rejects([&] { nvt::readPanelVendor(node, sysfs); }, "unknown panel_vendor accepted");
+    identity = nvt::readPanelVendor(node, sysfs);
+    check(identity.vendor == nvt::PanelVendor::Csot && identity.unknown == "auo",
+          "an unknown panel_vendor must fall back to CSOT");
+    check(nvt::describePanel(identity).starts_with("THP panel error: kernel panel_vendor 'auo'"),
+          "unknown panel_vendor not reported as an error");
+    tree.write(attribute, "\n");
+    check(nvt::readPanelVendor(node, sysfs).unknown == "(empty)", "empty panel_vendor not reported");
 
     check(!nvt::calibrationMismatch(nvt::PanelVendor::Csot, 4), "CSOT calibration flagged on CSOT");
     check(!nvt::calibrationMismatch(nvt::PanelVendor::Boe, 26), "BOE calibration flagged on BOE");
@@ -443,8 +452,8 @@ int main(int argc, char **argv) {
         orientation();
         panel();
         std::cout << "PASS: synthetic NTP1 splits/bounds, contact release lifecycle, P15 corner and "
-                     "P18 swipe orientation, BOE orientation, kernel panel_vendor (csot, boe, absent) and "
-                     "calibration panel check; not hardware evidence\n";
+                     "P18 swipe orientation, BOE orientation, kernel panel_vendor (csot, boe, absent, "
+                     "unknown) and calibration panel check; not hardware evidence\n";
         if (argc == 3)
             stock(argv[1], argv[2]);
         return 0;
