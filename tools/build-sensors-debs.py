@@ -115,9 +115,9 @@ def package(root, output, name, version, depends, relations, description, epoch,
         'License: MIT\n' + ''.join(' ' + line + '\n' if line else ' .\n'
                                   for line in (REPO / 'LICENSE').read_text().split('\n\nFiles carrying')[0].splitlines()))
     changelog = (f'{name} ({version}) unstable; urgency=medium\n\n'
-                 '  * Correct the landscape mount matrix and document Mutter rotation gates.\n'
-                 '  * Add dock/undock and four-orientation diagnostics.\n\n'
-                 ' -- yzddmr6 <46088090+yzddmr6@users.noreply.github.com>  Mon, 12 Oct 2026 20:00:00 +0800\n')
+                 '  * hexagonrpcd: implement apps_std frename, so ADSP registry updates persist.\n'
+                 '  * Quarantine and reseed a registry that keeps crashing the ADSP.\n\n'
+                 ' -- yzddmr6 <46088090+yzddmr6@users.noreply.github.com>  Thu, 22 Oct 2026 16:00:00 +0800\n')
     (docs / 'changelog.gz').write_bytes(gzip.compress(changelog.encode(), mtime=epoch))
     for manual in (root / 'usr/share/man').rglob('*.[1-9]'):
         manual.with_suffix(manual.suffix + '.gz').write_bytes(gzip.compress(manual.read_bytes(), mtime=epoch))
@@ -152,8 +152,8 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     for name in ('hexagonrpc-source', 'libssc-source', 'sensorproxy-source', 'cross-file', 'sysroot', 'output'):
         p.add_argument('--' + name, type=Path, required=True)
-    p.add_argument('--version', default='0.1+20261012.2')
-    p.add_argument('--proxy-version', default='3.9+piano20261012.2')
+    p.add_argument('--version', default='0.1+20261022.1')
+    p.add_argument('--proxy-version', default='3.9+piano20261022.1')
     a = p.parse_args()
     output = a.output.resolve()
     output.mkdir(parents=True, exist_ok=False)

@@ -58,8 +58,8 @@ sha256sum -c SHA256SUMS
 mkdir -p ../rollback
 dpkg-query -W -f='${Version}\n' iio-sensor-proxy > ../rollback/iio-sensor-proxy.version
 (cd ../rollback && apt-get download "iio-sensor-proxy=$(cat iio-sensor-proxy.version)")
-sudo apt install ./piano-sensors_0.1+20261012.2_arm64.deb
-sudo apt install ./piano-iio-sensor-proxy_3.9+piano20261012.2_arm64.deb
+sudo apt install ./piano-sensors_0.1+20261022.1_arm64.deb
+sudo apt install ./piano-iio-sensor-proxy_3.9+piano20261022.1_arm64.deb
 cd ..
 ```
 
@@ -89,15 +89,14 @@ sudo reboot
 
 ## 升级与检查脚本
 
-矩阵的唯一权威位置是 `packaging/piano-sensors/usr/lib/udev/rules.d/81-piano-sensors.rules`，
-所以要升级 **两个包**：`piano-sensors` 更新规则，`piano-iio-sensor-proxy` 更新检查脚本及精确依赖。
-代理/SSC/hexagonrpc 的 ELF 和原厂配置字节不变；不修改触控、Mutter 或键盘开关。
+两个包须一起升级：`piano-iio-sensor-proxy` 精确依赖同版本的 `piano-sensors`。旋转矩阵的唯一权威位置是
+`packaging/piano-sensors/usr/lib/udev/rules.d/81-piano-sensors.rules`；不修改触控、Mutter 或键盘开关。
 在平板交付目录执行：
 
 ```sh
 (cd debs && sha256sum -c SHA256SUMS)
-sudo apt install ./debs/piano-sensors_0.1+20261012.2_arm64.deb \
-  ./debs/piano-iio-sensor-proxy_3.9+piano20261012.2_arm64.deb
+sudo apt install ./debs/piano-sensors_0.1+20261022.1_arm64.deb \
+  ./debs/piano-iio-sensor-proxy_3.9+piano20261022.1_arm64.deb
 sudo apt install libinput-tools
 sudo reboot
 ```
