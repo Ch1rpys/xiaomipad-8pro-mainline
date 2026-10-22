@@ -826,7 +826,7 @@ python3 tools/piano-devmode-ssh.py -t <USER> sudo piano-reboot-bootloader
   因为那样平板会重新从 A 槽启动。
 - 已在测试机的正式冷启动中验证。
 - 默认：发布镜像中关闭。安装过程打开它（[INSTALL.zh-CN.md](INSTALL.zh-CN.md) 第 8a 或 10 步），第 10 步最后执行
-  `sudo piano-devmode off`，这是所有者为发布版定的做法。
+  `sudo piano-devmode off`，这是发布版的默认做法。
 - 当前设备支持包的套接字带 `BindToDevice=usb0`（NCM 功能的网络设备），并在
   `sys-subsystem-net-devices-usb0.device` 之后启动：仅凭地址时，经 Wi-Fi 到达 192.168.88.2 的连接也会被接受。
   QEMU 中经其他接口路由到该地址的对端被拒绝；尚未在平板上核对。NCM 设备若不叫 usb0，套接字不会启动（`piano-devmode status` 显示 inactive）。

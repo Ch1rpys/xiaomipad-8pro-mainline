@@ -82,7 +82,7 @@ LIBGL_DRIVERS_PATH=$prefix/lib/dri
 EOF
 	{ echo '[Service]'; $bb sed 's/^/Environment=/' /newroot/etc/environment.d/50-piano-mesa-diag.conf; } \
 		>/newroot/etc/systemd/system/gdm.service.d/50-piano-mesa-diag.conf
-	echo "PIANO_MESA_INSTALLED: isolated $prefix RAM desktop override (TD-004/007)"
+	echo "PIANO_MESA_INSTALLED: isolated $prefix RAM desktop override"
 fi
 
 cat > /newroot/etc/systemd/network/10-piano-ram.link <<EOF

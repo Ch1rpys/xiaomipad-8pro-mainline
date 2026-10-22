@@ -184,7 +184,6 @@ device/piano-thp/src/{stream,input,live_pipeline}.{cpp,hpp} and live.cpp:
   No firmware mode controls, pen/Bluetooth/SSC or Android compatibility layer.
 device/piano-thp/tests/{live,uinput}.cpp are new MIT test code. Synthetic
 contacts and virtual-machine input tests do not establish hardware support.
-device/piano-thp/diag/ (RAM-only diagnostic wrapper and unit) is new MIT code.
 
 mesa/piano-fixes.patch:
   Minimal modification of the MIT-licensed Mesa src/freedreno/common/freedreno_devices.py
@@ -399,17 +398,9 @@ Mozilla Firefox in generated root images:
   bundled third-party licences; see the package's copyright notices.
 
 Root-image build scripts:
-  tools/rootfs-image-steps.sh, rootfs-image-guest.sh and rootfs-image-chroot.sh
-  reuse this repository's codex/usermode working files, by yzddmr6, MIT,
-  based on f0e82aff08774c6aea709b9446fa15f86e6795ba. These were uncommitted;
-  their original SHA-256 hashes, respectively, are:
-    07c9817af3ef50c388eef8d614488460cd4d51b46b1ef9f4ebcca36fcc7f7c64
-    4d9fff1cfe4ab74a5595fc2394e786e57b36e7a2d06f5f2cf5d16206038a18d4
-    4c5cd76c4d374fe9edf0c9e38a667144b42ac945b10c0aec94b8cfbd6abc9b62
-  tools/rootfs-native-chroot.sh adapts its mount/private-bind/unmount order
-  from rootfs-chroot-helper.sh of that working tree (MIT, yzddmr6), SHA-256
-  01df6ec1a2145dac0e7117b6713e8719b59f864b15cbe0903ca90816a89c92d2.
-  Changes: native ARM64 root only, private namespaces, no host-specific sudo
+  tools/rootfs-image-steps.sh, rootfs-image-guest.sh, rootfs-image-chroot.sh
+  and tools/rootfs-native-chroot.sh are MIT code by yzddmr6.
+  tools/rootfs-native-chroot.sh: native ARM64 root only, private namespaces, no host-specific sudo
   grant or qemu-user, one invocation owns and cleans all mounts; chroot output
   uses a waited tee pipeline so no log follower retains dev/pts on exit.
   ubuntu/desktop-layers.json records the official Ubuntu inputs and original

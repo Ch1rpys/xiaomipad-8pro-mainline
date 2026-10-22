@@ -1,7 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: MIT
 # Called by build-rootfs-image.py in a private mount namespace. Trusted inputs only.
-# Mount/private-bind handling adapted from codex/usermode; see NOTICE.
 set -euo pipefail
 [[ $# == 3 && $EUID == 0 && $(uname -m) == aarch64 ]] || exit 2
 image=$(realpath -e -- "$1")

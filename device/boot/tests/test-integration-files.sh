@@ -57,7 +57,7 @@ grep -q 'piano-slot-success.service' "$here/../../../tools/build-device-debs.py"
 	bad 'build-device-debs.py does not enable piano-slot-success.service'
 
 # piano-thp.service is started by udev for the touch node only: as a boot-target
-# want it would hold multi-user.target and GDM for the device timeout (TD-020).
+# want it would hold multi-user.target and GDM for the device timeout.
 thp=$pkg/usr/lib/systemd/system/piano-thp.service
 if grep -q '^\[Install\]' "$thp"; then
 	bad 'piano-thp.service has an [Install] section'
@@ -71,7 +71,7 @@ if grep -q 'enable piano-thp.service' "$here/../../../tools/build-device-debs.py
 fi
 
 # Kernel hooks: only unique <version>-piano<ABI> releases, newest first, own the
-# boot image set; removal cleans up (TD-018).
+# boot image set; removal cleans up.
 for h in etc/kernel/postinst.d/zz-piano-boot etc/initramfs/post-update.d/zz-piano-boot \
 	etc/kernel/postrm.d/zz-piano-boot; do
 	sh -n "$pkg/$h" || bad "$h: shell syntax"

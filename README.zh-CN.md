@@ -202,7 +202,7 @@ fastboot -s <serial> reboot
 - BusyBox（GPL-2.0）；
 - [Ubuntu](https://ubuntu.com/download/desktop)。
 
-相关项目（已调研，作为参考）：
+相关项目（作为参考）：
 - [Project-SunUEFI](https://github.com/slwyts/Project-SunUEFI)（按文件许可）；
 - [blu-sharky/linux-piano](https://github.com/blu-sharky/linux-piano)（GPL-2.0）；
 - [blu-sharky/debian-piano](https://github.com/blu-sharky/debian-piano)（MIT）。

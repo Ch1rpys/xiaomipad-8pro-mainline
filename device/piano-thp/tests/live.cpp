@@ -268,9 +268,8 @@ void orientation() {
     value.row_maximum = 21360;
     const auto axes = nvt::panelAxes(value);
     check(axes.width == 32000 && axes.height == 21360, "panel ranges do not follow the panel axes");
-    // Processor coordinates of the P15 corner taps in recorded order. The 2026-10-07
-    // swipes place them at top-left, bottom-left, bottom-right and top-right; the
-    // 2026-09-25 confirmed clockwise order did not match the recorded taps.
+    // Processor coordinates of recorded corner taps, in recorded order: top-left,
+    // bottom-left, bottom-right and top-right.
     constexpr std::array<std::array<int, 4>, 5> corners{{
         {520, 21291, 520, 68}, {1603, 661, 1603, 20698}, {31412, 384, 31412, 20975},
         {31198, 20866, 31198, 493}, {-5, 40000, 0, 0}}};
@@ -283,7 +282,7 @@ void orientation() {
     nvt::panelSlots(slots, value, nvt::PanelVendor::Csot, panel);
     for (size_t index = 0; index < corners.size(); ++index)
         check(panel[index].number == int(index) && panel[index].contact.x == corners[index][2] &&
-              panel[index].contact.y == corners[index][3], "P15 corner mapped to the wrong panel position");
+              panel[index].contact.y == corners[index][3], "recorded corner mapped to the wrong panel position");
     const auto &tl = panel[0].contact, &bl = panel[1].contact, &br = panel[2].contact, &tr = panel[3].contact;
     check(tl.x < tr.x && bl.x < br.x && tl.y < bl.y && tr.y < br.y, "panel corners are not upright");
 
@@ -308,11 +307,11 @@ void orientation() {
               "top-to-bottom swipe does not increase Y at constant X");
         previous = point;
     }
-    // P18 swipe endpoints as emitted by the b43a191 transform (X, Y) become (Y, X) now.
+    // Recorded swipe endpoints as emitted by an earlier transform (X, Y) become (Y, X) now.
     constexpr std::array<std::array<int, 2>, 4> emitted{{{8813, 141}, {9442, 27795}, {251, 16057}, {21322, 15722}}};
     for (const auto &old : emitted) {
         const auto point = at(old[1], 21359 - old[0]);
-        check(point.x == old[1] && point.y == old[0], "P18 swipe endpoint is not the transposed output");
+        check(point.x == old[1] && point.y == old[0], "recorded swipe endpoint is not the transposed output");
     }
     // BOE: processor Y already runs from the top edge to the bottom edge; X is unchanged.
     const auto boe = [&](int x, int y) {
@@ -451,8 +450,8 @@ int main(int argc, char **argv) {
         lifecycle();
         orientation();
         panel();
-        std::cout << "PASS: synthetic NTP1 splits/bounds, contact release lifecycle, P15 corner and "
-                     "P18 swipe orientation, BOE orientation, kernel panel_vendor (csot, boe, absent, "
+        std::cout << "PASS: synthetic NTP1 splits/bounds, contact release lifecycle, recorded corner and "
+                     "swipe orientation, BOE orientation, kernel panel_vendor (csot, boe, absent, "
                      "unknown) and calibration panel check; not hardware evidence\n";
         if (argc == 3)
             stock(argv[1], argv[2]);

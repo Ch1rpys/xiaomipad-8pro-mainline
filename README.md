@@ -204,7 +204,7 @@ This project reuses and adapts the following work:
 - BusyBox (GPL-2.0);
 - [Ubuntu](https://ubuntu.com/download/desktop).
 
-Related projects (studied, used as references):
+Related projects (used as references):
 - [Project-SunUEFI](https://github.com/slwyts/Project-SunUEFI) (per-file licences);
 - [blu-sharky/linux-piano](https://github.com/blu-sharky/linux-piano) (GPL-2.0);
 - [blu-sharky/debian-piano](https://github.com/blu-sharky/debian-piano) (MIT).

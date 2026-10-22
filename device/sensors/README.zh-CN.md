@@ -1,11 +1,6 @@
 # piano 传感器产品集成
 
-适用于 Ubuntu 26.04 ARM64、带 secure ADSP FastRPC/QRTR 的项目内核。独立 SSC 检查在
-全新启动上获得加速度/陀螺各 132 个样本、光感 2 个、距离 1 个；静止加速度模长中位数为
-9.86 m/s²，pristine registry 未变。产品集成的设备检查确认两个服务可启动，
-`HasAccelerometer=true`，但底座横屏方向错误为 `right-up`、`PanelOrientationManaged=false`，
-且未发现光感。当前版本修正了显示坐标矩阵，该修正仅通过主机验证；
-**四向旋转、脱离底座后的门控和自动亮度仍需真机验证**。
+适用于 Ubuntu 26.04 ARM64、带 secure ADSP FastRPC/QRTR 的项目内核。
 
 ## 包和边界
 
@@ -133,77 +128,6 @@ sudo reboot
 若拆下键盘后仍 switch=0，先定位键盘 attach 消息/驱动；若 switch=1 但 managed=false，检查触控的
 `ID_INPUT_TOUCHSCREEN=1`、libinput `Capabilities: touch`、seat0 和 GNOME 日志，再核实际 Mutter 版本。
 若 managed=true 但不转，查锁、claim 错误及显示配置应用错误。脚本返回 0 只表示采集命令成功。
-
-## Mutter 49 的准确旋转条件
-
-当前记录没有 `dpkg -l mutter` 的精确版本；按本任务允许的 49.x 回退，核对上游 **49.0**
-（`7697a7993e92dcef3b39b67051691a8b28f0b5ce`），不是宣称已经核过设备上 Ubuntu 的全部补丁。
-检查脚本输出 `mutter*`/`libmutter*`/GNOME Shell 版本，若有发行版差异再按实际源包复核。
-
-`meta_monitor_manager_get_panel_orientation_managed()` 仅返回缓存布尔值；本版本的计算函数名为
-`update_panel_orientation_managed()`，没有名为 `is_panel_orientation_managed()` 的另一个条件集。
-
-| 层次 | 条件和边界 |
-|---|---|
-| 属性的全部直接条件 | `touch-mode && has-accelerometer && builtin-monitor`。来自 `meta-monitor-manager.c` 的 `update_panel_orientation_managed()`；不以当前 orientation 是否 normal、旋转锁或已 claim 为直接条件。 |
-| touch-mode | 必须有触摸屏；有 tablet switch 时，OFF 为 false、ON 为 true；没有 switch 才退回“没有 pointer/touchpad”判据。普通 keyboard 本身不是否决项。见 `native/meta-seat-impl.c` 的 `update_touch_mode()`。 |
-| 输入识别 | `determine_device_type()` 用 libinput capability 分类，touch 为 `CLUTTER_TOUCHSCREEN_DEVICE`；tap/touchpad、tablet-tool/pad、pointer 分类先于 touch。只认当前 seat 成功加入的设备，不因服务名/uinput 名称认定有触屏。 |
-| HasAccelerometer | `MetaOrientationManager` 从系统 SensorProxy 代理缓存取此属性；代理出现/消失、PropertiesChanged 会更新并通知 monitor manager。系统 `b true` 证明服务端状态，Mutter 的代理仍需成功连接/收到更新。 |
-| 锁与 claim | `orientation-lock=true` 增加 tracking inhibit；`iio_proxy != NULL && inhibited_count == 0` 才异步 ClaimAccelerometer，否则 Release。claim 成功后显式 Get 最新 orientation 并发出 sensor-active；更新要求 has_accel/should_claim/is_claimed。claim 失败影响旋转，并不直接使 managed=false。 |
-| 初始方向特例 | 启动首次方向事件可忽略 dock 开关，但仍需触屏、加速度计、builtin，并要求 preferred mode 为竖屏（width <= height）。piano 的 3200x2136 不符合。随后受 managed 门控。 |
-| 实际应用旋转 | builtin 必须 active、当前配置存在、builtin 在单独 logical monitor 中（非镜像克隆）、模式有效、目标 transform 有变化，最后配置应用成功。用户保存过 monitors.xml 本身不是关闭 managed 的条件。 |
-| lid/会话 | lid 不在 managed 的布尔表达式里，但合盖可导致内屏 inactive，挡住应用旋转；`LidIsPresent=false` 不是禁转理由。Wayland/seat0 活动会话用于确认查的是正确 compositor，不是这个属性的第四个布尔条件。 |
-
-源码：[monitor manager](https://github.com/GNOME/mutter/blob/49.0/src/backends/meta-monitor-manager.c)、
-[seat](https://github.com/GNOME/mutter/blob/49.0/src/backends/native/meta-seat-impl.c)、
-[input device](https://github.com/GNOME/mutter/blob/49.0/src/backends/native/meta-input-device-native.c)、
-[orientation manager](https://github.com/GNOME/mutter/blob/49.0/src/backends/meta-orientation-manager.c)、
-[monitor config](https://github.com/GNOME/mutter/blob/49.0/src/backends/meta-monitor-config-manager.c)。
-
-piano 已知 builtin=true、SensorProxy HasAccelerometer=true，底座姿态最符合 **touch-mode 被 tablet switch OFF 禁止**。
-内核 `hid-nanosic-wn8030.c` 为 `Xiaomi Keyboard Tablet Mode` 报告
-`SW_TABLET_MODE = !(attach & BIT(0))`（初次注册也取当前 attach）；已连键盘为 0，拆下为 1。
-原始证据读取开关时 PermissionError，因而**尚无实际 0/1 读回**，不能冒充唯一根因已真机确认。
-不屏蔽开关、不强制 GNOME 在底座模式旋转。
-
-触控实际 uinput 名为 `Piano THP Touchscreen`，实现 `device/piano-thp/src/input.cpp` 已声明
-`ABS_MT_POSITION_X/Y`、`BTN_TOUCH`、`BTN_TOOL_FINGER` 与 `INPUT_PROP_DIRECT`。
-Ubuntu 已保存的 systemd 259.5 `udev-builtin-input_id.c` 按 MT 坐标和 direct/touch 识别为 touchscreen，
-不会因 BTN_TOOL_FINGER 把 direct 设备归成 touchpad；规则无需额外 hwdb 标签。
-[libinput 要求正确 udev 类型且能力有效](https://wayland.freedesktop.org/libinput/doc/latest/device-configuration-via-udev.html#device-type-assignment-via-udev)。
-现有证据没有其实际 udev/libinput 输出，所以保留脚本验证；不加入无证据的强制分类规则。
-若未来证实确有缺项，THP 服务及输入规则的所有者是 `piano-device-support`，不是传感器代理。
-
-## 显示坐标矩阵与验证边界
-
-SensorProxy 按行计算 `a_display = M * a_SSC`。以给定底座样本 `(7.1,-0.1,4.9)` 为例：
-旧 `diag(-1,-1,+1)` 得 `(-7.1,0.1,4.9)`，因此为 right-up；应当使主分量成为显示的负 Y。
-当前版本使用绕 Z 的正交旋转（det=+1，保留 Z）：
-
-```text
-ACCEL_MOUNT_MATRIX="0, 1, 0; -1, 0, 0; 0, 0, 1"
-X =  y
-Y = -x
-Z =  z
-(7.1,-0.1,4.9) -> (-0.1,-7.1,4.9) -> normal / tilted-up
-```
-
-这里只修正 **SSC 已输出的坐标→Linux 原生横屏**，不更改 Android JSON，不重复叠加 Android
-`diag(-1,-1,+1)`。原厂 Android 的显示坐标约定不能直接用作 Linux 的最终矩阵。
-输入的约数本身模长约 8.63；独立 SSC 检查全序列的 9.86 是另一个统计值，不把两者当作同一精确样本。
-
-单个几乎 y=0 的姿态约束 `Y=-x`，不足以实测确认 `X=+y` 还是 `X=-y`；两者在此姿态均可 normal，
-却会交换 left-up/right-up。保留 `Z=+z` 且要求右手纯旋转时，`X=+y` 是 det=+1 的选择；
-另一种在固定 Z 下是反射（det=-1），不是等价的平面旋转。DSP 输出坐标/面向约定仍要靠物理测试核实，
-不能只凭一次姿态断言左右已经正确。若 top/bottom 正确而 left/right 互换，保存四向结果后再修正符号。
-触控历史的 90° 修正不是本矩阵证据；若仅触点偏转，独立定位触控坐标，不盲改传感器补偿。
-
-`HasAmbientLight=false` 是当前包尚未解决的传感器发现问题；坐标矩阵修正不解决该问题。服务 active 或早期 SSC
-取得一份 light 样本并不保证 SensorProxy light discovery 成功。可另保留
-`monitor-sensor --light` 与 journal，供光感问题定位；旋转行为需独立验证。
-
-服务由 secure FastRPC udev 事件或正常启动触发；准备程序核对 piano DT、ADSP running、最多等待
-QRTR 400 五秒。失败时保留 journal 后正常重启，不用自动重试或反复重启 hexagonrpcd。
 
 ## 精确卸载/回滚
 

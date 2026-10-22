@@ -9,9 +9,8 @@ import xml.etree.ElementTree as ET
 MONITORS = (Path(__file__).resolve().parents[1] /
             'packaging/piano-ubuntu-desktop/etc/xdg/monitors.xml')
 
-# Piano native-display live-05, 2026-10-12: the operator-reported DRM modes
-# exposed by Mutter 49 GetCurrentState. Keep only non-identifying mode data
-# here; the offline tests must not read the private capture or access a device.
+# DRM modes exposed by Mutter 49 GetCurrentState on piano. Only mode data;
+# the offline tests do not access a device.
 NATIVE_MODE_IDS = (
     '3200x2136@60.000',
     '3200x2136@90.000',

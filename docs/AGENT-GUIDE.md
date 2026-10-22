@@ -904,7 +904,7 @@ python3 tools/piano-devmode-ssh.py -t <USER> sudo piano-reboot-bootloader
   reboot when no reboot-mode device is bound, since the tablet would restart into slot A instead.
 - Verified on the test unit in a release cold boot.
 - Default: off in the release image. The installation turns it on ([INSTALL.md](INSTALL.md) step 8a
-  or 10) and step 10 ends with `sudo piano-devmode off`, the owner's choice for the release.
+  or 10) and step 10 ends with `sudo piano-devmode off`, the release default.
 - The current device support package socket has `BindToDevice=usb0` (the NCM function's
   network device) and starts after `sys-subsystem-net-devices-usb0.device`: the address alone also
   accepted connections that reached 192.168.88.2 over Wi-Fi. In QEMU a peer routing to that address

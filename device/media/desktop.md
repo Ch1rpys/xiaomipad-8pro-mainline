@@ -23,19 +23,3 @@ These dependencies supply a playback stack; automatic Iris selection by
 Showtime on a fresh user session remains a device acceptance check. No global
 plugin-rank, browser hardware-decode or sandbox override is installed.
 
-## Optional mpv candidate (not packaged)
-
-[mpv/mpv.conf](mpv/mpv.conf) is a proposed `/etc/mpv/mpv.conf` fragment for mpv
-0.41, restricted to H.264/HEVC/VP9. It is **pending device validation** and is
-not copied by `build-device-debs.py`. No default mpv/Celluloid dependency is added.
-Before enabling it, check `mpv --hwdec=help` and verify actual Iris decoding,
-correct frames, seek, subtitles, audio/video synchronization and software
-fallback for each allowed codec. AV1 is excluded. The system configuration is
-read before user configuration; see the
-[mpv v0.41 manual](https://github.com/mpv-player/mpv/blob/v0.41.0/DOCS/man/options.rst).
-
-Celluloid's libmpv configuration loading is an explicit preference, not a
-promise that it reads the CLI's system configuration. In Preferences → Config
-Files, enable “Load mpv configuration file” and select the file; alternatively
-use its Extra MPV Options. See the [Celluloid FAQ](https://celluloid-player.github.io/faq.html).
-Celluloid requires its own playback acceptance before distributing a default.

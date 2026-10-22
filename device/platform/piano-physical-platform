@@ -39,7 +39,7 @@ if awk -v target="$hyper" '$1=="piano-physical-platform" && $2==target && $3=="t
 fi
 [ -d "$hyper" ] || exit 0
 tr '\0' '\n' <"$hyper/compatible" | grep -qx qcom,gunyah-hypervisor
-# Independently observed on piano P25, not copied from another board.
+# Independently observed on piano, not copied from another board.
 [ "$(od -An -tx1 "$hyper/qcom,gunyah-vm/qcom,vmid" | tr -d ' \n')" = 00000003 ]
 for device in "$sysroot"/bus/platform/devices/*; do
 	[ -e "$device/driver" ] || continue
