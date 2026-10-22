@@ -31,7 +31,7 @@
 - **只在一台机器上验证过：** 型号 25091RP04C（国行），16 GB 内存，512 GB 存储。其他型号和容量未验证。
 - **恢复方法：** 无画面或无响应时，长按电源 + 音量下进入 Fastboot，用 `tools/piano-switch.py` 写回 Android，见[使用与维护](#使用与维护)。
 
-分区布局：512 GB 机型把原 `userdata` 的范围拆成 `userdata`（200 GiB，Android）、`linux_rootfs`（60 GiB，Ubuntu `/`）和 `linux_data`（约 201 GiB，`/home`），其他分区不变。
+分区布局：512 GB 机型把原 `userdata` 的范围拆成 `userdata`（200 GiB，Android）、`linux_rootfs`（60 GiB，Ubuntu `/`）和 `linux_data`（约 201 GiB，`/home`）；256 GB 机型 `userdata` 为 110 GiB，`linux_data` 约 61 GiB。其他分区不变。
 **不要刷写 `vbmeta`，不要写入或激活 B 槽。** 标定和设备专属配置必须取自你自己的平板，不能用别人的。
 
 ## 🚀 安装
@@ -90,12 +90,12 @@
 |---|---|---|---|
 | SoC / CPU | 高通骁龙 8 至尊版（SM8750P） | ✅ 可用 | 八个核心均可调频 |
 | Android / Linux 双系统 | A 槽镜像组轮换 | ✅ 可用 | Ubuntu 内一条命令、Android 内 KernelSU 模块、主机 Fastboot 三种切换方式都已验证 |
-| 内置存储 | 铠侠 UFS / ext4 | ✅ 可用 | 60 GiB 根分区，约 201 GiB `/home` |
+| 内置存储 | 铠侠 UFS / ext4 | ✅ 可用 | 60 GiB 根分区，512 GB 机型约 201 GiB `/home` |
 | 内置显示 | 原生 DSI KMS（`msm_dpu`） | ✅ 可用 | 3200×2136，60/90/120/144 Hz 切换及关屏/亮屏通过 |
 | 夜灯 | GNOME / DPU 色温调整 | ✅ 可用 | 支持色温调整，关屏和待机恢复后保持设置 |
 | GNOME 桌面 | Ubuntu 26.04 GNOME / Wayland / GDM | ✅ 可用 | 冷启动约 13 秒到登录界面 |
 | GPU | Adreno 830 / Mesa 26.2 | ✅ 可用 | 桌面与 snap 应用（含 Firefox）均走 GPU 渲染 |
-| 触摸屏 | Novatek NT36532E（THP，SPI） | 🟡 部分支持 | 触摸输入可用，支持 60/90/120/144 Hz 及关屏、待机恢复；多指手势未验证 |
+| 触摸屏 | Novatek NT36532E（THP，SPI） | 🟡 部分支持 | 触摸输入可用，支持 60/90/120/144 Hz 及关屏、待机恢复；自动识别屏型（CSOT 或 BOE）并加载对应的触控固件和方向；多指手势未验证 |
 | 磁吸键盘 | Nanosic WN8030 | ✅ 可用 | 支持打字、熄屏按键唤醒和待机唤醒 |
 
 暂不支持：手写笔、指纹。
@@ -157,7 +157,7 @@ fastboot -s <serial> reboot
 
 **时间。** 硬件时钟不可写，启动后联网自动校时；没有网络时用 `sudo date -s 'YYYY-MM-DD HH:MM'` 手动设置。
 
-**传感器标定。** 镜像只带默认标定。要用你自己平板的原厂标定，按[传感器说明](device/sensors/README.zh-CN.md)从自己的备份准备，不要用别人的。
+**传感器标定。** 镜像只带默认标定。推荐安装你自己平板的原厂标定：按[安装指南](docs/INSTALL.zh-CN.md#推荐准备本机传感器-registry)或[传感器说明](device/sensors/README.zh-CN.md)从自己的备份准备，不要用别人的。
 
 **初始设置之后。** 初始设置会把「计算机」栏设为主机名，之后可用 `sudo hostnamectl hostname --static <名字>` 修改。第一次 `apt install` 之前先 `sudo apt update`，镜像不带软件包索引。
 

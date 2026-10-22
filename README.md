@@ -31,7 +31,7 @@ Long-form technical articles, write-ups and progress updates are published on th
 - **Verified on one unit only:** model 25091RP04C (China), 16 GB RAM, 512 GB storage. Other models and capacities are unverified.
 - **Recovery:** with no picture or no response, hold Power + Volume Down for Fastboot and write Android back with `tools/piano-switch.py`, see [Usage and Maintenance](#usage-and-maintenance).
 
-Partition layout: on the 512 GB model the original `userdata` range becomes `userdata` (200 GiB, Android), `linux_rootfs` (60 GiB, Ubuntu `/`) and `linux_data` (about 201 GiB, `/home`); nothing else changes.
+Partition layout: on the 512 GB model the original `userdata` range becomes `userdata` (200 GiB, Android), `linux_rootfs` (60 GiB, Ubuntu `/`) and `linux_data` (about 201 GiB, `/home`); on the 256 GB model `userdata` is 110 GiB and `linux_data` about 61 GiB. Nothing else changes.
 **Never flash `vbmeta`, never write or activate slot B.** Calibration and per-unit configuration must come from your own tablet.
 
 ## 🚀 Installation
@@ -92,12 +92,12 @@ State of v0.6.0 on the test unit. ✅ works · 🟡 partial · ❌ unsupported �
 |---|---|---|---|
 | SoC / CPU | Qualcomm Snapdragon 8 Elite (SM8750P) | ✅ works | All eight cores with frequency scaling |
 | Android / Linux dual boot | Slot-A image-set rotation | ✅ works | Switching from Ubuntu (one command), from Android (KernelSU module) and from the host (Fastboot) all verified |
-| Internal storage | KIOXIA UFS / ext4 | ✅ works | 60 GiB root, about 201 GiB `/home` |
+| Internal storage | KIOXIA UFS / ext4 | ✅ works | 60 GiB root, about 201 GiB `/home` on the 512 GB model |
 | Internal display | Native DSI KMS (`msm_dpu`) | ✅ works | 3200×2136; 60/90/120/144 Hz changes and screen off/on verified |
 | Night Light | GNOME / DPU color temperature | ✅ works | Color temperature adjustment with settings preserved across screen off/on and suspend |
 | GNOME desktop | Ubuntu 26.04 GNOME / Wayland / GDM | ✅ works | Cold boot to the login screen in about 13 s |
 | GPU | Adreno 830 / Mesa 26.2 | ✅ works | GPU rendering for the desktop and for snap applications including Firefox |
-| Touchscreen | Novatek NT36532E (THP over SPI) | 🟡 partial | Touch input at 60/90/120/144 Hz and after screen off/on and suspend; multi-finger gestures untested |
+| Touchscreen | Novatek NT36532E (THP over SPI) | 🟡 partial | Touch input at 60/90/120/144 Hz and after screen off/on and suspend; the panel type (CSOT or BOE) is detected automatically and loads its own touch firmware and orientation; multi-finger gestures untested |
 | Magnetic keyboard | Nanosic WN8030 | ✅ works | Typing, key wake with the screen off and wake from suspend |
 
 Not yet supported: stylus, fingerprint.
@@ -159,7 +159,7 @@ A host write resets slot A's retry counter; the next Ubuntu boot marks the slot 
 
 **Time.** The hardware clock is not writable; the time is set from the network after boot. Without a network, set it with `sudo date -s 'YYYY-MM-DD HH:MM'`.
 
-**Sensor calibration.** The image ships default calibration only. To use your own tablet's stock calibration, prepare it from your own backup as described in the [sensor instructions](device/sensors/README.zh-CN.md) (Chinese); never use another tablet's.
+**Sensor calibration.** The image ships default calibration only. Installing your own tablet's stock calibration is recommended: prepare it from your own backup as described in [INSTALL](docs/INSTALL.md#recommended-prepare-your-sensor-registry) or the [sensor instructions](device/sensors/README.zh-CN.md) (Chinese); never use another tablet's.
 
 **After Initial Setup.** Initial Setup sets the hostname from its *Computer* field; change it later with `sudo hostnamectl hostname --static <name>`. Run `sudo apt update` before the first `apt install`: the image ships without package indexes.
 

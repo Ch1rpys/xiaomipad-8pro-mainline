@@ -199,7 +199,7 @@ alsatplg -c out/audio/Piano-Capture-Diag.conf -o out/audio/Piano-Capture-Diag-tp
 python3 tools/build-firmware-deb.py --topology out/audio/Piano-Capture-Diag-tplg.bin \
   --card-topology out/audio/Xiaomi-Pad-8-Pro-tplg.bin \
   --maintainer 'Name <email>' --output out/firmware-deb
-# expect JSON with "deb": "piano-local-firmware_0.4+os3.0.303.0_all.deb" and "deb_sha256"
+# expect JSON with "deb": "piano-local-firmware_0.6+os3.0.303.0_all.deb" and "deb_sha256"
 ```
 
 - `build-firmware-deb.py` takes `firmware/` by default; add `--firmware-tree <tree>` for your own
@@ -265,7 +265,7 @@ initrds are not reproducible, so `vendor_boot.img` differs between builds with o
 ## 4. Fresh install (manual steps)
 
 The partitioning and root filesystem installer is not yet available. These steps reproduce the
-installation of the test unit (512 GB UFS) with standard commands. With a release directory, the
+installation of the test unit (512 GB UFS) with standard commands; §4.5 gives the 256 GB values. With a release directory, the
 release root image and boot set replace §4.4 and the set of §3.6; the changes are listed in
 [RELEASE.md](RELEASE.md#installing-the-release).
 
@@ -316,7 +316,7 @@ adb -s <SERIAL> exec-out su -c 'dd if=/dev/block/sdX bs=4096 skip=<blocks-34> 2>
 |---|---|---|
 | `bluetooth-address` | stock Android | `adb -s <SERIAL> shell settings get secure bluetooth_address > bluetooth-address` (one `XX:XX:XX:XX:XX:XX` line; `piano-boot-update` requires it) |
 | `wlan-address` (optional) | `wlan/wlan_mac.bin` on the stock `persist` partition | manual steps: one unicast `XX:XX:XX:XX:XX:XX` line; `piano-boot-update` uses it when present |
-| `thp-calibration.json` | `piano_nova_csot_thp_config.ini` from the stock ODM partition (the CSOT panel of the test unit; use the file your panel's stock driver loads) | `python3 tools/extract-thp-calibration.py --input <ini> --output thp-calibration.json` |
+| `thp-calibration.json` | `piano_nova_csot_thp_config.ini` or `piano_nova_boe_thp_config.ini` from the stock ODM partition, the file the unit's stock driver loads (`dmesg \| grep config_file_name` in stock Android; the test unit has the CSOT panel). The kernel detects the panel and loads its touch firmware; `piano-thp-live` picks the orientation from the kernel's `panel_vendor` and logs a `THP calibration error` line if the calibration belongs to the other panel | `python3 tools/extract-thp-calibration.py --input <ini> --output thp-calibration.json` |
 | `boot-signing.pem` | new owner key | `openssl genrsa -out boot-signing.pem 4096` |
 | `boot-profile.json` | stock `boot_a`, `init_boot_a`, `vendor_boot_a` | manual steps, below |
 | `boot-partitions.json` | `sfdisk --json` of the boot LUN (LUN 4: the one whose GPT holds `boot_a` and `boot_b`) | `python3 tools/extract-boot-partitions.py --input <sfdisk json> --profile boot-profile.json --output boot-partitions.json` (§4.8; INSTALL step 8a reads the table in the maintenance image) |
@@ -452,7 +452,7 @@ sudo fstrim -v $R      # freed blocks keep their content; the loop device must p
 sudo umount $R/dev/pts $R/dev $R/sys $R/proc $R
 e2fsck -f out/install/root.ext4 && python3 tools/sparse_image.py encode-ext4 out/install/root.ext4 out/install/root.sparse.img
 
-truncate -s 216115687424 out/install/data.ext4     # linux_data size on the 512 GB unit (§4.5)
+truncate -s 216115687424 out/install/data.ext4     # linux_data size on the 512 GB unit (§4.5); 65418539008 on the 256 GB unit
 mkfs.ext4 -U "$DATA_UUID" out/install/data.ext4 && img2simg -s out/install/data.ext4 out/install/data.sparse.img
 ```
 
@@ -467,9 +467,12 @@ build of the release root: 10.14 GB written without it, 8.73 GB with it).
 
 ### 4.5 New LUN 0 GPT (host, manual steps)
 
-Entry 34 `userdata` keeps its start, type GUID, unique GUID and attributes and shrinks to 200 GiB;
-entries 35 `linux_rootfs` (60 GiB) and 36 `linux_data` (the remainder) are new. All other entries
-and LUNs stay unchanged. LUN 0 has 124,552,192 blocks of 4096 bytes on the 512 GB unit.
+Entry 34 `userdata` keeps its start, type GUID, unique GUID and attributes and shrinks to 200 GiB
+(110 GiB on 256 GB units); entries 35 `linux_rootfs` (60 GiB) and 36 `linux_data` (the remainder) are
+new. All other entries and LUNs stay unchanged. LUN 0 has 124,552,192 blocks of 4096 bytes on the
+512 GB unit and 64,167,936 on 256 GB units (`size / 8` from §4.2; one GiB is 262,144 blocks). A
+256 GB unit measured `userdata` 28,835,840, `linux_rootfs` 15,728,640 and `linux_data` 15,971,323
+blocks, the last ending at the last usable LBA 64167930.
 
 ```bash
 BLOCKS=<LUN 0 size / 8>                         # from §4.2
@@ -483,21 +486,23 @@ sudo sfdisk --json "$LOOP" > gpt-before.json
 
 S=<first sector of userdata>      # 3632128 on the test unit
 U=<unique GUID of userdata>; T=<type GUID of userdata>
+A=52428800                        # userdata blocks: 200 GiB x 262144 on 512 GB units; 28835840 (110 GiB) on 256 GB units
+R=15728640                        # linux_rootfs blocks: 60 GiB x 262144
 L=0FC63DAF-8483-4772-8E79-3D69D8477DE4      # Linux filesystem
 sudo sgdisk --set-alignment=256 --delete=34 \
-  --new=34:$S:$((S + 52428800 - 1)) --typecode=34:$T --partition-guid=34:$U --change-name=34:userdata \
-  --new=35:$((S + 52428800)):$((S + 68157440 - 1)) --typecode=35:$L --partition-guid=35:$ROOT_UUID --change-name=35:linux_rootfs \
-  --new=36:$((S + 68157440)):0 --typecode=36:$L --partition-guid=36:$DATA_UUID --change-name=36:linux_data \
+  --new=34:$S:$((S + A - 1)) --typecode=34:$T --partition-guid=34:$U --change-name=34:userdata \
+  --new=35:$((S + A)):$((S + A + R - 1)) --typecode=35:$L --partition-guid=35:$ROOT_UUID --change-name=35:linux_rootfs \
+  --new=36:$((S + A + R)):0 --typecode=36:$L --partition-guid=36:$DATA_UUID --change-name=36:linux_data \
   "$LOOP"
 sudo sgdisk --verify "$LOOP"      # expect "No problems found."
 sudo sfdisk --json "$LOOP" > gpt-after.json
 ```
 
 Compare `gpt-before.json` and `gpt-after.json`: only entries 34–36 may differ, and they must start
-at `S`, `S + 52428800` and `S + 68157440`; the disk GUID, first and last usable LBA and table length
-must not change. Copy non-zero userdata attributes with
+at `S`, `S + A` and `S + A + R`; `linux_data` is `LAST - S - A - R + 1` blocks. The disk GUID, first
+and last usable LBA and table length must not change. Copy non-zero userdata attributes with
 `--attributes=34:=:<hex>`. Then extract the two GPT regions (first usable LBA is 6 and last usable
-LBA 124552186 on the test unit):
+LBA 124552186 on the test unit, 64167930 on 256 GB units):
 
 ```bash
 FIRST=<first usable LBA>; LAST=<last usable LBA>        # from sgdisk --print
@@ -568,9 +573,9 @@ Write the backup copy first, then the primary, and compare each readback before 
 ### 4.7 Erase and write the filesystems (Fastboot)
 
 ```bash
-fastboot -s <SERIAL> getvar partition-size:userdata       # expect "0x3200000000"
+fastboot -s <SERIAL> getvar partition-size:userdata       # expect "0x3200000000"; 256 GB units: 102 GiB (8 GiB below the 110 GiB GPT entry, as on stock)
 fastboot -s <SERIAL> getvar partition-size:linux_rootfs   # expect "0xf00000000"
-fastboot -s <SERIAL> getvar partition-size:linux_data     # expect "0x32517fb000" on the 512 GB unit
+fastboot -s <SERIAL> getvar partition-size:linux_data     # linux_data blocks x 4096: "0x32517fb000" on the 512 GB unit
 fastboot -s <SERIAL> erase userdata
 fastboot -s <SERIAL> erase metadata
 fastboot -s <SERIAL> flash linux_rootfs out/install/root.sparse.img
@@ -1054,7 +1059,7 @@ image content.
   boot) and the location of the evidence. Results from another tablet or another candidate do not
   carry over.
 - Keep earlier failures; a later pass states its own scope instead of replacing them.
-- Public status lives in the [README support matrix](../README.md#support-matrix) (one line per
+- Public status lives in the [README support matrix](../README.md#hardware-support) (one line per
   feature) and [STATUS.md](STATUS.md) (test configuration, known issues, roadmap). Raw logs,
   captures and device records stay in ignored `private/` directories and are never committed.
 - Hardware reports name the device model, stock build, kernel release and image set identity and

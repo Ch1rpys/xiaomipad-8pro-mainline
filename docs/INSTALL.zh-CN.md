@@ -125,10 +125,13 @@ cp backup/vendor_boot_a.img android-set/vendor_boot.img
 | `boot-profile.json`、`boot-signing.pem` | 无法重建启动镜像组：地址不生效，内核更新也不会改写 A 槽 |
 | `boot-partitions.json`（第 8a 或 10 步生成） | `piano-boot-switch` 拒绝切换，内核与 initrd 更新不改动启动镜像组和 A 槽 |
 
-**触控标定。** 原厂 ODM 分区有 `piano_nova_csot_thp_config.ini`（CSOT 面板，与测试机相同）和
-`piano_nova_boe_thp_config.ini`。使用原厂驱动加载的那一份；测试机的原厂内核日志中是 CSOT 文件。
+**触控标定。** 平板的屏幕有 CSOT 和 BOE 两种。发布版会自动识别屏型，并加载对应的触控固件和方向；
+只有标定需要你自己提供。原厂 ODM 分区有 `piano_nova_csot_thp_config.ini`（CSOT 面板，与测试机相同）和
+`piano_nova_boe_thp_config.ini`。使用原厂驱动加载的那一份，原厂内核日志里写着文件名
+（`dmesg` 没有输出时，重启 Android 后立即再查一次）。
 
 ```bash
+adb -s <SERIAL> shell su -c 'dmesg | grep config_file_name'   # ...=piano_nova_csot_thp_config.ini 或 ..._boe_...
 adb -s <SERIAL> shell su -c 'find /odm -name "piano_nova_*_thp_config.ini"'
 adb -s <SERIAL> exec-out su -c 'cat <ini 路径>' > thp.ini
 python3 "$REPO/tools/extract-thp-calibration.py" --input thp.ini --output thp-calibration.json
@@ -180,8 +183,9 @@ python3 <avbtool.py> info_image --image backup/boot_a.img
 `com.android.build.boot.os_version` 与 `com.android.build.boot.security_patch`。发布目录的
 `boot/boot-profile.json` 展示了该原厂版本的同一结构（不含序列号）。
 
-### 可选：准备本机传感器 registry
+### 推荐：准备本机传感器 registry
 
+本机 registry 带有这台平板的出厂传感器标定。只用默认标定时，有的机器出现过传感器和声音失效。
 在主机用这台平板自己的 persist 提取备份执行；输入是含内层 `registry/` 的外层 `sensors/registry/`。这个私有目录和 tar 不得分享，也不放入发布镜像。第 8a 步在首次 Ubuntu 启动前安装它。
 
 ```bash
@@ -198,18 +202,22 @@ sha256sum "$WORK/sensor-registry.tar"
 
 LUN 0 上原 `userdata` 的范围拆成三个分区，其他分区和 LUN 不变。
 
-| 条目 | 名称 | 大小（512 GB 机型） | 用途 |
-|---|---|---|---|
-| 34 | `userdata` | 200 GiB | Android 数据；保留起点、类型 GUID、唯一 GUID 和属性 |
-| 35 | `linux_rootfs` | 60 GiB | Ubuntu `/` |
-| 36 | `linux_data` | 余下约 201.27 GiB | Ubuntu `/home` |
+| 条目 | 名称 | 512 GB 机型 | 256 GB 机型 | 用途 |
+|---|---|---|---|---|
+| 34 | `userdata` | 200 GiB | 110 GiB | Android 数据；保留起点、类型 GUID、唯一 GUID 和属性 |
+| 35 | `linux_rootfs` | 60 GiB | 60 GiB | Ubuntu `/` |
+| 36 | `linux_data` | 余下约 201.27 GiB | 余下约 60.93 GiB | Ubuntu `/home` |
+
+用第 2 步得到的 LUN 0 大小区分容量：`size / 8` 是 4096 字节块数，512 GB 机型为 124,552,192（约 475 GiB），
+256 GB 机型为 64,167,936（约 245 GiB）。1 GiB 等于 262,144 块。256 GB 一列是一台 256 GB 机器的实测值：
+`userdata` 28,835,840 块、`linux_rootfs` 15,728,640 块、`linux_data` 15,971,323 块，结束于最后一个可用 LBA。
 
 发布版按名称查找分区，名称必须严格为 `linux_rootfs` 和 `linux_data`；两者的 GUID 可以是任意新值。
 
 ## 5. 生成新分区表（主机）
 
 *手工。* 只在 LUN 0 分区表的副本上操作，不要直接对平板操作。LUN 0 块大小为 4096 字节
-（512 GB 机型共 124,552,192 块）。
+（512 GB 机型共 124,552,192 块，256 GB 机型共 64,167,936 块）。
 
 ```bash
 ROOT_UUID=$(uuidgen); DATA_UUID=$(uuidgen)
@@ -224,21 +232,25 @@ sudo sfdisk --json "$LOOP" > gpt-before.json
 
 S=<userdata 起始扇区>             # 测试机为 3632128
 U=<userdata 唯一 GUID>; T=<userdata 类型 GUID>
+A=52428800                        # userdata 块数：512 GB 机型 200 GiB x 262144；256 GB 机型 28835840（110 GiB）
+R=15728640                        # linux_rootfs 块数：60 GiB x 262144
 L=0FC63DAF-8483-4772-8E79-3D69D8477DE4      # Linux filesystem
 sudo sgdisk --set-alignment=256 --delete=34 \
-  --new=34:$S:$((S + 52428800 - 1)) --typecode=34:$T --partition-guid=34:$U --change-name=34:userdata \
-  --new=35:$((S + 52428800)):$((S + 68157440 - 1)) --typecode=35:$L --partition-guid=35:$ROOT_UUID --change-name=35:linux_rootfs \
-  --new=36:$((S + 68157440)):0 --typecode=36:$L --partition-guid=36:$DATA_UUID --change-name=36:linux_data \
+  --new=34:$S:$((S + A - 1)) --typecode=34:$T --partition-guid=34:$U --change-name=34:userdata \
+  --new=35:$((S + A)):$((S + A + R - 1)) --typecode=35:$L --partition-guid=35:$ROOT_UUID --change-name=35:linux_rootfs \
+  --new=36:$((S + A + R)):0 --typecode=36:$L --partition-guid=36:$DATA_UUID --change-name=36:linux_data \
   "$LOOP"
 sudo sgdisk --verify "$LOOP"      # 预期 "No problems found."
 sudo sfdisk --json "$LOOP" > gpt-after.json
 ```
 
-比较 `gpt-before.json` 与 `gpt-after.json`：只允许条目 34–36 不同，起点分别为 `S`、`S + 52428800`、
-`S + 68157440`；磁盘 GUID、首末可用 LBA 和表长度不得改变。若 `userdata` 原有非零属性，用
-`--attributes=34:=:<hex>` 复制。
+比较 `gpt-before.json` 与 `gpt-after.json`：只允许条目 34–36 不同，起点分别为 `S`、`S + A`、
+`S + A + R`。`linux_data` 占用其余空间直到最后一个可用 LBA，共 `LAST - S - A - R + 1` 块
+（512 GB 测试机 52,762,619 块，256 GB 机器 15,971,323 块）。磁盘 GUID、首末可用 LBA 和表长度不得改变。
+若 `userdata` 原有非零属性，用 `--attributes=34:=:<hex>` 复制。
 
-取出两段分区表区域（测试机首个可用 LBA 为 6，最后可用 LBA 为 124552186）：
+取出两段分区表区域（首个可用 LBA 为 6；最后可用 LBA 在 512 GB 机型为 124552186，256 GB 机型为
+64167930，即 LUN 0 末尾前 6 块）：
 
 ```bash
 FIRST=<first usable LBA>; LAST=<last usable LBA>        # 取自 sgdisk --print
@@ -270,8 +282,8 @@ telnet 192.168.88.2 2323
 请改用空闲端口并同步修改下面的 `wget` 行；下载文件的哈希核对能发现连错服务器。
 
 如果 `--check` 打印的是 `ip` 命令，执行后再检查一次。登录后会打印 LUN 表（LUN、磁盘、以 512 字节扇区计的大小、块大小、设备路径）、
-`Mounted from the UFS disks: none` 和 LUN 0 的 `sgdisk -p` 分区表。LUN 0 是以 `0` 开头的那一行，512 GB 机型 size 为
-996417536、块大小 4096；核对该分区表就是第 2 步备份的分区表。然后在 telnet 会话中：
+`Mounted from the UFS disks: none` 和 LUN 0 的 `sgdisk -p` 分区表。LUN 0 是以 `0` 开头的那一行，size 在 512 GB 机型为
+996417536、256 GB 机型为 513343488，块大小 4096；核对该分区表就是第 2 步备份的分区表。然后在 telnet 会话中：
 
 ```sh
 FIRST=<first usable LBA>; LAST=<last usable LBA>; BLOCKS=<LUN 0 blocks>    # 第 5 步的数值
@@ -304,12 +316,15 @@ piano-maint fastboot                                    # 重启进入 Fastboot
 核对新分区，再按 `linux_data` 的大小生成 `/home` 镜像：
 
 ```bash
-fastboot -s <SERIAL> getvar partition-size:userdata       # 预期 "3200000000"（十六进制，不带 0x）
+fastboot -s <SERIAL> getvar partition-size:userdata       # 预期 "3200000000"（十六进制，不带 0x）；256 GB 机型为 102 GiB
 fastboot -s <SERIAL> getvar partition-size:linux_rootfs   # 预期 "0xF00000000"
-fastboot -s <SERIAL> getvar partition-size:linux_data     # 512 GB 机型为 "0x32517FB000"
+fastboot -s <SERIAL> getvar partition-size:linux_data     # linux_data 块数 x 4096 的十六进制：512 GB 机型为 "0x32517FB000"
 truncate -s $((0x<linux_data 大小>)) data.ext4
 mkfs.ext4 -L linux_data data.ext4 && img2simg -s data.ext4 data.sparse.img     # 约 6 MB
 ```
+
+256 GB 机型上 ABL 报告的 `userdata` 为 102 GiB（`1980000000`），比 GPT 中的 110 GiB 小 8 GiB。
+这是正常现象，与原厂一致：原厂 Android 的 `/data` 同样比分区小 8 GiB。
 
 擦除 Android 数据并写入两个文件系统：
 
@@ -385,11 +400,11 @@ done
 sha256sum /mnt/etc/piano/*                          # 四个哈希必须与主机一致
 mkdir -p /mnt/etc/systemd/system/usb-gadget.target.wants
 ln -sf /usr/lib/systemd/system/piano-devmode.service /mnt/etc/systemd/system/usb-gadget.target.wants/
-# 可选：仅当已准备自己的 sensor-registry.tar；核对下面哈希与主机一致
-# wget -O /tmp/sensor-registry.tar http://192.168.88.10:8000/sensor-registry.tar
-# sha256sum /tmp/sensor-registry.tar
-# tar -xf /tmp/sensor-registry.tar -C /mnt
-# chown -R 0:0 /mnt/usr/share/piano/sensors/registry-private
+# 推荐：第 3 步准备的 sensor-registry.tar（没有时跳过这四行）
+wget -O /tmp/sensor-registry.tar http://192.168.88.10:8000/sensor-registry.tar
+sha256sum /tmp/sensor-registry.tar                  # 必须与主机一致
+tar -xf /tmp/sensor-registry.tar -C /mnt
+chown -R 0:0 /mnt/usr/share/piano/sensors/registry-private
 sync; umount /mnt
 piano-maint fastboot
 ```
@@ -501,6 +516,17 @@ piano-devmode status       # 预期 "developer mode: disabled, inactive"
 - **Android：**首次启动 Android 会重建数据，需要几分钟。如需 root，请重新安装 root 管理器应用；
   A 槽中已打补丁的 `init_boot_a` 不变。更换 A 槽的 root 补丁后，要刷新存储的 Android 镜像组（[FLASHING.zh-CN.md](FLASHING.zh-CN.md#镜像组)）。
 - **已知问题与支持状态：**[README](../README.zh-CN.md#硬件支持)及发布目录中的 `RELEASE-NOTES.md`。
+
+## 排障
+
+- **没有声音。** 先查内核日志：`sudo journalctl -k -b | grep -E 'crash detected in adsp|sns_watchdog'`。
+  反复出现说明传感器服务在让音频 DSP 不断重启。同一次启动中出现第三次时，传感器服务会把 registry 移到
+  `/var/lib/piano/sensors/registry.quarantine-<时间>` 并重新开始（`journalctl -b -u piano-hexagonrpcd-sns`
+  会写出该目录）。如果仍持续出现，按[传感器说明](../device/sensors/README.zh-CN.md)安装本机传感器 registry
+  （[第 3 步](#推荐准备本机传感器-registry)）。
+- **触控无反应或方向不对。** `journalctl -b -u piano-thp` 会写出识别到的屏型。出现 `THP calibration error`
+  行说明 `thp-calibration.json` 取自另一种屏的 ini：按该行给出的 ini 重新提取（第 3 步），复制到
+  `/etc/piano/thp-calibration.json`，再运行 `sudo systemctl restart piano-thp`。
 
 ## 尚无项目工具的步骤
 

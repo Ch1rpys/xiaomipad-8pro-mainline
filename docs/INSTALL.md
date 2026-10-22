@@ -136,11 +136,14 @@ They are installed in Ubuntu in [step 10](#10-install-your-units-files).
 | `boot-profile.json`, `boot-signing.pem` | the boot set cannot be rebuilt: the addresses are not applied and kernel updates leave slot A unchanged |
 | `boot-partitions.json` (made in step 8a or 10) | `piano-boot-switch` refuses to switch, and kernel and initrd updates leave the boot set and slot A unchanged |
 
-**Touch calibration.** The stock ODM partition holds `piano_nova_csot_thp_config.ini` (CSOT panel,
-as on the test unit) and `piano_nova_boe_thp_config.ini`. Use the one your stock driver loads; on the
-test unit the stock kernel log names the CSOT file.
+**Touch calibration.** Units have a CSOT or a BOE display panel. The release recognizes either
+automatically and loads the matching touch firmware and orientation; only the calibration comes from
+you. The stock ODM partition holds `piano_nova_csot_thp_config.ini` (CSOT panel, as on the test unit)
+and `piano_nova_boe_thp_config.ini`. Use the one your stock driver loads: the stock kernel log names
+it (if `dmesg` prints nothing, reboot Android and run it again right after boot).
 
 ```bash
+adb -s <SERIAL> shell su -c 'dmesg | grep config_file_name'   # ...=piano_nova_csot_thp_config.ini or ..._boe_...
 adb -s <SERIAL> shell su -c 'find /odm -name "piano_nova_*_thp_config.ini"'
 adb -s <SERIAL> exec-out su -c 'cat <path to the ini>' > thp.ini
 python3 "$REPO/tools/extract-thp-calibration.py" --input thp.ini --output thp-calibration.json
@@ -195,9 +198,11 @@ python3 <avbtool.py> info_image --image backup/boot_a.img
 `com.android.build.boot.security_patch`. The release's `boot/boot-profile.json` shows the same
 structure for the stock build, without a serial.
 
-### Optional: prepare your sensor registry
+### Recommended: prepare your sensor registry
 
-On the host, use this tablet's own extracted persist backup. The input is the outer `sensors/registry/` directory containing the inner `registry/`. Keep this private payload and tar out of the release and never share them. Install it in step 8a before Ubuntu first boots.
+Your tablet's own registry gives the sensors their factory calibration. With the default calibration
+alone, sensors and sound have failed on some units. On the host, use this tablet's own extracted
+persist backup. The input is the outer `sensors/registry/` directory containing the inner `registry/`. Keep this private payload and tar out of the release and never share them. Install it in step 8a before Ubuntu first boots.
 
 ```bash
 python3 "$REPO/tools/stage-sensor-registry.py" \
@@ -214,11 +219,16 @@ Without it, the service generates defaults from the static stock configuration. 
 The original `userdata` range on LUN 0 is split into three partitions. All other partitions and
 LUNs stay unchanged.
 
-| Entry | Name | Size (512 GB unit) | Use |
-|---|---|---|---|
-| 34 | `userdata` | 200 GiB | Android data; keeps its start, type GUID, unique GUID and attributes |
-| 35 | `linux_rootfs` | 60 GiB | Ubuntu `/` |
-| 36 | `linux_data` | the remainder, about 201.27 GiB | Ubuntu `/home` |
+| Entry | Name | 512 GB unit | 256 GB unit | Use |
+|---|---|---|---|---|
+| 34 | `userdata` | 200 GiB | 110 GiB | Android data; keeps its start, type GUID, unique GUID and attributes |
+| 35 | `linux_rootfs` | 60 GiB | 60 GiB | Ubuntu `/` |
+| 36 | `linux_data` | the remainder, about 201.27 GiB | the remainder, about 60.93 GiB | Ubuntu `/home` |
+
+LUN 0's size from step 2 tells the capacities apart: `size / 8` is the number of 4096-byte blocks,
+124,552,192 (about 475 GiB) on 512 GB units and 64,167,936 (about 245 GiB) on 256 GB units. One GiB
+is 262,144 blocks. The 256 GB column was measured on a 256 GB unit: `userdata` 28,835,840 blocks,
+`linux_rootfs` 15,728,640 and `linux_data` 15,971,323, which ends at the last usable LBA.
 
 The release finds its partitions by name: the names must be exactly `linux_rootfs` and
 `linux_data`. Their GUIDs can be any new values.
@@ -226,7 +236,7 @@ The release finds its partitions by name: the names must be exactly `linux_rootf
 ## 5. Build the new partition table (host)
 
 *Manual.* Work on a copy of LUN 0's table, never on the tablet. LUN 0 has 4096-byte blocks
-(124,552,192 on the 512 GB unit).
+(124,552,192 on 512 GB units, 64,167,936 on 256 GB units).
 
 ```bash
 ROOT_UUID=$(uuidgen); DATA_UUID=$(uuidgen)
@@ -241,21 +251,26 @@ sudo sfdisk --json "$LOOP" > gpt-before.json
 
 S=<first sector of userdata>      # 3632128 on the test unit
 U=<unique GUID of userdata>; T=<type GUID of userdata>
+A=52428800                        # userdata blocks: 200 GiB x 262144 on 512 GB units; 28835840 (110 GiB) on 256 GB units
+R=15728640                        # linux_rootfs blocks: 60 GiB x 262144
 L=0FC63DAF-8483-4772-8E79-3D69D8477DE4      # Linux filesystem
 sudo sgdisk --set-alignment=256 --delete=34 \
-  --new=34:$S:$((S + 52428800 - 1)) --typecode=34:$T --partition-guid=34:$U --change-name=34:userdata \
-  --new=35:$((S + 52428800)):$((S + 68157440 - 1)) --typecode=35:$L --partition-guid=35:$ROOT_UUID --change-name=35:linux_rootfs \
-  --new=36:$((S + 68157440)):0 --typecode=36:$L --partition-guid=36:$DATA_UUID --change-name=36:linux_data \
+  --new=34:$S:$((S + A - 1)) --typecode=34:$T --partition-guid=34:$U --change-name=34:userdata \
+  --new=35:$((S + A)):$((S + A + R - 1)) --typecode=35:$L --partition-guid=35:$ROOT_UUID --change-name=35:linux_rootfs \
+  --new=36:$((S + A + R)):0 --typecode=36:$L --partition-guid=36:$DATA_UUID --change-name=36:linux_data \
   "$LOOP"
 sudo sgdisk --verify "$LOOP"      # expect "No problems found."
 sudo sfdisk --json "$LOOP" > gpt-after.json
 ```
 
 Compare `gpt-before.json` and `gpt-after.json`: only entries 34–36 may differ, starting at `S`,
-`S + 52428800` and `S + 68157440`. The disk GUID, first and last usable LBA and table length must
-not change. If `userdata` had non-zero attributes, copy them with `--attributes=34:=:<hex>`.
+`S + A` and `S + A + R`. `linux_data` takes the rest up to the last usable LBA, `LAST - S - A - R + 1`
+blocks (52,762,619 on the 512 GB test unit, 15,971,323 on the 256 GB unit). The disk GUID, first and
+last usable LBA and table length must not change. If `userdata` had non-zero attributes, copy them
+with `--attributes=34:=:<hex>`.
 
-Extract the two table regions (first usable LBA 6 and last usable LBA 124552186 on the test unit):
+Extract the two table regions (first usable LBA 6; last usable LBA 124552186 on 512 GB units and
+64167930 on 256 GB units, 6 blocks before the end of LUN 0):
 
 ```bash
 FIRST=<first usable LBA>; LAST=<last usable LBA>        # from sgdisk --print
@@ -293,7 +308,8 @@ checks of the downloaded files catch a wrong server.
 If `--check` prints `ip` commands instead, run them and check again. The login prints the LUN
 table (LUN, disk, size in 512-byte sectors, block size, device path), `Mounted from the UFS
 disks: none` and the `sgdisk -p` table of LUN 0. LUN 0 is the line starting with `0`, size
-996417536 and block size 4096 on the 512 GB unit; check that the table is your table of step 2.
+996417536 on 512 GB units or 513343488 on 256 GB units, block size 4096; check that the table is
+your table of step 2.
 Then, in the telnet session:
 
 ```sh
@@ -330,12 +346,15 @@ session. Stop the host's `http.server` afterwards.
 Check the new partitions, then create the `/home` image for your `linux_data` size:
 
 ```bash
-fastboot -s <SERIAL> getvar partition-size:userdata       # expect "3200000000" (hex, printed without 0x)
+fastboot -s <SERIAL> getvar partition-size:userdata       # expect "3200000000" (hex, printed without 0x); 102 GiB on 256 GB units
 fastboot -s <SERIAL> getvar partition-size:linux_rootfs   # expect "0xF00000000"
-fastboot -s <SERIAL> getvar partition-size:linux_data     # "0x32517FB000" on the 512 GB unit
+fastboot -s <SERIAL> getvar partition-size:linux_data     # linux_data blocks x 4096 in hex: "0x32517FB000" on the 512 GB unit
 truncate -s $((0x<linux_data size>)) data.ext4
 mkfs.ext4 -L linux_data data.ext4 && img2simg -s data.ext4 data.sparse.img     # about 6 MB
 ```
+
+On 256 GB units ABL reports `userdata` as 102 GiB (`1980000000`), 8 GiB less than the 110 GiB GPT
+entry. This is normal: stock Android's `/data` is 8 GiB smaller than its partition as well.
 
 Erase Android's data and write both filesystems:
 
@@ -416,11 +435,11 @@ done
 sha256sum /mnt/etc/piano/*                          # the four hashes must equal the host's
 mkdir -p /mnt/etc/systemd/system/usb-gadget.target.wants
 ln -sf /usr/lib/systemd/system/piano-devmode.service /mnt/etc/systemd/system/usb-gadget.target.wants/
-# Optional: only if you prepared your own sensor-registry.tar; compare its hash with the host
-# wget -O /tmp/sensor-registry.tar http://192.168.88.10:8000/sensor-registry.tar
-# sha256sum /tmp/sensor-registry.tar
-# tar -xf /tmp/sensor-registry.tar -C /mnt
-# chown -R 0:0 /mnt/usr/share/piano/sensors/registry-private
+# Recommended: your sensor-registry.tar of step 3 (skip these four lines without it)
+wget -O /tmp/sensor-registry.tar http://192.168.88.10:8000/sensor-registry.tar
+sha256sum /tmp/sensor-registry.tar                  # must equal the host's
+tar -xf /tmp/sensor-registry.tar -C /mnt
+chown -R 0:0 /mnt/usr/share/piano/sensors/registry-private
 sync; umount /mnt
 piano-maint fastboot
 ```
@@ -548,8 +567,22 @@ the host ([FLASHING.md](FLASHING.md#from-the-host-piano-switchpy)).
 - **Android:** the first Android boot re-creates its data and takes several minutes. Reinstall the
   root manager app if you need root; the root-patched `init_boot_a` is unchanged. After changing the
   root patch in slot A, refresh the stored Android set ([FLASHING.md](FLASHING.md#image-sets)).
-- **Known issues and support status:** [README](../README.md#support-matrix), the release's
+- **Known issues and support status:** [README](../README.md#hardware-support), the release's
   `RELEASE-NOTES.md`.
+
+## Troubleshooting
+
+- **No sound.** Check the kernel log first:
+  `sudo journalctl -k -b | grep -E 'crash detected in adsp|sns_watchdog'`. Repeated lines mean the
+  sensor service keeps restarting the audio DSP. After the third such crash in a boot the sensor
+  service moves its registry to `/var/lib/piano/sensors/registry.quarantine-<time>` and starts over
+  (`journalctl -b -u piano-hexagonrpcd-sns` names it). If the lines continue, install your own
+  sensor registry ([step 3](#recommended-prepare-your-sensor-registry)) as described in the
+  [sensor instructions](../device/sensors/README.zh-CN.md) (Chinese).
+- **Touch does not respond or moves the wrong way.** `journalctl -b -u piano-thp` names the detected
+  panel. A `THP calibration error` line means `thp-calibration.json` comes from the other panel's ini:
+  extract it again from the ini named there (step 3), copy it to `/etc/piano/thp-calibration.json` and
+  run `sudo systemctl restart piano-thp`.
 
 ## Steps without a project tool
 

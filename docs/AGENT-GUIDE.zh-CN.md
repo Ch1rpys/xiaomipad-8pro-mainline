@@ -179,7 +179,7 @@ alsatplg -c out/audio/Piano-Capture-Diag.conf -o out/audio/Piano-Capture-Diag-tp
 python3 tools/build-firmware-deb.py --topology out/audio/Piano-Capture-Diag-tplg.bin \
   --card-topology out/audio/Xiaomi-Pad-8-Pro-tplg.bin \
   --maintainer 'Name <email>' --output out/firmware-deb
-# 预期 JSON 中 "deb": "piano-local-firmware_0.4+os3.0.303.0_all.deb" 与 "deb_sha256"
+# 预期 JSON 中 "deb": "piano-local-firmware_0.6+os3.0.303.0_all.deb" 与 "deb_sha256"
 ```
 
 - `build-firmware-deb.py` 默认使用 `firmware/`；使用自己的提取结果时加 `--firmware-tree <tree>`（§2）。
@@ -239,7 +239,7 @@ Mesa 构建 manifest；镜像组的 `manifest.json` 与 `SHA256SUMS`；initrd �
 
 ## 4. 全新安装（手工步骤）
 
-分区与根文件系统安装器尚不可用。以下步骤用标准命令复现测试机（512 GB UFS）的安装。使用发布目录时，发布的根文件系统镜像与启动镜像组代替 §4.4 和 §3.6 的镜像组，改动见 [RELEASE.md](RELEASE.md#installing-the-release)。
+分区与根文件系统安装器尚不可用。以下步骤用标准命令复现测试机（512 GB UFS）的安装，256 GB 对应值见 §4.5。使用发布目录时，发布的根文件系统镜像与启动镜像组代替 §4.4 和 §3.6 的镜像组，改动见 [RELEASE.md](RELEASE.md#installing-the-release)。
 
 ### 4.1 前提
 
@@ -286,7 +286,7 @@ adb -s <SERIAL> exec-out su -c 'dd if=/dev/block/sdX bs=4096 skip=<blocks-34> 2>
 |---|---|---|
 | `bluetooth-address` | 原厂 Android | `adb -s <SERIAL> shell settings get secure bluetooth_address > bluetooth-address`（一行 `XX:XX:XX:XX:XX:XX`；`piano-boot-update` 必需） |
 | `wlan-address`（可选） | 原厂 `persist` 分区中的 `wlan/wlan_mac.bin` | 手工步骤：一行单播 `XX:XX:XX:XX:XX:XX`；存在时 `piano-boot-update` 使用它 |
-| `thp-calibration.json` | 原厂 ODM 分区中的 `piano_nova_csot_thp_config.ini`（测试机为 CSOT 面板；使用本机原厂驱动加载的那份） | `python3 tools/extract-thp-calibration.py --input <ini> --output thp-calibration.json` |
+| `thp-calibration.json` | 原厂 ODM 分区中的 `piano_nova_csot_thp_config.ini` 或 `piano_nova_boe_thp_config.ini`，取本机原厂驱动加载的那份（原厂 Android 中 `dmesg \| grep config_file_name`；测试机为 CSOT 面板）。内核识别屏型并加载对应触控固件；`piano-thp-live` 按内核 `panel_vendor` 选方向，标定属于另一种屏时记一行 `THP calibration error` | `python3 tools/extract-thp-calibration.py --input <ini> --output thp-calibration.json` |
 | `boot-signing.pem` | 所有者新生成的密钥 | `openssl genrsa -out boot-signing.pem 4096` |
 | `boot-profile.json` | 原厂 `boot_a`、`init_boot_a`、`vendor_boot_a` | 手工步骤，见下 |
 | `boot-partitions.json` | 启动 LUN（LUN 4，即 GPT 含 `boot_a` 与 `boot_b` 的 LUN）的 `sfdisk --json` | `python3 tools/extract-boot-partitions.py --input <sfdisk json> --profile boot-profile.json --output boot-partitions.json`（§4.8；INSTALL 第 8a 步在维护镜像中读取分区表） |
@@ -416,7 +416,7 @@ sudo fstrim -v $R      # 释放的块保留旧内容；loop 设备须把 discard
 sudo umount $R/dev/pts $R/dev $R/sys $R/proc $R
 e2fsck -f out/install/root.ext4 && python3 tools/sparse_image.py encode-ext4 out/install/root.ext4 out/install/root.sparse.img
 
-truncate -s 216115687424 out/install/data.ext4     # 512 GB 机型的 linux_data 大小（§4.5）
+truncate -s 216115687424 out/install/data.ext4     # 512 GB 机型的 linux_data 大小（§4.5）；256 GB 机器为 65418539008
 mkfs.ext4 -U "$DATA_UUID" out/install/data.ext4 && img2simg -s out/install/data.ext4 out/install/data.sparse.img
 ```
 
@@ -428,8 +428,11 @@ mkfs.ext4 -U "$DATA_UUID" out/install/data.ext4 && img2simg -s out/install/data.
 
 ### 4.5 新的 LUN 0 GPT（主机，手工步骤）
 
-34 号条目 `userdata` 保留起点、类型 GUID、唯一 GUID 和属性，缩小到 200 GiB；35 号 `linux_rootfs`（60 GiB）和
-36 号 `linux_data`（其余空间）为新条目。其他条目和 LUN 不变。512 GB 机型的 LUN 0 有 124,552,192 个 4096 字节块。
+34 号条目 `userdata` 保留起点、类型 GUID、唯一 GUID 和属性，缩小到 200 GiB（256 GB 机型为 110 GiB）；
+35 号 `linux_rootfs`（60 GiB）和 36 号 `linux_data`（其余空间）为新条目。其他条目和 LUN 不变。
+LUN 0 在 512 GB 机型有 124,552,192 个 4096 字节块，256 GB 机型有 64,167,936 个（§4.2 的 `size / 8`；
+1 GiB 为 262,144 块）。一台 256 GB 机器实测 `userdata` 28,835,840 块、`linux_rootfs` 15,728,640 块、
+`linux_data` 15,971,323 块，最后一个结束于最后可用 LBA 64167930。
 
 ```bash
 BLOCKS=<LUN 0 size / 8>                         # 取自 §4.2
@@ -443,19 +446,21 @@ sudo sfdisk --json "$LOOP" > gpt-before.json
 
 S=<first sector of userdata>      # 测试机为 3632128
 U=<unique GUID of userdata>; T=<type GUID of userdata>
+A=52428800                        # userdata 块数：512 GB 机型 200 GiB x 262144；256 GB 机型 28835840（110 GiB）
+R=15728640                        # linux_rootfs 块数：60 GiB x 262144
 L=0FC63DAF-8483-4772-8E79-3D69D8477DE4      # Linux 文件系统
 sudo sgdisk --set-alignment=256 --delete=34 \
-  --new=34:$S:$((S + 52428800 - 1)) --typecode=34:$T --partition-guid=34:$U --change-name=34:userdata \
-  --new=35:$((S + 52428800)):$((S + 68157440 - 1)) --typecode=35:$L --partition-guid=35:$ROOT_UUID --change-name=35:linux_rootfs \
-  --new=36:$((S + 68157440)):0 --typecode=36:$L --partition-guid=36:$DATA_UUID --change-name=36:linux_data \
+  --new=34:$S:$((S + A - 1)) --typecode=34:$T --partition-guid=34:$U --change-name=34:userdata \
+  --new=35:$((S + A)):$((S + A + R - 1)) --typecode=35:$L --partition-guid=35:$ROOT_UUID --change-name=35:linux_rootfs \
+  --new=36:$((S + A + R)):0 --typecode=36:$L --partition-guid=36:$DATA_UUID --change-name=36:linux_data \
   "$LOOP"
 sudo sgdisk --verify "$LOOP"      # 预期 "No problems found."
 sudo sfdisk --json "$LOOP" > gpt-after.json
 ```
 
-对比 `gpt-before.json` 与 `gpt-after.json`：只允许 34–36 号条目不同，且三者起点分别为 `S`、`S + 52428800`
-和 `S + 68157440`；磁盘 GUID、首末可用 LBA 和表长度不得变化。userdata 属性非零时用
-`--attributes=34:=:<hex>` 复制。然后取出两个 GPT 区域（测试机首个可用 LBA 为 6，最后可用 LBA 为 124552186）：
+对比 `gpt-before.json` 与 `gpt-after.json`：只允许 34–36 号条目不同，且三者起点分别为 `S`、`S + A`
+和 `S + A + R`；`linux_data` 为 `LAST - S - A - R + 1` 块。磁盘 GUID、首末可用 LBA 和表长度不得变化。userdata 属性非零时用
+`--attributes=34:=:<hex>` 复制。然后取出两个 GPT 区域（测试机首个可用 LBA 为 6，最后可用 LBA 为 124552186；256 GB 机型为 64167930）：
 
 ```bash
 FIRST=<first usable LBA>; LAST=<last usable LBA>        # 取自 sgdisk --print
@@ -521,9 +526,9 @@ piano-maint fastboot
 ### 4.7 擦除并写入文件系统（Fastboot）
 
 ```bash
-fastboot -s <SERIAL> getvar partition-size:userdata       # 预期 "0x3200000000"
+fastboot -s <SERIAL> getvar partition-size:userdata       # 预期 "0x3200000000"；256 GB 机型为 102 GiB（比 GPT 的 110 GiB 小 8 GiB，与原厂一致）
 fastboot -s <SERIAL> getvar partition-size:linux_rootfs   # 预期 "0xf00000000"
-fastboot -s <SERIAL> getvar partition-size:linux_data     # 512 GB 机型预期 "0x32517fb000"
+fastboot -s <SERIAL> getvar partition-size:linux_data     # linux_data 块数 x 4096：512 GB 机型预期 "0x32517fb000"
 fastboot -s <SERIAL> erase userdata
 fastboot -s <SERIAL> erase metadata
 fastboot -s <SERIAL> flash linux_rootfs out/install/root.sparse.img
