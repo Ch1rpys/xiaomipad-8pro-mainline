@@ -266,7 +266,7 @@ def main():
         ]
         package('piano-device-support', support,
                 'python3, openssl, device-tree-compiler, dracut, kmod, init-system-helpers, piano-mipps-auth, '
-                'piano-local-firmware (>= 0.5+os3.0.303.0)',
+                'piano-local-firmware (>= 0.6+os3.0.303.0)',
                 'Piano platform, touchscreen and persistent boot integration',
                 '#!/bin/sh\nset -e\nif [ "$1" = configure ]; then\n'
                 # piano-thp.service is udev-activated only; remove the multi-user.target link

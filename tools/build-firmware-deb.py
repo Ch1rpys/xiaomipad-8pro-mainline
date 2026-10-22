@@ -29,7 +29,8 @@ PACKAGE = 'piano-local-firmware'
 # 7.2.6-piano6 and later) and, through firmware/piano-audio.json, the FS19xx preset; the capture-only
 # topology stays for kernels whose card is still Piano-Capture-Diag.
 # 0.5: includes the signed VPU35 Iris firmware from firmware/piano-iris.json.
-VERSION = '0.5+os3.0.303.0'
+# 0.6: adds the BOE panel touch firmware next to the CSOT one (firmware/piano-input.json).
+VERSION = '0.6+os3.0.303.0'
 SOURCE_DATE_EPOCH = 0
 
 

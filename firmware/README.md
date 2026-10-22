@@ -18,7 +18,7 @@ Per-unit data is excluded (see below).
 | `qcom/sm8750/` | `vpu35_4v.mbn` (signed ELF32) | `qcom-iris` (SM8750 VPU35) | `odm_a`, `firmware/vpu35_4v.mbn` | `piano-iris.json` |
 | `qca/` | 27: `gngbtfw20.mbn`, `gngbtnv20.bin` and 25 board-specific `gngbtnv20.bXX` | `hci_qca` (WCN7860 Bluetooth, ROM 0x20) | `bluetooth_a` FAT, `image/` | `piano-bluetooth-rom20.json` |
 | `ath12k/WCN7860/hw2.0/` | `amss.bin`, `m3.bin`, `aux_ucode.bin`, `regdb.bin`, `qdss.cfg`, `board.bin` | `ath12k` (WCN7860 Wi-Fi) | `modem_a` FAT, `image/peach/` | `piano-wlan.json` |
-| `novatek/piano/` | `novatek_nt36532_piano_fw_csot.bin` | `nt36532e-thp` (touch) | `odm_a`, `firmware/` | `piano-input.json` |
+| `novatek/piano/` | `novatek_nt36532_piano_fw_csot.bin`, `novatek_nt36532_piano_fw_boe.bin` (CSOT and BOE panels; the driver picks one by panel ID) | `nt36532e-thp` (touch) | `odm_a`, `firmware/` | `piano-input.json` |
 | `nanosic/piano/` | `MCU_Upgrade.bin` | `hid-nanosic` (keyboard bridge) | `odm_a`, `firmware/` | `piano-input.json` |
 | `foursemi/piano/` | `fs19xx.fsm` (register preset of the four amplifiers) | `snd-soc-fs19xx` (speaker amplifiers) | `odm_a`, `firmware/` | `piano-audio.json` |
 
@@ -30,7 +30,7 @@ other regions use a different stock board file.
 **Not included:**
 - touch calibration, which `tools/extract-thp-calibration.py` generates per device;
 - the Bluetooth address, the Wi-Fi MAC address (`persist`) and other per-unit calibration;
-- stock files the current kernel does not load (CDSP, other board files and panel variants);
+- stock files the current kernel does not load (CDSP, other board files, the touch `mp` test images);
 - the audio capture topology `qcom/sm8750/Piano-Capture-Diag-tplg.bin`, which is built from
   [`device/audio`](../device/audio/README.md).
 
