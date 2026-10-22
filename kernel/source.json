@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "purpose": "v0.6.1: panel module selection by the ID pin (CSOT and BOE) on the piano32 base",
+  "purpose": "v0.6.1: panel module selection by the ID pin (CSOT and BOE), 105C CPU hotspot trips and the built-in LLCC driver on the piano32 base",
   "upstream_url": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git",
   "upstream_tag": "v7.2.10",
   "upstream_commit": "7b20d05fd38de8e0be168956f6fd241d750c7d69",
   "url": "https://github.com/yzddmr6/linux-sm8750-piano",
-  "commit": "55a703614e1577b9db117c935ec0e64634263aed",
+  "commit": "d5851815c32258a51d91b0aa337cda75eb651b21",
   "branch": "piano/v0.6.1",
   "config": "arch/arm64/configs/piano-diagnostic.config",
   "release_config_fragments": [
@@ -15,5 +15,5 @@
     "arch/arm64/configs/piano-release.config"
   ],
   "note": "The kernel release fragments remain in the kernel source and are merged in order. tools/build-kernel.sh then applies kernel_release to CONFIG_LOCALVERSION for package ABI allocation without a kernel-only release commit; all other configuration remains unchanged. kernel/abi.json binds the final commit and .config.",
-  "kernel_release": "7.2.10-piano33"
+  "kernel_release": "7.2.10-piano34"
 }
