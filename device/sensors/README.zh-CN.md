@@ -40,7 +40,11 @@ persist registry 即使不含序列号/MAC，也含每台设备唯一的传感�
 `/var/lib/piano/sensors/registry/`，让 DSP 按 stock JSON 生成默认标定。后者日志明确打印
 `SSC_REGISTRY=stock-default-calibration`；不因缺私有数据拒绝传感器，但默认标定的可用性/精度尚未真机验收。
 DSP 写入仅映射到该可写状态，`ProtectSystem=strict` 保持 pristine 配置/种子只读。
-升级或普通重启不会覆盖现有状态，也不会重新复制私有种子。
+升级或普通重启不会覆盖现有状态，也不会重新复制私有种子。唯一例外：本次启动的内核日志中出现
+≥3 次传感器看门狗导致的 ADSP fatal error（`fatal error received:` 且含 `qsh_process` 或
+`sns_watchdog`）时，`sensors-prepare` 在 ADSP 恢复后的下一次运行把状态整体移到
+`/var/lib/piano/sensors/registry.quarantine-<UTC 时间>`，再按上述规则重新播种（有私有种子则用私有种子），
+并打印一行日志。每次启动最多一次；隔离副本保留最新 3 份。
 
 ## 安装（由用户在平板执行）
 
