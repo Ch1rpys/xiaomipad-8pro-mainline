@@ -33,7 +33,7 @@ create/write/append/update/remove operations; links and non-regular write target
 are rejected, and other mappings remain read-only. Its new test drives the real
 apps_std method handlers and checks actual file bytes and confinement. The
 Qualcomm method ABI and upstream PR #21 informed the patch; fake-success stubs
-are not used. See `../device-test/README.zh-CN.md` for the bounded test contract.
+are not used.
 All 15 tests now pass under ARM64 qemu-user and native ASan/UBSan (leak checking
 is excluded for the upstream process-lifetime virtual directory tree).
 

@@ -218,12 +218,6 @@ python3 tools/piano_boot_acceptance.py script [--initrd]  # the device-side read
   `piano-boot-switch status`, `GCC_DISP_HF_AXI_CBCR` through busybox
   `devmem`) and copy a 256 MiB buffer in RAM; the initrd script mounts debugfs
   if it is absent.
-- `tools/test-piano-boot-acceptance.py` replays two scrubbed captures in
-  `tools/fixtures/boot-acceptance/`: a validation boot (PASS) and a slow boot
-  with dispcc as a module (FAIL on the classification, simpledrm, the initrd
-  clock hold,
-  switch-root, gdm, GMU, GPU errors, the copy, scanout, touch errors and the
-  dispcc configuration).
 
 ### Marking slot A successful
 
