@@ -197,28 +197,13 @@ Thunderbird 保持 snap。Snap 移除和 Firefox GPU 渲染需在设备上单独
 使用 boot profile 前只保留原厂构建字段。镜像不含账户、machine ID、SSH 主机密钥或逐机文件。
 由于 dpkg 和 dracut 记录时间，根镜像不保证逐字节可复现。
 
-### 在 GitHub Actions 上构建根镜像
+### 根镜像构建后端
 
-[root-image.yml](../.github/workflows/root-image.yml) 使用 `ubuntu-24.04-arm`，由推送到
-`ci/root-image-arm64` 或对该分支手工 dispatch 触发。工作流按
-[desktop-layers.json](../ubuntu/desktop-layers.json) 下载 ISO，校验 ISO 与两个层的哈希，
-复现上述合并流程并校验最终 SquashFS。仅缓存该原始 SquashFS，缓存键包含 ISO 和构建配方。
-工作流构建启用 libarchive/NLS 的 e2fsprogs，并校验文件系统配置哈希；产物附带主机包版本与工具哈希。
-[root-image.json](../ubuntu/root-image.json) 锁定 APT 快照和发布 deb；桌面策略包从工作流提交构建，
-Firefox 使用独立身份锁。
-
-工作流以 `sudo …build-rootfs-image.py --backend chroot` 构建。该后端仅接受原生 `aarch64`
-且 EUID 为 0，在 loop 挂载的 ext4 中执行共用安装步骤，使用私有 proc/sys/dev/pts 绑定及临时 run/tmp。
-挂载和网络命名空间隔离构建活动，退出时按逆序卸载。省略 `--backend` 时，原生 ARM64 root
-默认选择 chroot，其他情况选择 guest；`--backend guest --qemu …` 可显式选择 QEMU。
-原生后端无需 QEMU 或 binfmt。
-
-60 GiB raw ext4 在主机上保持为稀疏文件。ISO、层、TAR 和 raw 检查镜像在相应阶段结束后删除。
-产物包含 Android sparse 根镜像（必要时分为 1900 MiB 的片段）、匹配启动镜像组、manifest、
-根验证结果、文件清单、阶段耗时和磁盘用量。使用 `cat root.sparse.img.part* > root.sparse.img`
-合并后执行 `sha256sum -c SHA256SUMS.root`；`SHA256SUMS` 校验各产物文件。
-CI 使用临时 AVB 密钥并删除私钥。这些是测试构建产物，不能替代设备安装或硬件验收。
-工作流不写发布附件或 tag。
+`build-rootfs-image.py --backend chroot` 仅接受原生 `aarch64` 且 EUID 为 0，在 loop 挂载的 ext4
+中执行共用安装步骤，使用私有 proc/sys/dev/pts 绑定及临时 run/tmp。挂载和网络命名空间隔离构建活动，
+退出时按逆序卸载；无需 QEMU 或 binfmt。省略 `--backend` 时，原生 ARM64 root 默认选择 chroot，
+其他情况选择 guest；`--backend guest --qemu …` 可显式选择 QEMU。两种后端的 60 GiB raw ext4
+在主机上都保持为稀疏文件。
 
 ## 8. 发布目录
 

@@ -398,15 +398,7 @@ Mozilla Firefox in generated root images:
   binary is unmodified, by Mozilla and contributors, under MPL-2.0 and the
   bundled third-party licences; see the package's copyright notices.
 
-Native ARM64 root-image CI:
-  .github/workflows/root-image.yml follows the native ubuntu-24.04-arm runner,
-  cache and sparse-only artifact pattern of blu-sharky/debian-piano:
-  https://github.com/blu-sharky/debian-piano, revision
-  a75f8c5d5fa099d65c171ac839c2e3bb6c63ec45, .github/workflows/build.yml
-  (last changed in fd6266d73f3442b23362260c3aa0c86782e0b52c), MIT,
-  bluseliu50 <265648257+bluseliu50@users.noreply.github.com>.
-  Changes: this repository's pinned Ubuntu inputs, packages and checks;
-  no kernel compilation, account creation, access keys or companion refs.
+Root-image build scripts:
   tools/rootfs-image-steps.sh, rootfs-image-guest.sh and rootfs-image-chroot.sh
   reuse this repository's codex/usermode working files, by yzddmr6, MIT,
   based on f0e82aff08774c6aea709b9446fa15f86e6795ba. These were uncommitted;

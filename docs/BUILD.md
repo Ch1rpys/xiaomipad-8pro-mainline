@@ -204,32 +204,14 @@ The boot profile is reduced to the stock-build fields before use. The image has 
 machine ID, no SSH host keys and no file of any unit; it is not byte-reproducible because dpkg and
 dracut record times.
 
-### Building the root on GitHub Actions
+### Root-image backends
 
-[root-image.yml](../.github/workflows/root-image.yml) runs on `ubuntu-24.04-arm`, on pushes to
-`ci/root-image-arm64` or a manual dispatch of that branch. It downloads the official ISO from
-[desktop-layers.json](../ubuntu/desktop-layers.json), verifies the ISO and both layer hashes,
-reproduces the TAR/SquashFS merge above and verifies the final `35f9b475…` hash. Only that pristine
-SquashFS is cached, keyed by the ISO and recipe. It builds e2fsprogs 1.47.4 with libarchive/NLS
-and checks the filesystem configuration hash; host package versions and tool hashes accompany
-the result. [root-image.json](../ubuntu/root-image.json) locks the APT snapshot and release debs;
-desktop policy is built from the workflow revision. Firefox uses its own lock.
-
-The job invokes `sudo …build-rootfs-image.py --backend chroot`. This backend accepts only native
-`aarch64` with EUID 0 and runs the shared package steps in a loop-mounted ext4, with private
-proc/sys/dev/pts binds and temporary run/tmp. Mount and network namespaces keep build activity
-separate from the host; an exit trap unmounts in reverse order. Omitting `--backend` selects
-chroot for native ARM64 root and guest otherwise; `--backend guest --qemu …` keeps the previous
-path available. The native backend has no QEMU or binfmt dependency.
-
-The 60 GiB raw ext4 remains a sparse host file. Intermediate ISO/layers/TARs and the raw inspection
-image are deleted as their stages complete. Artifacts contain the Android sparse root (1900 MiB
-parts when needed), its matching boot set, manifests, root verification, inventories, stage times
-and disk measurements. Join parts with `cat root.sparse.img.part* > root.sparse.img`, then check
-`sha256sum -c SHA256SUMS.root`; `SHA256SUMS` checks individual artifact files. CI uses a fresh,
-ephemeral AVB key and deletes the private key; it does not use the release owner's key. These are
-test build artifacts, not a device installation or hardware acceptance result. No workflow writes
-release assets or tags.
+`build-rootfs-image.py --backend chroot` accepts only native `aarch64` with EUID 0 and runs the
+shared package steps in a loop-mounted ext4, with private proc/sys/dev/pts binds and temporary
+run/tmp. Mount and network namespaces keep build activity separate from the host; an exit trap
+unmounts in reverse order. It has no QEMU or binfmt dependency. Omitting `--backend` selects chroot
+for native ARM64 root and guest otherwise; `--backend guest --qemu …` selects the QEMU guest
+explicitly. The 60 GiB raw ext4 remains a sparse host file in both cases.
 
 ## 8. Release directory
 
