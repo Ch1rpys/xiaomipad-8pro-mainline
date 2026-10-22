@@ -67,6 +67,9 @@ def extract(source):
     return {
         'schema': 1, 'rows': rows, 'columns': columns, 'units_per_pixel': units,
         'source_sha256': hashlib.sha256(data).hexdigest(),
+        # Stock panel identity of the source file (CSOT 4, BOE 26); piano-thp-live reports a
+        # calibration that does not belong to the panel the kernel detects.
+        'project_vendor_id': value('project_vendor_id'),
         'scope': 'Private extracted electrode calibration; does not establish physical touch support or orientation',
         'calibration': {
             'row_map': row_map, 'column_map': column_map,

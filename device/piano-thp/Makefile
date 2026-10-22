@@ -7,7 +7,7 @@ CXXFLAGS += -Wall -Wextra -Werror -MMD -MP
 # Header paths end up in assertion strings; keep the build host's JSON_INCLUDE location out of the binary.
 CXXFLAGS += $(if $(JSON_INCLUDE),-ffile-prefix-map=$(JSON_INCLUDE)=/usr/include)
 CORE := nvt_touch_core nvt_finger_filter frame processor
-SOURCES := $(CORE) calibration replay stream live_pipeline input live
+SOURCES := $(CORE) calibration panel replay stream live_pipeline input live
 OBJECTS := $(addprefix $(OUT)/,$(addsuffix .o,$(SOURCES)))
 CORE_OBJECTS := $(addprefix $(OUT)/,$(addsuffix .o,$(CORE)))
 
@@ -23,13 +23,13 @@ $(OUT)/%.o: src/%.cpp | $(OUT)
 $(OUT)/piano-thp-replay: $(CORE_OBJECTS) $(OUT)/calibration.o $(OUT)/stream.o $(OUT)/replay.o
 	$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
-$(OUT)/piano-thp-live: $(CORE_OBJECTS) $(OUT)/calibration.o $(OUT)/stream.o $(OUT)/live_pipeline.o $(OUT)/input.o $(OUT)/live.o
+$(OUT)/piano-thp-live: $(CORE_OBJECTS) $(OUT)/calibration.o $(OUT)/panel.o $(OUT)/stream.o $(OUT)/live_pipeline.o $(OUT)/input.o $(OUT)/live.o
 	$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 $(OUT)/test-calibration: tests/calibration.cpp $(CORE_OBJECTS)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
-$(OUT)/test-live: tests/live.cpp $(CORE_OBJECTS) $(OUT)/calibration.o $(OUT)/stream.o $(OUT)/live_pipeline.o
+$(OUT)/test-live: tests/live.cpp $(CORE_OBJECTS) $(OUT)/calibration.o $(OUT)/panel.o $(OUT)/stream.o $(OUT)/live_pipeline.o
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 $(OUT)/test-uinput: tests/uinput.cpp $(OUT)/input.o

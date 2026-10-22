@@ -155,8 +155,14 @@ device/piano-thp/src/nvt_finger_filter.{cpp,hpp}, and processor.{cpp,hpp}:
   Remaining algorithm/filter tuning is inherited and requires piano gesture
   validation. Reference-device calibration is not supplied as a fallback.
 
-device/piano-thp/src/{frame,calibration,replay,orientation}.*, tests/calibration.cpp,
+device/piano-thp/src/{frame,calibration,panel,replay,orientation}.*, tests/calibration.cpp,
 device/piano-thp/Makefile and tools/extract-thp-calibration.py are new MIT code.
+The BOE panel orientation in src/orientation.hpp (processor Y not reversed)
+follows https://github.com/liisoya/xiaomipad-8pro-mainline commit
+8bbc68239c17fe11419e84a3e1ae30a95e1d5f31 by Liisoya, MIT, whose "flip-y"
+panel_transform applies no flip and was tested on a BOE unit. Only that result
+is used: the panel comes from the kernel, no transform option or contact log
+is imported.
 The packet description is informed by the piano source in
 https://github.com/MiCode/vendor_xiaomi_proprietary_touch-driver
 commit 6957f6b646d1c919e175e6f9000eb50c8635273c, p81/nt36532/nt36xxx.c,

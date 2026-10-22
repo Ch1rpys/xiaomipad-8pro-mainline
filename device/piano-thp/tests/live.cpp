@@ -3,9 +3,13 @@
 #include "calibration.hpp"
 #include "live_pipeline.hpp"
 #include "orientation.hpp"
+#include "panel.hpp"
 #include <algorithm>
+#include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <nlohmann/json.hpp>
 #include <stdexcept>
 
 namespace {
@@ -276,7 +280,7 @@ void orientation() {
         slots[index].contact.x = corners[index][0];
         slots[index].contact.y = corners[index][1];
     }
-    nvt::panelSlots(slots, value, panel);
+    nvt::panelSlots(slots, value, nvt::PanelVendor::Csot, panel);
     for (size_t index = 0; index < corners.size(); ++index)
         check(panel[index].number == int(index) && panel[index].contact.x == corners[index][2] &&
               panel[index].contact.y == corners[index][3], "P15 corner mapped to the wrong panel position");
@@ -287,7 +291,7 @@ void orientation() {
         nvt::Contact contact;
         contact.x = x;
         contact.y = y;
-        return nvt::panelContact(contact, value);
+        return nvt::panelContact(contact, value, nvt::PanelVendor::Csot);
     };
     // Left-to-right swipe: constant processor row, increasing processor column.
     nvt::Contact previous;
@@ -310,6 +314,89 @@ void orientation() {
         const auto point = at(old[1], 21359 - old[0]);
         check(point.x == old[1] && point.y == old[0], "P18 swipe endpoint is not the transposed output");
     }
+    // BOE: processor Y already runs from the top edge to the bottom edge; X is unchanged.
+    const auto boe = [&](int x, int y) {
+        nvt::Contact contact;
+        contact.x = x;
+        contact.y = y;
+        return nvt::panelContact(contact, value, nvt::PanelVendor::Boe);
+    };
+    for (int row : {37, 7000, 14000, 21108}) {
+        const auto point = boe(16000, row);
+        check(point.x == 16000 && point.y == row, "BOE top-to-bottom swipe is not processor Y");
+    }
+    for (int column : {141, 9000, 27795}) {
+        const auto point = boe(column, 12000);
+        check(point.x == column && point.y == 12000, "BOE left-to-right swipe is not processor X");
+    }
+    const auto clamped = boe(-5, 40000);
+    check(clamped.x == 0 && clamped.y == 21359, "BOE contact outside the panel was not clamped");
+    std::vector<nvt::Slot> boe_panel;
+    nvt::panelSlots(slots, value, nvt::PanelVendor::Boe, boe_panel);
+    check(boe_panel[0].contact.x == 520 && boe_panel[0].contact.y == 21291, "BOE slots are flipped");
+}
+
+struct TemporaryTree {
+    std::filesystem::path root;
+    TemporaryTree() {
+        std::string pattern = (std::filesystem::temp_directory_path() / "piano-thp-panel-XXXXXX").string();
+        check(mkdtemp(pattern.data()) != nullptr, "cannot create temporary sysfs tree");
+        root = pattern;
+    }
+    ~TemporaryTree() { std::filesystem::remove_all(root); }
+    void write(const std::filesystem::path &relative, const std::string &text) const {
+        std::filesystem::create_directories((root / relative).parent_path());
+        std::ofstream(root / relative) << text;
+    }
+};
+
+void panel() {
+    TemporaryTree tree;
+    const auto sysfs = tree.root / "sys";
+    // The service opens the udev link; the kernel names the misc node nvt-thp-<SPI device>.
+    tree.write("dev/nvt-thp-spi0.0", "");
+    std::filesystem::create_symlink("nvt-thp-spi0.0", tree.root / "dev/piano-touch");
+    const auto node = tree.root / "dev/piano-touch";
+    const auto attribute = std::filesystem::path("sys/class/misc/nvt-thp-spi0.0/device/panel_vendor");
+
+    auto identity = nvt::readPanelVendor(node, sysfs);
+    check(identity.vendor == nvt::PanelVendor::Csot && !identity.reported,
+          "a kernel without panel_vendor must mean CSOT");
+    tree.write(attribute, "csot\n");
+    identity = nvt::readPanelVendor(node, sysfs);
+    check(identity.vendor == nvt::PanelVendor::Csot && identity.reported, "kernel CSOT not read");
+    tree.write(attribute, "boe\n");
+    identity = nvt::readPanelVendor(node, sysfs);
+    check(identity.vendor == nvt::PanelVendor::Boe && identity.reported, "kernel BOE not read");
+    check(nvt::readPanelVendor(tree.root / "dev/nvt-thp-spi0.0", sysfs).vendor == nvt::PanelVendor::Boe,
+          "direct misc node not resolved");
+    tree.write(attribute, "auo\n");
+    rejects([&] { nvt::readPanelVendor(node, sysfs); }, "unknown panel_vendor accepted");
+
+    check(!nvt::calibrationMismatch(nvt::PanelVendor::Csot, 4), "CSOT calibration flagged on CSOT");
+    check(!nvt::calibrationMismatch(nvt::PanelVendor::Boe, 26), "BOE calibration flagged on BOE");
+    check(!nvt::calibrationMismatch(nvt::PanelVendor::Boe, std::nullopt), "calibration without ID flagged");
+    const auto wrong = nvt::calibrationMismatch(nvt::PanelVendor::Boe, 4);
+    check(wrong && wrong->find("piano_nova_boe_thp_config.ini") != std::string::npos &&
+          wrong->find("csot") != std::string::npos, "CSOT calibration on BOE not reported");
+    check(nvt::calibrationMismatch(nvt::PanelVendor::Csot, 26).has_value(), "BOE calibration on CSOT not reported");
+    check(nvt::calibrationMismatch(nvt::PanelVendor::Csot, 7).has_value(), "foreign calibration not reported");
+
+    const auto value = calibration();
+    nlohmann::json document = {{"schema", 1}, {"rows", nvt::kRows}, {"columns", nvt::kColumns},
+                               {"units_per_pixel", nvt::kSuperResolution},
+                               {"calibration", {{"row_map", value.row_map}, {"column_map", value.column_map},
+                                                {"row_maximum", value.row_maximum},
+                                                {"column_maximum", value.column_maximum},
+                                                {"edge_base", value.edge_base}, {"edge_size", value.edge_size},
+                                                {"edge_gain", value.edge_gain}}}};
+    tree.write("old.json", document.dump());
+    check(!nvt::readCalibrationFile(tree.root / "old.json").project_vendor_id, "older calibration gained an ID");
+    document["project_vendor_id"] = 26;
+    tree.write("boe.json", document.dump());
+    const auto file = nvt::readCalibrationFile(tree.root / "boe.json");
+    check(file.project_vendor_id == 26 && file.calibration.row_maximum == value.row_maximum,
+          "calibration project_vendor_id not read");
 }
 
 void stock(const char *configuration, const char *path) {
@@ -354,8 +441,10 @@ int main(int argc, char **argv) {
         midStreamEpoch();
         lifecycle();
         orientation();
+        panel();
         std::cout << "PASS: synthetic NTP1 splits/bounds, contact release lifecycle, P15 corner and "
-                     "P18 swipe orientation; not hardware evidence\n";
+                     "P18 swipe orientation, BOE orientation, kernel panel_vendor (csot, boe, absent) and "
+                     "calibration panel check; not hardware evidence\n";
         if (argc == 3)
             stock(argv[1], argv[2]);
         return 0;

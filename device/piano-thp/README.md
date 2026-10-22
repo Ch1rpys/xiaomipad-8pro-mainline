@@ -43,12 +43,15 @@ units and symmetric edge parameters are currently accepted.
 
 ```sh
 python3 ../../tools/extract-thp-calibration.py \
-  --input /path/to/own/piano_nova_csot_thp_config.ini \
+  --input /path/to/own/piano_nova_PANEL_thp_config.ini \
   --output /path/to/private/calibration.json
 build/piano-thp-replay --stock-ring \
   /path/to/private/calibration.json /path/to/private/stock-records.bin
 ```
 
+`PANEL` is `csot` or `boe`, the panel fitted to the unit. The output records the
+file's `project_vendor_id` (4 for CSOT, 26 for BOE); the live program logs an error
+when it does not match the panel the kernel reports.
 Keep both inputs, the extracted calibration and resulting reports private.
 The output uses 10 units per pixel; X follows electrode columns and Y follows
 rows. These are processor axes, not a verified transformation to panel coordinates.
@@ -105,8 +108,13 @@ along the 3200-pixel side (range `0..column_maximum - 1`) and
 `ABS_MT_POSITION_Y = row_maximum - 1 - Y` along the 2136-pixel side (range
 `0..row_maximum - 1`). The mapping follows the observed swipe directions.
 This is a linear full-range mapping; edge linearity
-and accuracy are unmeasured, and the corrected mapping has not yet been run on the
-device. If a later test contradicts the swipe evidence, `panelContact()` is the
+and accuracy are unmeasured. That unit has the CSOT panel. On the BOE panel the
+device reports `ABS_MT_POSITION_Y = Y` instead, without the reversal, following
+the BOE unit test of liisoya/xiaomipad-8pro-mainline `8bbc68239c17` (see NOTICE).
+The panel comes only from the kernel: the program reads
+`/sys/class/misc/nvt-thp-SPI_DEVICE/device/panel_vendor` (`csot` or `boe`) for the
+node it opens, and uses CSOT when a kernel does not export the attribute. Other
+values stop the program. If a later test contradicts this, `panelContact()` is the
 single place to change. Tracking IDs are allocated within 0..65535 without colliding with held contacts. Twelve
 algorithm slots are supported in software; this is not a physical finger-count
 claim. Pressure is only a binary contact indicator, not measured force.
