@@ -107,8 +107,8 @@
 | Wi-Fi | 高通 WCN7860 / ath12k | ✅ 可用 | 2.4 GHz 与 5 GHz 80 MHz 连接稳定 |
 | 蓝牙 | 高通 WCN7860 / `hci_qca` | 🟡 部分支持 | 配对、文件传输和蓝牙音频可用；偶发需要重新连接 |
 | USB 设备模式 | USB 3 / 5 Gbit/s 网络（NCM） | ✅ 可用 | v0.6.0 候选；开发者模式下经 USB 线 SSH 登录，默认关闭 |
-| USB 主机 / OTG | Type-C 角色切换 / USB 3 / 5 Gbit/s | 🧪 待完整验证 | `<<USB3 正反插：待在场测试>>` |
-| USB-C 外接显示 | DisplayPort Alt Mode | 🧪 未验证 | `<<外接显示：待在场测试>>` |
+| USB 主机 / OTG | Type-C 角色切换 / USB 3 / 5 Gbit/s | 🟡 部分支持 | U 盘、键鼠、扩展坞可用，正反插 5 Gbit/s；拔出 OTG 设备后直接重插转接头可能不被识别 |
+| USB-C 外接显示 | DisplayPort Alt Mode | ✅ 可用 | 正反插、热插拔，实测 4K 60 Hz，扩展桌面 |
 
 ### 音视频与传感器
 
