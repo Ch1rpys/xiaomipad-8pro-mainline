@@ -42,8 +42,6 @@ results do not establish support for other models, capacities or accessories.
 - The panel type (CSOT or BOE) is detected automatically and loads its own touch firmware, touch orientation and display initialization.
 - The sensor service keeps the sensor registry updates written by the DSP.
 - A sensor registry that keeps crashing the ADSP (no sound, no sensor data) is moved aside at boot and the default state is restored.
-- The CPU temperature limit matches stock Android (105 °C), so performance holds up better under sustained load.
-- The system-level cache (LLCC) is enabled, slightly speeding up graphics and memory-intensive work.
 - The installation guide covers the partition layout of the 256 GB model.
 
 ### v0.6.0
