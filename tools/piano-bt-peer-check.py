@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # SPDX-License-Identifier: MIT
-"""Host-side BlueZ/PipeWire peer acceptance; see piano-bt-peer-check.md.
+"""Host-side BlueZ/PipeWire peer acceptance.
 
 The same file is copied to a private temporary directory on the SSH target.
 Endpoint modes keep the BlueZ agent and its D-Bus connection alive, and restore

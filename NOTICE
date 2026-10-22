@@ -487,7 +487,7 @@ No root LICENSE was supplied; this import includes only the explicitly
 licensed script. Local patch, hashes and exit condition: source.json in that
 directory. The systemd/udev packaging here is project MIT integration.
 
-SSC device-test v2 file service
+HexagonRPC registry file service
 - device/sensors/hexagonrpc/patches/0003-serve-odm-and-explicit-scratch-registry.patch
   extends linux-msm/hexagonrpc 598b591ae9da6a6cfe2ca5ea78998019ca6395ea
   in its original GPL-3.0-or-later files and adds a GPL-3.0-or-later regression.
@@ -503,21 +503,14 @@ SSC device-test v2 file service
   file-layout examples; no board data or property shim imported. Reviewed
   blu-sharky/piano-sensors 65a92202db65ad13493b43fbf15d6abb3b7bcf92's
   ODM/persist-copy design; no Qualcomm adsprpcd or product services imported.
-- stage-input.py and the test orchestration are original MIT integration code.
-  Stock config and per-device registry remain private local inputs.
 
-SSC device-test v3
+HexagonRPC registry parent mapping
 - 0004-map-complete-registry-parent.patch extends the same GPL-3.0-or-later
-  HexagonRPC files/tests using piano's v2 file-request evidence. It moves the
+  HexagonRPC files/tests for the stock file-request pattern. It moves the
   mapping to the complete parent without weakening write confinement. No
   third-party board values or fabricated stock files are added.
-- Empty-SUID polling is MIT one-shot runner code; the pinned libssc/ssccli
-  source and binary protocol remain unchanged. All attempts retain their logs.
-- late-suid-server.py is a GPL-3.0-or-later QEMU-only availability gate around
-  the pinned upstream SSC mock. The mock retains all QMI/QRTR/protobuf encoding;
-  the gate hides accel for two queries and then exposes its existing fixture.
 
-SSC device-test v4 large reverse-listener requests
+HexagonRPC large reverse-listener requests
 - Unchanged upstream patch: linux-msm/hexagonrpc
   f0dfd5095d3b7defc3b368f227337bfc6d6aef42, Fady <me@fadyackad.dev>,
   2026-09-19, from https://github.com/linux-msm/hexagonrpc/pull/27.
@@ -534,10 +527,7 @@ Sensor registry frename
   same GPL-3.0-or-later HexagonRPC files and tests with apps_std method 33,
   frename, confined to the explicit writable registry copy.
   ABI reference: Qualcomm fastrpc v1.0.7, inc/apps_std.h, src/apps_std_skel.c
-  and src/apps_std_imp.c (rename(2)). No Qualcomm code bundled. The stock
-  registry used by its replay test is a private local input.
-- The MIT runner boot-id ledger is local test bookkeeping, not a DSP reset
-  mechanism. First-use baseline enrollment does not access the DSP.
+  and src/apps_std_imp.c (rename(2)). No Qualcomm code bundled.
 
 Piano sensor packages (2026-10-12)
 ---------------------------------

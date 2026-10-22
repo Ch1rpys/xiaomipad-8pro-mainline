@@ -2,7 +2,7 @@
 
 在小米平板 8 Pro（代号 `piano`，骁龙 8 至尊版）上原生运行 Ubuntu 26.04 LTS GNOME 桌面，与 Android 双系统共存，内核基于上游 Linux 7.2 适配。不是容器，不是远程桌面。[English](README.md)
 
-**最新版本：[v0.6.1](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.6.1)。** 支持状态见[硬件支持](#硬件支持)，技术路线与同类项目的差异见 [docs/APPROACH.zh-CN.md](docs/APPROACH.zh-CN.md)。
+**最新版本：[v0.6.1](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.6.1)。** 支持状态见[硬件支持](#硬件支持)。
 
 ## 📮 关注与交流
 
