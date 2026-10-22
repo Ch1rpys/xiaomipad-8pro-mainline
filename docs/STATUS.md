@@ -1,6 +1,6 @@
 # Release history and current support
 
-Current release: **v0.6.0**. See the [README](../README.md#hardware-support) or
+Current release: **v0.6.1**. See the [README](../README.md#hardware-support) or
 [中文 README](../README.zh-CN.md#硬件支持) for the hardware support tables and usage instructions.
 
 ## Current support
@@ -36,6 +36,13 @@ verified on this unit; later versions were tested on the installed system. These
 results do not establish support for other models, capacities or accessories.
 
 ## Completed work by release
+
+### v0.6.1
+
+- The panel type (CSOT or BOE) is detected automatically and loads its own touch firmware, touch orientation and display initialization.
+- The sensor service keeps the sensor registry updates written by the DSP.
+- A sensor registry that keeps crashing the ADSP (no sound, no sensor data) is moved aside at boot and the default state is restored.
+- The installation guide covers the partition layout of the 256 GB model.
 
 ### v0.6.0
 
