@@ -70,14 +70,21 @@ file-write regressions. 4 KiB/64 KiB are read back from real scratch files;
 use the inspected kernel's copied DMA-backed payload path, as the existing
 marshaller does for input/output buffers. Real DSP/DMA acceptance remains untested.
 
-Registry writes are atomic on the DSP side, so the host write path stays a plain
-write without a temporary file. The sensor PD writes each registry group to
-`registry/fstempfile` and then calls apps_std method 33 (`frename(old, new)`,
-scalars `0x1f030000`: three input buffers) to move it into `registry/registry/`;
-the group files themselves are never opened for truncation. Only the 3-byte inner
-`DIR` marker and the 9-byte `sns_reg_version` are written in place, each with a
-single write. An interrupted DSP can therefore leave a partial `fstempfile`, not a
-partial registry group. `frename` is not among the implemented methods: those calls
-are answered with `AEE_EUNSUPPORTED` (`Unsupported method: 33` in the daemon log,
-about 110 per attach on piano), so group updates made by the DSP are not kept and
-the registry state stays as seeded.
+Patch 0007 implements apps_std method 33, `frename(old, new)` (scalars
+`0x1f030000`: extended method ID, three input buffers). The sensor PD writes each
+registry group to `registry/fstempfile` and then renames it into
+`registry/registry/`, so the DSP itself makes every group update atomic; the host
+only has to make the rename real and durable. It follows rename(2): an existing
+target is replaced atomically. Both names use the normal mapping rules and must
+end in directories of the explicit `-w` copy; `..`, absolute paths into other
+mappings, links followed out of the copy, symlinks, hard links and directories are
+refused. The source file is synced before the rename and both directories after it.
+Only the 3-byte inner `DIR` marker and the 9-byte `sns_reg_version` are written
+in place. Without this method every rename was answered `Unsupported method: 33`
+(about 110 per attach on piano), so the DSP's registry updates were lost and
+`fstempfile` stayed behind.
+
+`test_registry_io STOCK_ROOT SCRATCH MANIFEST STOCK_REGISTRY` additionally stores
+a stock persist registry (the outer directory with `registry/`) through
+fstempfile and frename and requires the scratch copy to equal it byte for byte,
+without a leftover `fstempfile`. The stock registry is a private input.

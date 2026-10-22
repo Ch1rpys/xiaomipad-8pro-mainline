@@ -39,6 +39,13 @@
       "sha256": "65b3581903426ac9a59693c2e18ef4fe970240e9f730c00c107e70627ad82bd9",
       "license": "GPL-3.0-or-later",
       "changes": "Length/error cleanup and ioctl-boundary apps_std 4 KiB/64 KiB regressions; upstream implementation remains separate"
+    },
+    {
+      "path": "patches/0007-implement-frename-in-the-writable-registry.patch",
+      "sha256": "2b4821e7d99d8c89e1b4a9240b3137eb84de7f9320b2eacb28763e37ef5819f6",
+      "license": "GPL-3.0-or-later",
+      "protocol_reference": "https://github.com/qualcomm/fastrpc/tree/v1.0.7 (inc/apps_std.h, src/apps_std_skel.c case 33, src/apps_std_imp.c apps_std_frename)",
+      "changes": "apps_std method 33 frename with rename(2) semantics, confined to the -w registry copy; source and directories synced; rename and stock-registry replay regressions"
     }
   ],
   "scope": "User fresh-boot V4 on 7.2.6-piano8 passed SSC sampling on 2026-10-12 with unchanged pristine registry. Product service/GNOME lifecycle requires separate device validation.",

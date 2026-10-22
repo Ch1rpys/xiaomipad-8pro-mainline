@@ -528,6 +528,14 @@ SSC device-test v4 large reverse-listener requests
   40e50412812adce9dddc2be9a4510ebce05eef89 iobuffer correction.
   ABI/required-length reference: Qualcomm fastrpc v1.0.7,
   inc/adsp_listener.h and src/listener_android.c. No Qualcomm code bundled.
+
+Sensor registry frename
+- Local patch 0007-implement-frename-in-the-writable-registry.patch extends the
+  same GPL-3.0-or-later HexagonRPC files and tests with apps_std method 33,
+  frename, confined to the explicit writable registry copy.
+  ABI reference: Qualcomm fastrpc v1.0.7, inc/apps_std.h, src/apps_std_skel.c
+  and src/apps_std_imp.c (rename(2)). No Qualcomm code bundled. The stock
+  registry used by its replay test is a private local input.
 - The MIT runner boot-id ledger is local test bookkeeping, not a DSP reset
   mechanism. First-use baseline enrollment does not access the DSP.
 
