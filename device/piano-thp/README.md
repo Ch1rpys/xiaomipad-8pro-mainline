@@ -154,3 +154,30 @@ devtmpfs and sysfs. It is deliberately excluded from `make test`: run
 `build/test-uinput --create-test-device` only in a disposable guest because it
 creates synthetic input. It checks all twelve slots, coordinates, partial/full
 release, tracking-ID wrap and device removal through the real kernel interfaces.
+
+## Read-only frame metadata
+
+`tools/thp-frame-fields.py` reads an existing regular NTP1 `--record` capture.
+It emits JSON lines when the vendor metadata changes, with the original
+CLOCK_BOOTTIME timestamp and sequence/epoch/loss indicators:
+
+```sh
+python3 tools/thp-frame-fields.py /path/to/private/capture.ntp1
+python3 tools/thp-frame-fields.py /path/to/private/growing.ntp1 --follow-seconds 180
+```
+
+Offsets are relative to the THP payload after the 32-byte NTP1 header and
+257-byte point prefix: `+54` frequency index (u8), `+32/34/36/38` noise (four
+little-endian u16 values), `+52` scan rate (little-endian u16), and `+24` mode
+(u8). They follow the MiCode vendor parser at commit
+`6957f6b646d1c919e175e6f9000eb50c8635273c`,
+`p81/nt36532/nt36xxx.c:nvt_ts_prase_data_func`, around line 2819.
+Values are reported without interpreting frequency indices as frequencies or
+sentinel noise values as physical units. Invalid frames produce an explicit
+invalid record without metadata; unchanged valid fields are suppressed.
+
+The tool does not open the exclusive touch device, create input events, change
+controller commands or modify a service. Use it only when a recording already
+exists or a separately authorized diagnostic producer has recording enabled.
+It does not enable recording in the product service. Keep recordings and
+results private; CLOCK_BOOTTIME includes sleep, unlike dmesg's monotonic clock.
