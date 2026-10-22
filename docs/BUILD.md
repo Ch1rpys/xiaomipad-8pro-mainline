@@ -16,7 +16,7 @@ Commands run from the root of this repository.
 |---|---|
 | Kernel | Git, Python 3, GCC, an AArch64 GNU cross compiler, make, bc, bison, flex, pkg-config, OpenSSL and libelf development files, gzip, cpio, kmod (`depmod`), flock; ccache optional |
 | Boot DTB and boot set | `device-tree-compiler` (`fdtget`, `fdtput`), `python3-libfdt`, AOSP libufdt `ufdt_apply_overlay`, AOSP `avbtool.py` (no fetch script yet), `openssl` |
-| Packages | `dpkg-deb`, `python3-debian`, `aarch64-linux-gnu-g++`, `nlohmann-json3-dev`, `m4`, `alsatplg` |
+| Packages | `dpkg-deb`, `python3-debian`, `g++-13-aarch64-linux-gnu`, `nlohmann-json3-dev`, `qemu-user-static`, `m4`, `alsatplg` |
 | Mesa | Meson 1.9, Ninja, Mako, PyYAML, Python packaging, Bison, Flex, a native `glslangValidator`, an ARM64 GCC/G++ cross toolchain, and a Meson cross file with an explicit ARM64 sysroot (libdrm, zlib, zstd, expat, Wayland 1.24 and wayland-protocols, X11/XCB development packages from Ubuntu 26.04) |
 | Ubuntu base | `7z`, `unsquashfs`, squashfs-tools-ng 1.2 (`sqfs2tar`), `apt`, `python3-apt` |
 | Root image and release | e2fsprogs 1.47.4 built with libarchive and NLS (`mke2fs`, `e2fsck`, `debugfs`, `dumpe2fs`), `img2simg`, `sgdisk`, `zip`, QEMU `qemu-system-aarch64` |
@@ -102,10 +102,12 @@ scripts run Ubuntu's dracut hook and the piano boot hook. Identical inputs give 
 ## 5. Device and firmware packages
 
 ```bash
-# touch processing, static ARM64
+# touch processing (piano-thp-live): ARM64, dynamic glibc, static C++ runtime, PIE, BIND_NOW
 mkdir -p out/json-include && cp -r /usr/include/nlohmann out/json-include/
-make -C device/piano-thp OUT="$PWD/out/piano-thp-arm64" CXX=aarch64-linux-gnu-g++ \
-  JSON_INCLUDE="$PWD/out/json-include" LDFLAGS=-static
+make -C device/piano-thp OUT="$PWD/out/piano-thp-arm64" CXX=aarch64-linux-gnu-g++-13 \
+  JSON_INCLUDE="$PWD/out/json-include" LDFLAGS='-static-libstdc++ -static-libgcc -Wl,-z,relro,-z,now' \
+  all test RUNNER='qemu-aarch64-static -L /usr/aarch64-linux-gnu'
+# expect three "PASS:" lines from the unit tests run under qemu-user
 # Mesa 26.2.0 with the A830 patch
 MESA_SOURCE=<Mesa checkout at mesa/source.json> CROSS_FILE=<arm64 cross file> \
   OUT_DIR="$PWD/out/mesa" bash tools/build-mesa.sh
@@ -122,6 +124,22 @@ python3 tools/build-firmware-deb.py --topology out/audio/Piano-Capture-Diag-tplg
   --maintainer 'Name <email>' --output out/firmware-deb
 ```
 
+- `piano-thp-live` toolchain: Ubuntu 24.04 `g++-13-aarch64-linux-gnu` and `gcc-13-aarch64-linux-gnu`
+  13.3.0-6ubuntu2~24.04.1cross1, `libstdc++-13-dev-arm64-cross` of the same version,
+  `binutils-aarch64-linux-gnu` 2.42, `libc6-dev-arm64-cross` 2.39, `nlohmann-json3-dev` 3.11.3 and
+  `qemu-user-static` for the tests. With an unpacked rather than installed cross g++, put its path in
+  `CXX` followed by `-B/usr/lib/gcc-cross/aarch64-linux-gnu/13/ -B/usr/aarch64-linux-gnu/bin/
+  -B/usr/aarch64-linux-gnu/lib/ -isystem /usr/aarch64-linux-gnu/include`. Check the binary:
+
+  ```bash
+  B=out/piano-thp-arm64/piano-thp-live
+  readelf -d "$B" | grep -E 'NEEDED|FLAGS'  # only libm.so.6, libc.so.6, ld-linux-aarch64.so.1; BIND_NOW; NOW PIE
+  objdump -T "$B" | grep -oE 'GLIBC_[0-9.]+' | sort -uV | tail -1  # at most GLIBC_2.38; the target glibc must be newer or equal
+  strings "$B" | grep -c "$PWD"             # 0: no build-host path in the binary
+  ```
+
+  The v0.6.1 `piano-thp-live` (SHA-256 `a6d6c50b670333740b4e4cd3a0fd03d469158c00d462fb4ac69321c77b9400ba`) was built this way, with the unpacked g++, and
+  rebuilds byte-identically from tag v0.6.1.
 - `build-mesa.sh` refuses a Mesa HEAD other than `mesa/source.json`. Mesa installs under
   `/opt/piano/mesa-26.2.0` and does not replace Ubuntu's Mesa packages.
 - `build-firmware-deb.py` takes `firmware/` by default; `--firmware-tree <dir>` uses your own

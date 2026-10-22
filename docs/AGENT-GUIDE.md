@@ -176,12 +176,14 @@ cannot build an image set.
 ### 3.5 Device and firmware packages
 
 ```bash
-# Touch processing, static ARM64 (needs nlohmann-json3-dev and aarch64-linux-gnu-g++); the JSON
-# headers get their own include directory so that host headers do not enter the cross build
+# Touch processing, ARM64 with dynamic glibc and a static C++ runtime (toolchain and checks:
+# BUILD.md §5); the JSON headers get their own include directory so that host headers do not
+# enter the cross build
 mkdir -p out/json-include && cp -r /usr/include/nlohmann out/json-include/
-make -C device/piano-thp OUT="$PWD/out/piano-thp-arm64" CXX=aarch64-linux-gnu-g++ \
-  JSON_INCLUDE="$PWD/out/json-include" LDFLAGS=-static
-file out/piano-thp-arm64/piano-thp-live      # expect "ARM aarch64 ... statically linked"
+make -C device/piano-thp OUT="$PWD/out/piano-thp-arm64" CXX=aarch64-linux-gnu-g++-13 \
+  JSON_INCLUDE="$PWD/out/json-include" LDFLAGS='-static-libstdc++ -static-libgcc -Wl,-z,relro,-z,now' \
+  all test RUNNER='qemu-aarch64-static -L /usr/aarch64-linux-gnu'
+file out/piano-thp-arm64/piano-thp-live      # expect "ARM aarch64 ... dynamically linked, interpreter /lib/ld-linux-aarch64.so.1"
 # Mesa 26.2.0 with the A830 patch (cross file and sysroot: build.zh-CN.md)
 MESA_SOURCE=<Mesa checkout at mesa/source.json> CROSS_FILE=<arm64 cross file> \
   OUT_DIR="$PWD/out/mesa" bash tools/build-mesa.sh

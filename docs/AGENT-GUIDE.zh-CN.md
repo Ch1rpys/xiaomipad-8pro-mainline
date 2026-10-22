@@ -156,12 +156,13 @@ python3 tools/build-kernel-deb.py --kernel-source ../linux --kernel-out out/kern
 ### 3.5 设备包与固件包
 
 ```bash
-# 触控处理，静态 ARM64（需要 nlohmann-json3-dev 与 aarch64-linux-gnu-g++）；JSON 头文件
-# 单独放一个 include 目录，避免主机头文件混入交叉编译
+# 触控处理，ARM64，动态链接 glibc、静态链接 C++ 运行库（工具链与检查见 build.zh-CN.md 第 5 节）；
+# JSON 头文件单独放一个 include 目录，避免主机头文件混入交叉编译
 mkdir -p out/json-include && cp -r /usr/include/nlohmann out/json-include/
-make -C device/piano-thp OUT="$PWD/out/piano-thp-arm64" CXX=aarch64-linux-gnu-g++ \
-  JSON_INCLUDE="$PWD/out/json-include" LDFLAGS=-static
-file out/piano-thp-arm64/piano-thp-live      # 预期 "ARM aarch64 ... statically linked"
+make -C device/piano-thp OUT="$PWD/out/piano-thp-arm64" CXX=aarch64-linux-gnu-g++-13 \
+  JSON_INCLUDE="$PWD/out/json-include" LDFLAGS='-static-libstdc++ -static-libgcc -Wl,-z,relro,-z,now' \
+  all test RUNNER='qemu-aarch64-static -L /usr/aarch64-linux-gnu'
+file out/piano-thp-arm64/piano-thp-live      # 预期 "ARM aarch64 ... dynamically linked, interpreter /lib/ld-linux-aarch64.so.1"
 # Mesa 26.2.0 加 A830 补丁（cross file 与 sysroot 见 build.zh-CN.md）
 MESA_SOURCE=<Mesa checkout at mesa/source.json> CROSS_FILE=<arm64 cross file> \
   OUT_DIR="$PWD/out/mesa" bash tools/build-mesa.sh
