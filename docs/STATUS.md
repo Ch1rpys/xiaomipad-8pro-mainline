@@ -16,9 +16,9 @@ GNOME offers Power Saver, Balanced and Performance modes.
 
 The system player (GStreamer), Firefox (H.264/HEVC/VP9) and Chrome (H.264/VP9) use
 hardware decoding automatically; AV1 uses software decoding. H.264/H.265 hardware
-encoding is verified at 1080p and 4K. Multi-finger gestures and volume keys are
-untested, and charger compatibility is limited. Keep the default speaker volume cap
-because speaker protection is absent. System time is set from the network after boot.
+encoding is verified at 1080p and 4K. Multi-finger touch, volume keys and fast charging
+(USB PD 9 V, PPS direct charging, Xiaomi charger authentication) work. Keep the default
+speaker volume cap because speaker protection is absent. System time is set from the network after boot.
 Sensor calibration defaults are included; see the
 [calibration instructions](../device/sensors/README.zh-CN.md) to use your own tablet's calibration.
 

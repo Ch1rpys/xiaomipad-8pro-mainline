@@ -97,7 +97,7 @@ State of v0.6.1 on the test unit. ✅ works · 🟡 partial · ❌ unsupported �
 | Night Light | GNOME / DPU color temperature | ✅ works | Color temperature adjustment with settings preserved across screen off/on and suspend |
 | GNOME desktop | Ubuntu 26.04 GNOME / Wayland / GDM | ✅ works | Cold boot to the login screen in about 13 s |
 | GPU | Adreno 830 / Mesa 26.2 | ✅ works | GPU rendering for the desktop and for snap applications including Firefox |
-| Touchscreen | Novatek NT36532E (THP over SPI) | 🟡 partial | Touch input at 60/90/120/144 Hz and after screen off/on and suspend; the panel type (CSOT or BOE) is detected automatically and loads its own touch firmware and orientation; multi-finger gestures untested |
+| Touchscreen | Novatek NT36532E (THP over SPI) | ✅ supported | Single- and multi-finger touch and gestures at 60/90/120/144 Hz and after screen off/on and suspend; the panel type (CSOT or BOE) is detected automatically and loads its own touch firmware and orientation |
 | Magnetic keyboard | Nanosic WN8030 | ✅ works | Typing, key wake with the screen off and wake from suspend |
 
 Not yet supported: stylus, fingerprint.
@@ -116,7 +116,7 @@ Not yet supported: stylus, fingerprint.
 
 | Function | Hardware / implementation | Status | Notes |
 |---|---|---|---|
-| Speakers | FS19xx quad amplifiers | 🟡 partial | Playback works; maximum volume increased; no speaker protection |
+| Speakers | FS19xx quad amplifiers | ✅ supported | Playback on all four speakers; maximum volume increased; keep the default volume cap |
 | Internal microphones | DMIC / ADSP / PipeWire | ✅ works | Recording verified |
 | Video decoding | Qualcomm Iris / V4L2 | ✅ works | Automatic hardware decoding in the system player (GStreamer), Firefox (H.264/HEVC/VP9) and Chrome (H.264/VP9); AV1 uses software decoding |
 | Video encoding | Qualcomm Iris / V4L2 | ✅ works | H.264/H.265 at 1080p and 4K verified |
@@ -130,10 +130,10 @@ Some HEVC videos may drop a small number of frames in Firefox. Chromium snap is 
 
 | Function | Hardware / implementation | Status | Notes |
 |---|---|---|---|
-| Power / volume keys | Qualcomm PMIC | 🟡 partial | Power key locks the screen by default and wakes the lock screen; action configurable in Settings → Power; volume keys unverified |
+| Power / volume keys | Qualcomm PMIC | ✅ supported | Power key locks the screen by default and wakes the lock screen; action configurable in Settings → Power; volume keys change the volume |
 | Power modes | GNOME / TuneD | ✅ works | Power Saver, Balanced and Performance in quick settings or Settings → Power; Balanced by default |
 | Battery gauge / temperature | 2 × TI BQ27Z561 / thermal zones | ✅ works | Charge level, voltage, current and temperatures |
-| Charging | `xiaomi_mca` / SC8541 | 🟡 partial | Charging and charging restoration after suspend; limited charger compatibility |
+| Charging | `xiaomi_mca` / SC8541 | ✅ supported | Fast charging: USB PD chargers charge at 9 V; PPS chargers charge directly through the SC8541 charge pump; the Xiaomi charger is authenticated (MiPPS) for higher current. Qualcomm QC and other proprietary fast-charge protocols charge at the normal 5 V rate; charging resumes after suspend |
 | Suspend | suspend-to-idle | ✅ works | Timer, keyboard, power-button and cover-open wake; default system idle policy |
 
 Not yet supported: disk hibernation, hardware clock writes (time is set from the network after boot).
