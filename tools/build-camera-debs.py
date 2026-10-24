@@ -78,12 +78,21 @@ def main():
         tf.extractall(module, filter='data')
     with (kout / '.build.lock').open('rb') as handle:
         fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        # Keep build-host paths out of the module: __FILE__ strings and debug
+        # info otherwise record the kernel tree and module directory.
+        prefix_map = ' '.join('-f%s-prefix-map=%s/=' % (kind, path) for kind in ('macro', 'file')
+                              for path in (kernel_source, kout, module))
         run('make', '-C', kout, 'M=' + str(module), 'ARCH=arm64',
             'CROSS_COMPILE=' + a.cross_compile, 'CC=' + a.cross_compile + 'gcc',
+            'KCPPFLAGS=' + prefix_map,
             'LOCALVERSION=', 'KBUILD_BUILD_USER=piano', 'KBUILD_BUILD_HOST=builder',
             'KBUILD_BUILD_TIMESTAMP=@' + epoch, 'modules')
     ko = module / 'v4l2loopback.ko'
     run(a.cross_compile + 'strip', '--strip-debug', ko)
+    leaked = [s for s in subprocess.check_output(['strings', '-a', str(ko)], text=True).splitlines()
+              if str(kernel_source) in s or str(kout) in s or str(module) in s or '/home/' in s]
+    if leaked:
+        raise ValueError('Loopback module records build-host paths: ' + leaked[0])
     vermagic = subprocess.check_output(['modinfo', '-F', 'vermagic', str(ko)], text=True).strip()
     if vermagic.split()[0] != release:
         raise ValueError('Loopback vermagic does not match the kernel')
