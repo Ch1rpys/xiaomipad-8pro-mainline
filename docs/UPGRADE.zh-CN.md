@@ -9,7 +9,7 @@
 
 ## 从 v0.6.1 升级到 v0.6.2
 
-按下方相同步骤使用 `piano-ubuntu-v0.6.2-packages.zip`，一起安装全部软件包，包括 Linux 7.2.10-piano36、匹配的相机 loopback 包、`resources` 和 `piano-ubuntu-desktop` 0.6.2。安装后重启，使新内核生效；任务管理器重新打开即可看到新增数据。保留已安装的旧内核及其回退启动镜像组。无需重分区或重刷根镜像。
+按下方相同步骤使用 `piano-ubuntu-v0.6.2-packages.zip`，一起安装全部软件包，其中新增 `resources` 并更新 `piano-ubuntu-desktop` 到 0.6.2，内核仍是 7.2.10-piano35。安装后重新打开任务管理器即可看到新增数据，无需重启。保留已安装的旧内核及其回退启动镜像组。无需重分区或重刷根镜像。
 
 ## 从 v0.6.0 升级到 v0.6.1
 
