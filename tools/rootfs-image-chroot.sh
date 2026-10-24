@@ -21,5 +21,6 @@ trap finish EXIT
     . "$IN/params.sh"
     . "$IN/steps.sh"
     target_mounts() { :; }
+    trim_target() { :; }
     rootfs_steps
 ' 2>&1 | tee "$OUT/install.log"

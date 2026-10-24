@@ -81,7 +81,8 @@ another stock build, prepare the DTB and the set from your own images.
 Host tools, none run as root: `dpkg-deb`, `python3-debian`, `img2simg`, `sgdisk`, `openssl`, `zip`,
 `zstd`, QEMU `qemu-system-aarch64` (TCG), squashfs-tools-ng 1.2 `sqfs2tar`, and e2fsprogs 1.47.4
 `mke2fs`/`e2fsck`/`debugfs`/`dumpe2fs` built with libarchive (the identity is recorded in the
-manifests). A full root image build takes about 45 minutes on an eight-core host.
+manifests). A full root image build takes about 30 minutes in the QEMU guest on an eight-core
+host; as root, the chroot backend and `--base-cache` shorten it ([BUILD.md](BUILD.md#root-image-backends)).
 
 ```bash
 # 1. Ubuntu packages added to the base, from a signed snapshot

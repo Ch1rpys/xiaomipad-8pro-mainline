@@ -9,8 +9,15 @@ read-only, then runs rootfs-image-guest.sh as root: the steps of
 docs/AGENT-GUIDE.md section 4.4 in a chroot of the target (policy-rc.d,
 SYSTEMD_OFFLINE=1 dpkg --install). Userspace packages are installed first,
 then the base's generic kernels and kdump are purged before the piano kernel
-runs dracut. On a native aarch64 host as root, the same steps run in a loop-mounted
-chroot with no emulation. Other hosts default to the QEMU guest. The target never boots.
+runs dracut. As root, the same steps run in a loop-mounted chroot instead: natively on
+an aarch64 host, elsewhere through a binfmt_misc qemu-aarch64 handler with the F flag
+(qemu-user-static).  Other hosts default to the QEMU guest.  Both emulators use the
+implementation-defined pointer authentication algorithm (QEMU_CPU).  The target never boots.
+
+The work before the piano kernel (Desktop base, userspace packages, distribution kernels
+purged) depends only on its own inputs.  With --base-cache that state is stored under the
+SHA-256 of those inputs and reused when only the kernel and its kernel-bound packages
+change; the filesystem UUID derives from the same key.
 
 The image is for any unit: fstab and /etc/piano/layout.json name the fixed
 GPT partitions linux_rootfs and linux_data; the boot set is built with
@@ -29,6 +36,7 @@ import io
 import json
 import os
 from pathlib import Path
+import pwd
 import re
 import selectors
 import signal
@@ -69,9 +77,45 @@ SERIALS = ('piano-helper', 'piano-target', 'piano-inputs', 'piano-result')
 # Ubuntu's package enables /dev/zram0 by default; without CONFIG_ZRAM the boot waits for
 # that device, so it goes with exactly the kernels that have zram.
 ZRAM_GENERATOR = 'systemd-zram-generator'
+# Target CPU for emulation: QEMU's default pointer authentication algorithm (QARMA5) is
+# several times slower to emulate than its implementation-defined one, and Ubuntu's arm64
+# code signs and checks return addresses in nearly every function.  The target sees the
+# same CPU features either way.
+QEMU_CPU = 'max,pauth-impdef=on'
+BASE_SCHEMA = 'piano-rootfs-base-1'
+BASE_SCRIPTS = ('rootfs-image-steps.sh', 'rootfs-image-guest.sh', 'rootfs-image-chroot.sh', 'rootfs-native-chroot.sh')
+AARCH64_ELF_MAGIC = '7f454c460201010000000000000000000200b700'
 
 
-def run_guest(command, out, timeout):
+def give_back(*paths):
+    """Under sudo, return the outputs and the base cache to the invoking user."""
+    uid, gid = os.environ.get('SUDO_UID'), os.environ.get('SUDO_GID')
+    if os.geteuid() != 0 or not uid or not gid:
+        return
+    for top in paths:
+        if top is not None and top.exists():
+            for path in [top, *top.rglob('*')]:
+                os.chown(path, int(uid), int(gid), follow_symlinks=False)
+
+
+def binfmt_aarch64():
+    """The enabled binfmt_misc handler for aarch64 ELF that also works inside a chroot (flag F)."""
+    root = Path('/proc/sys/fs/binfmt_misc')
+    for entry in sorted(root.iterdir()) if root.is_dir() else ():
+        if entry.name in ('register', 'status'):
+            continue
+        try:
+            lines = entry.read_text().splitlines()
+        except OSError:
+            continue
+        fields = dict(line.split(' ', 1) for line in lines if ' ' in line)
+        if (lines[:1] == ['enabled'] and fields.get('magic') == AARCH64_ELF_MAGIC
+                and 'F' in fields.get('flags:', '')):
+            return {'name': entry.name, 'interpreter': fields.get('interpreter'), 'flags': fields['flags:']}
+    return None
+
+
+def run_guest(command, out, timeout, env=None):
     """Keep the original console and timestamp milestones with the host monotonic clock.
 
     Package configuration and trigger messages expose the nested dpkg/dracut
@@ -80,8 +124,8 @@ def run_guest(command, out, timeout):
     started = time.monotonic()
     events = []
     pending = b''
-    with (out / 'console.log').open('wb') as log, (out / 'guest-profile.jsonl').open('w') as profile:
-        with subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+    with (out / 'console.log').open('ab') as log, (out / 'guest-profile.jsonl').open('a') as profile:
+        with subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, env=env,
                               stderr=subprocess.STDOUT, start_new_session=True) as proc, selectors.DefaultSelector() as selector:
             selector.register(proc.stdout, selectors.EVENT_READ)
             try:
@@ -130,7 +174,9 @@ def sha(path):
 def portable(value, out):
     """A command argument without host paths: the output directory and inputs below $HOME by name only."""
     text = str(value).replace(str(out), '<output>')
-    return re.sub(re.escape(str(Path.home())) + r'/[^\s,]*/([^/\s,]+)', r'<input>/\1', text)
+    # Under sudo HOME is root's; the inputs live below the invoking user's home.
+    home = pwd.getpwuid(int(os.environ['SUDO_UID'])).pw_dir if os.environ.get('SUDO_UID') else str(Path.home())
+    return re.sub(re.escape(home) + r'/[^\s,]*/([^/\s,]+)', r'<input>/\1', text)
 
 
 def release_profile(unit):
@@ -353,13 +399,19 @@ def main():
     ap.add_argument('--memory-mib', type=int, default=4096)
     ap.add_argument('--timeout', type=int, default=5400, help='Host budget for the QEMU guest in seconds')
     ap.add_argument('--backend', choices=('guest', 'chroot'),
-                    help='Default: chroot for native aarch64 root, guest otherwise')
+                    help='Default: chroot as root on an aarch64 host or with a binfmt_misc aarch64 handler, '
+                         'guest otherwise')
+    ap.add_argument('--base-cache', type=Path,
+                    help='Directory of bases keyed by their inputs: reuse the base when only the kernel changed, '
+                         'otherwise build it and store it there')
     ap.add_argument('--output', type=Path, required=True, help='New output directory')
     a = ap.parse_args()
     native_root = os.uname().machine == 'aarch64' and os.geteuid() == 0
-    a.backend = a.backend or ('chroot' if native_root else 'guest')
-    if a.backend == 'chroot' and not native_root:
-        ap.error('--backend chroot requires euid 0 on a native aarch64 host')
+    binfmt = binfmt_aarch64() if os.geteuid() == 0 and not native_root else None
+    a.backend = a.backend or ('chroot' if native_root or binfmt else 'guest')
+    if a.backend == 'chroot' and not (native_root or binfmt):
+        ap.error('--backend chroot requires euid 0 and an aarch64 host or a binfmt_misc aarch64 handler '
+                 'with the F flag (qemu-user-static)')
     if a.backend == 'guest' and a.qemu is None:
         ap.error('--qemu is required for the guest backend')
     if a.timeout <= 0:
@@ -455,41 +507,14 @@ def main():
                                     'euid': os.geteuid(), 'emulation': False}
             for name in ('rootfs-native-chroot.sh', 'rootfs-image-chroot.sh'):
                 result['tools'][name] = sha(Path(__file__).with_name(name))
+        chroot_env = None
+        if a.backend == 'chroot' and binfmt:
+            chroot_env = dict(os.environ, QEMU_CPU=os.environ.get('QEMU_CPU', QEMU_CPU))
+            result['chroot_host']['emulation'] = {'binfmt_misc': binfmt, 'qemu_cpu': chroot_env['QEMU_CPU']}
 
-        # The base ext4 at the full partition size, from the SquashFS TAR stream.
-        t = time.monotonic()
-        print('Scanning the base for file capabilities', flush=True)
-        epoch, caps = scan_base(a.sqfs2tar, a.squashfs)
-        result.update(base_epoch=epoch, base_file_capabilities=len(caps))
-        t = lap('scan_base', t)
-        fs_uuid = uuid.uuid5(uuid.NAMESPACE_URL, f'piano-rootfs:{a.release_name}')
-        image = out / 'root.ext4.partial'
-        with image.open('xb') as f:
-            f.truncate(a.size_mib << 20)
-        mke2fs = [str(a.mke2fs.resolve()), '-q', '-t', 'ext4', '-b', '4096', '-m', '0',
-                  '-U', str(fs_uuid), '-L', ROOT_PARTLABEL,
-                  '-E', f'lazy_itable_init=0,lazy_journal_init=0,root_owner=0:0,hash_seed={fs_uuid}',
-                  '-d', '-', str(image)]
-        result.update(filesystem_uuid=str(fs_uuid), filesystem_bytes=a.size_mib << 20,
-                      mke2fs_command=[portable(w, out) for w in mke2fs])
-        save()
-        print('Populating the ext4 from the SquashFS TAR stream', flush=True)
-        with (out / 'mke2fs.log').open('wb') as log:
-            source = subprocess.Popen([str(a.sqfs2tar), '--root-becomes', '.', '--no-skip', str(a.squashfs)],
-                                      stdout=subprocess.PIPE, stderr=log)
-            sink = subprocess.Popen(mke2fs, stdin=source.stdout, stdout=log, stderr=subprocess.STDOUT,
-                                    env=dict(env, E2FSPROGS_FAKE_TIME=str(epoch)))
-            source.stdout.close()
-            if sink.wait() or source.wait():
-                raise RuntimeError('sqfs2tar | mke2fs failed; see mke2fs.log')
-        t = lap('mke2fs', t)
-
-        # Guest inputs: one TAR on a read-only disk.  It holds the release key and is deleted afterwards.
-        guest_kernel = (extract_member(a.kernel_deb, f'boot/vmlinuz-{release}', out / f'vmlinuz-{release}')
-                        if a.backend == 'guest' else None)
-        inputs = out / 'inputs.tar'
-        epoch_files = {
-            'params.sh': f'RELEASE={release}\nROOT_PARTLABEL={ROOT_PARTLABEL}\n'.encode(),
+        # Inputs of the steps, packed per run into one TAR (a read-only disk for the guest).  It
+        # holds the release key and is deleted afterwards.  Read first: they also key the base.
+        files = {
             'guest.sh': Path(__file__).with_name('rootfs-image-guest.sh').read_bytes(),
             'steps.sh': Path(__file__).with_name('rootfs-image-steps.sh').read_bytes(),
             'chroot.sh': Path(__file__).with_name('rootfs-image-chroot.sh').read_bytes(),
@@ -502,73 +527,167 @@ def main():
             'release/boot-signing.pem': a.boot_key.read_bytes(),
         }
         for name in ('mozilla.sources', 'mozilla.pref', 'packages.mozilla.org.asc'):
-            epoch_files['firefox/' + name] = (REPO / 'ubuntu/firefox' / name).read_bytes()
-        inputs.touch(mode=0o600, exist_ok=False)
-        with tarfile.open(inputs, 'w', format=tarfile.PAX_FORMAT) as tar:
-            def add(name, data=None, path=None):
-                info = tarfile.TarInfo(name)
-                info.mtime, info.mode = epoch, 0o600 if name.endswith('.pem') else 0o644
-                if path is not None:
-                    info.size = path.stat().st_size
-                    with path.open('rb') as src:
-                        tar.addfile(info, src)
-                else:
-                    info.size = len(data)
-                    tar.addfile(info, io.BytesIO(data))
-            for name, data in epoch_files.items():
-                add(name, data)
-            for path, entry in debs:
-                # The prebuilt loopback depends on this exact kernel, and camerad
-                # depends on loopback. Configure them together after device support
-                # is installed and the generic distribution kernels are removed.
-                directory = 'kernel/' if entry['package'] in (
-                    kernel['Package'], 'piano-camerad', f'piano-camera-loopback-{release}') else 'debs/'
-                add(directory + path.name.replace('%3a', '_'), path=path)
-        if a.backend == 'guest':
-            result_disk = out / 'result.raw'
-            with result_disk.open('xb') as f:
-                f.truncate(1 << 30)
-            run = ("/bin/sh -c 'mkdir -p /run/piano-inputs && tar -xf /dev/vdc -C /run/piano-inputs "
-                   "&& exec /bin/sh /run/piano-inputs/guest.sh'")
-            # The helper skips AppArmor: compiling the Desktop profiles under TCG takes many minutes, and
-            # nothing in the chroot steps depends on it.  The target's own policy is untouched.
-            cmdline = ('console=ttyAMA0 root=/dev/vda rootfstype=squashfs ro rootwait panic=-1 apparmor=0 '
-                       'systemd.unit=kernel-command-line.target systemd.run_success_action=poweroff '
-                       f'systemd.run_failure_action=poweroff systemd.run="{run}"')
-            drives = [(a.squashfs.resolve(), 'readonly=on'), (image, 'cache=unsafe,discard=unmap'),
-                      (inputs, 'readonly=on'), (result_disk, '')]
-            command = [str(a.qemu), '-machine', 'virt', '-cpu', 'max', '-accel', 'tcg,thread=multi',
-                       '-smp', str(a.smp), '-m', f'{a.memory_mib}M', '-nodefaults', '-display', 'none',
-                       '-monitor', 'none', '-serial', 'stdio', '-nic', 'none', '-no-reboot',
-                       '-kernel', str(guest_kernel), '-append', cmdline]
-            for index, ((path, options), serial) in enumerate(zip(drives, SERIALS)):
-                command += ['-drive', f'file={path},format=raw,if=none,id=d{index}' + (',' + options if options else ''),
-                            '-device', f'virtio-blk-device,bus=virtio-mmio-bus.{index},drive=d{index},serial={serial}']
-        else:
-            command = ['unshare', '--mount', '--net', '--propagation', 'private', '/bin/bash',
-                       str(Path(__file__).with_name('rootfs-native-chroot.sh')), str(image), str(inputs), str(out)]
-        result.update(guest_command=[portable(w, out) for w in command], guest_timeout_seconds=a.timeout)
+            files['firefox/' + name] = (REPO / 'ubuntu/firefox' / name).read_bytes()
+        # The prebuilt loopback depends on this exact kernel, and camerad depends on
+        # loopback. Configure them together after device support is installed and the
+        # generic distribution kernels are removed.
+        kernel_bound = {kernel['Package'], 'piano-camerad', f'piano-camera-loopback-{release}'}
+
+        # Everything before the piano kernel is installed depends only on these inputs, so a
+        # base built from them is reused when only the kernel changes.  The filesystem UUID
+        # and directory hash seed follow the same key: equal inputs, equal base.
+        base_inputs = {
+            'schema': BASE_SCHEMA, 'backend': a.backend, 'size_mib': a.size_mib,
+            'squashfs_sha256': a.squashfs_sha256, 'apt_manifest_sha256': result['apt_manifest_sha256'],
+            'tools': {n: result['tools'][n] for n in ('sqfs2tar', 'mke2fs', 'mke2fs_config')},
+            'scripts': {n: sha(Path(__file__).with_name(n)) for n in BASE_SCRIPTS},
+            'files': {n: hashlib.sha256(d).hexdigest() for n, d in files.items() if n.startswith(('files/', 'firefox/'))},
+            'packages': sorted([d['package'], d['sha256']] for _, d in debs if d['package'] not in kernel_bound),
+        }
+        base_key = hashlib.sha256(json.dumps(base_inputs, sort_keys=True).encode()).hexdigest()
+        cache = a.base_cache.resolve() / base_key if a.base_cache else None
+        hit = cache is not None and (cache / 'base.json').is_file()
+        result['base'] = {'key': base_key, 'cache': None if cache is None else ('hit' if hit else 'stored')}
         save()
-        print(f'Installing packages with {a.backend} (budget {a.timeout} s); progress in {out}/console.log', flush=True)
+
+        # The base ext4 at the full partition size, from the SquashFS TAR stream.
+        t = time.monotonic()
+        if hit:
+            stored = json.loads((cache / 'base.json').read_text())
+            epoch, caps = stored['base_epoch'], stored['base_file_capabilities']
+        else:
+            print('Scanning the base for file capabilities', flush=True)
+            epoch, caps = scan_base(a.sqfs2tar, a.squashfs)
+            t = lap('scan_base', t)
+        result.update(base_epoch=epoch, base_file_capabilities=len(caps))
+        fs_uuid = uuid.uuid5(uuid.NAMESPACE_URL, f'piano-rootfs-base:{base_key}')
+        image = out / 'root.ext4.partial'
+        guest_dir = out / 'guest'
+        mke2fs = [str(a.mke2fs.resolve()), '-q', '-t', 'ext4', '-b', '4096', '-m', '0',
+                  '-U', str(fs_uuid), '-L', ROOT_PARTLABEL,
+                  '-E', f'lazy_itable_init=0,lazy_journal_init=0,root_owner=0:0,hash_seed={fs_uuid}',
+                  '-d', '-', str(image)]
+        result.update(filesystem_uuid=str(fs_uuid), filesystem_bytes=a.size_mib << 20,
+                      mke2fs_command=[portable(w, out) for w in mke2fs])
+        save()
+        if hit:
+            print(f'Reusing the cached base {base_key}', flush=True)
+            # Holes stay holes; with --sparse=always cp would also scan every data block for zeros.
+            subprocess.run(['cp', '--reflink=auto', str(cache / 'root.ext4'), str(image)], check=True)
+            guest_dir.mkdir()
+            with tarfile.open(cache / 'base-out.tar') as tar:
+                tar.extractall(guest_dir, filter='data')
+            t = lap('base_cache_copy', t)
+            runs = [['kernel']]
+        else:
+            with image.open('xb') as f:
+                f.truncate(a.size_mib << 20)
+            print('Populating the ext4 from the SquashFS TAR stream', flush=True)
+            with (out / 'mke2fs.log').open('wb') as log:
+                source = subprocess.Popen([str(a.sqfs2tar), '--root-becomes', '.', '--no-skip', str(a.squashfs)],
+                                          stdout=subprocess.PIPE, stderr=log)
+                sink = subprocess.Popen(mke2fs, stdin=source.stdout, stdout=log, stderr=subprocess.STDOUT,
+                                        env=dict(env, E2FSPROGS_FAKE_TIME=str(epoch)))
+                source.stdout.close()
+                if sink.wait() or source.wait():
+                    raise RuntimeError('sqfs2tar | mke2fs failed; see mke2fs.log')
+            t = lap('mke2fs', t)
+            runs = [['base', 'kernel']] if cache is None else [['base'], ['kernel']]
+
+        guest_kernel = (extract_member(a.kernel_deb, f'boot/vmlinuz-{release}', out / f'vmlinuz-{release}')
+                        if a.backend == 'guest' else None)
+        result.update(guest_runs=[], guest_profile=[], guest_timeout_seconds=a.timeout)
+        deadline = time.monotonic() + a.timeout
         try:
-            result['guest_returncode'], result['guest_profile'] = run_guest(command, out, a.timeout)
-        except subprocess.TimeoutExpired:
-            result.update(guest_returncode=None, guest_timed_out=True)
+            for phases in runs:
+                inputs = out / 'inputs.tar'
+                run_files = {'params.sh': (f'RELEASE={release}\nROOT_PARTLABEL={ROOT_PARTLABEL}\n'
+                                           f'PHASES="{" ".join(phases)}"\n').encode()}
+                run_files.update((n, d) for n, d in files.items() if 'kernel' in phases or not n.startswith('release/'))
+                inputs.touch(mode=0o600, exist_ok=False)
+                with tarfile.open(inputs, 'w', format=tarfile.PAX_FORMAT) as tar:
+                    def add(name, data=None, path=None):
+                        info = tarfile.TarInfo(name)
+                        info.mtime, info.mode = epoch, 0o600 if name.endswith('.pem') else 0o644
+                        if path is not None:
+                            info.size = path.stat().st_size
+                            with path.open('rb') as src:
+                                tar.addfile(info, src)
+                        else:
+                            info.size = len(data)
+                            tar.addfile(info, io.BytesIO(data))
+                    for name, data in run_files.items():
+                        add(name, data)
+                    for path, entry in debs:
+                        bound = entry['package'] in kernel_bound
+                        if 'kernel' in phases if bound else 'base' in phases:
+                            add(('kernel/' if bound else 'debs/') + path.name.replace('%3a', '_'), path=path)
+                if a.backend == 'guest':
+                    result_disk = out / 'result.raw'
+                    with result_disk.open('xb') as f:
+                        f.truncate(1 << 30)
+                    run = ("/bin/sh -c 'mkdir -p /run/piano-inputs && tar -xf /dev/vdc -C /run/piano-inputs "
+                           "&& exec /bin/sh /run/piano-inputs/guest.sh'")
+                    # The helper skips AppArmor: compiling the Desktop profiles under TCG takes many minutes, and
+                    # nothing in the chroot steps depends on it.  The target's own policy is untouched.
+                    cmdline = ('console=ttyAMA0 root=/dev/vda rootfstype=squashfs ro rootwait panic=-1 apparmor=0 '
+                               'systemd.unit=kernel-command-line.target systemd.run_success_action=poweroff '
+                               f'systemd.run_failure_action=poweroff systemd.run="{run}"')
+                    drives = [(a.squashfs.resolve(), 'readonly=on'), (image, 'cache=unsafe,discard=unmap'),
+                              (inputs, 'readonly=on'), (result_disk, '')]
+                    command = [str(a.qemu), '-machine', 'virt', '-cpu', QEMU_CPU, '-accel', 'tcg,thread=multi',
+                               '-smp', str(a.smp), '-m', f'{a.memory_mib}M', '-nodefaults', '-display', 'none',
+                               '-monitor', 'none', '-serial', 'stdio', '-nic', 'none', '-no-reboot',
+                               '-kernel', str(guest_kernel), '-append', cmdline]
+                    for index, ((path, options), serial) in enumerate(zip(drives, SERIALS)):
+                        command += ['-drive', f'file={path},format=raw,if=none,id=d{index}' + (',' + options if options else ''),
+                                    '-device', f'virtio-blk-device,bus=virtio-mmio-bus.{index},drive=d{index},serial={serial}']
+                else:
+                    command = ['unshare', '--mount', '--net', '--propagation', 'private', '/bin/bash',
+                               str(Path(__file__).with_name('rootfs-native-chroot.sh')), str(image), str(inputs), str(out)]
+                result['guest_command'] = [portable(w, out) for w in command]
+                save()
+                print(f'Running the {" and ".join(phases)} steps with {a.backend}; progress in {out}/console.log', flush=True)
+                try:
+                    returncode, events = run_guest(command, out, max(1.0, deadline - time.monotonic()), chroot_env)
+                except subprocess.TimeoutExpired:
+                    returncode, events = None, []
+                finally:
+                    inputs.unlink()
+                result['guest_runs'].append({'phases': phases, 'returncode': returncode})
+                result['guest_profile'] += events
+                t = lap(f'{a.backend}_{"_".join(phases)}', t)
+                if a.backend == 'guest':
+                    with tarfile.open(result_disk) as tar:
+                        tar.extractall(guest_dir, filter='data')
+                    result_disk.unlink()
+                if returncode is None:
+                    raise RuntimeError(f'{a.backend} exceeded its {a.timeout} s budget; see console.log')
+                if returncode != 0:
+                    raise RuntimeError(f'{a.backend} failed; see console.log and guest/install.log')
+                log = (guest_dir / 'install.log').read_text(errors='replace')
+                done = 'PIANO_ROOTFS_GUEST_DONE' if 'kernel' in phases else 'PIANO_ROOTFS_BASE_DONE'
+                if done not in log or 'PIANO_ROOTFS_EXIT status=0' not in log:
+                    raise RuntimeError('The steps did not complete; see guest/install.log and console.log')
+                if 'kernel' not in phases:
+                    (guest_dir / 'install.log').replace(guest_dir / 'install-base.log')
+                    # Store the base before the kernel run changes it: written aside, then renamed.
+                    partial = cache.with_name(cache.name + '.partial')
+                    shutil.rmtree(partial, ignore_errors=True)
+                    partial.mkdir(parents=True)
+                    subprocess.run(['cp', '--reflink=auto', str(image), str(partial / 'root.ext4')], check=True)
+                    with tarfile.open(partial / 'base-out.tar', 'w') as tar:
+                        for f in sorted(guest_dir.iterdir()):
+                            tar.add(f, arcname=f.name)
+                    (partial / 'base.json').write_text(json.dumps(
+                        {'key': base_key, 'inputs': base_inputs, 'filesystem_uuid': str(fs_uuid), 'base_epoch': epoch,
+                         'base_file_capabilities': caps},
+                        indent=2) + '\n')
+                    partial.rename(cache)
+                    t = lap('base_cache_store', t)
         finally:
-            inputs.unlink()
             if guest_kernel is not None:
                 guest_kernel.unlink()
-        t = lap(a.backend, t)
-        guest_dir = out / 'guest'
-        if a.backend == 'guest':
-            with tarfile.open(result_disk) as tar:
-                tar.extractall(guest_dir, filter='data')
-            result_disk.unlink()
-        if result['guest_returncode'] != 0:
-            raise RuntimeError(f'{a.backend} failed; see console.log and guest/install.log')
-        log = (guest_dir / 'install.log').read_text(errors='replace')
-        if 'PIANO_ROOTFS_GUEST_DONE' not in log or 'PIANO_ROOTFS_EXIT status=0' not in log:
-            raise RuntimeError('The guest did not complete; see guest/install.log and console.log')
         (out / 'ubuntu-set').mkdir()
         for f in sorted((guest_dir / 'ubuntu-set').iterdir()):
             f.replace(out / 'ubuntu-set' / f.name)
@@ -630,8 +749,10 @@ def main():
     except Exception as exc:
         result.update(state='FAILED', error=str(exc))
         save()
+        give_back(out, a.base_cache)
         raise
     save()
+    give_back(out, a.base_cache)
     print(json.dumps({k: result[k] for k in ('state', 'kernel_release', 'outputs')}, indent=2))
 
 

@@ -31,7 +31,25 @@ in_target() {
 	if [ "$T" = / ]; then "$@"; else chroot "$T" "$@"; fi
 }
 
+# The chroot backend discards free blocks from the host after the steps instead
+# (qemu-user does not pass the FITRIM ioctl through).
+trim_target() { fstrim -v "$T"; }
+
+# PHASES (params.sh) selects the work: "base kernel" for a whole build, "base"
+# to stop after the distribution kernels are purged (the cacheable state that does
+# not depend on the piano kernel), "kernel" to continue from such a base.
 rootfs_steps() {
+case " ${PHASES:-base kernel} " in
+*" base "*) rootfs_base_steps ;;
+*) step chroot mounts; target_mounts ;;
+esac
+case " ${PHASES:-base kernel} " in
+*" kernel "*) rootfs_kernel_steps ;;
+*) echo PIANO_ROOTFS_BASE_DONE ;;
+esac
+}
+
+rootfs_base_steps() {
 [ -z "$(ls -A "$T/home")" ] || fail 'the base has entries in /home'
 [ ! -e "$T/etc/fstab" ] || fail 'the base already has /etc/fstab'
 [ ! -e "$T/etc/piano" ] || fail 'the base already has /etc/piano'
@@ -130,7 +148,9 @@ in_target /usr/bin/env SYSTEMD_OFFLINE=1 DEBIAN_FRONTEND=noninteractive \
 df -B1 --output=used "$T" | tail -1 >"$OUT/used-bytes-after-purge.txt"
 audit=$(in_target dpkg --audit)
 [ -z "$audit" ] || fail "dpkg --audit after the purge: $audit"
+}
 
+rootfs_kernel_steps() {
 step install piano kernel
 cp "$IN"/kernel/*.deb "$T/var/cache/piano-install/"
 in_target /usr/bin/env SYSTEMD_OFFLINE=1 DEBIAN_FRONTEND=noninteractive \
@@ -193,7 +213,7 @@ find "$T/var/lib/apt/lists" -mindepth 1 -maxdepth 1 -type f ! -name lock -delete
 # their old content): the host punches them out of the image file
 # (discard=unmap), and sparse_image.py writes only zero free blocks as DONT_CARE.
 step fstrim
-fstrim -v "$T"
+trim_target
 rm -rf "$T"/var/log/journal/*
 
 step report

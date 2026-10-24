@@ -3,13 +3,14 @@
 [中文](build.zh-CN.md) | [Project overview](../README.md) | [Release artefacts](RELEASE.md)
 
 How the release is built from pinned inputs: kernel → ABI entry → kernel package → device and
-firmware packages → boot image set → root image → release directory. The native root-image chroot
+firmware packages → boot image set → root image → release directory. The root-image chroot backend
 requires root; the other tools run unprivileged. No build tool accesses a tablet. A successful build is not a hardware result. Each step's expected output and
 the identities to record are in [AGENT-GUIDE.md](AGENT-GUIDE.md) §3.
 
 ## Host
 
-Linux x86_64 for the guest backend, or native AArch64 as root for the chroot backend.
+Linux x86_64 for the guest backend. The chroot backend runs as root, on native AArch64 or on x86_64
+with a qemu-aarch64 binfmt_misc handler that has the F flag (Ubuntu's `qemu-user-static` registers one).
 Commands run from the root of this repository.
 
 | Stage | Tools |
@@ -189,8 +190,10 @@ python3 tools/merge-desktop-tars.py \
 
 Then fetch the Ubuntu packages added to the base from a signed snapshot, and build the 60 GiB root
 image with the packages of steps 4 and 5. `build-rootfs-image.py` installs them in a disposable QEMU
-ARM64 guest (the target never boots), builds the release boot set from the image's initrd, checks
-the result offline and writes `root.sparse.img`; it takes about 35 minutes. The full commands are in
+ARM64 guest or, as root, in a chroot (the target never boots), builds the release boot set from the
+image's initrd, checks the result offline and writes `root.sparse.img`; it takes about 30 minutes in the
+guest and 20 in the chroot, and 11 with `--base-cache` when only the kernel changed (see
+[Root-image backends](#root-image-backends)). The full commands are in
 [RELEASE.md](RELEASE.md#building-a-release):
 
 ```bash
@@ -224,12 +227,27 @@ dracut record times.
 
 ### Root-image backends
 
-`build-rootfs-image.py --backend chroot` accepts only native `aarch64` with EUID 0 and runs the
-shared package steps in a loop-mounted ext4, with private proc/sys/dev/pts binds and temporary
-run/tmp. Mount and network namespaces keep build activity separate from the host; an exit trap
-unmounts in reverse order. It has no QEMU or binfmt dependency. Omitting `--backend` selects chroot
-for native ARM64 root and guest otherwise; `--backend guest --qemu …` selects the QEMU guest
-explicitly. The 60 GiB raw ext4 remains a sparse host file in both cases.
+`build-rootfs-image.py --backend chroot` requires EUID 0 and runs the shared package steps in a
+loop-mounted ext4, with private proc/sys/dev/pts binds and temporary run/tmp. Mount and network
+namespaces keep build activity separate from the host; an exit trap unmounts in reverse order. On an
+AArch64 host the target's programs run natively; elsewhere they run through a qemu-aarch64
+binfmt_misc handler with the F flag, which also works inside the chroot. The host then discards the
+image's free blocks after the steps, because qemu-user does not pass the FITRIM ioctl through.
+Omitting `--backend` selects chroot as root on AArch64 or with such a handler, and guest otherwise;
+`--backend guest --qemu …` selects the QEMU guest explicitly. Both emulators use
+`max,pauth-impdef=on` as the CPU (for the chroot, `QEMU_CPU` overrides it): emulating QEMU's default
+pointer authentication algorithm is several times slower, and Ubuntu's arm64 code authenticates
+return addresses in nearly every function. The 60 GiB raw ext4 remains a sparse host file in all
+cases. Run with `sudo`, the tool returns its outputs and the cache to the invoking user.
+
+`--base-cache <dir>` keeps the image as it is before the project kernel is installed (the Desktop
+base with the userspace packages, the distribution kernels removed), named by the SHA-256 of the
+inputs it depends on: the SquashFS, the APT download, every package except the kernel, its loopback
+module and the camera service, the image files and the build scripts. A later build with the same
+inputs copies that base, installs only those three packages, then builds the boot set and checks the
+image as usual; any other change builds and stores a new base. The filesystem UUID derives from the
+same key, so cached and uncached builds of the same inputs pass the same checks with the same
+packages.
 
 ## 8. Release directory
 

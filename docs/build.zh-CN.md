@@ -3,13 +3,14 @@
 [English](BUILD.md) | [项目概览](../README.zh-CN.md) | [发布产物](RELEASE.md)
 
 本指南说明如何从固定输入构建发布产物：内核 → ABI 条目 → 内核包 → 设备包与固件包 →
-启动镜像组 → 根镜像 → 发布目录。原生根镜像 chroot 后端需要 root，其余工具以普通用户运行。
+启动镜像组 → 根镜像 → 发布目录。根镜像 chroot 后端需要 root，其余工具以普通用户运行。
 构建工具不访问平板；构建成功不代表硬件验证通过。各阶段预期输出及需记录的身份见
 [代理与操作者指南](AGENT-GUIDE.zh-CN.md) §3。
 
 ## 主机前提
 
-guest 后端使用 Linux x86_64 主机；chroot 后端使用原生 AArch64 主机，并以 root 运行。
+guest 后端使用 Linux x86_64 主机。chroot 后端以 root 运行，主机为原生 AArch64，或注册了带 F 标志的
+qemu-aarch64 binfmt_misc 处理程序的 x86_64（Ubuntu 的 `qemu-user-static` 会注册）。
 以下命令均在本仓库根目录执行。`<...>` 为需要替换的输入占位符。
 
 | 阶段 | 工具 |
@@ -183,8 +184,9 @@ python3 tools/merge-desktop-tars.py \
 ```
 
 从签名快照下载需额外安装的 Ubuntu 包，再用第 4、5 步的软件包构建 60 GiB 根镜像。
-`build-rootfs-image.py` 在一次性 QEMU ARM64 guest 内安装包，不启动目标系统；它从镜像中的
-initrd 构建发布启动镜像组，执行离线检查并输出 `root.sparse.img`。完整参数见
+`build-rootfs-image.py` 在一次性 QEMU ARM64 guest 内，或以 root 在 chroot 中安装包，不启动目标系统；
+它从镜像中的 initrd 构建发布启动镜像组，执行离线检查并输出 `root.sparse.img`。guest 约需 30 分钟，
+chroot 约 20 分钟，只换内核且使用 `--base-cache` 时约 11 分钟（见下文“根镜像构建后端”）。完整参数见
 [发布构建说明](RELEASE.md#building-a-release)，下面的根镜像命令以 `...` 省略工具路径及软件包输入：
 
 ```bash
@@ -215,11 +217,21 @@ Thunderbird 保持 snap。Snap 移除和 Firefox GPU 渲染需在设备上单独
 
 ### 根镜像构建后端
 
-`build-rootfs-image.py --backend chroot` 仅接受原生 `aarch64` 且 EUID 为 0，在 loop 挂载的 ext4
-中执行共用安装步骤，使用私有 proc/sys/dev/pts 绑定及临时 run/tmp。挂载和网络命名空间隔离构建活动，
-退出时按逆序卸载；无需 QEMU 或 binfmt。省略 `--backend` 时，原生 ARM64 root 默认选择 chroot，
-其他情况选择 guest；`--backend guest --qemu …` 可显式选择 QEMU。两种后端的 60 GiB raw ext4
-在主机上都保持为稀疏文件。
+`build-rootfs-image.py --backend chroot` 要求 EUID 为 0，在 loop 挂载的 ext4 中执行共用安装步骤，
+使用私有 proc/sys/dev/pts 绑定及临时 run/tmp。挂载和网络命名空间隔离构建活动，退出时按逆序卸载。
+AArch64 主机上目标程序原生运行；其他主机经带 F 标志的 qemu-aarch64 binfmt_misc 处理程序运行，
+chroot 内同样有效。由于 qemu-user 不转发 FITRIM ioctl，空闲块改由主机在安装步骤之后裁剪。
+省略 `--backend` 时，以 root 在 AArch64 或有该处理程序的主机上选择 chroot，其他情况选择 guest；
+`--backend guest --qemu …` 可显式选择 QEMU。两种模拟都以 `max,pauth-impdef=on` 作为 CPU
+（chroot 可用 `QEMU_CPU` 覆盖）：QEMU 默认的指针认证算法模拟起来慢数倍，而 Ubuntu 的 arm64 代码
+几乎每个函数都校验返回地址。60 GiB raw ext4 在主机上始终保持为稀疏文件。以 `sudo` 运行时，
+工具会把输出和缓存交还给调用者。
+
+`--base-cache <目录>` 保存安装项目内核之前的镜像（Desktop 基础、用户态软件包、已移除发行版内核），
+以其依赖输入的 SHA-256 命名：SquashFS、APT 下载、除内核及其 loopback 模块和相机服务外的全部软件包、
+镜像文件和构建脚本。之后输入相同的构建会复制该基础，只安装这三个包，再照常构建启动镜像组并检查镜像；
+其他任何变化都会构建并保存新的基础。文件系统 UUID 由同一键派生，因此相同输入的缓存与非缓存构建
+通过同样的检查、软件包相同。
 
 ## 8. 发布目录
 
