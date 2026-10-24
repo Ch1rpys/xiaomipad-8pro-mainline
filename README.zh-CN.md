@@ -2,7 +2,34 @@
 
 在小米平板 8 Pro（代号 `piano`，骁龙 8 至尊版）上原生运行 Ubuntu 26.04 LTS GNOME 桌面，与 Android 双系统共存，内核基于上游 Linux 7.2 适配。不是容器，不是远程桌面。[English](README.md)
 
-**最新版本：[v0.6.1](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.6.1)。** 支持状态见[硬件支持](#硬件支持)。
+**最新版本见 [Releases](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/latest)。** 支持状态见[硬件支持](#硬件支持)。
+
+## 🧭 路线选择
+
+让一台安卓平板跑起 Linux 桌面，大致有两条路。
+
+一条是**先跑通，再兼容**：沿用厂商的下游驱动，桌面和应用哪里不配合就改哪里，功能来得快。代价是设备的特殊之处散落在内核、桌面和应用的各个角落，彼此耦合，每升级一次系统，这些修改都要重新对一遍。
+
+另一条是**贴近上游**：硬件问题回到内核和驱动里，按上游主线的方式解决；Ubuntu、GNOME 这些软件尽量保持原样，设备通过标准接口被系统认识。这条路更慢、更难，很多问题必须追到根因才能修好。
+
+我们选择后一条。
+
+| | 先跑通，再兼容 | 贴近上游（本项目） |
+|---|---|---|
+| 内核与驱动 | 厂商下游驱动，加临时绕过 | 主线内核和上游驱动，缺的部分按上游的方式补齐 |
+| 桌面与应用 | 修改桌面组件来适配这台设备 | 尽量使用发行版原版软件，设备差异不外溢到桌面 |
+| 遇到问题 | 加延时、重试、兼容层，先让它能用 | 找到根因，在出问题的那一层修好 |
+| 系统升级 | 修改要逐个重新适配，容易卡住 | 跟着上游和发行版正常升级 |
+| 别人复用 | 依赖这一整套特定修改 | 换发行版、换同芯片设备，成本都很低 |
+
+**为什么这样选：**
+
+- **解耦。** 屏幕、触控、充电这些硬件差异由内核和设备树描述，桌面看到的只是标准的显示器、触摸屏和电池，不需要知道这是哪台平板。
+- **升级不被绑住。** 改动越少，升级越顺：内核可以跟进上游新版本，Ubuntu 的更新照常安装。确实必须修改的少数桌面组件单独打包、跟踪上游，上游支持后就撤掉。
+- **修一次，大家受益。** 按上游方式解决的问题，可以回到上游，让同芯片的设备和其他发行版都用上；上游的修复，我们也能直接拿来。
+- **长期可维护。** 修改少、边界清楚，出了问题容易定位，不会越修越乱。
+
+代价是功能来得慢一些，有些问题要花很长时间才能追到根因。比如触摸时偶发的闪屏，我们没有靠降低刷新率去回避，而是一直追到触控数据传输和系统省电之间的时序冲突，在驱动里修好。我们愿意付出这个代价，因为这才是能长期走下去的路。
 
 ## 📮 关注与交流
 
@@ -45,10 +72,10 @@
 ```text
 我要在小米平板 8 Pro（代号 piano）上安装 Ubuntu，与 Android 双系统共存。请你作为操作助手，按下面的规则帮我完成。
 
-项目：https://github.com/yzddmr6/xiaomipad-8pro-mainline ，版本 v0.6.1。
+项目：https://github.com/yzddmr6/xiaomipad-8pro-mainline ，使用最新发布版本（https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/latest 上标为 Latest 的版本）。
 
-1. 先 git clone 该仓库并检出标签 v0.6.1，通读 README.zh-CN.md 的「安装前请阅读」、docs/INSTALL.zh-CN.md、docs/FLASHING.zh-CN.md，以及 docs/AGENT-GUIDE.zh-CN.md 第 1 节的安全规则，然后再开始。
-2. 从 GitHub Release v0.6.1 把全部附件下载到一个空目录，先执行 sha256sum -c SHA256SUMS.assets，再按 Release 说明还原发布目录并再次校验。
+1. 先 git clone 该仓库并检出最新发布版本对应的标签，通读 README.zh-CN.md 的「安装前请阅读」、docs/INSTALL.zh-CN.md、docs/FLASHING.zh-CN.md，以及 docs/AGENT-GUIDE.zh-CN.md 第 1 节的安全规则，然后再开始。
+2. 从该版本的 GitHub Release 把全部附件下载到一个空目录，先执行 sha256sum -c SHA256SUMS.assets，再按 Release 说明还原发布目录并再次校验。
 3. 检查主机工具（adb、fastboot、python3、zstd、sgdisk、sfdisk、img2simg 等，以 INSTALL 的「准备」表为准）和平板状态（型号 piano、原厂版本 OS3.0.303.0.WPYCNXM、当前 A 槽、已解锁、已 root、电量不低于 40%）。任何一项不符就停下来告诉我，不要绕过。
 4. 严格按 docs/INSTALL.zh-CN.md 的步骤顺序执行，每条设备命令都用 -s 或 --serial 明确指定我的平板。每一步开始前用一两句话告诉我这步做什么、会写哪里；凡是写入平板的操作（分区表、擦除、flash、写 A 槽），先列出将要执行的命令，等我回复「确认」再执行。
 5. 绝不写入 vbmeta、dtbo、任何 _b 分区、persist 或其他校准、基带、固件分区；绝不执行 fastboot --set-active=b；绝不使用别的平板的标定、设备专属配置或镜像。
@@ -60,12 +87,12 @@
 
 ### 手动安装
 
-1. 从 [v0.6.1 发布页](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.6.1)把全部附件下载到一个空目录，校验并还原发布目录：
+1. 从[最新发布页](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/latest)把全部附件下载到一个空目录（目录里只放这一个版本），校验并还原发布目录：
 
    ```bash
    sha256sum -c SHA256SUMS.assets
-   unzip piano-ubuntu-v0.6.1-boot.zip && unzip piano-ubuntu-v0.6.1-tools.zip && unzip piano-ubuntu-v0.6.1-packages.zip
-   mkdir -p rootfs && cat piano-ubuntu-v0.6.1-rootfs.img.zst.part* | zstd -d > rootfs/root.sparse.img
+   unzip piano-ubuntu-*-boot.zip && unzip piano-ubuntu-*-tools.zip && unzip piano-ubuntu-*-packages.zip
+   mkdir -p rootfs && cat piano-ubuntu-*-rootfs.img.zst.part* | zstd -d > rootfs/root.sparse.img
    sha256sum -c SHA256SUMS
    ```
 
@@ -81,7 +108,7 @@
 
 ## 硬件支持
 
-以下为 v0.6.1 在测试机上的状态。✅ 可用 · 🟡 部分支持 · ❌ 不支持 · 🧪 未验证。
+以下为最新发布版本在测试机上的状态。✅ 可用 · 🟡 部分支持 · ❌ 不支持 · 🧪 未验证。
 ✅ 表示已在真机验证所述功能，不代表所有应用和使用场景都测过。当前支持范围与各版本改进见 [docs/STATUS.md](docs/STATUS.md)（英文）。
 
 ### 平台、显示与输入

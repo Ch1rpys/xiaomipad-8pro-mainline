@@ -2,7 +2,34 @@
 
 Native Ubuntu 26.04 LTS with the GNOME desktop on the Xiaomi Pad 8 Pro (codename `piano`, Snapdragon 8 Elite), dual-booting with Android, on a device-adapted kernel based on upstream Linux 7.2. Not a container, not a remote desktop. [中文](README.zh-CN.md)
 
-**Latest release: [v0.6.1](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.6.1).** What works is in [Hardware Support](#hardware-support).
+**Latest release: see [Releases](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/latest).** What works is in [Hardware Support](#hardware-support).
+
+## 🧭 Our Approach
+
+There are roughly two ways to bring a Linux desktop to an Android tablet.
+
+One is **make it work first, then adapt**: keep the vendor's downstream drivers and patch the desktop and applications wherever they do not cooperate. Features arrive quickly, but the device's quirks end up spread across the kernel, the desktop and the applications, tied together, and every system upgrade means reworking those changes.
+
+The other is **stay close to upstream**: solve hardware problems in the kernel and drivers the way mainline does, keep Ubuntu, GNOME and the rest as unmodified as possible, and let the system recognise the device through standard interfaces. It is slower and harder; many problems can only be fixed once their root cause is found.
+
+We chose the second.
+
+| | Make it work, then adapt | Stay close to upstream (this project) |
+|---|---|---|
+| Kernel and drivers | Vendor downstream drivers plus temporary workarounds | Mainline kernel and upstream drivers; missing pieces added the upstream way |
+| Desktop and apps | Desktop components modified to suit this device | Stock distribution software wherever possible; device differences stay out of the desktop |
+| When something breaks | Add delays, retries and compatibility layers until it works | Find the root cause and fix it in the layer where it lives |
+| System upgrades | Every change has to be reworked, upgrades can get stuck | Normal upgrades with upstream and the distribution |
+| Reuse by others | Depends on this whole set of specific changes | Low cost to move to another distribution or a device with the same SoC |
+
+**Why:**
+
+- **Decoupling.** Differences in the display, touch and charging hardware are described by the kernel and the device tree; the desktop just sees a standard display, touchscreen and battery and does not need to know which tablet it runs on.
+- **Upgrades are not held hostage.** The fewer the changes, the smoother the upgrades: the kernel can follow new upstream releases and Ubuntu updates install as usual. The few desktop components that must be changed ship as separate packages that track upstream and are dropped once upstream supports the feature.
+- **Fix once, everyone benefits.** A problem solved the upstream way can go back upstream for other devices and distributions; upstream fixes, in turn, apply here directly.
+- **Maintainable in the long run.** Few changes with clear boundaries make problems easy to locate instead of piling up.
+
+The price is that features arrive more slowly, and some problems take a long time to trace to their root cause. The occasional screen flash while touching, for example, was not avoided by lowering the refresh rate; we traced it to a timing conflict between touch data transfers and system power saving, and fixed it in the driver. We accept that price, because this is the route that holds up over time.
 
 ## 📮 Follow & Discuss
 
@@ -45,10 +72,10 @@ The procedure is long and order-sensitive. The easiest way is to hand it to an A
 ```text
 I want to install Ubuntu on a Xiaomi Pad 8 Pro (codename piano), dual-booting with Android. Act as my operator and follow these rules.
 
-Project: https://github.com/yzddmr6/xiaomipad-8pro-mainline , release v0.6.1.
+Project: https://github.com/yzddmr6/xiaomipad-8pro-mainline , latest release (the one marked Latest at https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/latest).
 
-1. First git clone the repository and check out tag v0.6.1. Read README.md "Read Before Installing", docs/INSTALL.md, docs/FLASHING.md and the safety rules in section 1 of docs/AGENT-GUIDE.md before doing anything.
-2. Download every asset of GitHub release v0.6.1 into one empty directory, run sha256sum -c SHA256SUMS.assets first, then restore the release directory as the release notes describe and verify it again.
+1. First git clone the repository and check out the tag of the latest release. Read README.md "Read Before Installing", docs/INSTALL.md, docs/FLASHING.md and the safety rules in section 1 of docs/AGENT-GUIDE.md before doing anything.
+2. Download every asset of that GitHub release into one empty directory, run sha256sum -c SHA256SUMS.assets first, then restore the release directory as the release notes describe and verify it again.
 3. Check the host tools (adb, fastboot, python3, zstd, sgdisk, sfdisk, img2simg and the rest of the "Prerequisites" table in INSTALL) and the tablet (product piano, stock build OS3.0.303.0.WPYCNXM, current slot a, unlocked, rooted, battery at least 40 %). If anything does not match, stop and tell me; do not work around it.
 4. Follow docs/INSTALL.md strictly in order and explicitly select my tablet with -s or --serial in every device command. Before each step, tell me in a sentence or two what it does and where it writes. For every operation that writes to the tablet (partition table, erase, flash, slot A), list the exact commands and wait for me to reply "confirm" before running them.
 5. Never write vbmeta, dtbo, any _b partition, persist or any other calibration, modem or firmware partition; never run fastboot --set-active=b; never use calibration, per-unit configuration or images from another tablet.
@@ -60,12 +87,12 @@ Project: https://github.com/yzddmr6/xiaomipad-8pro-mainline , release v0.6.1.
 
 ### Manual installation
 
-1. Download every asset of the [v0.6.1 release](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/tag/v0.6.1) into one empty directory, verify it and restore the release directory:
+1. Download every asset of the [latest release](https://github.com/yzddmr6/xiaomipad-8pro-mainline/releases/latest) into one empty directory (only that one release), verify it and restore the release directory:
 
    ```bash
    sha256sum -c SHA256SUMS.assets
-   unzip piano-ubuntu-v0.6.1-boot.zip && unzip piano-ubuntu-v0.6.1-tools.zip && unzip piano-ubuntu-v0.6.1-packages.zip
-   mkdir -p rootfs && cat piano-ubuntu-v0.6.1-rootfs.img.zst.part* | zstd -d > rootfs/root.sparse.img
+   unzip piano-ubuntu-*-boot.zip && unzip piano-ubuntu-*-tools.zip && unzip piano-ubuntu-*-packages.zip
+   mkdir -p rootfs && cat piano-ubuntu-*-rootfs.img.zst.part* | zstd -d > rootfs/root.sparse.img
    sha256sum -c SHA256SUMS
    ```
 
@@ -83,7 +110,7 @@ The kernel, Mesa, the device packages, the root image and the signed boot set ar
 
 ## Hardware Support
 
-State of v0.6.1 on the test unit. ✅ works · 🟡 partial · ❌ unsupported · 🧪 untested.
+State of the latest release on the test unit. ✅ works · 🟡 partial · ❌ unsupported · 🧪 untested.
 ✅ means the described function was verified on the tablet, not that every application and use case was tested. Current support and improvements by release are in [docs/STATUS.md](docs/STATUS.md).
 
 ### Platform, Display and Input
