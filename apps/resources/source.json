@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "url": "https://gitlab.gnome.org/GNOME/Incubator/resources.git",
+  "ref": "main",
+  "commit": "ae2e129c0e29b3543b923a1dc5ea02aee9daf15a",
+  "license": "GPL-3.0-or-later",
+  "patches": [
+    "0001-cpu-Fall-back-to-CPU-prefixed-thermal-zones.patch",
+    "0002-process-data-Read-msm-counters-and-resolve-platform-.patch",
+    "0003-gpu-Add-msm-Adreno-device-telemetry.patch",
+    "0004-battery-Show-temperature-when-available.patch"
+  ],
+  "exit_condition": "Drop patches when the selected upstream release provides equivalent functionality."
+}

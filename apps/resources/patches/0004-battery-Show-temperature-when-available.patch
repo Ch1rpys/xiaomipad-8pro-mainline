@@ -1,0 +1,159 @@
+From 7dbafe2cb0d3ad063f501e9c0d53ba1ebcfc700e Mon Sep 17 00:00:00 2001
+From: yzddmr6 <46088090+yzddmr6@users.noreply.github.com>
+Date: Sat, 24 Oct 2026 22:44:32 +0800
+Subject: [PATCH 4/4] battery: Show temperature when available
+
+Read power_supply temperatures in tenths of a degree Celsius for each
+battery on every refresh. Use the existing temperature unit preference
+and translation, and hide the row when a reading is unavailable.
+
+Test separate batteries, negative and zero temperatures, changing
+readings, malformed values and a missing attribute with fake sysfs.
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+---
+ data/resources/ui/pages/battery.ui | 10 ++++++++++
+ src/devices/battery.rs             | 30 ++++++++++++++++++++++++++++++
+ src/ui/pages/battery.rs            | 15 ++++++++++++++-
+ 3 files changed, 54 insertions(+), 1 deletion(-)
+
+diff --git a/data/resources/ui/pages/battery.ui b/data/resources/ui/pages/battery.ui
+index ac134f7..77c2e2a 100644
+--- a/data/resources/ui/pages/battery.ui
++++ b/data/resources/ui/pages/battery.ui
+@@ -26,6 +26,16 @@
+                     <child>
+                       <object class="ResGraphBox" id="power_usage"/>
+                     </child>
++                    <child>
++                      <object class="AdwActionRow" id="temperature">
++                        <property name="title" translatable="yes">Temperature</property>
++                        <property name="visible">false</property>
++                        <property name="subtitle-selectable">true</property>
++                        <style>
++                          <class name="property"/>
++                        </style>
++                      </object>
++                    </child>
+                   </object>
+                 </child>
+                 <child>
+diff --git a/src/devices/battery.rs b/src/devices/battery.rs
+index bb89ddf..758b4cb 100644
+--- a/src/devices/battery.rs
++++ b/src/devices/battery.rs
+@@ -24,6 +24,7 @@ pub struct BatteryData {
+     pub health: Result<f64>,
+     pub state: Result<State>,
+     pub charge_cycles: Result<usize>,
++    pub temperature: Result<f64>,
+ }
+ 
+ impl BatteryData {
+@@ -38,6 +39,7 @@ impl BatteryData {
+         let health = inner.health();
+         let state = inner.state();
+         let charge_cycles = inner.charge_cycles();
++        let temperature = inner.temperature();
+ 
+         let battery_data = Self {
+             inner,
+@@ -46,6 +48,7 @@ impl BatteryData {
+             health,
+             state,
+             charge_cycles,
++            temperature,
+         };
+ 
+         trace!(
+@@ -326,6 +329,13 @@ impl Battery {
+         State::from_str(&read_parsed::<String>(self.sysfs_path.join("status"))?)
+     }
+ 
++    /// Battery temperature in degrees Celsius (power_supply uses tenths of a degree).
++    pub fn temperature(&self) -> Result<f64> {
++        read_parsed::<i64>(self.sysfs_path.join("temp"))
++            .context("unable to read temp sysfs file")
++            .map(|temperature| temperature as f64 / 10.0)
++    }
++
+     pub fn charge_cycles(&self) -> Result<usize> {
+         read_parsed(self.sysfs_path.join("cycle_count"))
+             .context("unable to parse cycle_count sysfs file")
+@@ -337,6 +347,26 @@ mod test {
+     use super::Battery;
+     use pretty_assertions::assert_eq;
+ 
++    #[test]
++    fn temperature_is_sampled_per_battery_in_tenths_of_a_degree() {
++        let root = std::env::temp_dir().join(format!("resources-battery-{}", std::process::id()));
++        let first = root.join("BAT0");
++        let second = root.join("BAT1");
++        std::fs::create_dir_all(&first).unwrap();
++        std::fs::create_dir_all(&second).unwrap();
++        std::fs::write(first.join("temp"), "325\n").unwrap();
++        std::fs::write(second.join("temp"), "-55\n").unwrap();
++        assert_eq!(super::BatteryData::new(&first).temperature.unwrap(), 32.5);
++        assert_eq!(super::BatteryData::new(&second).temperature.unwrap(), -5.5);
++        std::fs::write(first.join("temp"), "0\n").unwrap();
++        assert_eq!(super::BatteryData::new(&first).temperature.unwrap(), 0.0);
++        std::fs::write(first.join("temp"), "unavailable\n").unwrap();
++        assert!(super::BatteryData::new(&first).temperature.is_err());
++        std::fs::remove_file(second.join("temp")).unwrap();
++        assert!(super::BatteryData::new(&second).temperature.is_err());
++        std::fs::remove_dir_all(root).unwrap();
++    }
++
+     #[test]
+     fn dont_untangle_untangled_string() {
+         let untangled_string = String::from("This is a normal string");
+diff --git a/src/ui/pages/battery.rs b/src/ui/pages/battery.rs
+index e7d40dc..358fd28 100644
+--- a/src/ui/pages/battery.rs
++++ b/src/ui/pages/battery.rs
+@@ -8,7 +8,9 @@ use crate::devices::battery::BatteryData;
+ use crate::ui::set_subtitle_converted_maybe;
+ use crate::ui::widgets::stack_sidebar_item::UsageLabels;
+ use crate::utils::i18n::i18n;
+-use crate::utils::units::{convert_charge_cycles, convert_energy, convert_fraction, convert_power};
++use crate::utils::units::{
++    convert_charge_cycles, convert_energy, convert_fraction, convert_power, convert_temperature,
++};
+ 
+ pub const TAB_ID_PREFIX: &str = "battery";
+ 
+@@ -36,6 +38,8 @@ mod imp {
+         #[template_child]
+         pub health: TemplateChild<adw::ActionRow>,
+         #[template_child]
++        pub temperature: TemplateChild<adw::ActionRow>,
++        #[template_child]
+         pub design_capacity: TemplateChild<adw::ActionRow>,
+         #[template_child]
+         pub charge_cycles: TemplateChild<adw::ActionRow>,
+@@ -92,6 +96,7 @@ mod imp {
+                 charge: Default::default(),
+                 power_usage: Default::default(),
+                 health: Default::default(),
++                temperature: Default::default(),
+                 design_capacity: Default::default(),
+                 charge_cycles: Default::default(),
+                 technology: Default::default(),
+@@ -286,6 +291,14 @@ impl ResBattery {
+ 
+         self.set_tab_usage_labels(usage_labels);
+ 
++        imp.temperature
++            .set_visible(battery_data.temperature.is_ok());
++        set_subtitle_converted_maybe(
++            battery_data.temperature.ok(),
++            convert_temperature,
++            &imp.temperature,
++        );
++
+         set_subtitle_converted_maybe(
+             battery_data.health.ok(),
+             |fraction| convert_fraction(fraction, true),
+-- 
+2.43.0
+

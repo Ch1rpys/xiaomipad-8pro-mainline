@@ -589,3 +589,13 @@ Iris VA-API local client policy (MIT):
   Withhold HEVC Main/Main10 from the official Chrome executable while retaining
   Firefox HEVC, using AT_EXECFN without browser flags or sandbox changes.
   Complete corresponding source is included inside piano-iris-vaapi debs.
+
+Resources telemetry patches
+---------------------------
+- Upstream: https://gitlab.gnome.org/GNOME/Incubator/resources (see apps/resources/source.json).
+- apps/resources/patches extends Resources under GPL-3.0-or-later; the
+  Ubuntu context adaptations in ubuntu/resources/backport.patch use the same license.
+- Resources copyright: ManicRobot, nokyan and Resources contributors.
+  Local changes: 2026 yzddmr6. License texts: apps/resources/COPYING and ubuntu/resources/COPYING.
+- Adreno chip ID/name mapping follows nvtop's extract_gpuinfo_msm_utils.c,
+  https://github.com/Syllo/nvtop/commit/71094a9f7dfbfe7cbe9faebfdf055e580a034283 (GPL-3.0-or-later).

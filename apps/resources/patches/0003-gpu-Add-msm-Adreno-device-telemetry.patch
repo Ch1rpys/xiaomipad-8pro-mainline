@@ -1,0 +1,424 @@
+From 15005c18b331111584822f741e50021a1590238e Mon Sep 17 00:00:00 2001
+From: yzddmr6 <46088090+yzddmr6@users.noreply.github.com>
+Date: Sat, 24 Oct 2026 22:44:31 +0800
+Subject: [PATCH 3/4] gpu: Add msm Adreno device telemetry
+
+Recognize msm, msm_dpu and adreno DRM devices. Locate the Adreno
+component when the DRM parent is the display controller, and derive its
+name from the device-tree compatible. Read current and maximum frequency
+from devfreq and the highest readable gpuss thermal-zone temperature.
+
+Expose maximum frequency in the existing clock row tooltip, reusing the
+CPU page translation. Keep missing current frequency unavailable rather
+than substituting the maximum. GPU usage follows the existing fdinfo
+aggregation path enabled by the preceding process-data change.
+
+Cover Adreno 830 and X1-85 names, a DPU-owned card1, current/max frequency,
+CPU sensor exclusion and ambiguous multiple Adreno devices in tests.
+
+Related: https://github.com/nokyan/resources/issues/623
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+---
+ src/devices/gpu/mod.rs |  22 ++++
+ src/devices/gpu/msm.rs | 269 +++++++++++++++++++++++++++++++++++++++++
+ src/ui/pages/gpu.rs    |  12 ++
+ 3 files changed, 303 insertions(+)
+ create mode 100644 src/devices/gpu/msm.rs
+
+diff --git a/src/devices/gpu/mod.rs b/src/devices/gpu/mod.rs
+index 1bba8c1..cf993ac 100644
+--- a/src/devices/gpu/mod.rs
++++ b/src/devices/gpu/mod.rs
+@@ -1,5 +1,6 @@
+ mod amd;
+ mod intel;
++mod msm;
+ mod nvidia;
+ mod other;
+ mod v3d;
+@@ -7,6 +8,7 @@ mod v3d;
+ use anyhow::{Context, Result, bail};
+ use lazy_regex::{Lazy, Regex, lazy_regex};
+ use log::{debug, info, trace};
++use msm::MsmGpu;
+ use process_data::{gpu_usage::GpuIdentifier, pci_slot::PciSlot};
+ use v3d::V3dGpu;
+ 
+@@ -50,6 +52,7 @@ pub struct GpuData {
+     pub used_vram: Option<u64>,
+ 
+     pub clock_speed: Option<f64>,
++    pub clock_speed_max: Option<f64>,
+     pub vram_speed: Option<f64>,
+ 
+     pub temperature: Option<f64>,
+@@ -79,6 +82,7 @@ impl GpuData {
+         let used_vram = gpu.used_vram().ok();
+ 
+         let clock_speed = gpu.core_frequency().ok();
++        let clock_speed_max = gpu.core_frequency_max().ok();
+         let vram_speed = gpu.vram_frequency().ok();
+ 
+         let temperature = gpu.temperature().ok();
+@@ -99,6 +103,7 @@ impl GpuData {
+             total_vram,
+             used_vram,
+             clock_speed,
++            clock_speed_max,
+             vram_speed,
+             temperature,
+             power_usage,
+@@ -120,6 +125,7 @@ pub enum Gpu {
+     Intel(IntelGpu),
+     Nvidia(NvidiaGpu),
+     V3d(V3dGpu),
++    Msm(MsmGpu),
+     Other(OtherGpu),
+ }
+ 
+@@ -146,6 +152,9 @@ pub trait GpuImpl {
+     fn temperature(&self) -> Result<f64>;
+     fn power_usage(&self) -> Result<f64>;
+     fn core_frequency(&self) -> Result<f64>;
++    fn core_frequency_max(&self) -> Result<f64> {
++        bail!("maximum core frequency unavailable")
++    }
+     fn vram_frequency(&self) -> Result<f64>;
+     fn power_cap(&self) -> Result<f64>;
+     fn power_cap_max(&self) -> Result<f64>;
+@@ -212,6 +221,7 @@ impl std::ops::Deref for Gpu {
+             Self::Intel(gpu) => gpu,
+             Self::Nvidia(gpu) => gpu,
+             Self::V3d(gpu) => gpu,
++            Self::Msm(gpu) => gpu,
+             Self::Other(gpu) => gpu,
+         }
+     }
+@@ -325,6 +335,18 @@ impl Gpu {
+                 )),
+                 "NVIDIA",
+             )
++        } else if msm::DRIVER_NAMES.contains(&driver.as_str()) {
++            (
++                Self::Msm(MsmGpu::new(
++                    device,
++                    gpu_identifier,
++                    driver,
++                    path.to_path_buf(),
++                    hwmon_vec.first().cloned(),
++                    Path::new("/sys"),
++                )),
++                "Adreno",
++            )
+         } else if driver == "v3d" {
+             (
+                 Self::V3d(V3dGpu::new(
+diff --git a/src/devices/gpu/msm.rs b/src/devices/gpu/msm.rs
+new file mode 100644
+index 0000000..0e973c7
+--- /dev/null
++++ b/src/devices/gpu/msm.rs
+@@ -0,0 +1,269 @@
++use anyhow::{Context, Result, bail};
++use process_data::gpu_usage::GpuIdentifier;
++
++use std::path::{Path, PathBuf};
++
++use crate::{
++    devices::pci::Device,
++    utils::{read_parsed, thermal},
++};
++
++use super::GpuImpl;
++
++pub const DRIVER_NAMES: &[&str] = &["msm", "msm_dpu", "adreno"];
++
++#[derive(Debug, Clone, Default)]
++
++pub struct MsmGpu {
++    pub device: Option<&'static Device>,
++    pub gpu_identifier: GpuIdentifier,
++    pub driver: String,
++    sysfs_path: PathBuf,
++    first_hwmon_path: Option<PathBuf>,
++    adreno_path: Option<PathBuf>,
++    temperature_paths: Vec<PathBuf>,
++}
++
++impl MsmGpu {
++    pub fn new(
++        device: Option<&'static Device>,
++        gpu_identifier: GpuIdentifier,
++        driver: String,
++        sysfs_path: PathBuf,
++        first_hwmon_path: Option<PathBuf>,
++        sysfs_root: &Path,
++    ) -> Self {
++        let adreno_path = find_adreno_device(&sysfs_path.join("device"), sysfs_root);
++        let temperature_paths =
++            thermal::temperature_paths(&sysfs_root.join("class/thermal"), "gpuss");
++        Self {
++            adreno_path,
++            temperature_paths,
++            device,
++            gpu_identifier,
++            driver,
++            sysfs_path,
++            first_hwmon_path,
++        }
++    }
++
++    fn devfreq_frequency(&self, attribute: &str) -> Result<f64> {
++        let device = self.adreno_path.as_ref().context("no Adreno device")?;
++        for entry in std::fs::read_dir(device.join("devfreq"))?.flatten() {
++            if let Ok(frequency) = read_parsed::<u64>(entry.path().join(attribute)) {
++                return Ok(frequency as f64);
++            }
++        }
++        bail!("no readable Adreno devfreq {attribute}")
++    }
++}
++
++impl GpuImpl for MsmGpu {
++    fn device(&self) -> Option<&'static Device> {
++        self.device
++    }
++
++    fn gpu_identifier(&self) -> GpuIdentifier {
++        self.gpu_identifier
++    }
++
++    fn driver(&self) -> &str {
++        &self.driver
++    }
++
++    fn sysfs_path(&self) -> &Path {
++        &self.sysfs_path
++    }
++
++    fn first_hwmon(&self) -> Option<&Path> {
++        self.first_hwmon_path.as_deref()
++    }
++
++    fn name(&self) -> Result<String> {
++        let compatible = std::fs::read(
++            self.adreno_path
++                .as_ref()
++                .context("no Adreno device")?
++                .join("of_node/compatible"),
++        )?;
++        adreno_name(&compatible).context("no Adreno compatible found")
++    }
++
++    fn usage(&self) -> Result<f64> {
++        // The window aggregates the per-process msm fdinfo engine times.
++        bail!("use per-process msm engine times")
++    }
++
++    fn encode_usage(&self) -> Result<f64> {
++        bail!("encode usage not implemented for msm")
++    }
++
++    fn decode_usage(&self) -> Result<f64> {
++        bail!("decode usage not implemented for msm")
++    }
++
++    fn combined_media_engine(&self) -> Result<bool> {
++        Ok(false)
++    }
++
++    fn used_vram(&self) -> Result<u64> {
++        self.drm_used_vram().map(|usage| usage as u64)
++    }
++
++    fn total_vram(&self) -> Result<u64> {
++        self.drm_total_vram().map(|usage| usage as u64)
++    }
++
++    fn temperature(&self) -> Result<f64> {
++        thermal::maximum_temperature(&self.temperature_paths)
++    }
++
++    fn power_usage(&self) -> Result<f64> {
++        self.hwmon_power_usage()
++    }
++
++    fn core_frequency(&self) -> Result<f64> {
++        self.devfreq_frequency("cur_freq")
++    }
++
++    fn core_frequency_max(&self) -> Result<f64> {
++        self.devfreq_frequency("max_freq")
++    }
++
++    fn vram_frequency(&self) -> Result<f64> {
++        self.hwmon_vram_frequency()
++    }
++
++    fn power_cap(&self) -> Result<f64> {
++        self.hwmon_power_cap()
++    }
++
++    fn power_cap_max(&self) -> Result<f64> {
++        self.hwmon_power_cap_max()
++    }
++}
++
++fn find_adreno_device(drm_device: &Path, sysfs_root: &Path) -> Option<PathBuf> {
++    let is_adreno = |path: &Path| {
++        std::fs::read(path.join("of_node/compatible"))
++            .is_ok_and(|compatible| adreno_name(&compatible).is_some())
++    };
++    if is_adreno(drm_device) {
++        return Some(drm_device.to_path_buf());
++    }
++    // With a display controller as component master, card/device is the DPU,
++    // while devfreq and the GPU compatible belong to the adreno component.
++    let mut devices = std::fs::read_dir(sysfs_root.join("bus/platform/drivers/adreno"))
++        .ok()?
++        .flatten()
++        .map(|entry| entry.path())
++        .filter(|path| is_adreno(path));
++    let device = devices.next()?;
++    // Do not attribute another GPU's telemetry on an ambiguous topology.
++    if devices.next().is_some() {
++        return None;
++    }
++    Some(device)
++}
++
++fn adreno_name(compatible: &[u8]) -> Option<String> {
++    for entry in compatible.split(|byte| *byte == 0) {
++        let entry = std::str::from_utf8(entry).ok()?;
++        if let Some(id) = entry.strip_prefix("qcom,adreno-") {
++            // Chip IDs and marketing names: nvtop's extract_gpuinfo_msm_utils.c.
++            // https://github.com/Syllo/nvtop/blob/71094a9f7dfbfe7cbe9faebfdf055e580a034283/src/extract_gpuinfo_msm_utils.c
++            let name = match id {
++                "43030c00" => "X1-45",
++                "43030b00" => "735",
++                "43050a01" | "43050b00" => "740",
++                "43050c01" => "X1-85",
++                "43051401" => "750",
++                "44050000" | "44050001" => "830",
++                "44050a31" => "840",
++                "44070041" => "X2-85",
++                _ => {
++                    // Older bindings carry a decimal model and patch level.
++                    if let Some((model, _)) = id.split_once('.') {
++                        if model.len() == 3 && model.parse::<u16>().is_ok() {
++                            return Some(format!("Adreno {model}"));
++                        }
++                    }
++                    return Some(format!("Adreno ({id})"));
++                }
++            };
++            return Some(format!("Adreno {name}"));
++        }
++    }
++    compatible
++        .split(|byte| *byte == 0)
++        .any(|entry| entry == b"qcom,adreno")
++        .then(|| "Adreno".to_string())
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn dpu_card_reads_adreno_devfreq_and_gpuss_zones() {
++        let root = std::env::temp_dir().join(format!("resources-adreno-{}", std::process::id()));
++        let gpu_path = root.join("bus/platform/drivers/adreno/3d00000.gpu");
++        let devfreq = gpu_path.join("devfreq/3d00000.gpu");
++        std::fs::create_dir_all(&devfreq).unwrap();
++        std::fs::create_dir_all(gpu_path.join("of_node")).unwrap();
++        std::fs::write(
++            gpu_path.join("of_node/compatible"),
++            b"qcom,adreno-44050001\0qcom,adreno\0",
++        )
++        .unwrap();
++        std::fs::write(devfreq.join("cur_freq"), "600000000\n").unwrap();
++        std::fs::write(devfreq.join("max_freq"), "1100000000\n").unwrap();
++        std::fs::create_dir_all(root.join("class/devfreq")).unwrap();
++        std::os::unix::fs::symlink(&devfreq, root.join("class/devfreq/3d00000.gpu")).unwrap();
++        for (index, name, temp) in [
++            (1, "cpu-0-0-0-thermal", "95000"),
++            (22, "gpuss0-thermal", "48000"),
++            (29, "gpuss7-thermal", "52000"),
++        ] {
++            let zone = root.join(format!("class/thermal/thermal_zone{index}"));
++            std::fs::create_dir_all(&zone).unwrap();
++            std::fs::write(zone.join("type"), name).unwrap();
++            std::fs::write(zone.join("temp"), temp).unwrap();
++            let hwmon = root.join(format!("class/hwmon/hwmon{index}"));
++            std::fs::create_dir_all(&hwmon).unwrap();
++            std::fs::write(hwmon.join("name"), name.replace('-', "_")).unwrap();
++            std::fs::write(hwmon.join("temp1_input"), temp).unwrap();
++        }
++        let gpu = MsmGpu::new(
++            None,
++            GpuIdentifier::Enumerator(1),
++            "msm_dpu".into(),
++            root.join("class/drm/card1"),
++            None,
++            &root,
++        );
++        assert_eq!(gpu.name().unwrap(), "Adreno 830");
++        assert_eq!(gpu.gpu_identifier(), GpuIdentifier::Enumerator(1));
++        assert_eq!(gpu.core_frequency().unwrap(), 600_000_000.0);
++        assert_eq!(gpu.core_frequency_max().unwrap(), 1_100_000_000.0);
++        assert_eq!(gpu.temperature().unwrap(), 52.0);
++        assert!(gpu.usage().is_err());
++        std::fs::remove_file(devfreq.join("cur_freq")).unwrap();
++        // Missing current frequency must not be replaced with the maximum.
++        assert!(gpu.core_frequency().is_err());
++        assert_eq!(
++            adreno_name(b"qcom,adreno-43050c01\0qcom,adreno\0").unwrap(),
++            "Adreno X1-85"
++        );
++        assert_eq!(adreno_name(b"qcom,adreno-630.2\0").unwrap(), "Adreno 630");
++        assert_eq!(
++            adreno_name(b"qcom,adreno-99999999\0").unwrap(),
++            "Adreno (99999999)"
++        );
++        let second = root.join("bus/platform/drivers/adreno/other.gpu/of_node");
++        std::fs::create_dir_all(&second).unwrap();
++        std::fs::write(second.join("compatible"), b"qcom,adreno\0").unwrap();
++        assert!(find_adreno_device(&root.join("class/drm/card1/device"), &root).is_none());
++        std::fs::remove_dir_all(root).unwrap();
++    }
++}
+diff --git a/src/ui/pages/gpu.rs b/src/ui/pages/gpu.rs
+index 716c85a..b46e1f2 100644
+--- a/src/ui/pages/gpu.rs
++++ b/src/ui/pages/gpu.rs
+@@ -289,6 +289,7 @@ impl ResGPU {
+             total_vram,
+             used_vram,
+             clock_speed,
++            clock_speed_max,
+             vram_speed,
+             temperature,
+             power_usage,
+@@ -352,6 +353,17 @@ impl ResGPU {
+         imp.power_usage.set_subtitle(&power_string);
+ 
+         set_subtitle_converted_maybe(*clock_speed, convert_frequency, &imp.gpu_clockspeed);
++        imp.gpu_clockspeed.set_tooltip_text(
++            clock_speed_max
++                .map(|frequency| {
++                    format!(
++                        "{}: {}",
++                        i18n("Max Frequency"),
++                        convert_frequency(frequency)
++                    )
++                })
++                .as_deref(),
++        );
+ 
+         set_subtitle_converted_maybe(*vram_speed, convert_frequency, &imp.vram_clockspeed);
+ 
+-- 
+2.43.0
+

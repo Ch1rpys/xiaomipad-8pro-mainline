@@ -1,0 +1,170 @@
+From de031656f48a1b99e0fc34711540f1a7c8a58c92 Mon Sep 17 00:00:00 2001
+From: yzddmr6 <46088090+yzddmr6@users.noreply.github.com>
+Date: Sat, 24 Oct 2026 22:44:31 +0800
+Subject: [PATCH 1/4] cpu: Fall back to CPU-prefixed thermal zones
+
+Keep the existing hwmon and thermal-zone preferences. If none match,
+read all zones whose type starts with cpu, including cpuss zones, and
+report the highest readable temperature on every sample. This covers
+numbered ARM thermal zones without selecting GPU or memory sensors.
+
+Factor the thermal-zone reader out so GPU backends can reuse it. Test
+duplicate zone types, unreadable inputs and changes in the hottest core.
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+---
+ src/devices/cpu.rs   | 37 +++++++++++--------------
+ src/utils/mod.rs     |  2 ++
+ src/utils/thermal.rs | 64 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 81 insertions(+), 22 deletions(-)
+ create mode 100644 src/utils/thermal.rs
+
+diff --git a/src/devices/cpu.rs b/src/devices/cpu.rs
+index 88aab20..357a001 100644
+--- a/src/devices/cpu.rs
++++ b/src/devices/cpu.rs
+@@ -1,4 +1,4 @@
+-use anyhow::{Context, Result, anyhow, bail};
++use anyhow::{Context, Result, anyhow};
+ use glob::glob;
+ use lazy_regex::{Lazy, Regex, lazy_regex};
+ use log::{debug, trace, warn};
+@@ -8,7 +8,7 @@ use std::{
+     sync::LazyLock,
+ };
+ 
+-use crate::utils::read_parsed;
++use crate::utils::{read_parsed, thermal};
+ 
+ const PROC_STAT: &str = "/proc/stat";
+ 
+@@ -34,13 +34,18 @@ static RE_PROC_STAT: Lazy<Regex> = lazy_regex!(
+     r"cpu\d+ *(?P<user>\d*) *(?P<nice>\d*) *(?P<system>\d*) *(?P<idle>\d*) *(?P<iowait>\d*) *(?P<irq>\d*) *(?P<softirq>\d*) *(?P<steal>\d*) *(?P<guest>\d*) *(?P<guest_nice>\d*)"
+ );
+ 
+-static CPU_TEMPERATURE_PATH: LazyLock<Option<PathBuf>> = LazyLock::new(|| {
+-    search_for_hwmons(KNOWN_HWMONS)
+-        .or_else(|| search_for_thermal_zones(KNOWN_THERMAL_ZONES))
+-        .or_else(|| {
+-            warn!("No CPU temperature sensor found!");
+-            None
+-        })
++static CPU_TEMPERATURE_PATHS: LazyLock<Vec<PathBuf>> = LazyLock::new(|| {
++    if let Some(path) =
++        search_for_hwmons(KNOWN_HWMONS).or_else(|| search_for_thermal_zones(KNOWN_THERMAL_ZONES))
++    {
++        return vec![path];
++    }
++
++    let paths = thermal::temperature_paths(Path::new("/sys/class/thermal"), "cpu");
++    if paths.is_empty() {
++        warn!("No CPU temperature sensor found!");
++    }
++    paths
+ });
+ 
+ fn search_for_cpu_temp<S: AsRef<str>>(base_path: S) -> Option<PathBuf> {
+@@ -343,19 +348,7 @@ pub fn get_cpu_usage() -> Vec<Result<(u64, u64)>> {
+ ///
+ /// Will return `Err` if there was no way to read the CPU temperature.
+ pub fn get_temperature() -> Result<f32> {
+-    if let Some(path) = CPU_TEMPERATURE_PATH.as_ref() {
+-        read_sysfs_thermal(path)
+-    } else {
+-        bail!("no CPU temperature sensor found")
+-    }
+-}
+-
+-fn read_sysfs_thermal<P: AsRef<Path>>(path: P) -> Result<f32> {
+-    let path = path.as_ref();
+-
+-    read_parsed::<f32>(path)
+-        .map(|t| t / 1000f32)
+-        .with_context(|| format!("unable to read {}", path.display()))
++    thermal::maximum_temperature(&CPU_TEMPERATURE_PATHS).map(|temperature| temperature as f32)
+ }
+ 
+ #[cfg(test)]
+diff --git a/src/utils/mod.rs b/src/utils/mod.rs
+index 09a7492..d2e1af5 100644
+--- a/src/utils/mod.rs
++++ b/src/utils/mod.rs
+@@ -417,3 +417,5 @@ mod test {
+         assert_eq!(maybe, f64::default());
+     }
+ }
++
++pub(crate) mod thermal;
+diff --git a/src/utils/thermal.rs b/src/utils/thermal.rs
+new file mode 100644
+index 0000000..dfe40b4
+--- /dev/null
++++ b/src/utils/thermal.rs
+@@ -0,0 +1,64 @@
++use anyhow::{Context, Result};
++use std::path::{Path, PathBuf};
++
++use super::read_parsed;
++
++// Keep every matching zone: several cores can expose the same type.
++pub fn temperature_paths(root: &Path, prefix: &str) -> Vec<PathBuf> {
++    let Ok(entries) = std::fs::read_dir(root) else {
++        return Vec::new();
++    };
++    entries
++        .flatten()
++        .map(|entry| entry.path())
++        .filter(|path| {
++            path.file_name()
++                .is_some_and(|name| name.to_string_lossy().starts_with("thermal_zone"))
++                && read_parsed::<String>(path.join("type"))
++                    .is_ok_and(|name| name.starts_with(prefix))
++        })
++        .map(|path| path.join("temp"))
++        .collect()
++}
++
++pub fn maximum_temperature(paths: &[PathBuf]) -> Result<f64> {
++    paths
++        .iter()
++        .filter_map(|path| read_parsed::<i64>(path).ok())
++        .max()
++        .map(|temperature| temperature as f64 / 1000.0)
++        .context("no readable temperature sensor found")
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn cpu_zones_use_the_hottest_readable_sensor() {
++        let root = std::env::temp_dir().join(format!("resources-cpu-{}", std::process::id()));
++        std::fs::create_dir_all(&root).unwrap();
++        for (index, name, temperature) in [
++            (1, "cpu-0-0-0-thermal", "42000"),
++            (2, "cpu-1-1-1-thermal", "51000"),
++            (3, "cpuss-0-0-thermal", "53000"),
++            (4, "cpu-0-0-0-thermal", "54000"),
++            (5, "gpuss0-thermal", "90000"),
++            (6, "ddr-thermal", "95000"),
++            (7, "cpu-broken-thermal", "unavailable"),
++        ] {
++            let zone = root.join(format!("thermal_zone{index}"));
++            std::fs::create_dir_all(&zone).unwrap();
++            std::fs::write(zone.join("type"), format!("{name}\n")).unwrap();
++            std::fs::write(zone.join("temp"), temperature).unwrap();
++        }
++        let paths = temperature_paths(&root, "cpu");
++        assert_eq!(paths.len(), 5);
++        assert_eq!(maximum_temperature(&paths).unwrap(), 54.0);
++        // Re-read all sensors on each sample, rather than caching the hottest path.
++        std::fs::write(root.join("thermal_zone1/temp"), "61000").unwrap();
++        assert_eq!(maximum_temperature(&paths).unwrap(), 61.0);
++        assert!(maximum_temperature(&[]).is_err());
++        std::fs::remove_dir_all(root).unwrap();
++    }
++}
+-- 
+2.43.0
+

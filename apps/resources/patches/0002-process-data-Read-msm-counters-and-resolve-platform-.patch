@@ -1,0 +1,233 @@
+From f15442494103b96965d79348ebe9794d2ece69d4 Mon Sep 17 00:00:00 2001
+From: yzddmr6 <46088090+yzddmr6@users.noreply.github.com>
+Date: Sat, 24 Oct 2026 22:44:31 +0800
+Subject: [PATCH 2/4] process-data: Read msm counters and resolve platform DRM
+ cards
+
+Parse msm engine time in nanoseconds and total memory in KiB. Reuse the
+existing process aggregation and elapsed-time accounting for GPU load.
+
+Platform DRM fdinfo lacks drm-pdev. Resolve its primary card from the
+open DRM node and sysfs, since render minor numbering is independent of
+card numbering. Preserve PCI slot identification and reject unresolved
+devices instead of silently attributing their counters to card0.
+
+Exercise renderD128 mapped to card1, memory units and advancing counters
+with a temporary sysfs/fdinfo fixture.
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+---
+ lib/process_data/src/fdinfo.rs    | 95 ++++++++++++++++++++++++++++---
+ lib/process_data/src/gpu_usage.rs | 19 +++++++
+ 2 files changed, 106 insertions(+), 8 deletions(-)
+
+diff --git a/lib/process_data/src/fdinfo.rs b/lib/process_data/src/fdinfo.rs
+index b084810..82de55d 100644
+--- a/lib/process_data/src/fdinfo.rs
++++ b/lib/process_data/src/fdinfo.rs
+@@ -1,9 +1,9 @@
+ use std::collections::{HashMap, HashSet};
+ use std::iter::Sum;
+-use std::path::PathBuf;
++use std::path::{Path, PathBuf};
+ use std::str::FromStr;
+ 
+-use anyhow::{Result, bail};
++use anyhow::{Context, Result, bail};
+ use lazy_regex::{Lazy, Regex, lazy_regex};
+ use log::trace;
+ 
+@@ -23,6 +23,7 @@ static GFX_NS_DRM_FIELDS: Lazy<HashMap<&str, Vec<&str>>> = Lazy::new(|| {
+     HashMap::from_iter([
+         ("amdgpu", vec!["drm-engine-compute", "drm-engine-gfx"]),
+         ("i915", vec!["drm-engine-render"]),
++        ("msm", vec!["drm-engine-gpu"]),
+         ("v3d", vec!["drm-engine-render"]),
+     ])
+ });
+@@ -63,6 +64,7 @@ static MEM_DRM_FIELDS: Lazy<HashMap<&str, Vec<&str>>> = Lazy::new(|| {
+         ("amdgpu", vec!["drm-memory-gtt", "drm-memory-vram"]),
+         ("amdxdna_accel_driver", vec!["drm-total-memory"]),
+         ("i915", vec!["drm-total-local0", "drm-total-system0"]),
++        ("msm", vec!["drm-total-memory"]),
+         ("v3d", vec!["drm-total-memory"]),
+         ("xe", vec!["drm-total-gtt", "drm-total-vram0"]),
+     ])
+@@ -74,6 +76,7 @@ pub type FdKey = (libc::pid_t, usize);
+ pub struct Fdinfo {
+     pub pid: libc::pid_t,
+     pub fdinfo_num: usize,
++    pub gpu_identifier: Option<GpuIdentifier>,
+     pub content: HashMap<String, String>,
+ }
+ 
+@@ -163,10 +166,20 @@ pub fn collect_fdinfos(
+             }
+         };
+ 
++        let content = parse_fdinfo(content);
++        let gpu_identifier = content
++            .get(DRM_PDEV)
++            .and_then(|field| PciSlot::from_str(field).ok())
++            .map(GpuIdentifier::PciSlot)
++            .or_else(|| {
++                content.get(DRM_DRIVER)?;
++                drm_node_identifier(Path::new("/sys/class/drm"), symlink_target.as_deref()?)
++            });
+         return_vec.push(Fdinfo {
+             pid,
+             fdinfo_num: fd_num,
+-            content: parse_fdinfo(content),
++            gpu_identifier,
++            content,
+         });
+     }
+ 
+@@ -216,11 +229,8 @@ fn extract_gpu_usage_from_fdinfo(fdinfo: &Fdinfo) -> Result<(GpuIdentifier, GpuU
+     };
+ 
+     let gpu_identifier = fdinfo
+-        .content
+-        .get(DRM_PDEV)
+-        .and_then(|field| PciSlot::from_str(field).ok())
+-        .map(GpuIdentifier::PciSlot)
+-        .unwrap_or_default();
++        .gpu_identifier
++        .context("unable to identify DRM device")?;
+ 
+     let stats = match driver.as_str() {
+         "amdgpu" => GpuUsageStats::AmdgpuStats {
+@@ -233,6 +243,10 @@ fn extract_gpu_usage_from_fdinfo(fdinfo: &Fdinfo) -> Result<(GpuIdentifier, GpuU
+             gfx_ns: drm_field(driver, &GFX_NS_DRM_FIELDS, fdinfo, &RE_DRM_TIME),
+             video_ns: drm_field(driver, &ENC_NS_DRM_FIELDS, fdinfo, &RE_DRM_TIME),
+         },
++        "msm" => GpuUsageStats::MsmStats {
++            gfx_ns: drm_field(driver, &GFX_NS_DRM_FIELDS, fdinfo, &RE_DRM_TIME),
++            mem_bytes: drm_mem_bytes(driver, fdinfo),
++        },
+         "v3d" => GpuUsageStats::V3dStats {
+             gfx_ns: drm_field(driver, &GFX_NS_DRM_FIELDS, fdinfo, &RE_DRM_TIME),
+             mem_bytes: drm_mem_bytes(driver, fdinfo),
+@@ -350,3 +364,68 @@ pub fn npu_usage_stats(
+ 
+     return_map
+ }
++
++// Render node minors are allocated independently of primary node minors.
++// Resolve the primary node through sysfs instead of subtracting 128.
++fn drm_node_identifier(drm_class: &Path, node: &Path) -> Option<GpuIdentifier> {
++    fn card_number(name: &str) -> Option<usize> {
++        name.strip_prefix("card")?.parse().ok()
++    }
++
++    let name = node.file_name()?.to_str()?;
++    if let Some(number) = card_number(name) {
++        return Some(GpuIdentifier::Enumerator(number));
++    }
++    name.strip_prefix("renderD")?.parse::<usize>().ok()?;
++    std::fs::read_dir(drm_class.join(name).join("device/drm"))
++        .ok()?
++        .flatten()
++        .find_map(|entry| card_number(entry.file_name().to_str()?).map(GpuIdentifier::Enumerator))
++}
++
++#[cfg(test)]
++mod msm_tests {
++    use super::*;
++
++    #[test]
++    fn render_node_maps_to_card1_and_msm_counters_advance() {
++        let root =
++            std::env::temp_dir().join(format!("resources-msm-fdinfo-{}", std::process::id()));
++        let drm = root.join("sys/class/drm");
++        let device = root.join("sys/devices/platform/ae01000.display-controller");
++        std::fs::create_dir_all(device.join("drm/card1")).unwrap();
++        std::fs::create_dir_all(device.join("drm/card1-DSI-1")).unwrap();
++        std::fs::create_dir_all(drm.join("renderD128")).unwrap();
++        std::os::unix::fs::symlink(&device, drm.join("renderD128/device")).unwrap();
++        let identifier = drm_node_identifier(&drm, Path::new("/dev/dri/renderD128"));
++        assert_eq!(identifier, Some(GpuIdentifier::Enumerator(1)));
++        assert_eq!(
++            identifier,
++            drm_node_identifier(&drm, Path::new("/dev/dri/card1"))
++        );
++        assert_eq!(
++            drm_node_identifier(&drm, Path::new("/dev/dri/renderD129")),
++            None
++        );
++        let fdinfo_path = root.join("fdinfo");
++        std::fs::write(&fdinfo_path, "drm-driver: msm\ndrm-client-id: 7\ndrm-engine-gpu: 1778053180 ns\ndrm-total-memory: 1024 KiB\n").unwrap();
++        let mut fdinfo = Fdinfo {
++            pid: 42,
++            fdinfo_num: 3,
++            gpu_identifier: identifier,
++            content: parse_fdinfo(std::fs::read_to_string(fdinfo_path).unwrap()),
++        };
++        let (id, old) = extract_gpu_usage_from_fdinfo(&fdinfo).unwrap();
++        assert_eq!(id, GpuIdentifier::Enumerator(1));
++        assert_eq!(old.mem(), Some(1048576));
++        fdinfo
++            .content
++            .insert("drm-engine-gpu".into(), "2278053180 ns".into());
++        let stats = other_gpu_usage_stats(&[fdinfo], &mut HashSet::new());
++        assert_eq!(stats[&id].gfx_fraction(&old, 1000), Some(0.5));
++        assert_eq!(stats[&id].gfx_fraction(&old, 0), None);
++        assert_eq!(old.gfx_fraction(&stats[&id], 1000), Some(0.0));
++        assert_eq!(old.greater(&stats[&id]), stats[&id]);
++        std::fs::remove_dir_all(root).unwrap();
++    }
++}
+diff --git a/lib/process_data/src/gpu_usage.rs b/lib/process_data/src/gpu_usage.rs
+index aa4890d..5cdc634 100644
+--- a/lib/process_data/src/gpu_usage.rs
++++ b/lib/process_data/src/gpu_usage.rs
+@@ -44,6 +44,10 @@ pub enum GpuUsageStats {
+         dec_percentage: IntegerPercentage,
+         mem_bytes: u64,
+     },
++    MsmStats {
++        gfx_ns: u64,
++        mem_bytes: u64,
++    },
+     V3dStats {
+         gfx_ns: u64,
+         mem_bytes: u64,
+@@ -69,6 +73,7 @@ impl GpuUsageStats {
+         match (self, old) {
+             (Self::AmdgpuStats { gfx_ns: a, .. }, Self::AmdgpuStats { gfx_ns: b, .. })
+             | (Self::I915Stats { gfx_ns: a, .. }, Self::I915Stats { gfx_ns: b, .. })
++            | (Self::MsmStats { gfx_ns: a, .. }, Self::MsmStats { gfx_ns: b, .. })
+             | (Self::V3dStats { gfx_ns: a, .. }, Self::V3dStats { gfx_ns: b, .. }) => {
+                 ns_delta_to_usage_fraction(*a, *b, time_delta_ms)
+             }
+@@ -163,6 +168,7 @@ impl GpuUsageStats {
+         match self {
+             Self::AmdgpuStats { mem_bytes, .. }
+             | Self::NvidiaStats { mem_bytes, .. }
++            | Self::MsmStats { mem_bytes, .. }
+             | Self::V3dStats { mem_bytes, .. }
+             | Self::XeStats { mem_bytes, .. } => Some(*mem_bytes),
+             Self::I915Stats { .. } => None,
+@@ -223,6 +229,19 @@ impl GpuUsageStats {
+                 dec_percentage: *a_dec.max(b_dec),
+                 mem_bytes: *a_mem.max(b_mem),
+             },
++            (
++                Self::MsmStats {
++                    gfx_ns: a_gfx,
++                    mem_bytes: a_mem,
++                },
++                Self::MsmStats {
++                    gfx_ns: b_gfx,
++                    mem_bytes: b_mem,
++                },
++            ) => Self::MsmStats {
++                gfx_ns: *a_gfx.max(b_gfx),
++                mem_bytes: *a_mem.max(b_mem),
++            },
+             (
+                 Self::V3dStats {
+                     gfx_ns: a_gfx,
+-- 
+2.43.0
+
