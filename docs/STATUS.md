@@ -1,6 +1,6 @@
 # Release history and current support
 
-Current release: **v0.6.1**. See the [README](../README.md#hardware-support) or
+Current release: **v0.6.2**. See the [README](../README.md#hardware-support) or
 [中文 README](../README.zh-CN.md#硬件支持) for the hardware support tables and usage instructions.
 
 ## Current support
@@ -36,6 +36,11 @@ verified on this unit; later versions were tested on the installed system. These
 results do not establish support for other models, capacities or accessories.
 
 ## Completed work by release
+
+### v0.6.2
+
+- The task manager shows CPU temperature, the GPU model, frequency, temperature and utilisation, per-process GPU usage and each battery's temperature.
+- Sound, sensors and USB-C come up on every boot; an occasional boot without them is fixed.
 
 ### v0.6.1
 
