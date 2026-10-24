@@ -13,7 +13,7 @@ whole set together, never a single package.
 
 ## Upgrading from v0.6.0 to v0.6.1
 
-Use `piano-ubuntu-v0.6.1-packages.zip` with the same steps below and install the complete package set, including Linux 7.2.10-piano34 and its matching camera loopback package. Reboot to use the new kernel, touch firmware and sensor service. Keep the installed previous kernel and its rollback boot set. No repartitioning or root image reflash is needed.
+Use `piano-ubuntu-v0.6.1-packages.zip` with the same steps below and install the complete package set, including Linux 7.2.10-piano35 and its matching camera loopback package. Reboot to use the new kernel, touch firmware and sensor service. Keep the installed previous kernel and its rollback boot set. No repartitioning or root image reflash is needed.
 
 ## Upgrading from v0.5.1 to v0.6.0
 

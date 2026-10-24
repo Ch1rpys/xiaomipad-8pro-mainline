@@ -39,6 +39,7 @@ results do not establish support for other models, capacities or accessories.
 
 ### v0.6.1
 
+- The occasional single-frame whole-screen flash while touching the screen is fixed; touch response is steadier.
 - The panel type (CSOT or BOE) is detected automatically and loads its own touch firmware, touch orientation and display initialization.
 - The sensor service keeps the sensor registry updates written by the DSP.
 - A sensor registry that keeps crashing the ADSP (no sound, no sensor data) is moved aside at boot and the default state is restored.
