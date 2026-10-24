@@ -124,6 +124,7 @@ State of the latest release on the test unit. ✅ works · 🟡 partial · ❌ u
 | Night Light | GNOME / DPU color temperature | ✅ works | Color temperature adjustment with settings preserved across screen off/on and suspend |
 | GNOME desktop | Ubuntu 26.04 GNOME / Wayland / GDM | ✅ works | Cold boot to the login screen in about 13 s |
 | GPU | Adreno 830 / Mesa 26.2 | ✅ works | GPU rendering for the desktop and for snap applications including Firefox |
+| System monitor | GNOME Resources | ✅ works | The task manager shows per-core CPU frequency and temperature, the GPU model, frequency, temperature and utilisation, per-application GPU usage, and the temperature of each battery |
 | Touchscreen | Novatek NT36532E (THP over SPI) | ✅ works | Single- and multi-finger touch and gestures at 60/90/120/144 Hz and after screen off/on and suspend; the panel type (CSOT or BOE) is detected automatically and loads its own touch firmware and orientation |
 | Magnetic keyboard | Nanosic WN8030 | ✅ works | Typing, key wake with the screen off and wake from suspend |
 
