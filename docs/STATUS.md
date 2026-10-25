@@ -40,6 +40,7 @@ results do not establish support for other models, capacities or accessories.
 ### v0.6.2
 
 - The task manager shows CPU temperature, the GPU model, frequency, temperature and utilisation, per-process GPU usage and each battery's temperature.
+- Sound, sensors and USB-C come up on every boot; an occasional boot without them is fixed.
 
 ### v0.6.1
 

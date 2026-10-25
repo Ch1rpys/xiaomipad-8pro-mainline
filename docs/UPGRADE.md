@@ -13,7 +13,7 @@ whole set together, never a single package.
 
 ## Upgrading from v0.6.1 to v0.6.2
 
-Use `piano-ubuntu-v0.6.2-packages.zip` with the same steps below and install the complete package set, which adds `resources` and updates `piano-ubuntu-desktop` to 0.6.2; the kernel stays 7.2.10-piano35. Reopen the task manager to see the new data; no reboot is needed. Keep the installed previous kernel and its rollback boot set. No repartitioning or root image reflash is needed.
+Use `piano-ubuntu-v0.6.2-packages.zip` with the same steps below and install the complete package set, including Linux 7.2.10-piano38, its matching camera loopback package, the new `resources` package and `piano-ubuntu-desktop` 0.6.2. Reboot to use the new kernel; reopen the task manager to see the new data. Keep the installed previous kernel and its rollback boot set. No repartitioning or root image reflash is needed.
 
 ## Upgrading from v0.6.0 to v0.6.1
 
