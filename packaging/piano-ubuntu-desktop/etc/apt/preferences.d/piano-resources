@@ -2,7 +2,7 @@
 # Rebuild Ubuntu security updates with the patches before changing this pin.
 # See ubuntu/resources/README.zh-CN.md in the integration sources.
 Package: resources
-Pin: version 1.10.2-0ubuntu3.1+piano1
+Pin: version 1.10.2-0ubuntu3.1+piano2
 Pin-Priority: 1001
 
 Package: resources

@@ -8,7 +8,8 @@
     "0001-cpu-Fall-back-to-CPU-prefixed-thermal-zones.patch",
     "0002-process-data-Read-msm-counters-and-resolve-platform-.patch",
     "0003-gpu-Add-msm-Adreno-device-telemetry.patch",
-    "0004-battery-Show-temperature-when-available.patch"
+    "0004-battery-Show-temperature-when-available.patch",
+    "0005-temperature-Add-a-grouped-hwmon-sensor-view.patch"
   ],
   "exit_condition": "Drop patches when the selected upstream release provides equivalent functionality."
 }

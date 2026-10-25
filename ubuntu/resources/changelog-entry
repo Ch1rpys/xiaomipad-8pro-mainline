@@ -1,6 +1,7 @@
-resources (1.10.2-0ubuntu3.1+piano1) resolute; urgency=medium
+resources (1.10.2-0ubuntu3.1+piano2) resolute; urgency=medium
 
+  * Add a grouped hwmon temperature view with per-sensor history.
   * Add CPU thermal-zone fallback, msm DRM usage and Adreno telemetry.
   * Display each battery's temperature when available from power_supply.
 
- -- yzddmr6 <46088090+yzddmr6@users.noreply.github.com>  Sat, 24 Oct 2026 12:00:00 +0800
+ -- yzddmr6 <46088090+yzddmr6@users.noreply.github.com>  Sun, 25 Oct 2026 14:00:00 +0800

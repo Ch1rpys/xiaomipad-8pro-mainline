@@ -1,0 +1,601 @@
+From 357f4c55d4ce83ec803d0800ecaafe240b64f2f9 Mon Sep 17 00:00:00 2001
+From: yzddmr6 <46088090+yzddmr6@users.noreply.github.com>
+Date: Sun, 25 Oct 2026 13:56:50 +0800
+Subject: [PATCH] temperature: Add a grouped hwmon sensor view
+
+Discover hwmon temperature channels on the refresh worker and display
+current readings with expandable history in a Temperature sidebar page.
+Use device names and channel labels, numeric channel ordering and the
+existing temperature unit setting. Keep unreadable channels as N/A and
+retain surviving sensors' history when devices are added or removed.
+Allow autoscaled graphs to show negative temperatures.
+
+Test discovery with synthetic hwmon devices, missing labels, numeric
+ordering, negative and zero readings, faults, read errors, recovery,
+removal and class symlinks.
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+---
+ po/POTFILES.in              |   1 +
+ src/ui/pages/mod.rs         |   3 +
+ src/ui/pages/temperature.rs | 227 ++++++++++++++++++++++++++++++++++++
+ src/ui/widgets/graph.rs     |  13 ++-
+ src/ui/window.rs            |  18 +++
+ src/utils/mod.rs            |   2 +
+ src/utils/temperature.rs    | 185 +++++++++++++++++++++++++++++
+ 7 files changed, 447 insertions(+), 2 deletions(-)
+ create mode 100644 src/ui/pages/temperature.rs
+ create mode 100644 src/utils/temperature.rs
+
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index ad81e15..906c94d 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -46,3 +46,4 @@ src/ui/pages/processes/mod.rs
+ src/ui/pages/processes/process_entry.rs
+ src/ui/window.rs
+ src/utils/units.rs
++src/ui/pages/temperature.rs
+diff --git a/src/ui/pages/mod.rs b/src/ui/pages/mod.rs
+index e369afd..ee9b69c 100644
+--- a/src/ui/pages/mod.rs
++++ b/src/ui/pages/mod.rs
+@@ -177,3 +177,6 @@ pub static NICE_TO_LABEL: LazyLock<HashMap<Niceness, (String, u32)>> = LazyLock:
+ 
+     hash_map
+ });
++
++pub mod temperature;
++const TEMPERATURE_PRIMARY_ORD: u32 = 9;
+diff --git a/src/ui/pages/temperature.rs b/src/ui/pages/temperature.rs
+new file mode 100644
+index 0000000..4e736ce
+--- /dev/null
++++ b/src/ui/pages/temperature.rs
+@@ -0,0 +1,227 @@
++use adw::{prelude::*, subclass::prelude::*};
++use gtk::glib;
++use std::collections::HashMap;
++use std::path::PathBuf;
++
++use crate::config::DEVLOPMENT_BUILD;
++use crate::ui::widgets::graph::ResGraph;
++use crate::ui::widgets::stack_sidebar_item::UsageLabels;
++use crate::utils::i18n::i18n;
++use crate::utils::temperature::{TemperatureData, TemperatureSensor};
++use crate::utils::units::convert_temperature;
++
++#[derive(Debug)]
++struct SensorRow {
++    sensor: TemperatureSensor,
++    row: adw::ExpanderRow,
++    graph: ResGraph,
++}
++
++mod imp {
++    use std::cell::{Cell, RefCell};
++
++    use crate::ui::pages::TEMPERATURE_PRIMARY_ORD;
++
++    use super::*;
++
++    use gtk::{
++        gio::{Icon, ThemedIcon},
++        glib::{ParamSpec, Properties, Value},
++    };
++
++    #[derive(Properties)]
++    #[properties(wrapper_type = super::ResTemperatures)]
++    pub struct ResTemperatures {
++        pub page: adw::PreferencesPage,
++        pub groups: RefCell<Vec<adw::PreferencesGroup>>,
++        pub(super) rows: RefCell<Vec<SensorRow>>,
++
++        #[property(get)]
++        uses_meter: Cell<bool>,
++
++        #[property(get)]
++        main_graph_color: glib::Bytes,
++
++        #[property(get)]
++        icon: RefCell<Icon>,
++
++        #[property(get, set)]
++        usage: Cell<f64>,
++
++        #[property(get = Self::tab_name, set = Self::set_tab_name, type = glib::GString)]
++        tab_name: Cell<glib::GString>,
++
++        #[property(get = Self::tab_detail_string, set = Self::set_tab_detail_string, type = glib::GString)]
++        tab_detail_string: Cell<glib::GString>,
++
++        #[property(get, set, type = UsageLabels)]
++        tab_usage_labels: RefCell<UsageLabels>,
++
++        #[property(get = Self::tab_id, set = Self::set_tab_id, type = glib::GString)]
++        tab_id: Cell<glib::GString>,
++
++        #[property(get)]
++        graph_locked_max_y: Cell<bool>,
++
++        #[property(get)]
++        primary_ord: Cell<u32>,
++
++        #[property(get, set)]
++        secondary_ord: Cell<u32>,
++    }
++
++    impl ResTemperatures {
++        gstring_getter_setter!(tab_name, tab_detail_string, tab_id);
++    }
++
++    impl Default for ResTemperatures {
++        fn default() -> Self {
++            Self {
++                page: adw::PreferencesPage::new(),
++                groups: Default::default(),
++                rows: Default::default(),
++                uses_meter: Cell::new(false),
++                main_graph_color: glib::Bytes::from_static(
++                    &super::ResTemperatures::MAIN_GRAPH_COLOR,
++                ),
++                icon: RefCell::new(ThemedIcon::new("thermometer-symbolic").into()),
++                usage: Default::default(),
++                tab_name: Cell::new(glib::GString::from(i18n("Temperature"))),
++                tab_detail_string: Cell::new(glib::GString::new()),
++                tab_id: Cell::new(glib::GString::from("temperature")),
++                tab_usage_labels: Default::default(),
++                graph_locked_max_y: Cell::new(true),
++                primary_ord: Cell::new(TEMPERATURE_PRIMARY_ORD),
++                secondary_ord: Default::default(),
++            }
++        }
++    }
++
++    #[glib::object_subclass]
++    impl ObjectSubclass for ResTemperatures {
++        const NAME: &'static str = "ResTemperatures";
++        type Type = super::ResTemperatures;
++        type ParentType = adw::Bin;
++    }
++
++    impl ObjectImpl for ResTemperatures {
++        fn constructed(&self) {
++            self.parent_constructed();
++            let obj = self.obj();
++            obj.set_child(Some(&self.page));
++
++            // Devel Profile
++            if DEVLOPMENT_BUILD {
++                obj.add_css_class("devel");
++            }
++        }
++
++        fn properties() -> &'static [ParamSpec] {
++            Self::derived_properties()
++        }
++
++        fn set_property(&self, id: usize, value: &Value, pspec: &ParamSpec) {
++            self.derived_set_property(id, value, pspec);
++        }
++
++        fn property(&self, id: usize, pspec: &ParamSpec) -> Value {
++            self.derived_property(id, pspec)
++        }
++    }
++
++    impl WidgetImpl for ResTemperatures {}
++    impl BinImpl for ResTemperatures {}
++}
++
++glib::wrapper! {
++    pub struct ResTemperatures(ObjectSubclass<imp::ResTemperatures>)
++        @extends gtk::Widget, adw::Bin,
++        @implements gtk::Buildable, gtk::ConstraintTarget, gtk::Accessible;
++}
++
++impl ResTemperatures {
++    const MAIN_GRAPH_COLOR: [u8; 3] = [0xe6, 0x61, 0x00];
++
++    pub fn new() -> Self {
++        glib::Object::new::<Self>()
++    }
++
++    pub fn refresh_page(&self, data: Vec<TemperatureData>) {
++        let imp = self.imp();
++        let mut rows = imp.rows.borrow_mut();
++        if imp.groups.borrow().is_empty()
++            || !rows
++                .iter()
++                .map(|r| &r.sensor)
++                .eq(data.iter().map(|d| &d.sensor))
++        {
++            // Reconcile hotplug without losing the history or expansion of remaining sensors.
++            let mut previous: HashMap<PathBuf, SensorRow> =
++                rows.drain(..).map(|r| (r.sensor.path.clone(), r)).collect();
++            for row in previous.values() {
++                if let Some(list) = row.row.parent().and_downcast::<gtk::ListBox>() {
++                    list.remove(&row.row);
++                }
++            }
++            for group in imp.groups.borrow_mut().drain(..) {
++                imp.page.remove(&group);
++            }
++            let mut last_device = None;
++            let mut group = adw::PreferencesGroup::new();
++            for item in &data {
++                let device_path = item.sensor.path.parent().unwrap();
++                if last_device.as_deref() != Some(device_path) {
++                    group = adw::PreferencesGroup::new();
++                    group.set_title(&glib::markup_escape_text(&item.sensor.device));
++                    group
++                        .set_description(Some(&device_path.file_name().unwrap().to_string_lossy()));
++                    imp.page.add(&group);
++                    imp.groups.borrow_mut().push(group.clone());
++                    last_device = Some(device_path.to_path_buf());
++                }
++                let mut row = previous
++                    .remove(&item.sensor.path)
++                    .filter(|row| row.sensor == item.sensor)
++                    .unwrap_or_else(|| {
++                        let row = adw::ExpanderRow::new();
++                        row.set_use_markup(false);
++                        let graph = ResGraph::new();
++                        graph.set_height_request(90);
++                        graph.set_margin_start(12);
++                        graph.set_margin_end(12);
++                        graph.set_margin_top(6);
++                        graph.set_margin_bottom(6);
++                        graph.set_locked_max_y(None);
++                        graph.set_graph_color(0xe6, 0x61, 0x00);
++                        row.add_row(&graph);
++                        SensorRow {
++                            sensor: item.sensor.clone(),
++                            row,
++                            graph,
++                        }
++                    });
++                row.sensor = item.sensor.clone();
++                row.row.set_title(&item.sensor.label);
++                row.row
++                    .set_tooltip_text(Some(&item.sensor.path.to_string_lossy()));
++                group.add(&row.row);
++                rows.push(row);
++            }
++            if data.is_empty() {
++                group.set_title(&i18n("Temperature"));
++                group.set_description(Some(&i18n("N/A")));
++                imp.page.add(&group);
++                imp.groups.borrow_mut().push(group);
++            }
++        }
++        for (row, item) in rows.iter().zip(data) {
++            row.graph.set_visible(item.celsius.is_some());
++            if let Some(celsius) = item.celsius {
++                row.graph.push_data_point(celsius);
++                row.row.set_subtitle(&convert_temperature(celsius));
++            } else {
++                row.row.set_subtitle(&i18n("N/A"));
++            }
++        }
++    }
++}
+diff --git a/src/ui/widgets/graph.rs b/src/ui/widgets/graph.rs
+index 7e8f8cb..8813e03 100644
+--- a/src/ui/widgets/graph.rs
++++ b/src/ui/widgets/graph.rs
+@@ -105,12 +105,21 @@ mod imp {
+                     .range(start_point..(MAX_DATA_POINTS as usize))
+                     .max_by(|x, y| x.total_cmp(y))
+                     .unwrap_or(&0.0);
+-                if max == 0.0 { f64::EPSILON } else { max }
++                if max <= 0.0 { f64::EPSILON } else { max }
+             });
+ 
++            let y_min = if self.max_y.get().is_none() {
++                data_points
++                    .range(start_point..(MAX_DATA_POINTS as usize))
++                    .copied()
++                    .fold(0.0_f64, f64::min)
++            } else {
++                0.0
++            };
++
+             let mut chart = ChartBuilder::on(&root).build_cartesian_2d(
+                 0f64..(f64::from(SETTINGS.graph_data_points()) - 1.0),
+-                0f64..y_max,
++                y_min..y_max,
+             )?;
+ 
+             if SETTINGS.show_graph_grids() {
+diff --git a/src/ui/window.rs b/src/ui/window.rs
+index c3f9c95..72a4eee 100644
+--- a/src/ui/window.rs
++++ b/src/ui/window.rs
+@@ -25,8 +25,10 @@ use crate::ui::pages::applications::ResApplications;
+ use crate::ui::pages::battery::ResBattery;
+ use crate::ui::pages::drive::ResDrive;
+ use crate::ui::pages::processes::ResProcesses;
++use crate::ui::pages::temperature::ResTemperatures;
+ use crate::utils::i18n::{i18n, i18n_f, ni18n_f};
+ use crate::utils::settings::SETTINGS;
++use crate::utils::temperature::{TemperatureData, temperatures};
+ 
+ use super::pages::applications;
+ use super::pages::gpu::ResGPU;
+@@ -100,6 +102,8 @@ mod imp {
+ 
+         pub network_pages: RefCell<HashMap<PathBuf, adw::ToolbarView>>,
+ 
++        pub temperature_page: ResTemperatures,
++
+         pub battery_pages: RefCell<HashMap<PathBuf, adw::ToolbarView>>,
+ 
+         pub gpu_pages: RefCell<HashMap<GpuIdentifier, (Gpu, adw::ToolbarView)>>,
+@@ -123,6 +127,7 @@ mod imp {
+                 drive_pages: RefCell::default(),
+                 network_pages: RefCell::default(),
+                 battery_pages: RefCell::default(),
++                temperature_page: ResTemperatures::new(),
+                 split_view: TemplateChild::default(),
+                 resources_sidebar: TemplateChild::default(),
+                 content_stack: TemplateChild::default(),
+@@ -217,6 +222,7 @@ struct RefreshData {
+     network_data: Vec<NetworkData>,
+     battery_paths: Vec<PathBuf>,
+     battery_data: Vec<BatteryData>,
++    temperature_data: Vec<TemperatureData>,
+     process_data: Vec<ProcessData>,
+ }
+ 
+@@ -259,6 +265,12 @@ impl MainWindow {
+             self.init_gpu_pages(&gpus);
+         }
+ 
++        self.add_page(
++            &imp.temperature_page,
++            &i18n("Temperature"),
++            &i18n("Sensors"),
++        );
++
+         imp.resources_sidebar.set_stack(&imp.content_stack);
+ 
+         if ARGS.disable_process_monitoring {
+@@ -606,6 +618,8 @@ impl MainWindow {
+             }
+         }
+ 
++        let temperature_data = temperatures(std::path::Path::new("/sys/class/hwmon"));
++
+         let refresh_data = RefreshData {
+             cpu_data,
+             mem_data,
+@@ -617,6 +631,7 @@ impl MainWindow {
+             network_data,
+             battery_paths,
+             battery_data,
++            temperature_data,
+             process_data,
+         };
+ 
+@@ -643,6 +658,7 @@ impl MainWindow {
+             network_data,
+             battery_paths,
+             battery_data,
++            temperature_data,
+             process_data,
+         } = refresh_data;
+ 
+@@ -814,6 +830,8 @@ impl MainWindow {
+             page.refresh_page(battery_data);
+         }
+ 
++        imp.temperature_page.refresh_page(temperature_data);
++
+         trace!("UI refresh done in {:.2?}", start.elapsed());
+     }
+ 
+diff --git a/src/utils/mod.rs b/src/utils/mod.rs
+index d2e1af5..5e15216 100644
+--- a/src/utils/mod.rs
++++ b/src/utils/mod.rs
+@@ -419,3 +419,5 @@ mod test {
+ }
+ 
+ pub(crate) mod thermal;
++
++pub mod temperature;
+diff --git a/src/utils/temperature.rs b/src/utils/temperature.rs
+new file mode 100644
+index 0000000..8cf8791
+--- /dev/null
++++ b/src/utils/temperature.rs
+@@ -0,0 +1,185 @@
++//! Generic hwmon temperature discovery. All I/O runs on the refresh worker.
++use std::path::{Path, PathBuf};
++
++use super::read_parsed;
++
++#[derive(Debug, Clone, PartialEq, Eq)]
++pub struct TemperatureSensor {
++    pub path: PathBuf,
++    pub device: String,
++    pub label: String,
++    pub channel: u32,
++}
++
++#[derive(Debug)]
++pub struct TemperatureData {
++    pub sensor: TemperatureSensor,
++    pub celsius: Option<f64>,
++}
++
++fn text(path: impl AsRef<Path>) -> Option<String> {
++    read_parsed::<String>(path).ok().filter(|s| !s.is_empty())
++}
++
++pub fn temperatures(root: &Path) -> Vec<TemperatureData> {
++    let mut data = Vec::new();
++    let Ok(devices) = std::fs::read_dir(root) else {
++        return data;
++    };
++    for device in devices.flatten() {
++        let path = device.path();
++        let id = device.file_name().to_string_lossy().into_owned();
++        if !id
++            .strip_prefix("hwmon")
++            .is_some_and(|n| n.parse::<u32>().is_ok())
++        {
++            continue;
++        }
++        let name = text(path.join("name"))
++            .or_else(|| text(path.join("device/type")))
++            .unwrap_or_else(|| id.clone());
++        let Ok(attributes) = std::fs::read_dir(&path) else {
++            continue;
++        };
++        for attribute in attributes.flatten() {
++            let filename = attribute.file_name();
++            let filename = filename.to_string_lossy();
++            let Some(channel) = filename
++                .strip_prefix("temp")
++                .and_then(|s| s.strip_suffix("_input"))
++                .and_then(|s| s.parse::<u32>().ok())
++                .filter(|n| *n > 0)
++            else {
++                continue;
++            };
++            let stem = format!("temp{channel}");
++            let label = text(path.join(format!("{stem}_label"))).unwrap_or_else(|| stem.clone());
++            let input = attribute.path();
++            // A fault is not a valid measurement even if input still returns a number.
++            let fault = read_parsed::<u32>(path.join(format!("{stem}_fault")))
++                .is_ok_and(|fault| fault != 0);
++            let celsius = if fault {
++                None
++            } else {
++                read_parsed::<i64>(&input).ok().map(|v| v as f64 / 1000.0)
++            };
++            data.push(TemperatureData {
++                sensor: TemperatureSensor {
++                    path: input,
++                    device: name.clone(),
++                    label,
++                    channel,
++                },
++                celsius,
++            });
++        }
++    }
++    // Keep devices together and channels in numeric order, including unlabelled ones.
++    data.sort_by(|a, b| {
++        a.sensor
++            .device
++            .cmp(&b.sensor.device)
++            .then_with(|| a.sensor.path.parent().cmp(&b.sensor.path.parent()))
++            .then_with(|| a.sensor.channel.cmp(&b.sensor.channel))
++    });
++    data
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use std::{
++        fs,
++        sync::atomic::{AtomicUsize, Ordering},
++    };
++
++    struct Fixture(PathBuf);
++    impl Fixture {
++        fn new() -> Self {
++            static NEXT: AtomicUsize = AtomicUsize::new(0);
++            let root = std::env::temp_dir().join(format!(
++                "resources-hwmon-{}-{}",
++                std::process::id(),
++                NEXT.fetch_add(1, Ordering::Relaxed)
++            ));
++            fs::create_dir_all(&root).unwrap();
++            Self(root)
++        }
++        fn write(&self, name: &str, value: &str) {
++            let path = self.0.join(name);
++            fs::create_dir_all(path.parent().unwrap()).unwrap();
++            fs::write(path, value).unwrap();
++        }
++    }
++    impl Drop for Fixture {
++        fn drop(&mut self) {
++            let _ = fs::remove_dir_all(&self.0);
++        }
++    }
++
++    #[test]
++    fn multiple_devices_labels_and_numeric_channel_order() {
++        let f = Fixture::new();
++        f.write("hwmon2/name", "chip-b\n");
++        f.write("hwmon2/temp1_input", "42000\n");
++        f.write("hwmon2/temp1_label", "Board\n");
++        f.write("hwmon1/name", "chip-a\n");
++        f.write("hwmon1/temp10_input", "-5000");
++        f.write("hwmon1/temp2_input", "0");
++        f.write("hwmon1/temp2_label", "\n");
++        f.write("hwmon1/temp1_input", "31500");
++        f.write("hwmon1/temp1_label", "Package");
++        f.write("hwmon1/temp1_max", "90000");
++        f.write("hwmon1/temp_input", "90000");
++        f.write("hwmon1/temp0_input", "90000");
++        let data = temperatures(&f.0);
++        assert_eq!(data.len(), 4);
++        assert_eq!(
++            data.iter().map(|d| d.sensor.channel).collect::<Vec<_>>(),
++            [1, 2, 10, 1]
++        );
++        assert_eq!(
++            data.iter().map(|d| d.celsius).collect::<Vec<_>>(),
++            [Some(31.5), Some(0.0), Some(-5.0), Some(42.0)]
++        );
++        assert_eq!(data[0].sensor.label, "Package");
++        assert_eq!(data[1].sensor.label, "temp2");
++        assert_eq!(data[3].sensor.device, "chip-b");
++        assert_eq!(data[3].sensor.label, "Board");
++    }
++
++    #[test]
++    fn failures_recovery_and_device_removal() {
++        let f = Fixture::new();
++        f.write("hwmon0/temp1_input", "not a temperature");
++        f.write("hwmon0/temp2_input", "41000");
++        f.write("hwmon0/temp2_fault", "1");
++        // A dangling attribute simulates a sysfs read error even when tests run as root.
++        std::os::unix::fs::symlink("missing", f.0.join("hwmon0/temp3_input")).unwrap();
++        let data = temperatures(&f.0);
++        assert_eq!(data.len(), 3);
++        assert!(data.iter().all(|d| d.celsius.is_none()));
++        assert_eq!(data[0].sensor.device, "hwmon0");
++        f.write("hwmon0/temp1_input", "22500");
++        f.write("hwmon0/temp2_fault", "0");
++        let data = temperatures(&f.0);
++        assert_eq!(data[0].celsius, Some(22.5));
++        assert_eq!(data[1].celsius, Some(41.0));
++        fs::remove_dir_all(f.0.join("hwmon0")).unwrap();
++        assert!(temperatures(&f.0).is_empty());
++        assert!(temperatures(&f.0.join("absent")).is_empty());
++    }
++
++    #[test]
++    fn class_symlinks_and_thermal_type_fallback() {
++        let f = Fixture::new();
++        f.write("devices/sensor/temp1_input", "32000");
++        f.write("devices/sensor/device/type", "board-thermal\n");
++        fs::create_dir(f.0.join("class")).unwrap();
++        std::os::unix::fs::symlink("../devices/sensor", f.0.join("class/hwmon4")).unwrap();
++        let data = temperatures(&f.0.join("class"));
++        assert_eq!(data.len(), 1);
++        assert_eq!(data[0].sensor.device, "board-thermal");
++        assert_eq!(data[0].celsius, Some(32.0));
++    }
++}
+-- 
+2.43.0
+

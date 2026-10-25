@@ -2,7 +2,8 @@
 
 Generic Linux telemetry patches for the GNOME Resources source locked in
 [source.json](source.json): CPU-prefixed thermal zones, msm DRM fdinfo usage,
-Adreno identity/devfreq/temperature, and per-battery power_supply temperature.
+Adreno identity/devfreq/temperature, per-battery power_supply temperature,
+and a grouped hwmon temperature view with expandable history graphs.
 No device-specific configuration or distribution package manager is required.
 Missing battery temperature readings hide the row; temperature units follow
 Resources preferences.

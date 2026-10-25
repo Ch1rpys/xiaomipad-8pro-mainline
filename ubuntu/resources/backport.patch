@@ -718,3 +718,282 @@
  -- 
  2.43.0
  
+--- a/0005-temperature-Add-a-grouped-hwmon-sensor-view.patch
++++ b/0005-temperature-Add-a-grouped-hwmon-sensor-view.patch
+@@ -1,4 +1,4 @@
+-From 357f4c55d4ce83ec803d0800ecaafe240b64f2f9 Mon Sep 17 00:00:00 2001
++From cb2794a5543373c165cc956090b3ecb2d2bec14e Mon Sep 17 00:00:00 2001
+ From: yzddmr6 <46088090+yzddmr6@users.noreply.github.com>
+ Date: Sun, 25 Oct 2026 13:56:50 +0800
+ Subject: [PATCH] temperature: Add a grouped hwmon sensor view
+@@ -16,31 +16,55 @@
+ 
+ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+ ---
+- po/POTFILES.in              |   1 +
+- src/ui/pages/mod.rs         |   3 +
+- src/ui/pages/temperature.rs | 227 ++++++++++++++++++++++++++++++++++++
+- src/ui/widgets/graph.rs     |  13 ++-
+- src/ui/window.rs            |  18 +++
+- src/utils/mod.rs            |   2 +
+- src/utils/temperature.rs    | 185 +++++++++++++++++++++++++++++
+- 7 files changed, 447 insertions(+), 2 deletions(-)
++ data/resources/icons/thermometer-symbolic.svg |   2 +
++ data/resources/resources.gresource.xml        |   1 +
++ po/POTFILES.in                                |   2 +
++ src/ui/pages/mod.rs                           |   3 +
++ src/ui/pages/temperature.rs                   | 226 ++++++++++++++++++
++ src/ui/widgets/graph.rs                       |  13 +-
++ src/ui/window.rs                              |  18 ++
++ src/utils/mod.rs                              |   2 +
++ src/utils/temperature.rs                      | 185 ++++++++++++++
++ 9 files changed, 450 insertions(+), 2 deletions(-)
++ create mode 100644 data/resources/icons/thermometer-symbolic.svg
+  create mode 100644 src/ui/pages/temperature.rs
+  create mode 100644 src/utils/temperature.rs
+ 
++diff --git a/data/resources/icons/thermometer-symbolic.svg b/data/resources/icons/thermometer-symbolic.svg
++new file mode 100644
++index 0000000..ad39db5
++--- /dev/null
+++++ b/data/resources/icons/thermometer-symbolic.svg
++@@ -0,0 +1,2 @@
+++<?xml version="1.0" encoding="UTF-8"?>
+++<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 0 16 16" width="16px"><path d="m 8 0 c -1.644531 0 -3 1.355469 -3 3 v 6.363281 c -0.621094 0.707031 -1 1.628907 -1 2.636719 c 0 2.199219 1.800781 4 4 4 s 4 -1.800781 4 -4 c 0 -1.007812 -0.378906 -1.929688 -1 -2.636719 v -6.363281 c 0 -1.644531 -1.355469 -3 -3 -3 z m 0 2 c 0.570312 0 1 0.429688 1 1 v 1 h -1 v 1 h 1 v 1 h -1 v 1 h 1 v 1 h -1 v 1 h 1 v 1.269531 c 0.617188 0.355469 1 1.015625 1 1.730469 c 0 1.105469 -0.894531 2 -2 2 s -2 -0.894531 -2 -2 c 0.003906 -0.710938 0.382812 -1.371094 1 -1.726562 v -7.273438 c 0 -0.570312 0.429688 -1 1 -1 z m 0 9 c -0.550781 0 -1 0.449219 -1 1 s 0.449219 1 1 1 s 1 -0.449219 1 -1 s -0.449219 -1 -1 -1 z m 0 0" fill="#222222"/></svg>
++diff --git a/data/resources/resources.gresource.xml b/data/resources/resources.gresource.xml
++index b4f4247..44cd6d1 100644
++--- a/data/resources/resources.gresource.xml
+++++ b/data/resources/resources.gresource.xml
++@@ -2,6 +2,7 @@
++ <gresources>
++   <gresource prefix="/net/nokyan/Resources/icons/scalable/actions/">
++     <file preprocess="xml-stripblanks" alias="app-symbolic.svg">icons/app-symbolic.svg</file>
+++    <file preprocess="xml-stripblanks" alias="thermometer-symbolic.svg">icons/thermometer-symbolic.svg</file>
++     <file preprocess="xml-stripblanks" alias="battery-symbolic.svg">icons/battery-symbolic.svg</file>
++     <file preprocess="xml-stripblanks" alias="bluetooth-symbolic.svg">icons/bluetooth-symbolic.svg</file>
++     <file preprocess="xml-stripblanks" alias="bridge-symbolic.svg">icons/bridge-symbolic.svg</file>
+ diff --git a/po/POTFILES.in b/po/POTFILES.in
+-index ad81e15..906c94d 100644
++index 0d7ee78..6fbf74a 100644
+ --- a/po/POTFILES.in
+ +++ b/po/POTFILES.in
+-@@ -46,3 +46,4 @@ src/ui/pages/processes/mod.rs
+- src/ui/pages/processes/process_entry.rs
+- src/ui/window.rs
++@@ -46,3 +46,5 @@ src/utils/link/mod.rs
++ src/utils/network.rs
++ src/utils/npu/mod.rs
+  src/utils/units.rs
+++
+ +src/ui/pages/temperature.rs
+ diff --git a/src/ui/pages/mod.rs b/src/ui/pages/mod.rs
+-index e369afd..ee9b69c 100644
++index 7d15025..2aa79d7 100644
+ --- a/src/ui/pages/mod.rs
+ +++ b/src/ui/pages/mod.rs
+-@@ -177,3 +177,6 @@ pub static NICE_TO_LABEL: LazyLock<HashMap<Niceness, (String, u32)>> = LazyLock:
++@@ -64,3 +64,6 @@ pub static NICE_TO_LABEL: LazyLock<HashMap<Niceness, (String, u32)>> = LazyLock:
+  
+      hash_map
+  });
+@@ -49,19 +73,18 @@
+ +const TEMPERATURE_PRIMARY_ORD: u32 = 9;
+ diff --git a/src/ui/pages/temperature.rs b/src/ui/pages/temperature.rs
+ new file mode 100644
+-index 0000000..4e736ce
++index 0000000..92213bb
+ --- /dev/null
+ +++ b/src/ui/pages/temperature.rs
+-@@ -0,0 +1,227 @@
++@@ -0,0 +1,226 @@
+ +use adw::{prelude::*, subclass::prelude::*};
+ +use gtk::glib;
+ +use std::collections::HashMap;
+ +use std::path::PathBuf;
+ +
+-+use crate::config::DEVLOPMENT_BUILD;
+++use crate::config::PROFILE;
+++use crate::i18n::i18n;
+ +use crate::ui::widgets::graph::ResGraph;
+-+use crate::ui::widgets::stack_sidebar_item::UsageLabels;
+-+use crate::utils::i18n::i18n;
+ +use crate::utils::temperature::{TemperatureData, TemperatureSensor};
+ +use crate::utils::units::convert_temperature;
+ +
+@@ -92,7 +115,7 @@
+ +        pub(super) rows: RefCell<Vec<SensorRow>>,
+ +
+ +        #[property(get)]
+-+        uses_meter: Cell<bool>,
+++        uses_progress_bar: Cell<bool>,
+ +
+ +        #[property(get)]
+ +        main_graph_color: glib::Bytes,
+@@ -109,8 +132,8 @@
+ +        #[property(get = Self::tab_detail_string, set = Self::set_tab_detail_string, type = glib::GString)]
+ +        tab_detail_string: Cell<glib::GString>,
+ +
+-+        #[property(get, set, type = UsageLabels)]
+-+        tab_usage_labels: RefCell<UsageLabels>,
+++        #[property(get = Self::tab_usage_string, set = Self::set_tab_usage_string, type = glib::GString)]
+++        tab_usage_string: Cell<glib::GString>,
+ +
+ +        #[property(get = Self::tab_id, set = Self::set_tab_id, type = glib::GString)]
+ +        tab_id: Cell<glib::GString>,
+@@ -126,7 +149,7 @@
+ +    }
+ +
+ +    impl ResTemperatures {
+-+        gstring_getter_setter!(tab_name, tab_detail_string, tab_id);
+++        gstring_getter_setter!(tab_name, tab_detail_string, tab_usage_string, tab_id);
+ +    }
+ +
+ +    impl Default for ResTemperatures {
+@@ -135,7 +158,7 @@
+ +                page: adw::PreferencesPage::new(),
+ +                groups: Default::default(),
+ +                rows: Default::default(),
+-+                uses_meter: Cell::new(false),
+++                uses_progress_bar: Cell::new(false),
+ +                main_graph_color: glib::Bytes::from_static(
+ +                    &super::ResTemperatures::MAIN_GRAPH_COLOR,
+ +                ),
+@@ -144,7 +167,7 @@
+ +                tab_name: Cell::new(glib::GString::from(i18n("Temperature"))),
+ +                tab_detail_string: Cell::new(glib::GString::new()),
+ +                tab_id: Cell::new(glib::GString::from("temperature")),
+-+                tab_usage_labels: Default::default(),
+++                tab_usage_string: Cell::new(glib::GString::new()),
+ +                graph_locked_max_y: Cell::new(true),
+ +                primary_ord: Cell::new(TEMPERATURE_PRIMARY_ORD),
+ +                secondary_ord: Default::default(),
+@@ -166,7 +189,7 @@
+ +            obj.set_child(Some(&self.page));
+ +
+ +            // Devel Profile
+-+            if DEVLOPMENT_BUILD {
+++            if PROFILE == "Devel" {
+ +                obj.add_css_class("devel");
+ +            }
+ +        }
+@@ -281,7 +304,7 @@
+ +    }
+ +}
+ diff --git a/src/ui/widgets/graph.rs b/src/ui/widgets/graph.rs
+-index 7e8f8cb..8813e03 100644
++index 718307f..d2d86e2 100644
+ --- a/src/ui/widgets/graph.rs
+ +++ b/src/ui/widgets/graph.rs
+ @@ -105,12 +105,21 @@ mod imp {
+@@ -309,21 +332,26 @@
+  
+              if SETTINGS.show_graph_grids() {
+ diff --git a/src/ui/window.rs b/src/ui/window.rs
+-index c3f9c95..72a4eee 100644
++index ac791c8..8533d63 100644
+ --- a/src/ui/window.rs
+ +++ b/src/ui/window.rs
+-@@ -25,8 +25,10 @@ use crate::ui::pages::applications::ResApplications;
++@@ -17,6 +17,7 @@ use crate::ui::pages::applications::ResApplications;
+  use crate::ui::pages::battery::ResBattery;
+  use crate::ui::pages::drive::ResDrive;
+  use crate::ui::pages::processes::ResProcesses;
+ +use crate::ui::pages::temperature::ResTemperatures;
+- use crate::utils::i18n::{i18n, i18n_f, ni18n_f};
++ use crate::utils::app::AppsContext;
++ use crate::utils::battery::{Battery, BatteryData};
++ use crate::utils::cpu::{self, CpuData};
++@@ -27,6 +28,7 @@ use crate::utils::network::{NetworkData, NetworkInterface};
++ use crate::utils::npu::{Npu, NpuData};
++ use crate::utils::process::{Process, ProcessAction};
+  use crate::utils::settings::SETTINGS;
+ +use crate::utils::temperature::{TemperatureData, temperatures};
+  
+  use super::pages::applications;
+  use super::pages::gpu::ResGPU;
+-@@ -100,6 +102,8 @@ mod imp {
++@@ -101,6 +103,8 @@ mod imp {
+  
+          pub network_pages: RefCell<HashMap<PathBuf, adw::ToolbarView>>,
+  
+@@ -332,7 +360,7 @@
+          pub battery_pages: RefCell<HashMap<PathBuf, adw::ToolbarView>>,
+  
+          pub gpu_pages: RefCell<HashMap<GpuIdentifier, (Gpu, adw::ToolbarView)>>,
+-@@ -123,6 +127,7 @@ mod imp {
++@@ -124,6 +128,7 @@ mod imp {
+                  drive_pages: RefCell::default(),
+                  network_pages: RefCell::default(),
+                  battery_pages: RefCell::default(),
+@@ -340,7 +368,7 @@
+                  split_view: TemplateChild::default(),
+                  resources_sidebar: TemplateChild::default(),
+                  content_stack: TemplateChild::default(),
+-@@ -217,6 +222,7 @@ struct RefreshData {
++@@ -221,6 +226,7 @@ struct RefreshData {
+      network_data: Vec<NetworkData>,
+      battery_paths: Vec<PathBuf>,
+      battery_data: Vec<BatteryData>,
+@@ -348,7 +376,7 @@
+      process_data: Vec<ProcessData>,
+  }
+  
+-@@ -259,6 +265,12 @@ impl MainWindow {
++@@ -263,6 +269,12 @@ impl MainWindow {
+              self.init_gpu_pages(&gpus);
+          }
+  
+@@ -361,7 +389,7 @@
+          imp.resources_sidebar.set_stack(&imp.content_stack);
+  
+          if ARGS.disable_process_monitoring {
+-@@ -606,6 +618,8 @@ impl MainWindow {
++@@ -603,6 +615,8 @@ impl MainWindow {
+              }
+          }
+  
+@@ -370,7 +398,7 @@
+          let refresh_data = RefreshData {
+              cpu_data,
+              mem_data,
+-@@ -617,6 +631,7 @@ impl MainWindow {
++@@ -614,6 +628,7 @@ impl MainWindow {
+              network_data,
+              battery_paths,
+              battery_data,
+@@ -378,7 +406,7 @@
+              process_data,
+          };
+  
+-@@ -643,6 +658,7 @@ impl MainWindow {
++@@ -640,6 +655,7 @@ impl MainWindow {
+              network_data,
+              battery_paths,
+              battery_data,
+@@ -386,7 +414,7 @@
+              process_data,
+          } = refresh_data;
+  
+-@@ -814,6 +830,8 @@ impl MainWindow {
++@@ -811,6 +827,8 @@ impl MainWindow {
+              page.refresh_page(battery_data);
+          }
+  
+@@ -396,13 +424,13 @@
+      }
+  
+ diff --git a/src/utils/mod.rs b/src/utils/mod.rs
+-index d2e1af5..5e15216 100644
++index 1531afe..4a0b5fc 100644
+ --- a/src/utils/mod.rs
+ +++ b/src/utils/mod.rs
+-@@ -419,3 +419,5 @@ mod test {
++@@ -401,3 +401,5 @@ mod test {
++         assert_eq!(maybe, f64::default());
++     }
+  }
+- 
+- pub(crate) mod thermal;
+ +
+ +pub mod temperature;
+ diff --git a/src/utils/temperature.rs b/src/utils/temperature.rs
