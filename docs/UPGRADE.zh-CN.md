@@ -7,6 +7,10 @@
 
 发布附件里的 `piano-ubuntu-<版本>-packages.zip` 就是升级包：解压后 `debs/` 下是该版本安装在镜像里的全部项目软件包。总是整组一起安装，不要只装其中一个。
 
+## 从 v0.7.0 升级到 v0.7.1
+
+使用 `piano-ubuntu-v0.7.1-packages.zip`，按下方相同步骤整组安装全部软件包。本版更新桌面 Mesa 与 gpu-2404 snap 提供者；内核仍为 Linux 7.2.10-piano40，`piano-ubuntu-desktop` 仍为 0.7.0。重启使 snap 提供者刷新、应用加载新驱动。保留旧内核与回退镜像组，无需重分区或重刷根镜像。
+
 ## 从 v0.6.2 升级到 v0.7.0
 
 按下方相同步骤使用 `piano-ubuntu-v0.7.0-packages.zip`，一起安装全部软件包，包括 Linux 7.2.10-piano40 及匹配的相机 loopback 包、更新的 `resources` 和 `piano-ubuntu-desktop` 0.7.0。安装后重启，使新内核生效；任务管理器随即出现“温度”页。保留已安装的旧内核及其回退启动镜像组。无需重分区或重刷根镜像。

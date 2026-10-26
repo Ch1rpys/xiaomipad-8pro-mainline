@@ -1,6 +1,6 @@
 # Release history and current support
 
-Current release: **v0.7.0**. See the [README](../README.md#hardware-support) or
+Current release: **v0.7.1**. See the [README](../README.md#hardware-support) or
 [中文 README](../README.zh-CN.md#硬件支持) for the hardware support tables and usage instructions.
 
 ## Current support
@@ -36,6 +36,10 @@ verified on this unit; later versions were tested on the installed system. These
 results do not establish support for other models, capacities or accessories.
 
 ## Completed work by release
+
+### v0.7.1
+
+- GPU compute performance improves by about 24% in Geekbench 6 Vulkan, with some workloads nearly doubling; the kernel remains piano40.
 
 ### v0.7.0
 

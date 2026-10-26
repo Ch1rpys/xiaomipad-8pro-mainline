@@ -39,3 +39,6 @@ gen8 TEX_LINE_OFFSET in bits in the common descriptor helper, including
 Turnip's NV12 buffer-to-image upload. Both builders apply it after
 `piano-fixes.patch` and validate both hashes. Remove this backport when the
 pinned upstream includes it; package builds alone do not prove GPU rendering.
+
+`turnip-a8xx-runtime-unroll.patch` adds bounded runtime loop unrolling and read scheduling for A8xx compute shaders; remove it when the pinned upstream includes equivalent changes.
+`turnip-ssbo-wide-reads.patch` uses exact-width aligned read-only SSBO accesses with matching descriptor strides; remove it when the pinned upstream includes equivalent changes.
