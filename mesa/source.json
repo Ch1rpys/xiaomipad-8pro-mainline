@@ -18,6 +18,20 @@
       "stable_commit": "f9a4bfdadbc9f2959b9b7a82c519c7f5a69db6c5",
       "merge_request": "https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/44151",
       "license": "MIT"
+    },
+    {
+      "path": "mesa/turnip-a8xx-runtime-unroll.patch",
+      "sha256": "8fc207b72c8c86aeced2d23b9a4a954dfbbd6e52ebe2a37f98124e6e52e098e1",
+      "upstream": "local, not yet submitted",
+      "exit_condition": "Remove when the pinned upstream includes equivalent changes.",
+      "license": "MIT"
+    },
+    {
+      "path": "mesa/turnip-ssbo-wide-reads.patch",
+      "sha256": "db09cd21e029b2904ff9c4abd23877f03f6c75045a047b0ae24afd1ea6cf458e",
+      "upstream": "local, not yet submitted",
+      "exit_condition": "Remove when the pinned upstream includes equivalent changes.",
+      "license": "MIT"
     }
   ]
 }
