@@ -1,6 +1,6 @@
 # Release history and current support
 
-Current release: **v0.6.2**. See the [README](../README.md#hardware-support) or
+Current release: **v0.7.0**. See the [README](../README.md#hardware-support) or
 [中文 README](../README.zh-CN.md#硬件支持) for the hardware support tables and usage instructions.
 
 ## Current support
@@ -36,6 +36,11 @@ verified on this unit; later versions were tested on the installed system. These
 results do not establish support for other models, capacities or accessories.
 
 ## Completed work by release
+
+### v0.7.0
+
+- 11 more on-board temperature readings are available, and the task manager has a Temperature page listing every sensor with history graphs.
+- Internal storage uses UFS multi-circular queues, one request queue and interrupt per CPU core.
 
 ### v0.6.2
 
