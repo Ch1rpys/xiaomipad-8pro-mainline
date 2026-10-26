@@ -14,12 +14,11 @@ Layout of the output directory:
   tools/   piano-switch.py and the KernelSU module zip
   RELEASE-NOTES.md, release-manifest.json, SHA256SUMS
 The data partition is not shipped; follow docs/INSTALL.md to create it.
---changes embeds handwritten Markdown verbatim (a line of '---' splits its Chinese
-and English halves between the two language sections) in both language sections of
-the short user-facing notes. Put bilingual text in this file when needed.
-Package this directory with package-release-assets.py; its output notes fill
-in attachment sizes for the Release body, while the archived original stays
-unchanged for SHA256SUMS. Package identities remain in release-manifest.json.
+--changes supplies a bilingual summary, updates and known limitations; a line of
+'---' separates Chinese from English. The note template adds installation and
+licensing links. Package this directory with package-release-assets.py; it keeps
+the archived notes and Release body identical. Package identities remain in
+release-manifest.json.
 Before writing anything the tool checks that the boot set
 carries no unit identity: no serial on its command line, no address properties
 in its DTB, the stock-build-only boot profile, and prints what Fastboot writes
@@ -123,9 +122,10 @@ def main():
                     help='FILL limit per sparse image (on free blocks for the ext4 root)')
     ap.add_argument('--allow-fill', action='store_true', help='Report FILL beyond the limit without stopping')
     ap.add_argument('--output', type=Path, required=True, help='New release directory')
-    ap.add_argument('--changes', type=Path, help='Markdown release changes, embedded verbatim (UTF-8)')
+    ap.add_argument('--changes', type=Path, required=True,
+                    help='Bilingual summary, updates and known limitations (UTF-8)')
     a = ap.parse_args()
-    changes = a.changes.read_text(encoding='utf-8') if a.changes else '见 README / See README.'
+    changes = a.changes.read_text(encoding='utf-8')
     build = a.rootfs_build.resolve()
     rootfs = json.loads((build / 'manifest.json').read_text())
     verification = json.loads((build / 'verification.json').read_text())

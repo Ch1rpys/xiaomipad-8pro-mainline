@@ -1,95 +1,45 @@
 # Ubuntu for Xiaomi Pad 8 Pro $release_name
 
-适用于小米平板 8 Pro 的 Ubuntu 26.04 Desktop ARM64，与 Android 双系统共存。
+适用于小米平板 8 Pro 的 Ubuntu 26.04 Desktop ARM64，与 Android 双系统共存。$summary_zh
 
-**实验性项目：安装会清空 Android 数据，并有变砖风险。请先读 [README「安装前请阅读」]($repo_url/blob/$integration_commit/README.zh-CN.md#️-安装前请阅读)。**
+## 更新
 
-## 下载
+$updates_zh
 
-<!-- downloads-zh:start -->
-$downloads_zh
-<!-- downloads-zh:end -->
+## 获取、安装与升级
 
-将全部附件下载到一个空目录，安装主机上的 `unzip` 和 `zstd` 后，在该目录依次执行：
+[全新安装]($repo_url/blob/$release_name/docs/INSTALL.zh-CN.md) · [已安装用户升级]($repo_url/blob/$release_name/docs/UPGRADE.zh-CN.md) · [构建指南]($repo_url/blob/$release_name/docs/build.zh-CN.md) · [内核源码]($kernel_url/tree/$release_name)
 
-<!-- restore:start -->
-```sh
-$restore_commands
-```
-<!-- restore:end -->
+附件包括 `$prefix-boot.zip` 启动镜像、`$prefix-tools.zip` 切换与恢复工具、`$prefix-packages.zip` 升级包，以及系统镜像分卷。分卷下载后按文件名顺序拼接再解压，用 `SHA256SUMS.assets` 校验。已安装用户使用 `packages.zip` 整组升级并重启，保留旧内核与回退镜像组。安装会清空 Android 数据，请先读 [README 安装前须知]($repo_url/blob/$release_name/README.zh-CN.md#️-安装前请阅读)。
 
-## 安装 / 升级
+## 已知限制
 
-[全新安装]($repo_url/blob/$integration_commit/docs/INSTALL.zh-CN.md) · [已安装用户升级]($repo_url/blob/$integration_commit/docs/UPGRADE.zh-CN.md)。升级使用 `$prefix-packages.zip`；镜像内软件包版本见 `release-manifest.json` 的 `packages` 清单。
+$limits_zh
 
-## 本版变化
+内核包：`$kernel_package`；原厂基线：`$stock_build`（A 槽）。完整功能见 [README 硬件支持表]($repo_url/blob/$release_name/README.zh-CN.md#硬件支持)。
 
-$changes_zh
-
-## 支持状态与已知问题
-
-各项功能的支持范围与已知限制，请查阅 [README 硬件支持表]($repo_url/blob/$integration_commit/README.zh-CN.md#硬件支持)。
-
-## 版本信息
-
-| 项目 | 版本 |
-|---|---|
-| 版本 | `$release_name` |
-| 内核包 | `$kernel_package` |
-| Ubuntu 基础 | 26.04 Desktop ARM64；APT 快照 `$apt_snapshot` |
-| 原厂版本 | `$stock_build`，A 槽 |
-| 集成仓提交 | [$integration_short]($repo_url/commit/$integration_commit) |
-| 内核提交 | [$kernel_short]($kernel_url/commit/$kernel_commit) |
-
-## 来源与许可
-
-来源、致谢与各组件许可证见 [README]($repo_url/blob/$integration_commit/README.zh-CN.md#致谢与许可证)；维护镜像内 BusyBox $busybox_version 的对应源码见 [Ubuntu 源码包](https://launchpad.net/ubuntu/+source/busybox/$busybox_version)。
+来源与许可：见 [README 致谢与许可证]($repo_url/blob/$release_name/README.zh-CN.md#致谢与许可证)；维护镜像内 BusyBox $busybox_version 的对应源码见 [Ubuntu 源码包](https://launchpad.net/ubuntu/+source/busybox/$busybox_version)。
 
 ---
 
 # Ubuntu for Xiaomi Pad 8 Pro $release_name
 
-Ubuntu 26.04 Desktop ARM64 for Xiaomi Pad 8 Pro, dual-booting alongside Android.
-
-**Experimental: installation erases Android data and can brick your tablet. Read [Before Installing]($repo_url/blob/$integration_commit/README.md#️-read-before-installing) first.**
-
-## Downloads
-
-<!-- downloads-en:start -->
-$downloads_en
-<!-- downloads-en:end -->
-
-Download every attachment into an empty directory. With `unzip` and `zstd` installed on your host, run there:
-
-<!-- restore:start -->
-```sh
-$restore_commands
-```
-<!-- restore:end -->
-
-## Install / upgrade
-
-[Fresh installation]($repo_url/blob/$integration_commit/docs/INSTALL.md) · [Upgrade an existing installation]($repo_url/blob/$integration_commit/docs/UPGRADE.md). Use `$prefix-packages.zip` to upgrade; image package versions are listed under `packages` in `release-manifest.json`.
+Ubuntu 26.04 Desktop ARM64 for Xiaomi Pad 8 Pro, dual-booting alongside Android. $summary_en
 
 ## Changes
 
-$changes_en
+$updates_en
 
-## Support and known issues
+## Get, install and upgrade
 
-See the [README hardware support table]($repo_url/blob/$integration_commit/README.md#hardware-support) for supported functionality and known limitations.
+[Fresh installation]($repo_url/blob/$release_name/docs/INSTALL.md) · [Upgrade an existing installation]($repo_url/blob/$release_name/docs/UPGRADE.md) · [Build guide]($repo_url/blob/$release_name/docs/BUILD.md) · [Kernel source]($kernel_url/tree/$release_name)
 
-## Version information
+Attachments include `$prefix-boot.zip` boot images, `$prefix-tools.zip` switching and recovery tools, `$prefix-packages.zip` upgrade packages, and split system image files. Download every image part, concatenate them in filename order and decompress, and verify with `SHA256SUMS.assets`. Existing users should install the complete `packages.zip` set and reboot, retaining the previous kernel and rollback boot set. Installation erases Android data; read [README Before Installing]($repo_url/blob/$release_name/README.md#️-read-before-installing) first.
 
-| Item | Version |
-|---|---|
-| Release | `$release_name` |
-| Kernel package | `$kernel_package` |
-| Ubuntu base | 26.04 Desktop ARM64; APT snapshot `$apt_snapshot` |
-| Stock build | `$stock_build`, slot A |
-| Integration commit | [$integration_short]($repo_url/commit/$integration_commit) |
-| Kernel commit | [$kernel_short]($kernel_url/commit/$kernel_commit) |
+## Known limitations
 
-## Sources and licensing
+$limits_en
 
-See [README acknowledgments and licensing]($repo_url/blob/$integration_commit/README.md#acknowledgments-and-licensing) for component sources and licences; the maintenance image's BusyBox $busybox_version source is available as an [Ubuntu source package](https://launchpad.net/ubuntu/+source/busybox/$busybox_version).
+Kernel package: `$kernel_package`; stock baseline: `$stock_build` (slot A). Full hardware support is listed in the [README hardware support table]($repo_url/blob/$release_name/README.md#hardware-support).
+
+Sources and licensing: see [README acknowledgments and licensing]($repo_url/blob/$release_name/README.md#acknowledgments-and-licensing); the maintenance image's BusyBox $busybox_version source is available as an [Ubuntu source package](https://launchpad.net/ubuntu/+source/busybox/$busybox_version).

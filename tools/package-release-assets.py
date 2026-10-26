@@ -13,11 +13,9 @@ metadata, including the original SHA256SUMS, notes and rootfs metadata.
 
 The manifest inventories payload attachments; SHA256SUMS.assets covers those
 and the manifest. Integrity metadata cannot contain its own checksum. The
-output RELEASE-NOTES.md is the Release body, NOT an upload attachment; only
-its generated download/restore blocks change. Archived notes stay byte-exact.
-Use a new build-release.py output for the new note format; old releases are
-preserved verbatim. Inputs are checked before construction; publication is a
-separate action. Failed runs remove their temporary output.
+output RELEASE-NOTES.md is the Release body, NOT an upload attachment; the
+archived and standalone notes are identical and use the bilingual release format.
+Inputs are checked before construction; publication is a separate action. Failed runs remove their temporary output.
 """
 import argparse
 import hashlib
@@ -33,7 +31,7 @@ import tempfile
 import time
 import zipfile
 
-from release_notes import asset_prefix, fill_asset_details, restore_commands
+from release_notes import asset_prefix, restore_commands, validate_notes
 
 PART_BYTES = 1_900_000_000
 ATTACHMENT_LIMIT = 2 << 30
@@ -182,6 +180,8 @@ def package(release, output, *, part_bytes=PART_BYTES):
             raise ValueError(f'Missing release directory: {directory}')
     version = json.loads(files['release-manifest.json'].read_text())['release_name']
     prefix = asset_prefix(version)
+    notes = files['RELEASE-NOTES.md'].read_text(encoding='utf-8')
+    validate_notes(notes, version)
     check_sums(release, 'SHA256SUMS', set(files) - {'SHA256SUMS'})
     validation_seconds = report('Input verification', started)
     # Construct beside the destination; a failed compression/check never leaves
@@ -217,8 +217,6 @@ def package(release, output, *, part_bytes=PART_BYTES):
         sums['assets-manifest.json'] = sha(stage / 'assets-manifest.json')
         (stage / 'SHA256SUMS.assets').write_text(''.join(f'{d}  {n}\n' for n, d in sorted(sums.items())))
         sizes = {name: (stage / name).stat().st_size for name in [*sums, 'SHA256SUMS.assets']}
-        notes = fill_asset_details(files['RELEASE-NOTES.md'].read_text(encoding='utf-8'), version,
-                                   sizes, manifest['rootfs_parts'])
         (stage / 'RELEASE-NOTES.md').write_text(notes, encoding='utf-8')
         os.rename(stage, output)
     return {'output': str(output), 'seconds': report('Packaging total', started), 'sizes': sizes}
@@ -249,6 +247,8 @@ def verify(assets, output):
     if manifest['schema'] != 1:
         raise ValueError('Unsupported assets manifest schema')
     prefix = asset_prefix(manifest['release_name'])
+    notes = (assets / 'RELEASE-NOTES.md').read_text(encoding='utf-8')
+    validate_notes(notes, manifest['release_name'])
     names = [entry['name'] for entry in manifest['assets']]
     zips = [f'{prefix}-{kind}.zip' for kind in ('boot', 'tools', 'packages')]
     parts = manifest['rootfs_parts']
@@ -286,6 +286,10 @@ def verify(assets, output):
         stage.mkdir()
         for name in zips:
             subprocess.run(['unzip', '-q', str(assets / name), '-d', str(stage)], check=True)
+        archived_notes = (stage / 'RELEASE-NOTES.md').read_text(encoding='utf-8')
+        validate_notes(archived_notes, manifest['release_name'])
+        if archived_notes != notes:
+            raise ValueError('Release body differs from the archived notes')
         (stage / 'rootfs').mkdir(exist_ok=True)
         with (stage / ROOT_IMAGE).open('xb') as target:
             command = ['zstd', '-d', '-c']

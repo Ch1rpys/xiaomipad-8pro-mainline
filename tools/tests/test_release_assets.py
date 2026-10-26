@@ -20,6 +20,15 @@ sys.path.insert(0, str(TOOLS))
 spec = importlib.util.spec_from_file_location('package_release_assets', TOOLS / 'package-release-assets.py')
 tool = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(tool)
+from release_notes import render_notes
+
+
+def notes_for(version='v1.2.3', update='- **Test**: Keep $literal and `code`.'):
+    changes = ('GPU 更新。\n\n## 更新\n\n' + update + '\n\n## 已知限制\n\n保留默认音量。\n\n---\n\nGPU update.\n\n## Changes\n\n' + update + '\n\n## Known limitations\n\nKeep the default volume.\n')
+    return render_notes(
+        {'release_name': version, 'kernel_release': '7.2.6-piano10',
+         'packages': [{'package': 'linux-image-7.2.6-piano10', 'version': '7.2.6-10.1'}]},
+        'OS3.0.303.0.WPYCNXM', 'a' * 40, {'url': 'https://example.org/kernel', 'commit': 'b' * 40}, changes)
 
 
 def write_sums(directory):
@@ -43,7 +52,7 @@ def release(tmp_path):
         'rootfs/root.sparse.img': os.urandom(24_000), 'rootfs/manifest.json': b'{}\n',
         'rootfs/verification.json': b'{"passed": true}\n',
         'release-manifest.json': b'{"release_name": "v1.2.3"}\n',
-        'RELEASE-NOTES.md': b'# original notes\n',
+        'RELEASE-NOTES.md': notes_for().encode(),
     }
     for name, data in files.items():
         path = directory / name
@@ -102,24 +111,40 @@ def test_cli(release, tmp_path):
     assert_same_files(release, tmp_path / 'restored')
 
 
-def test_packaged_notes_have_sizes_without_changing_archived_notes(release, tmp_path):
-    from release_notes import render_notes
-
-    changes = '- 手写 Markdown / Handwritten **$text**\n'
-    notes = render_notes(
-        {'release_name': 'v1.2.3', 'kernel_release': '7.2.6-piano10', 'apt_snapshot': '20261001T000000Z',
-         'packages': [{'package': 'linux-image-7.2.6-piano10', 'version': '7.2.6-10.1'}]},
-        'OS3.0.303.0.WPYCNXM', 'a' * 40, {'url': 'https://example.org/kernel', 'commit': 'b' * 40}, changes)
+def test_packaged_notes_preserve_body_without_size_tables(release, tmp_path):
+    update = '- **Test**: Handwritten **$text** and `code`.'
+    notes = notes_for(update=update)
     (release / 'RELEASE-NOTES.md').write_text(notes)
     write_sums(release)
     result = tool.package(release, tmp_path / 'assets')
     body = (tmp_path / 'assets/RELEASE-NOTES.md').read_text()
-    assert '打包后填写' not in body and 'Pending packaging' not in body
-    assert body.count(changes) == 2
+    assert body == notes and body.count(update) == 2
+    assert body.index('## 更新') < body.index('## 获取、安装与升级')
+    assert body.index('## Changes') < body.index('## Get, install and upgrade')
     for size in result['sizes'].values():
-        assert f'{size:,} B' in body
+        assert f'{size:,} B' not in body
     tool.verify(tmp_path / 'assets', tmp_path / 'restored')
     assert_same_files(release, tmp_path / 'restored')
+
+
+@pytest.mark.parametrize('mutation', ['hash', 'table', 'path', 'marker', 'missing-section', 'changed-body'])
+def test_release_body_is_checked_before_restore(release, tmp_path, mutation):
+    assets = tmp_path / 'assets'
+    tool.package(release, assets)
+    path = assets / 'RELEASE-NOTES.md'
+    notes = path.read_text()
+    if mutation == 'missing-section':
+        notes = notes.replace('## 更新', '## 下载')
+    elif mutation == 'changed-body':
+        notes = notes.replace('**Test**', '**Changed**')
+    else:
+        notes += {'hash': 'a' * 64, 'table': '| File | 123 B |',
+                  'path': '/home/builder/private/result', 'marker': '<!-- restore:start -->'}[mutation]
+    path.write_text(notes)
+    restored = tmp_path / 'restored'
+    with pytest.raises(ValueError):
+        tool.verify(assets, restored)
+    assert not restored.exists()
 
 
 @pytest.mark.parametrize('mutation', ['corrupt', 'missing', 'extra', 'manifest'])

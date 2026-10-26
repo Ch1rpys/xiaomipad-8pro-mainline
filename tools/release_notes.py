@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-"""Shared release-note rendering; attachment sizes are filled after packaging."""
+"""Render and validate bilingual release notes with changes before installation."""
 from pathlib import Path
 import re
 import string
@@ -15,9 +15,8 @@ def asset_prefix(version):
 
 
 def restore_commands(version, parts=None):
+    """Machine-readable recovery recipe for assets-manifest.json, not the body."""
     prefix = asset_prefix(version)
-    # The literal glob is convenient for normal releases. Numeric manifest order
-    # also supports >10 parts, where shell glob order would put part10 before part2.
     inputs = ' '.join(parts) if parts and len(parts) > 10 else f'{prefix}-rootfs.img.zst.part*'
     return '\n'.join([
         'sha256sum -c SHA256SUMS.assets',
@@ -28,57 +27,64 @@ def restore_commands(version, parts=None):
     ])
 
 
-def download_table(version, language, sizes=None):
-    prefix = asset_prefix(version)
-    zh = language == 'zh'
-    purposes = (['启动镜像、发布清单及元数据', '切换与恢复工具', '升级用 deb 软件包',
-                 '系统镜像；需下载全部分卷', '附件校验', '大小、内容与还原命令'] if zh else
-                ['Boot images, release manifest and metadata', 'Switching and recovery tools',
-                 'Deb packages for upgrades', 'System image; download every part',
-                 'Attachment checksums', 'Sizes, contents and restore commands'])
-    names = [f'{prefix}-{kind}.zip' for kind in ('boot', 'tools', 'packages')]
-    names += [f'{prefix}-rootfs.img.zst.part*', 'SHA256SUMS.assets', 'assets-manifest.json']
-    lines = ['| 文件名 | 大小 | 用途 |' if zh else '| File | Size | Purpose |', '|---|---:|---|']
-    for name, purpose in zip(names, purposes):
-        if sizes is None:
-            size = '打包后填写' if zh else 'Pending packaging'
-        elif name.endswith('*'):
-            parts = [(n, s) for n, s in sizes.items() if n.startswith(name[:-1])]
-            parts.sort(key=lambda pair: int(pair[0].rsplit('part', 1)[1]))
-            size = '; '.join(f'{n.rsplit(".", 1)[1]}: {s:,} B' for n, s in parts)
-        else:
-            size = f'{sizes[name]:,} B'
-        lines.append(f'| `{name}` | {size} | {purpose} |')
-    return '\n'.join(lines)
+def change_sections(changes):
+    halves = re.split(r'^---[ \t]*$', changes, flags=re.M)
+    if len(halves) != 2:
+        raise ValueError('changes must contain Chinese and English separated by ---')
+    result = {}
+    for language, half, updates, limits in zip(
+            ('zh', 'en'), halves, ('更新', 'Changes'), ('已知限制', 'Known limitations')):
+        summary, separator, rest = half.strip().partition(f'\n\n## {updates}\n\n')
+        body, last_separator, limitations = rest.partition(f'\n\n## {limits}\n\n')
+        if not separator or not last_separator or not all((summary.strip(), body.strip(), limitations.strip())):
+            raise ValueError(f'changes ({language}) require a summary, updates and known limitations')
+        result.update({f'summary_{language}': summary.strip(),
+                       f'updates_{language}': body.strip(), f'limits_{language}': limitations.strip()})
+    return result
 
 
-def fill_asset_details(notes, version, sizes, parts):
-    """Update only generated blocks, preserving handwritten Markdown verbatim."""
-    for label, text in [('downloads-zh', download_table(version, 'zh', sizes)),
-                        ('downloads-en', download_table(version, 'en', sizes)),
-                        ('restore', '```sh\n' + restore_commands(version, parts) + '\n```')]:
-        pattern = rf'(<!-- {label}:start -->\n).*?(\n<!-- {label}:end -->)'
-        notes = re.sub(pattern, lambda m: m[1] + text + m[2], notes, flags=re.S)
-    return notes
+def validate_notes(notes, version):
+    """Reject missing sections, obsolete tables/commands, digests and private paths."""
+    asset_prefix(version)
+    if re.search(r'(?<!\w)[0-9a-f]{40}(?:[0-9a-f]{24})?(?!\w)|`[0-9a-f]{7,64}`', notes, re.I):
+        raise ValueError('release body must not contain hashes')
+    if re.search(r'^\s*\|', notes, re.M) or re.search(r'\b\d[\d,.]*\s+(?:bytes?|[KMGT]i?B)\b|\d[\d,]*\s*字节', notes):
+        raise ValueError('release body must not contain tables or byte counts')
+    if any(token in notes for token in ('```', '<!-- downloads', '<!-- restore',
+                                        '/home/', '/tmp/', '/var/tmp/', '/dev/shm/',
+                                        'private/', 'out/worktrees/')):
+        raise ValueError('release body contains a command block, old marker or internal path')
+    halves = re.split(r'^---[ \t]*$', notes, flags=re.M)
+    if len(halves) != 2:
+        raise ValueError('release body must contain Chinese followed by English')
+    for half, headings, licensing, support in zip(halves,
+            (['更新', '获取、安装与升级', '已知限制'], ['Changes', 'Get, install and upgrade', 'Known limitations']),
+            ('来源与许可：', 'Sources and licensing:'), ('完整功能', 'Full hardware support')):
+        if not half.strip().startswith(f'# Ubuntu for Xiaomi Pad 8 Pro {version}\n'):
+            raise ValueError('release title differs from the manifest')
+        if re.findall(r'^## (.+)$', half, re.M) != headings:
+            raise ValueError('release sections are missing or out of order')
+        updates = half.split(f'## {headings[0]}\n', 1)[1].split(f'## {headings[1]}\n', 1)[0]
+        bullets = [line for line in updates.splitlines() if line.startswith('- ')]
+        if not bullets or any(not re.match(r'- \*\*[^*]+\*\*', line) for line in bullets):
+            raise ValueError('each release update must start with a bold label')
+        if support not in half or 'SHA256SUMS.assets' not in half:
+            raise ValueError('release support or download guidance is missing')
+        last = half.strip().splitlines()[-1]
+        if not last.startswith(licensing) or 'https://launchpad.net/ubuntu/+source/busybox/' not in last:
+            raise ValueError('release body must end with licensing and the BusyBox source link')
 
 
 def render_notes(rootfs, stock_build, integration_commit, kernel_source, changes):
     version = rootfs['release_name']
     kernel_name = 'linux-image-' + rootfs['kernel_release']
     kernel = next(e for e in rootfs['packages'] if e['package'] == kernel_name)
-    # Same pinned Ubuntu binary used by the maintenance initramfs builder.
     busybox = re.search(r'^package=busybox-static_(\S+)_arm64\.deb$',
                        (REPO / 'tools/fetch-busybox-arm64.sh').read_text(), re.M).group(1)
-    # A handwritten changes file may hold Chinese and English separated by a line of
-    # '---'; each language section then gets its own half instead of both.
-    halves = re.split(r'^---[ \t]*$', changes, maxsplit=1, flags=re.M)
-    changes_zh, changes_en = (halves[0].strip() + '\n', halves[1].strip() + '\n') if len(halves) == 2 else (changes, changes)
-    return string.Template((REPO / 'packaging/release/RELEASE-NOTES.md.in').read_text()).substitute(
-        release_name=version, prefix=asset_prefix(version), changes_zh=changes_zh, changes_en=changes_en,
-        downloads_zh=download_table(version, 'zh'), downloads_en=download_table(version, 'en'),
-        restore_commands=restore_commands(version), kernel_package=f'{kernel_name} {kernel["version"]}',
-        stock_build=stock_build, apt_snapshot=rootfs['apt_snapshot'],
-        repo_url=REPO_URL, integration_commit=integration_commit,
-        integration_short=integration_commit[:7], kernel_url=kernel_source['url'],
-        kernel_commit=kernel_source['commit'], kernel_short=kernel_source['commit'][:7],
+    notes = string.Template((REPO / 'packaging/release/RELEASE-NOTES.md.in').read_text()).substitute(
+        release_name=version, prefix=asset_prefix(version), **change_sections(changes),
+        kernel_package=f'{kernel_name} {kernel["version"]}', stock_build=stock_build,
+        repo_url=REPO_URL, kernel_url=kernel_source['url'].removesuffix('.git'),
         busybox_version=busybox)
+    validate_notes(notes, version)
+    return notes
