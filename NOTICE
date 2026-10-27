@@ -715,3 +715,19 @@ Changes:
   MiCode/vendor_opensource_display-drivers
   aa06fd1757c28dce96fbe4e04d4530ec21b52aac, dsi_ctrl_async_timing_update
   and dsi_bridge_post_kickoff. Licence: GPL-2.0-only.
+- drivers/gpu/drm/panel/panel-novatek-nt36532.c and
+  arch/arm64/boot/dts/qcom/sm8750-xiaomi-piano.dts: give each Piano
+  module its own vendor command set. The NT36532 driver carried the
+  P81_42_02_0a and P81_35_02_0b on-command sets attached to the wrong
+  vendor names, so the module selected by the ID pin received the other
+  vendor's ESD configuration, vendor register block and refresh-rate
+  register order. The CSOT module keeps ESD D1 0x00, the 0xbc 0x77 0x07
+  vendor block and the B2 before B3 refresh order, the BOE module keeps
+  ESD D1 0x20, the 0xc4 vendor block and the B3 before B2 order. No
+  command byte, mode or DSC parameter changes, and the ID low/high
+  mapping in piano_variants is unchanged.
+  Source patch K-panel-id-mapping-fix.patch in
+  https://github.com/slwyts/Project-SunUEFI, original author
+  yzddmr6 <46088090+yzddmr6@users.noreply.github.com>, based on
+  patches/linux/7.2.9/0038-panel-piano-vendor-refresh-order.patch and
+  docs/devel/panel-selection.md. Licence: GPL-2.0-only.
