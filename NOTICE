@@ -684,3 +684,12 @@ Changes:
   Source commit 3bfd19bcbbb197f81566402196017805707d3570 in
   https://github.com/slwyts/Project-SunUEFI, original patch by
   slwyts <slwyts@foxmail.com>. Licence: GPL-2.0-only.
+- drivers/gpu/drm/msm/dsi/dsi_manager.c: report the fixed DSC component
+  depth of the attached panel through the standard max bpc property.
+  Source commit 3b5a34b032d67e4af00cfdb2f6b6e70f13785cbe in
+  https://github.com/slwyts/Project-SunUEFI. Licence: GPL-2.0-only.
+- drivers/gpu/drm/display/drm_bridge_connector.c: keep an attached fixed
+  DSI depth across the generic bridge state reset, which allocates a
+  zeroed state. The HDMI policy is left untouched.
+  Source commit 3b5a34b032d67e4af00cfdb2f6b6e70f13785cbe in
+  https://github.com/slwyts/Project-SunUEFI. Licence: GPL-2.0-only.
