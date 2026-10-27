@@ -693,3 +693,11 @@ Changes:
   zeroed state. The HDMI policy is left untouched.
   Source commit 3b5a34b032d67e4af00cfdb2f6b6e70f13785cbe in
   https://github.com/slwyts/Project-SunUEFI. Licence: GPL-2.0-only.
+- drivers/gpu/drm/panel/panel-novatek-nt36532.c: expose the factory low
+  refresh rates 30, 48 and 50 Hz. They keep the 120 Hz pixel clock and the
+  horizontal timing and only extend the vertical blanking, so the link
+  rate and the DSC PPS do not change. The 60 Hz mode keeps its vertical
+  total and the 120 Hz mode stays the preferred one.
+  Source commit ac234b5efd735f625a32c2ac01966cfcd30267b8 in
+  https://github.com/slwyts/Project-SunUEFI, original patch by
+  slwyts <slwyts@foxmail.com>. Licence: GPL-2.0-only.
