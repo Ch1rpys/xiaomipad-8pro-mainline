@@ -701,3 +701,17 @@ Changes:
   Source commit ac234b5efd735f625a32c2ac01966cfcd30267b8 in
   https://github.com/slwyts/Project-SunUEFI, original patch by
   slwyts <slwyts@foxmail.com>. Licence: GPL-2.0-only.
+- drivers/gpu/drm/msm/disp/dpu1/dpu_crtc.c, dpu_crtc.h, dpu_encoder.c,
+  dpu_encoder.h, dpu_hw_intf.c, dpu_hw_intf.h, drivers/gpu/drm/msm/dsi/dsi.h,
+  dsi_host.c, dsi_manager.c and drivers/gpu/drm/msm/msm_drv.h: stage a
+  vertical front porch only mode change at a frame boundary, using the
+  stock DSI timing DB and flush sequence together with the DPU interface
+  shadow timing updates. The panel power, the DSC and the touch firmware
+  stay alive for modes with unchanged link clocks, horizontal timing and
+  sync widths. Other mode changes keep a full modeset.
+  Source commit 9e6de1643d74bb94ee6b6587cb0bd692e554b1a2 in
+  https://github.com/slwyts/Project-SunUEFI, original patch by
+  slwyts <slwyts@foxmail.com>, based on
+  MiCode/vendor_opensource_display-drivers
+  aa06fd1757c28dce96fbe4e04d4530ec21b52aac, dsi_ctrl_async_timing_update
+  and dsi_bridge_post_kickoff. Licence: GPL-2.0-only.
