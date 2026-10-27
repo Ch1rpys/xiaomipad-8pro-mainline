@@ -644,3 +644,15 @@ Changes:
   aa06fd1757c28dce96fbe4e04d4530ec21b52aac, msm/dsi/dsi_phy_hw_v7_2.c.
   Licence: GPL-2.0-only. The upstream candidate was not exercised on
   hardware, so the behaviour still needs a resume cycle on the device.
+- drivers/gpu/drm/msm/dsi/dsi.h, dsi_host.c and dsi_manager.c: reset each
+  SM8750 bonded video controller after both PHYs have been resynchronized,
+  clearing the three engine enable bits and restoring the controller and
+  clock-control values around the reset. This is a controller-only reset;
+  the PHY is not reset.
+  Source commit 7952663316255505e905964310d005e8cf447c22 in
+  https://github.com/slwyts/Project-SunUEFI, based on
+  MiCode/vendor_opensource_display-drivers
+  aa06fd1757c28dce96fbe4e04d4530ec21b52aac, msm/dsi/dsi_display.c and
+  msm/dsi/dsi_ctrl_hw_cmn.c. Licence: GPL-2.0-only. The upstream candidate
+  was not exercised on hardware, so the behaviour still needs a resume
+  cycle on the device.
