@@ -676,3 +676,11 @@ Changes:
   aa06fd1757c28dce96fbe4e04d4530ec21b52aac, msm/dsi/dsi_display.c.
   Licence: GPL-2.0-only. The upstream candidate was not exercised on
   hardware, so the behaviour still needs a DPMS cycle on the device.
+- drivers/video/backlight/ktz8866.c: read the LED fade time from the chip
+  before it is turned off and wait for it, so that the panel and the video
+  link do not stop while the backlight is still visible. The ramp may have
+  been programmed by the bootloader, so the register is the only source of
+  truth; a mirrored pair waits for the slower chip.
+  Source commit 3bfd19bcbbb197f81566402196017805707d3570 in
+  https://github.com/slwyts/Project-SunUEFI, original patch by
+  slwyts <slwyts@foxmail.com>. Licence: GPL-2.0-only.
