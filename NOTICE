@@ -625,3 +625,12 @@ Changes:
   trailing descriptor is derived from the command length, so the GC and
   the IGC table travel in one submission. The bounded teardown of the
   existing GC transport is kept unchanged.
+- drivers/gpu/drm/msm/disp/dpu1/dpu_encoder_phys_vid.c: tear the video
+  pipeline down before the timing engine is stopped, so that the CTL flush
+  at the end of the cleanup is consumed at a frame boundary.
+  Original patch by Junhao Xie <bigfoot@radxa.com>, source commit
+  8f353c130fee0fcf09afbe10e7fc58f901931418 in
+  https://github.com/BigfootACA/linux. Licence: GPL-2.0-only.
+  Changes: only the master encoder runs the cleanup at that point, because
+  a video-mode slave shares the master's CTL and the virtual encoder tears
+  the slave down once both timing engines have stopped.
