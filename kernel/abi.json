@@ -284,6 +284,12 @@
       "kernel_commit": "f979363491c6a4b72d91b3f0deb1f1e3cd927535",
       "config_sha256": "b857a2aefd07a023457a517f57d56b14d6363e28bbeccccb01c8da9c2bf6eb5e",
       "upload": 1
+    },
+    {
+      "kernel_release": "7.2.10-piano51",
+      "kernel_commit": "8f83afb7bc90927ce1cdff700f9ef573477744d5",
+      "config_sha256": "89831c85f56f5c66e00e270e515271c5882c76283f7aa79ecee46b37ae01e496",
+      "upload": 1
     }
   ]
 }
