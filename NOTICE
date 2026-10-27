@@ -599,3 +599,29 @@ Resources telemetry patches
   Local changes: 2026 yzddmr6. License texts: apps/resources/COPYING and ubuntu/resources/COPYING.
 - Adreno chip ID/name mapping follows nvtop's extract_gpuinfo_msm_utils.c,
   https://github.com/Syllo/nvtop/commit/71094a9f7dfbfe7cbe9faebfdf055e580a034283 (GPL-3.0-or-later).
+
+Piano kernel display chain (SM8750P)
+------------------------------------
+Repository: https://github.com/slwyts/Project-SunUEFI
+License: GPL-2.0-only; the per-file SPDX identifiers are retained and
+LICENSES/GPL-2.0-only.txt applies. The changes below are kept in the
+kernel repository and reach this repository through the pinned commit in
+kernel/source.json.
+Changes:
+- drivers/gpu/drm/panel/panel-novatek-nt36532.c: prefer the validated
+  120 Hz cold-start mode on xiaomi,piano and keep every advertised mode.
+  Source commit 4406f90efc9e8d919cb670da505df623ed9dc235, source path
+  patches/linux/7.2.9/0022-panel-piano-prefer-120hz-cold-start.patch.
+  The selection was split into nt36532_preferred_mode() so that it can
+  be tested, and the refresh rate is read with drm_mode_vrefresh()
+  because the mode table carries the rate in the pixel clock.
+- drivers/gpu/drm/msm/disp/dpu1/dpu_hw_igcv5.c and .h: the IGCv5
+  hardware LUT layout and the REGDMA v3 command packing for it.
+  Source commits 9e6de1643d74bb94ee6b6587cb0bd692e554b1a2 and
+  655e7ebd5cd66b7067f3e7496bc842984b364561, source paths
+  patches/linux/7.2.9/0044-drm-msm-dpu-igcv5-degamma.patch and
+  patches/linux/7.2.9/0045-drm-igcv5-high-precision-grid.patch.
+  The REGDMA command buffer grew to 16 KiB and the offset of the
+  trailing descriptor is derived from the command length, so the GC and
+  the IGC table travel in one submission. The bounded teardown of the
+  existing GC transport is kept unchanged.
