@@ -17,8 +17,11 @@ out=${OUT_DIR:-"$ws/out/kernel-dev"}
 jobs=${JOBS:-$(nproc)}
 cross=${CROSS_COMPILE:-aarch64-linux-gnu-}
 fragment="$src/$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["config"])' "$repo/kernel/source.json")"
-# Optional fragments merged after the pinned one, e.g. the remaining
-# release_config_fragments of kernel/source.json. They must be tracked files in
+# The kernel release fragments of kernel/source.json are merged in the order
+# they are listed there, with arch/arm64/configs/piano-release.config last.
+# They must all be tracked files in the kernel source.
+read -r -a release_fragments <<<"$(python3 -c 'import json,sys; print(" ".join(json.load(open(sys.argv[1])).get("release_config_fragments", [])))' "$repo/kernel/source.json")"
+# Optional fragments merged after the pinned ones. They must be tracked files in
 # the kernel source, separated by spaces, and need their own OUT_DIR. The RAM
 # diagnostic variants and their fragments live on the kernel piano/diag branch.
 extra=${CONFIG_FRAGMENT_EXTRA:-}
@@ -36,7 +39,24 @@ src=$(realpath "$src")
 	exit 1
 }
 [[ -f $fragment ]]
-fragments=("$fragment")
+fragments=()
+merged=()
+add_fragment() {
+	local path=$1
+	[[ -n $path ]] || return 0
+	git -C "$src" ls-files --error-unmatch -- "$path" >/dev/null 2>&1 || {
+		echo "Kernel release fragments must be tracked kernel source paths: $path" >&2; exit 1;
+	}
+	case " ${merged[*]} " in
+	*" $path "*) return 0 ;;
+	esac
+	merged+=("$path")
+	fragments+=("$src/$path")
+}
+add_fragment "${fragment#"$src/"}"
+for release_path in "${release_fragments[@]}"; do
+	add_fragment "$release_path"
+done
 read -r -a extras <<<"$extra"
 for extra_path in "${extras[@]}"; do
 	git -C "$src" ls-files --error-unmatch -- "$extra_path" >/dev/null 2>&1 || {
@@ -44,6 +64,7 @@ for extra_path in "${extras[@]}"; do
 	}
 	fragments+=("$src/$extra_path")
 done
+[[ ${#fragments[@]} -gt 0 ]] || { echo 'No kernel configuration fragment to merge.' >&2; exit 1; }
 mkdir -p "$out"
 out=$(realpath "$out")
 exec 9>"$out/.build.lock"
