@@ -656,3 +656,23 @@ Changes:
   msm/dsi/dsi_ctrl_hw_cmn.c. Licence: GPL-2.0-only. The upstream candidate
   was not exercised on hardware, so the behaviour still needs a resume
   cycle on the device.
+- drivers/gpu/drm/panel/panel-novatek-nt36532.c: ask for the previous
+  bridge to be prepared first, so that the DSI host is initialised before
+  the panel is reset and driven and stays alive until the panel has been
+  told to go to sleep.
+  Source commit c5990be31fc2173ad303099e4f33b12cd929ac2b in
+  https://github.com/slwyts/Project-SunUEFI. Licence: GPL-2.0-only.
+- drivers/gpu/drm/msm/dsi/dsi.h, dsi_host.c and dsi_manager.c: stage the
+  command link and the video engine separately. The link phase leaves the
+  timing engines idle and keeps the controller available for DMA commands;
+  the video phase starts the engine after the panel bridge has completed
+  prepare, DCS and PPS, and stops it before the panel is unprepared. A
+  video panel keeps the command access and loses the final controller
+  reset; a command-mode panel keeps both. The FIFO status is reported
+  together with the phase flags.
+  Source commit c5990be31fc2173ad303099e4f33b12cd929ac2b in
+  https://github.com/slwyts/Project-SunUEFI, based on
+  MiCode/vendor_opensource_display-drivers
+  aa06fd1757c28dce96fbe4e04d4530ec21b52aac, msm/dsi/dsi_display.c.
+  Licence: GPL-2.0-only. The upstream candidate was not exercised on
+  hardware, so the behaviour still needs a DPMS cycle on the device.
