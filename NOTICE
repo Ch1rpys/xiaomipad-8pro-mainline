@@ -634,3 +634,13 @@ Changes:
   Changes: only the master encoder runs the cleanup at that point, because
   a video-mode slave shares the master's CTL and the virtual encoder tears
   the slave down once both timing engines have stopped.
+- drivers/gpu/drm/msm/dsi/phy/dsi_phy.h, dsi_phy.c, dsi_phy_7nm.c and
+  drivers/gpu/drm/msm/dsi/dsi_manager.c: resynchronize the two bonded
+  SM8750 PHYs after the link clocks start, by toggling the retime FIFO on
+  both PHYs and then releasing D-PHY CLK_EN_SEL on both.
+  Source commit 2c82709459b91779cfdbe0944ef6122fd4615c2f in
+  https://github.com/slwyts/Project-SunUEFI, based on
+  MiCode/vendor_opensource_display-drivers
+  aa06fd1757c28dce96fbe4e04d4530ec21b52aac, msm/dsi/dsi_phy_hw_v7_2.c.
+  Licence: GPL-2.0-only. The upstream candidate was not exercised on
+  hardware, so the behaviour still needs a resume cycle on the device.
