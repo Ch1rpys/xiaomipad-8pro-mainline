@@ -32,17 +32,6 @@ The files of `fingerprint/` ship in their own package, like the files of `sensor
 directory is `fingerprint/source.json`, which is not named `piano-*.json` and therefore stays out of
 the stock build check of the firmware package; it names the same stock build as every other lock.
 
-**Owner decision 2026-10-28, fingerprint files.** The four files of `fingerprint/` are distributed
-under the firmware policy of this repository. `gfpia.elf` is the signed secure program of the
-factory, reassembled from the segments of the stock partition at the offsets of its program
-headers; the program and the interface that loads it are neither modified nor bypassed. The three
-`piano-goodix-*.bin` files are the algorithm data of the sensor, taken out of the vendor library.
-
-The scope of the decision is these four files only. It does not include the vendor library itself,
-any per-unit data, the persist registry, the factory calibration, any fingerprint template or
-enrolled biometric data, and no product of a signature bypass. The files hold static data of the
-sensor and no key, so they carry no data of a single unit.
-
 **Not included:**
 - touch calibration, which `tools/extract-thp-calibration.py` generates per device;
 - the Bluetooth address, the Wi-Fi MAC address (`persist`) and other per-unit calibration;
