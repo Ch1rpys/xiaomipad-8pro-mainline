@@ -54,10 +54,6 @@ sudo apt install ./out/fingerprint/piano-fingerprint_0.1+20261028.1_arm64.deb
 `gfpia.elf` 是原厂签名的安全程序，分发它与分发其它任何原厂固件性质一致；安全程序与其加载接口都没有
 被修改或绕过。三个 blob 是按这颗芯片选定的静态算法数据。
 
-设备所有者 2026-10-28 的决定只涵盖这四个文件，明确**不**包括：厂商 `libgf_hal.so` 本体、任何逐机数据、
-persist registry、工厂标定、指纹模板与已录入的生物特征数据、任何签名绕过产物。这些文件是传感器的静态
-数据，不含密钥，也不含单台设备的信息。逐文件来源与哈希见 `firmware/fingerprint/source.json`。
-
 ## 内核侧
 
 内核仓（`yzddmr6/linux-sm8750-piano`）提供：
