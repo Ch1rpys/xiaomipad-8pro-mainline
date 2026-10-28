@@ -67,6 +67,21 @@ AGENT_XML = """
 """
 
 
+# The touch controller scans for the pen only while a consumer needs it.
+TOUCH_SYSFS = Path('/sys/class/misc/nvt-thp-spi0.0/device')
+# The vendor numbers the pen models 1 for the M80P, 2 for the N83P and
+# 3 for the P81C. This client drives the P81C.
+PEN_MODEL_P81C = 3
+
+
+def write_stylus_scan(enable):
+    (TOUCH_SYSFS / 'stylus_scan').write_text('1' if enable else '0')
+
+
+def write_stylus_model(model):
+    (TOUCH_SYSFS / 'stylus_model').write_text(str(model))
+
+
 def read_dock():
     events = []
     for event in Path('/sys/class/input').glob('event*'):
@@ -460,6 +475,7 @@ class Pen:
         self.last_stationary = None
         self.last_dock = None
         self.last_screen = None
+        self.last_scan = None
         self.stop = False
         self.failure = None
         self.subscription = None
@@ -539,6 +555,33 @@ class Pen:
             self.last_screen = active
             self.log('screen_updated', active=active)
 
+    def follow_stylus_scan(self):
+        """Ask the touch controller for the stylus scan while the pen is in
+        use: the pen is out of its dock and the screen is on. The scan is
+        off otherwise, so the controller does not look for a pen that
+        nobody is holding."""
+        try:
+            docked = read_dock()
+        except (RuntimeError, OSError):
+            # Without the state of the dock the scan stays off.
+            docked = True
+        active = screen_on()
+        wanted = bool(active) and not docked
+        if wanted == self.last_scan:
+            return
+        try:
+            write_stylus_scan(wanted)
+        except OSError as error:
+            self.log('stylus_scan_error', message=str(error))
+            return
+        self.last_scan = wanted
+        if wanted:
+            try:
+                write_stylus_model(PEN_MODEL_P81C)
+            except OSError as error:
+                self.log('stylus_model_error', message=str(error))
+        self.log('stylus_scan_updated', enabled=wanted)
+
     def open(self):
         self.subscription = self.bus.signal_subscribe(
             'org.bluez', 'org.freedesktop.DBus.Properties', 'PropertiesChanged', self.notify,
@@ -591,6 +634,12 @@ class Pen:
 
     def close(self):
         try:
+            if self.last_scan:
+                try:
+                    write_stylus_scan(False)
+                except OSError:
+                    pass
+                self.last_scan = None
             if self.notifying:
                 try:
                     self.call(self.notify, 'StopNotify')
@@ -646,6 +695,7 @@ def main():
                             break
                         pen.follow_dock()
                         pen.follow_screen()
+                        pen.follow_stylus_scan()
                     # Sleep in the main context: the state of the pen is
                     # looked at once a second, not every ten milliseconds.
                     wait_for(main_context(), 1.0)
