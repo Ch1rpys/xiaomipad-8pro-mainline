@@ -214,7 +214,7 @@ def extract(source):
     gains = [value('cfg_k_' + suffix + '_edge') for suffix in ('x_l', 'x_r', 'y_u', 'y_d')]
     if len(set(edges)) != 1 or len(set(gains)) != 1:
         raise ValueError('Asymmetric edge mapping is not supported by this processing core')
-    return {
+    result = {
         'schema': 1, 'rows': rows, 'columns': columns, 'units_per_pixel': units,
         'source_sha256': hashlib.sha256(data).hexdigest(),
         # Stock panel identity of the source file (CSOT 4, BOE 26); piano-thp-live reports a
@@ -228,8 +228,11 @@ def extract(source):
             'edge_base': value('cfg_lcd_base_edge') * units,
             'edge_size': edges[0] * units, 'edge_gain': gains[0] * units,
         },
-        'pen': extract_pen(data),
     }
+    pen = extract_pen(data)
+    if pen is not None:
+        result['pen'] = pen
+    return result
 
 
 def main():
