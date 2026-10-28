@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Report and drive the torch of the camera flash through the LED class.
+"""Report and drive the flash of the camera through the LED class.
 
 The flash of the camera is a standard LED class device, so any program can
 use it and no helper of this repository is needed at runtime. This script
-reads the limits of the device and can write a torch value and read it
+reads the limits of the device and can write the torch value and read it
 back, which is what a hardware check of the flash needs.
+
+The torch of a flash LED is its ordinary brightness; the strobe has its
+own file and its own limits. The names are the ones of
+Documentation/ABI/testing/sysfs-class-led-flash.
 
 The actual light of the flash is only visible on the device; this script
 reports the state of the controller.
@@ -15,15 +19,18 @@ import json
 from pathlib import Path
 import sys
 
+# The files that tell a flash LED from an ordinary one.
+FLASH_FILES = ('max_flash_brightness', 'flash_brightness')
+
 
 def devices(root):
-    """The LED class devices which carry a torch, in a stable order."""
+    """The LED class devices which can flash, in a stable order."""
     found = []
     leds = root / 'sys/class/leds'
     if not leds.is_dir():
         return found
     for entry in sorted(leds.iterdir()):
-        if (entry / 'torch').exists():
+        if any((entry / name).exists() for name in FLASH_FILES):
             found.append(entry)
     return found
 
@@ -42,9 +49,9 @@ def report(root):
             'name': entry.name,
             'brightness': read_value(entry / 'brightness'),
             'max_brightness': read_value(entry / 'max_brightness'),
-            'torch': read_value(entry / 'torch'),
         }
-        for name in ('flash_max_brightness', 'flash_max_timeout'):
+        for name in ('flash_brightness', 'max_flash_brightness',
+                     'flash_timeout', 'max_flash_timeout'):
             value = read_value(entry / name)
             if not value.startswith('unreadable'):
                 row[name] = value
@@ -58,8 +65,8 @@ def drive(root, value):
     for entry in devices(root):
         written = None
         try:
-            (entry / 'torch').write_text(str(value))
-            written = read_value(entry / 'torch')
+            (entry / 'brightness').write_text(str(value))
+            written = read_value(entry / 'brightness')
         except OSError as error:
             written = f'write failed: {error.strerror}'
         rows.append({'name': entry.name, 'requested': value, 'read_back': written})
