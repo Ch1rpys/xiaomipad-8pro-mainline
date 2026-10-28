@@ -21,6 +21,34 @@ import socket
 import struct
 import time
 
+def main_context():
+    """The GLib main context of the service."""
+    from gi.repository import GLib
+    return GLib.MainContext.default()
+
+
+def wait_for(context, timeout=None):
+    """Block until the main context has an event.
+
+    The context sleeps in poll(), so the service does not wake up while it
+    waits for the pen. A timeout in seconds ends the wait.
+    """
+    from gi.repository import GLib
+    if timeout is None:
+        context.iteration(True)
+        return
+    fired = []
+    source = GLib.timeout_add(max(1, int(timeout * 1000)),
+                              lambda: (fired.append(True), False)[1])
+    try:
+        while not fired:
+            if not context.iteration(True):
+                break
+    finally:
+        if not fired:
+            GLib.source_remove(source)
+
+
 FE11 = '0000fe11-aa6c-462a-964a-7f2ed5b3e512'
 FE12 = '0000fe12-aa6c-462a-964a-7f2ed5b3e512'
 
@@ -250,16 +278,18 @@ class LeScan:
             self.activity = True
 
     def wait(self, stopped):
-        """Wake for BlueZ readiness; two seconds is only the fallback retry."""
+        """Wait for BlueZ readiness without waking up.
+
+        The main context blocks until BlueZ sends something, so the
+        service does not poll while it waits for the pen.
+        """
         context = self.GLib.MainContext.default()
-        until = time.monotonic() + 2
-        while not stopped() and time.monotonic() < until:
-            while context.pending():
-                context.iteration(False)
+        while not stopped():
+            if not context.iteration(True):
+                return
             if self.activity:
                 self.activity = False
                 return
-            time.sleep(.02)
 
     def connect_done(self, connection, result, path):
         self.connecting.discard(path)
@@ -482,7 +512,7 @@ class Pen:
             for serial, value in self.events:
                 if serial > before and value.startswith(response) and (size is None or len(value) == size):
                     return value
-            time.sleep(.01)
+            wait_for(main_context(), .01)
         raise TimeoutError('no response to opcode ' + payload[:1].hex())
 
     def connected(self):
@@ -616,7 +646,9 @@ def main():
                             break
                         pen.follow_dock()
                         pen.follow_screen()
-                    time.sleep(.01)
+                    # Sleep in the main context: the state of the pen is
+                    # looked at once a second, not every ten milliseconds.
+                    wait_for(main_context(), 1.0)
             except InterruptedError:
                 if not stopped:
                     raise
