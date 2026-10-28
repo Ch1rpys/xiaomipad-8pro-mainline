@@ -227,99 +227,10 @@
       "upload": 1
     },
     {
-      "kernel_release": "7.2.10-piano41",
-      "kernel_commit": "5ca79a193aeaf83598169de18ecaa2a340eb025d",
-      "config_sha256": "debfb049dc6cce9156978a56fd790b2962917648c1f8e7e762d556306fd91df0",
+"kernel_release": "7.2.10-piano55",
       "upload": 1,
-      "note": "Incomplete configuration: this build merged only the module-free RAM diagnostic fragment, so the NT36532 panel driver, the backlight driver, the pen dock charger and the persistent storage options are absent from the kernel. Not installable. The packaging defect was fixed in ba5786a; 7.2.10-piano52 is the first build with a complete configuration."
-    },
-    {
-      "kernel_release": "7.2.10-piano42",
-      "kernel_commit": "8a08e8bcfcbcc09c3c9a426421e221a5f34c93cb",
-      "config_sha256": "20e7471ec55172e978951aae9703df6609bbfc6615a370d015569bcdfa397c00",
-      "upload": 1,
-      "note": "Incomplete configuration: this build merged only the module-free RAM diagnostic fragment, so the NT36532 panel driver, the backlight driver, the pen dock charger and the persistent storage options are absent from the kernel. Not installable. The packaging defect was fixed in ba5786a; 7.2.10-piano52 is the first build with a complete configuration."
-    },
-    {
-      "kernel_release": "7.2.10-piano43",
-      "kernel_commit": "1169454cbae0565c27e7cea3a5e78ae05b1a1c03",
-      "config_sha256": "5af81d3aa2dba762ac599f71c6dfd21242499d216eac793a38d74dc0a88491d9",
-      "upload": 1,
-      "note": "Incomplete configuration: this build merged only the module-free RAM diagnostic fragment, so the NT36532 panel driver, the backlight driver, the pen dock charger and the persistent storage options are absent from the kernel. Not installable. The packaging defect was fixed in ba5786a; 7.2.10-piano52 is the first build with a complete configuration."
-    },
-    {
-      "kernel_release": "7.2.10-piano44",
-      "kernel_commit": "1c504d5d871132d6ed1eae55d6700eb17e0fcc2a",
-      "config_sha256": "d187c604482dd14d2efd9e04399c31dbef1b5e4a12ae0072858faac1c58b321c",
-      "upload": 1,
-      "note": "Incomplete configuration: this build merged only the module-free RAM diagnostic fragment, so the NT36532 panel driver, the backlight driver, the pen dock charger and the persistent storage options are absent from the kernel. Not installable. The packaging defect was fixed in ba5786a; 7.2.10-piano52 is the first build with a complete configuration."
-    },
-    {
-      "kernel_release": "7.2.10-piano45",
-      "kernel_commit": "3a382020ef75ef3a74750acbdfff3ebc3a82ff32",
-      "config_sha256": "956f096b43399875013b14cdfc51a53e9614b813fe4be0a5eea42707c34e2374",
-      "upload": 1,
-      "note": "Incomplete configuration: this build merged only the module-free RAM diagnostic fragment, so the NT36532 panel driver, the backlight driver, the pen dock charger and the persistent storage options are absent from the kernel. Not installable. The packaging defect was fixed in ba5786a; 7.2.10-piano52 is the first build with a complete configuration."
-    },
-    {
-      "kernel_release": "7.2.10-piano46",
-      "kernel_commit": "24b58835f3707197468ce23f2ebe9128ae449f3d",
-      "config_sha256": "78042a4279508c590062cc7fba4f2caf38c7bdb49025938ae666956bfda4b566",
-      "upload": 1,
-      "note": "Incomplete configuration: this build merged only the module-free RAM diagnostic fragment, so the NT36532 panel driver, the backlight driver, the pen dock charger and the persistent storage options are absent from the kernel. Not installable. The packaging defect was fixed in ba5786a; 7.2.10-piano52 is the first build with a complete configuration."
-    },
-    {
-      "kernel_release": "7.2.10-piano47",
-      "kernel_commit": "7c34ecefd15ecb69e33c35040b20b126ad1ab227",
-      "config_sha256": "e1ac2240948ec8859dc62036111b55c5ddb68881ca14e2237d8fdcb5ce75c958",
-      "upload": 1,
-      "note": "Incomplete configuration: this build merged only the module-free RAM diagnostic fragment, so the NT36532 panel driver, the backlight driver, the pen dock charger and the persistent storage options are absent from the kernel. Not installable. The packaging defect was fixed in ba5786a; 7.2.10-piano52 is the first build with a complete configuration."
-    },
-    {
-      "kernel_release": "7.2.10-piano48",
-      "kernel_commit": "d0c2c2e78df5a4b5e4d1a029c85be84b2a3f72ec",
-      "config_sha256": "d8de2e62854a048c3399623b8e2f6541282b7e77303bfd7e2df68933b52ebbb5",
-      "upload": 1,
-      "note": "Incomplete configuration: this build merged only the module-free RAM diagnostic fragment, so the NT36532 panel driver, the backlight driver, the pen dock charger and the persistent storage options are absent from the kernel. Not installable. The packaging defect was fixed in ba5786a; 7.2.10-piano52 is the first build with a complete configuration."
-    },
-    {
-      "kernel_release": "7.2.10-piano49",
-      "kernel_commit": "84e9fe2fdc6e5a9a5dec814a0fcbefe829b96577",
-      "config_sha256": "720483ad0b34d474845b9fde2c91109fcbb4737889184c02a803fffd38199cae",
-      "upload": 1,
-      "note": "Incomplete configuration: this build merged only the module-free RAM diagnostic fragment, so the NT36532 panel driver, the backlight driver, the pen dock charger and the persistent storage options are absent from the kernel. Not installable. The packaging defect was fixed in ba5786a; 7.2.10-piano52 is the first build with a complete configuration."
-    },
-    {
-      "kernel_release": "7.2.10-piano50",
-      "kernel_commit": "f979363491c6a4b72d91b3f0deb1f1e3cd927535",
-      "config_sha256": "b857a2aefd07a023457a517f57d56b14d6363e28bbeccccb01c8da9c2bf6eb5e",
-      "upload": 1,
-      "note": "Incomplete configuration: this build merged only the module-free RAM diagnostic fragment, so the NT36532 panel driver, the backlight driver, the pen dock charger and the persistent storage options are absent from the kernel. Not installable. The packaging defect was fixed in ba5786a; 7.2.10-piano52 is the first build with a complete configuration."
-    },
-    {
-      "kernel_release": "7.2.10-piano51",
-      "kernel_commit": "8f83afb7bc90927ce1cdff700f9ef573477744d5",
-      "config_sha256": "89831c85f56f5c66e00e270e515271c5882c76283f7aa79ecee46b37ae01e496",
-      "upload": 1,
-      "note": "Incomplete configuration: this build merged only the module-free RAM diagnostic fragment, so the NT36532 panel driver, the backlight driver, the pen dock charger and the persistent storage options are absent from the kernel. Not installable. The packaging defect was fixed in ba5786a; 7.2.10-piano52 is the first build with a complete configuration."
-    },
-    {
-      "kernel_release": "7.2.10-piano52",
-      "kernel_commit": "b3e97504756051acdde753ba3dfc2d516b450113",
-      "config_sha256": "8ddfc1719d89ead84603794bff9e75dc94b9d78a2381933cd3e8dbcc769797ff",
-      "upload": 1
-    },
-    {
-      "kernel_release": "7.2.10-piano53",
-      "kernel_commit": "90475b7b1b19418edce14604e9c600e0ea8e0b38",
-      "config_sha256": "86b1bb934c903771e381bdbee382659d7b4852bd389f9526ffcac790c2dbcced",
-      "upload": 2
-    },
-    {
-      "kernel_release": "7.2.10-piano54",
-      "upload": 1,
-      "kernel_commit": "bdd6ace055ea9634dc142d62a815d7a1991ea280",
-      "config_sha256": "7d1b4c7eca0761a27f0203ca5ce56b6a550bfa1bdb676ac9486e192cb87c0462"
+      "kernel_commit": "08124ad9cb872697d833d535167f70518d03e53f",
+      "config_sha256": "b73b235c14689f51d0fbc81e94b56e5da31c8c5070a58153da3c96480a9939c7"
     }
   ]
 }

@@ -5,8 +5,8 @@
   "upstream_tag": "v7.2.10",
   "upstream_commit": "7b20d05fd38de8e0be168956f6fd241d750c7d69",
   "url": "https://github.com/Ch1rpys/linux-sm8750-piano",
-  "commit": "bdd6ace055ea9634dc142d62a815d7a1991ea280",
-  "branch": "feature/integration-v2",
+  "commit": "08124ad9cb872697d833d535167f70518d03e53f",
+  "branch": "feature/integration-v3",
   "config": "arch/arm64/configs/piano-diagnostic.config",
   "release_config_fragments": [
     "arch/arm64/configs/piano-diagnostic.config",
@@ -15,5 +15,5 @@
     "arch/arm64/configs/piano-release.config"
   ],
   "note": "The kernel release fragments remain in the kernel source and are merged in order. tools/build-kernel.sh then applies kernel_release to CONFIG_LOCALVERSION for package ABI allocation without a kernel-only release commit; all other configuration remains unchanged. kernel/abi.json binds the final commit and .config. The pinned commit is on the contributor fork until the change is merged upstream; move the url and commit back to the upstream repository once it is.",
-  "kernel_release": "7.2.10-piano54"
+  "kernel_release": "7.2.10-piano55"
 }
