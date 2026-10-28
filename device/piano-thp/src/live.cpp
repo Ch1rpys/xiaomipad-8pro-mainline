@@ -103,6 +103,13 @@ int main(int argc, char **argv) {
             std::cerr << "THP calibration carries no pen facts, the pen path stays off: "
                       << error.what() << '\n';
         }
+        // A failure of the pen path must not take the finger path down.
+        const auto pen_failed = [&](const char *what, const std::exception &error) {
+            std::cerr << "Pen path failed (" << what << "): " << error.what()
+                      << "; the pen path stays off\n";
+            pen.reset();
+            pen_input.reset();
+        };
         const auto report_pen = [&] {
             if (!pen || !pen_input)
                 return;
@@ -115,7 +122,12 @@ int main(int argc, char **argv) {
         }, [&](const nvt::PenFrame &frame, uint64_t timestamp_ns) {
             if (!pen)
                 return;
-            pen->feed(frame, timestamp_ns);
+            try {
+                pen->feed(frame, timestamp_ns);
+            } catch (const std::exception &error) {
+                pen_failed("cannot read the pen frames", error);
+                return;
+            }
             report_pen();
         });
         nvt::StreamReader reader;
@@ -141,11 +153,18 @@ int main(int argc, char **argv) {
             pen_fd = open(("/dev/" + *node).c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC);
             if (pen_fd < 0)
                 return;
-            const auto &info = pen->info();
-            pen_input = std::make_unique<nvt::UInputPen>(info.y_max, info.x_max, info.pressure_max,
-                                                         info.tilt_min, info.tilt_max,
-                                                         int(std::lround(info.y_max / kPanelWidthMm)),
-                                                         int(std::lround(info.x_max / kPanelHeightMm)));
+            try {
+                const auto &info = pen->info();
+                pen_input = std::make_unique<nvt::UInputPen>(info.y_max, info.x_max, info.pressure_max,
+                                                             info.tilt_min, info.tilt_max,
+                                                             int(std::lround(info.y_max / kPanelWidthMm)),
+                                                             int(std::lround(info.x_max / kPanelHeightMm)));
+            } catch (const std::exception &error) {
+                close(pen_fd);
+                pen_fd = -1;
+                pen_failed("cannot create the pen input", error);
+                return;
+            }
             std::cerr << "Pen connected; input=" << pen_input->sysname() << '\n';
         };
         open_pen();
@@ -171,7 +190,11 @@ int main(int argc, char **argv) {
                 } else if (watches[1].revents & POLLIN) {
                     const ssize_t size = read(pen_fd, report.data(), report.size());
                     if (size > 0 && pen) {
-                        pen->feedReport(report.data(), size, bootTimeNs());
+                        try {
+                            pen->feedReport(report.data(), size, bootTimeNs());
+                        } catch (const std::exception &error) {
+                            pen_failed("cannot read the pen reports", error);
+                        }
                         report_pen();
                     }
                 }
@@ -193,8 +216,14 @@ int main(int argc, char **argv) {
                 });
             }
             pipeline.expire(bootTimeNs());
-            if (pen && pen->expire(bootTimeNs()))
-                report_pen();
+            if (pen) {
+                try {
+                    if (pen->expire(bootTimeNs()))
+                        report_pen();
+                } catch (const std::exception &error) {
+                    pen_failed("cannot expire the pen state", error);
+                }
+            }
             if (pen && !pen_input)
                 open_pen();
         }
